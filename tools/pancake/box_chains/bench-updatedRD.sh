@@ -4,32 +4,52 @@
 #   (a) plain   = github.com/nicejunjie/Strata-rdna3 main at $RD_SHA (default 8b01b0c85, 2026-11-15), its own documented flags (README "Manual build")
 #   (b) updated = origin updated-strata-rdna3 (the selective port of the adopted pancake enhancements) built by tools/pancake/build_updated_rdna3.sh
 # Workloads of the upstream benchmark: short, edit (code edit), long 10000 / 32000 / 64000 / 100000 tokens; decode tok/s and prompt tok/s, generated text vs
-# base (identical = exact); the A/B harness is tools/pancake/abtest.py of origin port/rdna3-decode (spec 250), a screen first, then the confirm: --block 3,
-# 5 reps, arms serialized (one engine at a time, A B B A).
-# Rules (standing): waits for WINCHAINAA_DONE in redo-chainAA.log AND WINBENCHUS_DONE in bench-updatedAA.log; then 3 minutes without a client on port 11437;
-# pancake.service is stopped only after that and started again at the end; box jobs never overlap (3 idle minutes before the first step, busy() sees every
-# other job); nothing is killed or deleted; sources are synced with `tar xmf` semantics (mtimes reset, else ninja keeps stale objects); builds go OUTSIDE / to
-# /mnt/pancake/benchRD and stop when it has < 2 GB free; a failed configure / build / missing binary logs ERROR, puts the previous binary back (cp over, nothing
-# removed), starts the service and STOPS the chain (never a silent skip); the DONE marker is the last line: WINBENCHRD_DONE (also after an abort).
-# Order: 0 wait | 1 stop service, sync three trees | 2 build plain, build updated | 3 parity ctests of the updated build | 4 flag diagnostics (both builds, <= 35 min)
-#        | 5 spec 250 screen | 6 spec 250 confirm | 7 spec 251 screen (hipblaslt table 100401, learned profile; no confirm here) | 8 service back.
-# Estimate (hours, box idle): sync 0.2, builds 2 x (1.0 - 1.5), ctests 0.1, diagnostics 0.6, screen 0.5, confirm 2.2 (three arms), spec 251 screen 0.4 => about 6.7 h, worst case 8.0 h (target <= 8 h).
+# base (identical = exact); the A/B harness is tools/pancake/abtest.py of origin port/rdna3-decode (spec 250).
+# Start: normally launched by bench-sched.sh (BENCH_SCHED=1, BENCH_PREIDLED=1, BENCH_KEEP_SERVICE_DOWN=1) right after bench-updatedAA.sh: the scheduler froze the AA
+# shell (SIGSTOP), waited for an idle box and resumes AA after this chain.  Standalone (no BENCH_SCHED) it still waits for WINCHAINAA_DONE and WINBENCHUS_DONE.
+# SHORT PLAN (owner order 2026-11-19: not multiple hours; target <= 2 h of box time, hard budget BENCH_BUDGET_S = 7200 s, optional passes skipped when it is over).
+# Two-pass protocol: spec 250 (3 arms x short, edit, long 10K..100K) is a SCREEN first (1 start per arm + the base again, drift check; the long prompts need no more:
+# paired SD 1.3 %); the CONFIRM (3 reps of short + edit, the decode cases: paired SD 3.2 % / 2.7 %) runs only for arms that earned it in the screen (>= 1.0 %
+# lossless / >= 1.5 % lossy, chainT-decide.py); arms without a screen benefit get no confirm.  Spec 251 (table + learned profile) is a short screen (short + long32k,
+# no drift arm), its confirm only when the budget has 40 minutes left.
+# Builds: plain and updated tree one after the other, ninja -j8, on /mnt/pancake, no idle wait between them.  Idle waits: the scheduler's 3 minutes once;
+# here ~30 s (two clean polls) before each PART (ctest + tune-up + diagnostics, spec 250, spec 251), none between steps of a part.
+# Rules (standing): pancake.service is stopped only after 3 minutes without a client on port 11437 (already stopped under the scheduler: AA keeps it down); box jobs
+# never overlap (busy() sees every other job; a FROZEN AA shell is not a job, an AA shell that is not stopped is); nothing is killed or deleted; sources are synced
+# with `tar xmf` semantics (mtimes reset, else ninja keeps stale objects); builds go OUTSIDE / to /mnt/pancake/benchRD and stop when it has < 2 GB free; a failed
+# configure / build / missing binary logs ERROR, puts the previous binary back (cp over, nothing removed), and STOPS the chain (never a silent skip); the DONE
+# marker is the last line: WINBENCHRD_DONE (also after an abort).
+# Order: 0 wait | 1 stop service, sync three trees | 2 build plain, build updated | 3 parity ctests | 4 TUNE-UP (<= 30 min): flag_diag.py hardware, pcie_link.py, host_tune.sh
+#        --check, host_tune_ab.sh plan, os_tune.sh (check; no sudo, nothing applied), flag diagnostics of the updated build (POOL_FUSE_PHASES exact + ctest parity, VERIFY_ECAP
+#        lossy + ctest, PF_F16, RDNA_MMVQ_WAVE exact, KV_HOST_DMA exact; 20 min; the plain build's diagnostics are dropped: its two flags are the updated build's own and are
+#        judged by spec 250; HIPBLASLT_TUNING and EXPERT_PROFILE are dropped from the diagnostics: spec 251 measures exactly those two) | 5 spec 250 screen, decide, confirm |
+#        6 spec 251 screen | 7 recommended-flags file from the verdicts | 8 summary (service stays down under the scheduler).
+# Verdicts: /home/dan/auto-runs/benchRD-diag-updated/ (verdicts.json, abtest.stdout), benchRD-tuneup/, benchRD-recommended/, benchRD-250-*.jsonl / .stdout.
+# Estimate (minutes, box idle): sync 5, builds 2 x 5-10, ctests 3, tune-up 5 + diagnostics 20, 250 screen 30, 250 confirm 25, 251 screen 15 => about 115 min, worst case 125 (target <= 120).
 S=/home/dan/clone-of-d/src; R=$S/Strata-win; L=$S/bench-updatedRD.log; O=/home/dan/auto-runs; T=$O/benchRD; PM=/mnt/pancake/benchRD
 CM=/home/linuxbrew/.linuxbrew/bin/cmake
 PLAIN_SRC=$PM/src-plain; UPD_SRC=$PM/src-updated; TOOLS=$PM/src-pancake
 BP=$PM/build-plain; BU=$PM/build-updated; ROCM=/opt/rocm/core-10.0
+DEC=$S/chainT-decide.py; T0=$(date +%s); BUDGET=${BENCH_BUDGET_S:-7200}
 RD_SHA=${RD_SHA:-8b01b0c8512d388552e8601b3aff6753d05286e0}
 export PATH=$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
 mkdir -p $T $PM $PM/bak
 echo "START $(date +%F_%T)" >> $L
-busy() { pgrep -f "[c]make --build|[n]inja|[c]lang|[c]c1plus|[c]test|[a]btest.py|[t]ask_gate.py|[r]eplay_turns.py|[q]uality_gate.py|[n]ight_queue.py|[s]erve/server.py|[s]trata --serve|[c]onv_trace.py|[a]uto-chain|[a]uto-post|[i]q_avx2_parity|[t]tft_bench.py|[w]in-chain[A-Za-z0-9]*\.sh|[x-z]tail-chain[A-Z]\.sh|[r]edo-chain[A-Z]*\.sh|[a]fter7" >/dev/null 2>&1; }
-wait_idle() { q=0; while [ $q -lt 3 ]; do if busy; then q=0; sleep 60; else q=$((q+1)); sleep 60; fi; done; }
+busy() { pgrep -f "[c]make --build|[n]inja|[c]lang|[c]c1plus|[c]test|[a]btest.py|[t]ask_gate.py|[r]eplay_turns.py|[q]uality_gate.py|[n]ight_queue.py|[s]erve/server.py|[s]trata --serve|[c]onv_trace.py|[a]uto-chain|[a]uto-post|[i]q_avx2_parity|[t]tft_bench.py|[w]in-chain[A-Za-z0-9]*\.sh|[x-z]tail-chain[A-Z]\.sh|[a]fter7" >/dev/null 2>&1; }
+# a FROZEN (state T) AA shell is not a running job; an AA shell that is not stopped is (standalone start without the scheduler)
+aa_live() { for p in $(pgrep -f "[r]edo-chainAA\.sh" 2>/dev/null); do case "$(ps -o stat= -p $p 2>/dev/null)" in T*) ;; *) return 0;; esac; done; return 1; }
+bz() { busy || aa_live; }
+QI=${BENCH_PREIDLED:-0}   # 1: the scheduler already waited 3 idle minutes; every wait here is the quick one (two clean polls of 15 s)
+wait_idle() { if [ "$QI" = 1 ]; then q=0; while [ $q -lt 2 ]; do if bz; then q=0; sleep 15; else q=$((q+1)); sleep 15; fi; done; else q=0; while [ $q -lt 3 ]; do if bz; then q=0; sleep 60; else q=$((q+1)); sleep 60; fi; done; QI=1; fi; }
+elapsed() { echo $(( $(date +%s) - T0 )); }
+left_ok() { [ $(( BUDGET - $(elapsed) )) -ge "$1" ]; }   # left_ok SECONDS: at least that much of the budget is left
+service_back() { if [ "${BENCH_KEEP_SERVICE_DOWN:-0}" = 1 ]; then say "service stays down (the AA chain is resumed next and needs the box without the service) $(date +%T)"; else systemctl --user start pancake.service; say "service started $(date +%T)"; fi; }
 clients() { ss -Htn state established '( sport = :11437 )' 2>/dev/null | wc -l; }
 freekb() { df -Pk "$1" | awk 'NR==2{print $4}'; }
 say() { echo "$*" >> $L; }
 abort() {  # abort MESSAGE: ERROR line + marker, service back, STOP
   say "ERROR $*"; say "WINBENCHRD_ABORTED: $*"
-  systemctl --user start pancake.service; say "service started $(date +%T); / free $(freekb /) KB, /mnt/pancake free $(freekb /mnt/pancake) KB"
+  service_back; say "/ free $(freekb /) KB, /mnt/pancake free $(freekb /mnt/pancake) KB"
   echo WINBENCHRD_DONE >> $L; exit 1
 }
 fetch() {  # fetch REPO REF DEST: codeload tarball of a GitHub repo at a ref (a branch name is resolved to its commit first), unpacked with mtimes reset
@@ -49,7 +69,7 @@ build() {  # build NAME BUILDDIR cmd...: guarded; the previous binary is copied 
   nm=$1; bd=$2; shift 2
   [ "$(freekb /mnt/pancake)" -ge 2097152 ] || abort "BUILD $nm: /mnt/pancake has $(freekb /mnt/pancake) KB free (< 2 GB); nothing was deleted"
   [ -x $bd/strata ] && cp -p $bd/strata $PM/bak/strata.$nm.prev && say "BUILD backup of the previous $bd/strata ($nm)"
-  wait_idle; say "BUILD $nm $(date +%T) (/mnt/pancake free $(freekb /mnt/pancake) KB)"
+  say "BUILD $nm $(date +%T) (/mnt/pancake free $(freekb /mnt/pancake) KB)"
   "$@" > $T/build-$nm.log 2>&1; rc=$?
   say "BUILD_END $nm exit=$rc $(date +%T)"
   if [ $rc -ne 0 ]; then
@@ -63,17 +83,21 @@ build() {  # build NAME BUILDDIR cmd...: guarded; the previous binary is copied 
 ab() {  # ab SPEC PREFIX flags...: abtest from the pancake tools tree, one engine at a time
   sp=$1; pfx=$2; shift 2
   [ "$(freekb /)" -ge 307200 ] || abort "AB $pfx: / has < 300 MB free"
-  wait_idle; say "START $pfx $(date +%F_%T)"
+  say "START $pfx $(date +%F_%T)"
   ( cd $TOOLS && python3 tools/pancake/abtest.py $sp "$@" --out $O/benchRD-$pfx.jsonl ) > $O/benchRD-$pfx.stdout 2>&1; rc=$?
   say "END $pfx exit=$rc $(date +%T)"
   return $rc
 }
 
-# ------------------------------------------------------------------ 0. wait for chain AA and the upstream benchmark, then 3 idle minutes without a client
-until grep -q WINCHAINAA_DONE $S/redo-chainAA.log 2>/dev/null && grep -q WINBENCHUS_DONE $S/bench-updatedAA.log 2>/dev/null; do sleep 300; done
-say "chain AA and the upstream benchmark are done $(date +%T)"
-q=0; while [ $q -lt 3 ]; do if [ "$(clients)" -gt 0 ]; then q=0; say "WAIT service has clients $(date +%T)"; else q=$((q+1)); fi; sleep 60; done
-systemctl --user stop pancake.service; say "service stopped (idle) $(date +%T)"
+# ------------------------------------------------------------------ 0. (standalone: wait for chain AA and the upstream benchmark), service stopped
+if [ "${BENCH_SCHED:-0}" != 1 ]; then
+  until grep -q WINCHAINAA_DONE $S/redo-chainAA.log 2>/dev/null && grep -q WINBENCHUS_DONE $S/bench-updatedAA.log 2>/dev/null; do sleep 300; done
+  say "chain AA and the upstream benchmark are done $(date +%T)"
+else say "started by the scheduler: the AA shell is frozen, the upstream benchmark is done $(date +%T)"; fi
+if systemctl --user is-active --quiet pancake.service; then
+  q=0; while [ $q -lt 3 ]; do if [ "$(clients)" -gt 0 ]; then q=0; say "WAIT service has clients $(date +%T)"; else q=$((q+1)); fi; sleep 60; done
+  systemctl --user stop pancake.service; say "service stopped (idle) $(date +%T)"
+else say "service already stopped"; fi
 echo 1 | sudo -n tee /proc/sys/vm/compact_memory >/dev/null
 wait_idle
 say "SYNC start $(date +%T) df / = $(freekb /) KB, /mnt/pancake = $(freekb /mnt/pancake) KB"
@@ -88,6 +112,7 @@ SPEC=$TOOLS/bench/specs/250-rdna3-updated-vs-plain.json
 
 # ------------------------------------------------------------------ 1. builds
 NINJA=$S/Strata/.venv/bin/ninja
+wait_idle
 build plain $BP sh -c "HIP_PLATFORM=amd ROCM_PATH=$ROCM HIP_PATH=$ROCM $CM -S $PLAIN_SRC -B $BP -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTRATA_ENABLE_HIP=ON \
   -DSTRATA_ENABLE_CUDA=OFF -DSTRATA_PREFILL_MMQ=ON -DSTRATA_MMQ_KQUANTS=ON -DCMAKE_HIP_ARCHITECTURES=gfx1100 -DCMAKE_HIP_COMPILER=$ROCM/lib/llvm/bin/clang++ \
   -DCMAKE_PREFIX_PATH=$ROCM -DSTRATA_GGML_DIR=/home/dan/clone-of-d/build-int/_deps/strata_llamacpp-src -DCMAKE_MAKE_PROGRAM=$NINJA && \
@@ -105,34 +130,70 @@ python3 $UPD_SRC/tools/pancake/box_chains/bench_updatedRD_conf.py $S/Strata/panc
     $T/config-plain.json $T/config-updated.json >> $L 2>&1 || abort "CONFIG: bench_updatedRD_conf.py failed"
 say "CONFIG written: $T/config-plain.json $T/config-updated.json"
 
-# ------------------------------------------------------------------ 4. flag diagnostics on both builds (budget 30 min: updated 4 flags + base, plain 2 flags + base)
-diag() {  # diag NAME CONFIG FLAGS [CTEST_DIR]
+# ------------------------------------------------------------------ 4. TUNE-UP (<= 30 min, read-only): hardware, PCIe link, host tuning checks, flag diagnostics of the updated build
+tuneup_checks() {  # sysfs / proc reads only: no sudo, no sysctl write, nothing applied (`os_tune.sh` without argument is its check; `host_tune_ab.sh plan` prints the order)
+  td=$UPD_SRC/tools/pancake; od=$O/benchRD-tuneup; mkdir -p $od
+  python3 $td/flag_diag.py --hardware > $od/hardware.json 2>&1; say "HARDWARE $(tr -d '\n ' < $od/hardware.json | cut -c1-300)"
+  timeout 120 python3 $td/pcie_link.py > $od/pcie_link.txt 2>&1; say "TUNEUP pcie_link exit=$? $(tail -n 3 $od/pcie_link.txt | tr '\n' ' ' | cut -c1-240)"
+  timeout 120 sh $td/host_tune.sh --check > $od/host_tune_check.txt 2>&1; say "TUNEUP host_tune --check exit=$? $(tail -n 4 $od/host_tune_check.txt | tr '\n' ' ' | cut -c1-240)"
+  timeout 120 sh $td/host_tune_ab.sh plan > $od/host_tune_ab_plan.txt 2>&1; say "TUNEUP host_tune_ab plan exit=$? (the A/B itself changes sysctl and is the owner's)"
+  timeout 120 sh $td/os_tune.sh > $od/os_tune_check.txt 2>&1; say "TUNEUP os_tune check exit=$? $(tail -n 3 $od/os_tune_check.txt | tr '\n' ' ' | cut -c1-240)"
+}
+diag() {  # diag NAME CONFIG FLAGS [CTEST_DIR]: one abtest screen of the base and one arm per flag (the harness of flag_diag.py), ctest parity per flag
   nm=$1; cf=$2; fl=$3; ct=${4:-}
-  wait_idle; say "START diag-$nm $(date +%F_%T)"
-  ( cd $TOOLS && timeout 1800 python3 $UPD_SRC/tools/pancake/flag_diag.py run --config $cf --flags $fl --abtest $TOOLS/tools/pancake/abtest.py --out $T/diag-$nm \
-      ${ct:+--ctest $ct} ) > $T/diag-$nm.stdout 2>&1; rc=$?
+  say "START diag-$nm $(date +%F_%T)"
+  ( cd $TOOLS && timeout 1500 python3 $UPD_SRC/tools/pancake/flag_diag.py run --config $cf --flags $fl --abtest $TOOLS/tools/pancake/abtest.py --out $O/benchRD-diag-$nm \
+      ${ct:+--ctest $ct} ) > $O/benchRD-diag-$nm.stdout 2>&1; rc=$?
   say "END diag-$nm exit=$rc $(date +%T)"
-  cut -c1-200 $T/diag-$nm.stdout >> $L
+  cut -c1-200 $O/benchRD-diag-$nm.stdout >> $L
+  [ -f $O/benchRD-diag-$nm/verdicts.json ] || say "ERROR diag-$nm wrote no verdicts.json (the benchmark goes on)"
   return $rc
 }
-diag updated $T/config-updated.json POOL_FUSE_PHASES,VERIFY_ECAP,PF_F16,HIPBLASLT_TUNING,EXPERT_PROFILE $BU
-diag plain $T/config-plain.json PF_F16,HIPBLASLT_TUNING
+tuneup_checks
+diag updated $T/config-updated.json POOL_FUSE_PHASES,VERIFY_ECAP,PF_F16,RDNA_MMVQ_WAVE,KV_HOST_DMA $BU
+say "TUNEUP done after $(elapsed) s"
 
-# ------------------------------------------------------------------ 5. spec 250: screen, then the confirm (5 reps, blocks of 3, drift check; the arms differ by binary and by the shipped recommended flags)
+# ------------------------------------------------------------------ 5. spec 250: screen, decide, confirm (3 reps of the decode cases) for the arms that earned it
+decide() {  # decide NAME SPEC [CASES_JSON]: 0 and ${T}/NAME-confirm.json when an arm earned the confirm (cases cut to the decode cases), 1 when not
+  rm -f "${T:?}/$1-confirm.json"
+  python3 $DEC $O/benchRD-$1-screen.stdout $2 $T/$1-confirm.json > $T/$1-decide.txt 2>&1
+  grep -E "WIN|CONFIRM|NONE|dropped" $T/$1-decide.txt | cut -c1-230 >> $L
+  [ -s $T/$1-confirm.json ] || return 1
+  python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["cases"]=json.loads(sys.argv[2]); d["drift_check"]=False; json.dump(d,open(p,"w"),indent=1)' $T/$1-confirm.json "${3:-[\"short\",\"edit\"]}"
+  return 0
+}
 sed "s#@PLAIN@#$BP#; s#@UPDATED@#$BU#; s#@CONFIG_PLAIN@#$T/config-plain.json#" $SPEC > $T/250.json
-ab $T/250.json 250-screen --tier screen --drift-check
+wait_idle
+ab $T/250.json 250-screen --tier screen --drift-check; rc1=$?
 grep -E "vs base|identical|DIFFERENT" $O/benchRD-250-screen.stdout | cut -c1-200 >> $L
-ab $T/250.json 250-confirm --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5 --drift-check
-grep -E "vs base|identical|DIFFERENT" $O/benchRD-250-confirm.stdout | cut -c1-200 >> $L
+if [ $rc1 -ne 0 ]; then say "ERROR spec 250 screen exit=$rc1 (log $O/benchRD-250-screen.stdout); no confirm"
+elif decide 250 $T/250.json; then
+  if left_ok 1800; then
+    ab $T/250-confirm.json 250-confirm --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 3 --no-early-stop; rc1=$?
+    grep -E "vs base|identical|DIFFERENT" $O/benchRD-250-confirm.stdout | cut -c1-200 >> $L
+  else say "SKIP 250 confirm: only $(( BUDGET - $(elapsed) )) s of the budget left (the screen numbers stand)"; fi
+else say "250: no arm with a benefit in the screen: no confirm (dropped after pass 1: no benefit observed, n=1 pass, not a refutation)"; fi
 
-# ------------------------------------------------------------------ 6. spec 251: the 100401 table and the learned profile against the updated build's own table and profile (screen only: a GAIN here needs a confirm later)
+# ------------------------------------------------------------------ 6. spec 251: the 100401 table and the learned profile against the updated build's own table and profile (screen of short + long32k, no drift arm)
 SPEC2=$TOOLS/bench/specs/251-rdna3-hipblaslt-and-profile.json
+rc2=0
 if [ -f $SPEC2 ]; then
   sed "s#@UPDATED_SRC@#$UPD_SRC#g; s#@UPDATED@#$BU#g; s#@CONFIG_PLAIN@#$T/config-plain.json#" $SPEC2 > $T/251.json
-  ab $T/251.json 251-screen --tier screen --drift-check
+  python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["cases"]=["short","long32k"]; d["drift_check"]=False; json.dump(d,open(p,"w"),indent=1)' $T/251.json
+  wait_idle
+  ab $T/251.json 251-screen --tier screen; rc2=$?
   grep -E "vs base|identical|DIFFERENT" $O/benchRD-251-screen.stdout | cut -c1-200 >> $L
-else say "ERROR spec 251 is missing in the synced pancake tree ($SPEC2); the table / profile arms did not run"; fi
+  if [ $rc2 -eq 0 ] && decide 251 $T/251.json '["short","long32k"]'; then
+    if left_ok 2400; then ab $T/251-confirm.json 251-confirm --tier confirm --reps 3 --no-early-stop; rc2=$?
+    else say "251 confirm not run: only $(( BUDGET - $(elapsed) )) s of the budget left (< 2400 s); a GAIN here needs a confirm later"; fi
+  fi
+else say "ERROR spec 251 is missing in the synced pancake tree ($SPEC2); the table / profile arms did not run"; rc2=1; fi
 
-# ------------------------------------------------------------------ 7. back
-systemctl --user start pancake.service; say "service started $(date +%T); / free $(freekb /) KB, /mnt/pancake free $(freekb /mnt/pancake) KB"
+# ------------------------------------------------------------------ 7. recommended-flags file from the verdicts (only exact or gate-passing GAIN flags enter it), service
+if [ -f $O/benchRD-diag-updated/verdicts.json ]; then
+  python3 -c 'import sys,json; sys.path.insert(0,sys.argv[1]); import tuned_flags as tf; hw=tf.detect_hardware(); v=json.load(open(sys.argv[2])); print("wrote", tf.write_recommended(hw,v,sys.argv[3]))' \
+    $UPD_SRC/rdna3 $O/benchRD-diag-updated/verdicts.json $O/benchRD-recommended >> $L 2>&1 || say "ERROR the recommended-flags file was not written"
+fi
+say "SUMMARY spec250 exit=$rc1, spec251 exit=$rc2, box time $(elapsed) s; results in $O (benchRD-*); the recommended-flags file (not installed): $O/benchRD-recommended/"
+service_back; say "/ free $(freekb /) KB, /mnt/pancake free $(freekb /mnt/pancake) KB"
 echo WINBENCHRD_DONE >> $L

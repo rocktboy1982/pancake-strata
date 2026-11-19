@@ -122,7 +122,7 @@ run on the box: TO BE MEASURED.
 ## 4. Benchmark: plain Strata-rdna3 against this branch (TO BE MEASURED)
 Plan: `tools/pancake/box_chains/bench-updatedRD.sh` builds plain Strata-rdna3 `8b01b0c85` with its documented flags and this branch with
 `build_updated_rdna3.sh`, runs the parity tests, the flag diagnostics, spec 250 (screen, then 5 repeats in blocks of 3, one engine at a time, text compared with
-the plain arm) and spec 251 (screen only: the 100401 table and the learned profile against the updated build's own). Workloads: short chat and code edit (decode tok/s), cold prompts of 10,000 / 32,000 / 64,000 / 100,000 tokens (prompt tok/s). Estimated time about 6.7 hours (worst case 8.0).
+the plain arm) and spec 251 (screen only: the 100401 table and the learned profile against the updated build's own). Workloads: short chat and code edit (decode tok/s), cold prompts of 10,000 / 32,000 / 64,000 / 100,000 tokens (prompt tok/s). Short plan (screen first, confirm only for arms with a screen benefit, 3 reps, tune-up included): about 1.9 hours of box time, budget 2 hours (`bench-sched.sh` runs it before the rest of the box queue).
 
 | case | plain | updated | change | text identical |
 |---|---|---|---|---|
