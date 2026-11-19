@@ -1098,12 +1098,14 @@ def test_updated_vs_upstream_specs_match_the_preset():
         pa = preset["args"]
         got = {pa[i]: pa[i + 1] for i in range(0, len(pa), 2)}
         base = {plain["args"][i]: plain["args"][i + 1] for i in range(0, len(plain["args"]), 2)}
-        assert arm["args"] == {k: v for k, v in got.items() if k not in base}
+        assert arm["args"] == {k: v for k, v in got.items() if k not in base or base[k] != v}   # extras, plus what differs (--expert-profile)
     assert plain["env"] == {}
     pa = plain["args"]
     flags = {pa[i]: pa[i + 1] for i in range(0, len(pa), 2)}
     # v0.2.16: "a native (IQ) pack needs --native SHARD1, --spec T (T >= 2) and --prefill CHUNK" (generate.cpp): without them the engine exits at once
     assert int(flags["--spec"]) >= 2 and flags["--prefill"] and flags["--native"].endswith(".gguf")
+    # v0.2.16 refuses --spec verify without a profile-filled expert tier: the plain arm uses upstream's own profile
+    assert flags["--expert-profile"].endswith("terminal/data/expert-profile.bin")
 
 
 # ------------------------------------------------------------------------------------------------ bench-updatedRD.sh
