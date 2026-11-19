@@ -29,6 +29,10 @@
 #   5 spec 221 long screen, 1 rep per arm, no drift arm (8 starts)                                                  35
 #   6 summary, recommended-flags file from the verdicts of the updated build (only exact or gate-passing GAIN)       1
 #   total about 2 h (builds 15 + sync 5 + tune-up 29 + 220 40 + 221 35 = 124 min worst case; 3 idle polls 2 min).
+# 2026-11-19 PM (first scheduled run failed after 522 s, nothing measured): causes were (1) the plain-upstream server config lacked --spec / --prefill, which a native (IQ) pack needs
+# ("it needs --native SHARD1, --spec T (T >= 2) and --prefill CHUNK"): the engine exited at once, abtest said only "server died before ready"; (2) rocminfo was not on PATH, so
+# flag_diag wrote no verdicts.  Now: PREREQ check before any download, a PREBUILD SMOKE after each build (engine start + one short request of the arm exactly as the spec runs it,
+# <= 15 min, the chain stops with the engine's error line), and every failed screen / diagnostic logs the first error line of its stdout and of the engine log.
 # Verdict files: /home/dan/auto-runs/winbenchus/ (diag-plain/, diag-updated/, tuneup/, winbenchus-*.jsonl / .stdout, tuned-flags-recommended.json).
 # Completion marker: the last line of /home/dan/clone-of-d/src/bench-updatedAA.log is WINBENCHUS_DONE (also after an abort; the line
 # before it is then WINBENCHUS_ABORTED).  Results: /home/dan/auto-runs/winbenchus/ (abtest jsonl + stdout per spec, diag verdicts).
@@ -40,7 +44,9 @@ UP_URL=https://codeload.github.com/Niko1221/Strata/tar.gz/refs/tags/$UPSTREAM_TA
 US_URL=https://codeload.github.com/rocktboy1982/pancake-strata/tar.gz/refs/heads/updated-strata
 REPO_URL=https://github.com/rocktboy1982/pancake-strata.git
 UP=$PM/src-up; US=$PM/src-us; BUP=$PM/build-up; BUS=$PM/build-us
-export PATH=$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
+# $ROCM/bin first: flag_diag.py reads `rocminfo` through PATH (2026-11-19 13:33: "no AMD graphics card could be read" because it was not on PATH)
+export PATH=$ROCM/bin:$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
+DATA=/home/dan/clone-of-d/Strata-data
 mkdir -p $O $T $PM $PM/bak $UP $US
 echo "START $(date +%F_%T)" >> $L
 busy() { pgrep -f "[c]make --build|[n]inja|[c]lang|[c]c1plus|[c]test|[a]btest.py|[t]ask_gate.py|[r]eplay_turns.py|[q]uality_gate.py|[n]ight_queue.py|[s]erve/server.py|[s]trata --serve|[c]onv_trace.py|[a]uto-chain|[a]uto-post|[i]q_avx2_parity|[t]tft_bench.py|[w]in-chain[A-Za-z0-9]*\.sh|[x-z]tail-chain[A-Z]\.sh|[a]fter7" >/dev/null 2>&1; }
@@ -63,6 +69,32 @@ abort() {  # abort MESSAGE: ERROR line + marker, service back, STOP
 need_disk() { [ "$(freekb /mnt/pancake)" -ge 2097152 ] || abort "$1: /mnt/pancake has $(freekb /mnt/pancake) KB free (< 2 GB); nothing was deleted"
               [ "$(freekb /)" -ge 307200 ] || abort "$1: / has $(freekb /) KB free (< 300 MB)"; }
 step_ok() { rc=$1; nm=$2; [ "$rc" -eq 0 ] || abort "$nm failed with exit $rc"; }
+errline() {  # errline STDOUT_FILE WORKDIR: the first error-looking line of the stdout and the last one of the engine logs / narration of the failed starts (the cause is there)
+  pat='error|fatal|abort|died|failed|needs|cannot|exception|terminate|no such|not found|unrecognized|unknown'
+  a=$(grep -i -m1 -E "$pat" "$1" 2>/dev/null | cut -c1-240); [ -n "$a" ] || a=$(grep -m1 . "$1" 2>/dev/null | cut -c1-240)
+  e=; for f in "$2"/*.engine.log "$2"/*.out; do [ -f "$f" ] || continue; e=$(grep -i -E "$pat" "$f" 2>/dev/null | tail -n 1 | cut -c1-240); [ -n "$e" ] && break; done
+  echo "first error line of the stdout: [$a]; engine log: [$e]"
+}
+prereq() {  # build and launch prerequisites: one ERROR naming every missing file, before anything is downloaded or built
+  miss=
+  for f in $ROCM/bin/rocminfo $ROCM/bin/hipcc $ROCM/lib/llvm/bin/clang++ $CM $NINJA $ROCM/include/hip/hip_runtime.h            $DATA/packs/iq2_xs/tokenizer $DATA/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf            $DATA/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf $DATA/mtp/rt; do
+    [ -e "$f" ] || miss="$miss $f"
+  done
+  [ -z "$miss" ] || abort "PREREQ missing files:$miss"
+  command -v rocminfo >/dev/null 2>&1 || abort "PREREQ rocminfo is not on PATH ($PATH): flag_diag could not read the card"
+  rocminfo 2>/dev/null | grep -q -E "Name: +gfx" || abort "PREREQ rocminfo lists no gfx device (HIP_VISIBLE_DEVICES=$HIP_VISIBLE_DEVICES)"
+  say "PREREQ ok: ROCm tools, compiler, cmake, ninja, model + pack + mtp files, rocminfo sees a gfx device $(date +%T)"
+}
+smoke() {  # smoke NAME SPEC ARM: PREBUILD SMOKE of one arm exactly as the spec runs it: one engine start + one short request (abtest, confirm tier, 1 rep), limit 900 s
+  nm=$1; sp=$2; arm=$3; sd=$O/smoke-$nm; mkdir -p $sd
+  python3 -c 'import json,sys; sp=json.load(open(sys.argv[1])); json.dump({"base": sp["base"], "arms": {"smoke": sp["arms"][sys.argv[2]]}, "cases": ["short"], "reps": 1, "lossy": True, "prefill": False}, open(sys.argv[3], "w"), indent=1)'     $sp $arm $sd/spec.json || abort "smoke $nm: the smoke spec could not be made from $sp (arm $arm)"
+  rm -f $sd/smoke.jsonl
+  say "START smoke $nm $(date +%F_%T) (engine start + one short request, limit 900 s)"
+  ( cd $R && timeout 900 python3 tools/pancake/abtest.py $sd/spec.json --tier confirm --reps 1 --retries 0 --no-early-stop --out $sd/smoke.jsonl ) > $sd/smoke.stdout 2>&1; rc=$?
+  say "END smoke $nm exit=$rc $(date +%T)"
+  grep -q '"decode_tps"' $sd/smoke.jsonl 2>/dev/null || abort "smoke $nm FAILED exit=$rc (log $sd/smoke.stdout): $(errline $sd/smoke.stdout $sd/smoke)"
+  say "SMOKE $nm ok: $(grep -o -m1 '"decode_tps": [0-9.]*' $sd/smoke.jsonl | head -n 1) tok/s on one short request"
+}
 
 # ------------------------------------------------------------------ 0. (standalone: wait for chain AA), stop the service
 if [ "${BENCH_SCHED:-0}" != 1 ]; then
@@ -74,7 +106,7 @@ if systemctl --user is-active --quiet pancake.service; then
   systemctl --user stop pancake.service; say "service stopped (idle) $(date +%T)"
 else say "service already stopped"; fi
 wait_idle
-need_disk START
+need_disk START; prereq
 
 # ------------------------------------------------------------------ 1. sync harness + specs, download both source trees
 cd $R || abort "no $R"
@@ -116,6 +148,7 @@ say "BUILD_END plain upstream exit=$rc $(date +%T) (/mnt/pancake free $(freekb /
   [ -f $PM/bak/strata-up.prev ] && { cp -p $PM/bak/strata-up.prev $BUP/strata; say "BUILD FAILED: previous strata-up restored"; }
   abort "plain upstream build exit=$rc (log $BUP/build.log)"; }
 [ -x $BUP/strata ] || abort "plain upstream build exit=0 but $BUP/strata is missing"
+smoke plain $R/bench/specs/220-updated-vs-upstream-short.json plain-upstream
 need_disk BUILD2; say "BUILD updated-strata $(date +%T) (tools/pancake/build_updated.sh)"
 JOBS=8 nice -n 10 sh $US/tools/pancake/build_updated.sh $US $BUS > $PM/build-us.stdout 2>&1; rc=$?
 say "BUILD_END updated-strata exit=$rc $(date +%T) (/mnt/pancake free $(freekb /mnt/pancake) KB)"
@@ -124,6 +157,7 @@ say "BUILD_END updated-strata exit=$rc $(date +%T) (/mnt/pancake free $(freekb /
   [ -f $PM/bak/strata-us.prev ] && { cp -p $PM/bak/strata-us.prev $BUS/strata; say "BUILD FAILED: previous strata-us restored"; }
   abort "updated-strata build exit=$rc (log $BUS/build.log)"; }
 [ -x $BUS/strata ] || abort "updated-strata build exit=0 but $BUS/strata is missing"
+smoke updated $R/bench/specs/220-updated-vs-upstream-short.json updated
 say "BUILD sizes: plain $(stat -c %s $BUP/strata) bytes, updated $(stat -c %s $BUS/strata) bytes"
 
 # ------------------------------------------------------------------ 3. TUNE-UP (read-only, <= 30 min): hardware, PCIe link, host tuning checks, per-flag diagnostics of both builds
@@ -142,7 +176,7 @@ diag() {  # diag NAME EXE BUDGET_MIN FLAGS
   FLAG_DIAG_ABTEST=$R/tools/pancake/abtest.py timeout $(( (budget + 8) * 60 )) sh $US/tools/pancake/flag_diag.sh run $O/diag-$nm-config.json $O/diag-$nm --budget-min $budget \
     --only $only > $O/diag-$nm.stdout 2>&1; rc=$?
   say "END diag $nm exit=$rc $(date +%T)"; cut -c1-200 $O/diag-$nm.stdout | tail -8 >> $L
-  [ -f $O/diag-$nm/verdicts.json ] || say "ERROR diag $nm wrote no verdicts.json (the benchmark goes on: the diagnostics are a first, cheap step)"
+  [ -f $O/diag-$nm/verdicts.json ] || say "ERROR diag $nm wrote no verdicts.json: $(grep -m1 . $O/diag-$nm.stdout 2>/dev/null | cut -c1-240) (log $O/diag-$nm.stdout; the benchmark goes on: the diagnostics are a first, cheap step)"
 }
 # plain release: only the two switches that exist in v0.2.16 (10 min).  updated build: its five hardware-dependent switches (18 min); STRATA_HIPBLASLT_TUNING
 # is NOT repeated (the plain run judged the same table).  flag_diag starts the engine once per flag + twice for the default; exact flags must give the
@@ -158,6 +192,7 @@ ab() {  # ab SPEC NAME flags... : one abtest run
   need_disk "ab $nm"; say "START $nm $(date +%F_%T)"
   python3 tools/pancake/abtest.py $sp "$@" --out $O/winbenchus-$nm.jsonl > $O/winbenchus-$nm.stdout 2>&1; rc=$?
   say "END $nm exit=$rc $(date +%T)"
+  [ $rc -eq 0 ] || say "ERROR $nm exit=$rc: $(errline $O/winbenchus-$nm.stdout $O/winbenchus-$nm)"
   grep -E "vs .*(better|worse|no difference)|verdict|promote|drop" $O/winbenchus-$nm.stdout | cut -c1-220 >> $L
   grep -A6 "generated text vs base" $O/winbenchus-$nm.stdout | cut -c1-200 >> $L
   return $rc
