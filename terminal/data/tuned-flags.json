@@ -1,0 +1,75 @@
+{
+ "schema": "strata.tuned-flags/1",
+ "profiles": [
+  {
+   "match": {
+    "gfx": "gfx1100",
+    "rocm": [
+     "10."
+    ],
+    "vram_gib": [
+     16,
+     24
+    ]
+   },
+   "source": "shipped default: the adopted pancake flags that are ported to this branch (ledger ids from pancake-strata TEST_LEDGER.md); regenerate with tools/pancake/flag_diag.sh --write-recommended after the box benchmark",
+   "flags": [
+    {
+     "kind": "env",
+     "name": "STRATA_RDNA_Q6K",
+     "value": "1",
+     "verdict": "GAIN",
+     "exact": true,
+     "gain_pct": 11.0,
+     "ledger": "T-009, T-079"
+    },
+    {
+     "kind": "env",
+     "name": "STRATA_HIPBLASLT_TUNING",
+     "value": "<ROOT>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt",
+     "verdict": "GAIN",
+     "exact": true,
+     "gain_pct": 38.0,
+     "ledger": "T-096"
+    },
+    {
+     "kind": "arg",
+     "name": "--pcie-frac",
+     "value": "0",
+     "verdict": "GAIN",
+     "exact": true,
+     "gain_pct": 6.0,
+     "ledger": "T-197, T-268"
+    },
+    {
+     "kind": "arg",
+     "name": "--adapt-every",
+     "value": "1",
+     "verdict": "GAIN",
+     "exact": true,
+     "gain_pct": 8.0,
+     "ledger": "T-199"
+    },
+    {
+     "kind": "arg",
+     "name": "--adapt-swaps",
+     "value": "32",
+     "verdict": "GAIN",
+     "exact": true,
+     "gain_pct": 8.0,
+     "ledger": "T-199"
+    },
+    {
+     "kind": "arg",
+     "name": "--lookup-max-t",
+     "value": "12",
+     "verdict": "GAIN",
+     "exact": false,
+     "gain_pct": 8.8,
+     "ledger": "T-126, T-127",
+     "quality_gate": "PASS"
+    }
+   ]
+  }
+ ]
+}

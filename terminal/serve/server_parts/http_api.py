@@ -469,6 +469,8 @@ def apply_saved_tuning(cfg: dict, *, say=None) -> dict:
         return cfg
     say = say or (lambda line: print(line, flush=True))
     try:
+        from strata_control import tuned_flags as _tuned_flags   # measured per-hardware flags (flag_diag.sh), user settings win; STRATA_TUNED_FLAGS=0 / --no-tuned-flags: off
+        cfg = _tuned_flags.apply(cfg, say=say)
         from strata_control import presets as _presets
         out, applied = _presets.overlay(cfg)
         if applied.get("applied"):
