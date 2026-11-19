@@ -15,7 +15,7 @@
 #   0 wait for chain AA, 3 idle minutes, stop the service                                                      0-1 (wait)
 #   1 sync the harness + specs (origin port/rdna3-decode, tar xmf), download upstream v0.2.16 and updated-strata   0.1
 #   2 build plain upstream (its documented HIP command, its own defaults) and updated-strata (build_updated.sh)  1.5-2.5 (two cold HIP builds)
-#   3 flag_diag.sh on BOTH builds (hardware, per-flag smoke / parity / quick tok/s; budget 15 minutes each)       0.5
+#   3 flag_diag.sh on BOTH builds (hardware, per-flag smoke / parity / quick tok/s; budget 10 + 20 minutes)       0.5
 #   4 spec 220: short + edit (code-edit), decode tok/s, 5 reps confirm, text identity vs plain                    0.7
 #   5 spec 221: long 10K / 32K / 64K / 100K (cold read + 256-token reply: prompt and decode tok/s), 5 reps       2.5-3
 #   6 summary lines, the recommended-flags file from the measured verdicts (written beside the results, not installed), service back   0.1
@@ -90,30 +90,34 @@ $CM -S $UP/engine -B $BUP -G Ninja -DCMAKE_MAKE_PROGRAM=$NINJA -DCMAKE_BUILD_TYP
 [ $rc -eq 0 ] || { grep -m8 -E "error|CMake Error" $BUP/configure.log >> $L; abort "plain upstream configure exit=$rc (log $BUP/configure.log)"; }
 nice -n 10 $CM --build $BUP -j8 --target strata > $BUP/build.log 2>&1; rc=$?
 say "BUILD_END plain upstream exit=$rc $(date +%T) (/mnt/pancake free $(freekb /mnt/pancake) KB)"
-[ $rc -eq 0 ] || { grep -m8 -E "error:|undefined|CMake Error" $BUP/build.log >> $L
+[ $rc -eq 0 ] || { say "BUILD ERROR LINES (plain upstream, first 40 of $BUP/build.log):"; grep -m40 -E "error|undefined|CMake Error|FAILED" $BUP/build.log >> $L
   [ -f $PM/bak/strata-up.prev ] && { cp -p $PM/bak/strata-up.prev $BUP/strata; say "BUILD FAILED: previous strata-up restored"; }
   abort "plain upstream build exit=$rc (log $BUP/build.log)"; }
 [ -x $BUP/strata ] || abort "plain upstream build exit=0 but $BUP/strata is missing"
 need_disk BUILD2; wait_idle; say "BUILD updated-strata $(date +%T) (tools/pancake/build_updated.sh)"
 nice -n 10 sh $US/tools/pancake/build_updated.sh $US $BUS > $PM/build-us.stdout 2>&1; rc=$?
 say "BUILD_END updated-strata exit=$rc $(date +%T) (/mnt/pancake free $(freekb /mnt/pancake) KB)"
-[ $rc -eq 0 ] || { tail -8 $PM/build-us.stdout >> $L
+[ $rc -eq 0 ] || { say "BUILD ERROR LINES (updated-strata: the HIP code of this branch was never compiled by the ROCm compiler before this step; first 60 of $BUS/build.log):"
+  grep -m60 -E "error|undefined|CMake Error|FAILED" $BUS/build.log >> $L 2>/dev/null; tail -5 $PM/build-us.stdout >> $L
   [ -f $PM/bak/strata-us.prev ] && { cp -p $PM/bak/strata-us.prev $BUS/strata; say "BUILD FAILED: previous strata-us restored"; }
   abort "updated-strata build exit=$rc (log $BUS/build.log)"; }
 [ -x $BUS/strata ] || abort "updated-strata build exit=0 but $BUS/strata is missing"
 say "BUILD sizes: plain $(stat -c %s $BUP/strata) bytes, updated $(stat -c %s $BUS/strata) bytes"
 
 # ------------------------------------------------------------------ 3. diagnostics on both builds (read-only, budget 15 minutes each)
-diag() {  # diag NAME EXE
-  nm=$1; exe=$2
+diag() {  # diag NAME EXE BUDGET_MIN FLAGS
+  nm=$1; exe=$2; budget=$3; only=$4
   sed "s#\"exe\": \"[^\"]*\"#\"exe\": \"$exe\"#; s#<REPO>#$R#g" $R/configs/pancake/flashnext-iq2_xs-plain-upstream.json > $O/diag-$nm-config.json
   wait_idle; say "START diag $nm $(date +%F_%T)"
-  timeout 2700 sh $R/tools/pancake/flag_diag.sh run $O/diag-$nm-config.json $O/diag-$nm --budget-min 15 \
-    --only STRATA_RDNA_Q6K,STRATA_HIPBLASLT_TUNING,STRATA_PF_F16,STRATA_HIP_WMMA > $O/diag-$nm.stdout 2>&1; rc=$?
+  timeout 2700 sh $R/tools/pancake/flag_diag.sh run $O/diag-$nm-config.json $O/diag-$nm --budget-min $budget \
+    --only $only > $O/diag-$nm.stdout 2>&1; rc=$?
   say "END diag $nm exit=$rc $(date +%T)"; cut -c1-200 $O/diag-$nm.stdout | tail -8 >> $L
   [ -f $O/diag-$nm/verdicts.json ] || say "ERROR diag $nm wrote no verdicts.json (the benchmark goes on: the diagnostics are a first, cheap step)"
 }
-need_disk DIAG; diag plain $BUP/strata; diag updated $BUS/strata
+# the plain release knows only the switches that exist in v0.2.16: its diagnostic is the two flags both builds share (10 minutes);
+# the updated build gets the six hardware-dependent switches it adds or relies on (20 minutes): 30 minutes in all
+need_disk DIAG; diag plain $BUP/strata 10 STRATA_HIPBLASLT_TUNING,STRATA_PF_F16
+diag updated $BUS/strata 20 STRATA_RDNA_Q6K,STRATA_GR_RDNA,STRATA_RDNA_MMVQ_WAVE,STRATA_COMBINE_CPU,STRATA_VERIFY_ECAP,STRATA_HIPBLASLT_TUNING
 sh $R/tools/pancake/flag_diag.sh hw > $O/hardware.json 2>&1; say "HARDWARE $(tr -d '\n ' < $O/hardware.json | cut -c1-300)"
 
 # ------------------------------------------------------------------ 4 / 5. the two specs
