@@ -43,9 +43,11 @@ GFX11_12 = ("gfx11", "gfx12")
 ANY = ()
 
 
-def C(name, kind, value, exact, metric, needs, ledger, gate=None, note=""):
+def C(name, kind, value, exact, metric, needs, ledger, gate=None, note="", extra=None):
+    """`extra`: more environment settings the flag needs in the same arm (a switch that only acts together with others); a
+    recommended profile gets them as flags too."""
     return {"name": name, "kind": kind, "value": value, "exact": exact, "metric": metric, "needs": needs,
-            "ledger": ledger, "quality_gate": gate, "note": note}
+            "ledger": ledger, "quality_gate": gate, "note": note, "extra": extra or {}}
 
 
 # The candidates: the adopted flags ported to this branch, plus the hardware-dependent ones.  `needs`: gfx prefixes
@@ -60,6 +62,20 @@ CANDIDATES: list[dict[str, Any]] = [
     C("STRATA_PF_F16", "env", "1", False, "prompt", {"gfx": GFX11}, "T-820, T-828", gate="PASS",
       note="rate and event rules of the gate PASS; the near-tie column FAILS (information)"),
     C("STRATA_HIP_WMMA", "env", "1", True, "decode", {"gfx": GFX11_12}, "T-072 (no-op in the preset)"),
+    # the ported hyper-connection read, wave and fusion switches (updated-strata): the ledger has the kernel bundle (T-009) and
+    # single numbers where noted; the diagnostic measures each here
+    C("STRATA_GR_RDNA", "env", "1", True, "decode", {"gfx": GFX11, "wave": 32}, "T-009 (kernel bundle)"),
+    C("STRATA_GR_RDNA_Q8", "env", "1", False, "decode", {"gfx": GFX11, "wave": 32}, "T-009, T-378",
+      extra={"STRATA_GR_RDNA": "1"}),
+    C("STRATA_GR_FUSED", "env", "1", False, "decode", {"gfx": GFX11, "wave": 32}, "T-378",
+      extra={"STRATA_GR_RDNA": "1", "STRATA_GR_RDNA_Q8": "1", "STRATA_GR_RDNA_A8": "1", "STRATA_GR_INJ_UP": "1"}),
+    C("STRATA_RDNA_MMVQ_WAVE", "env", "3", True, "decode", {"gfx": GFX11, "wave": 32}, "T-009, T-072 (mode 1 is 4.5% slower than 3)"),
+    C("STRATA_COMBINE_CPU", "env", "1", True, "decode", {"gfx": ANY}, "T-009", extra={"STRATA_WAIT_FUSE": "1"}),
+    C("STRATA_ROUTE_PUBLISH", "env", "1", True, "decode", {"gfx": ANY}, "T-009 (21.60 to 21.51 ms per window)"),
+    C("STRATA_POOL_FUSE_PHASES", "env", "1", True, "decode", {"gfx": ANY}, "T-224 (edit +2.5% +-1.7)"),
+    C("STRATA_VERIFY_ECAP", "env", "0", False, "decode", {"gfx": ANY}, "T-588, T-589, T-591", gate="PASS",
+      note="the gate was run with the fork's grammar guard; v0.2.16 has none, so tool-call output is not covered",
+      extra={"STRATA_VERIFY_ECAP_MIN_ROWS": "9"}),
     C("STRATA_SELECT_WMMA", "env", "1", False, "decode", {"gfx": GFX11_12}, "MOD_PLAN section 3 (lossy list)"),
     C("STRATA_PROMPT_ATTN_IMMA", "env", "1", False, "prompt", {"gfx": GFX11_12}, "Speedy opt-in, no HIP A/B"),
     C("STRATA_KV_HOST_DMA", "env", "1", True, "decode", {"gfx": ANY}, "MOD_PLAN section 3"),
@@ -107,6 +123,8 @@ def make_spec(config: str, flags: list[dict[str, Any]], cases: list[str]) -> dic
     for c in flags:
         key = {"env": "env", "arg": "args"}[c["kind"]]
         arms[c["name"]] = {key: {c["name"]: str(c["value"]).replace("<ROOT>", str(ROOT))}}
+        if c.get("extra"):
+            arms[c["name"]]["env"] = {**arms[c["name"]].get("env", {}), **c["extra"]}
     return {"base": config, "arms": arms, "cases": cases, "reps": 1, "lossy": True, "prefill": "long1k" in cases,
             "note": "flag_diag.py quick diagnostic: base twice (noise floor) and one arm per candidate"}
 
@@ -143,6 +161,8 @@ def classify(c: dict[str, Any], arms: dict[str, dict[str, Any]]) -> dict[str, An
     base, again, cand = arms.get("base"), arms.get("base-again"), arms.get(c["name"])
     v: dict[str, Any] = {"name": c["name"], "kind": c["kind"], "value": c["value"], "exact": c["exact"],
                          "ledger": c["ledger"], "metric": c["metric"]}
+    if c.get("extra"):
+        v["extra"] = c["extra"]
     if c.get("quality_gate"):
         v["quality_gate"] = c["quality_gate"]
     if cand is None or not cand.get("ok"):
@@ -231,6 +251,8 @@ def recommended(result: dict[str, Any], *, source: str = "flag_diag.py") -> dict
         f = {k: v[k] for k in ("kind", "name", "value", "verdict", "exact", "gain_pct", "quality_gate", "ledger") if k in v}
         if tuned_flags.accepted(f):
             flags.append(f)
+            for en, ev in (v.get("extra") or {}).items():   # the switches it needs in the same arm
+                flags.append({**f, "kind": "env", "name": en, "value": ev})
     vram = float(hw.get("vram_gib") or 0)
     rocm = hw.get("rocm") or ""
     return {"match": {"gfx": hw["gfx"], "rocm": [".".join(rocm.split(".")[:2]) + "."] if rocm else [],

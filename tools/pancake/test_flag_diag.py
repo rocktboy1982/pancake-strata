@@ -161,5 +161,29 @@ class Recommended(unittest.TestCase):
         self.assertEqual(doc["schema"], "strata.tuned-flags/1")
 
 
+class Groups(unittest.TestCase):
+    def test_spec_arm_carries_the_extra_switches(self):
+        by = {c["name"]: c for c in fd.CANDIDATES}
+        spec = fd.make_spec("cfg.json", [by["STRATA_VERIFY_ECAP"], by["STRATA_GR_FUSED"], by["--pcie-frac"]], ["short"])
+        self.assertEqual(spec["arms"]["STRATA_VERIFY_ECAP"]["env"], {"STRATA_VERIFY_ECAP": "0", "STRATA_VERIFY_ECAP_MIN_ROWS": "9"})
+        self.assertEqual(spec["arms"]["STRATA_GR_FUSED"]["env"]["STRATA_GR_INJ_UP"], "1")
+        self.assertEqual(spec["arms"]["--pcie-frac"], {"args": {"--pcie-frac": "0"}})
+
+    def test_recommended_expands_the_extra_switches_of_an_accepted_group(self):
+        v = {"name": "STRATA_VERIFY_ECAP", "kind": "env", "value": "0", "verdict": "GAIN", "exact": False, "gain_pct": 9.0,
+             "quality_gate": "PASS", "ledger": "T-588", "extra": {"STRATA_VERIFY_ECAP_MIN_ROWS": "9"}}
+        bad = dict(v, name="STRATA_X", verdict="NO-GAIN", extra={"STRATA_Y": "1"})
+        prof = fd.recommended({"hardware": {"gfx": "gfx1100", "rocm": "10.0.0", "vram_gib": 20.0}, "verdicts": [v, bad]})
+        self.assertEqual([(f["name"], f["value"]) for f in prof["flags"]],
+                         [("STRATA_VERIFY_ECAP", "0"), ("STRATA_VERIFY_ECAP_MIN_ROWS", "9")])
+
+    def test_every_candidate_is_unique_and_the_ported_switches_are_listed(self):
+        names = [c["name"] for c in fd.CANDIDATES]
+        self.assertEqual(len(names), len(set(names)))
+        for n in ("STRATA_GR_RDNA", "STRATA_GR_RDNA_Q8", "STRATA_GR_FUSED", "STRATA_RDNA_MMVQ_WAVE", "STRATA_COMBINE_CPU",
+                  "STRATA_ROUTE_PUBLISH", "STRATA_POOL_FUSE_PHASES", "STRATA_VERIFY_ECAP", "STRATA_RDNA_Q6K"):
+            self.assertIn(n, names)
+
+
 if __name__ == "__main__":
     unittest.main()
