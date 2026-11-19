@@ -18,7 +18,9 @@
   "STRATA_ATTN_DAILY": "1",
   "STRATA_PF_GROUP_SCRATCH": "1",
   "STRATA_PF_HC_REGION": "1",
-  "STRATA_PREFILL_EQUAL_TAIL": "1"
+  "STRATA_PREFILL_EQUAL_TAIL": "1",
+  "STRATA_ROUTE_TAIL_SKIP": "0",
+  "STRATA_HC_Q8": "0"
  },
  "args": {
   "--grammar": "on",
@@ -69,6 +71,8 @@
   "STRATA_PF_GROUP_SCRATCH": "ported (upstream fbf6e1c75, PR 4039); Speedy opt-in, no HIP A/B recorded; ignored with a line unless every layer takes MMQ",
   "STRATA_PF_HC_REGION": "ported (upstream 3cc47f029, PR 4039); Speedy opt-in, no HIP A/B recorded",
   "STRATA_PREFILL_EQUAL_TAIL": "ported (pancake 7639dbf76, T-679 TTFT data on the pancake base)",
+  "STRATA_ROUTE_TAIL_SKIP": "pancake daily preset value 0; the same as this tree's gfx1100 default (arch_defaults.cpp): explicit as in the preset",
+  "STRATA_HC_Q8": "pancake daily preset value 0; the same as this tree's default (off): explicit as in the preset",
   "--grammar on": "ported engine part (pancake T-315 / T-591): grammar-constrained decoding inside speculative decoding for requests that carry a grammar",
   "--pool-affinity measure": "pancake preset; same option here (generate.cpp)",
   "--conversation-cache-min-tokens 8192": "pancake preset (T-183 with --conversation-cache-mib 2048); this tree's setup keeps its own --conversation-cache-mib 8192"
@@ -77,11 +81,20 @@
   "STRATA_PF_F16": "2 kept (ours 1, T-820): spec 250 arm updated+pf16-1 decides",
   "STRATA_HIPBLASLT_TUNING": "the setup's gfx1100-hipblaslt-100200.txt kept (ours 100401, T-096): spec 251 arm hipblaslt-100401 decides",
   "--expert-profile": "data/expert-profile.bin kept (ours data/expert-profile-pancake.bin, T-194): spec 251 arm profile-pancake decides",
-  "--conversation-cache-mib": "8192 kept (ours 2048)",
-  "--max-context": "262144 kept (ours 131072)",
-  "--mtp-draft-vocab": "rdna3/draft_vocab_zh60k.bin kept (ours data/draft_vocab_en.bin)",
-  "sampling": "temperature 0.6 kept (ours 0.1)"
+  "--conversation-cache-mib": "8192 kept (ours 2048): spec 251 arm conversation-cache-2048",
+  "--max-context": "262144 kept (ours 131072): spec 251 arm max-context-131072",
+  "--mtp-draft-vocab": "rdna3/draft_vocab_zh60k.bin kept (ours data/draft_vocab_en.bin): spec 251 arm draft-vocab-en",
+  "sampling": "temperature 0.6 and presence_penalty 0.0 kept (ours 0.1): no arm, abtest sends temperature 0 in every request",
+  "--conversation-cache-slots": "8 kept (the pancake preset does not set it)",
+  "--ple-io": "direct kept",
+  "--ple-row-cache": "1048576 kept",
+  "--vram-reserve-mib": "512 kept",
+  "--pool-workers": "12 kept",
+  "--mtp-q4": "all kept",
+  "--mtp-window": "4096 kept",
+  "--stats": "kept",
+  "--vision": "kept (rdna3/run.py --no-vision drops it)"
  },
  "source": "the pancake daily preset (configs/pancake/flashnext-iq2_xs-fast-hip.json) on top of Strata-rdna3's own setup and engine defaults: every setting Strata-rdna3 does not have, with the pancake value; where both have one, Strata-rdna3's value stays (theirs_kept) and the pancake value is a spec arm (bench/specs/250, 251). Owner order 2026-11-19. Regenerate with tools/pancake/flag_diag.sh --write-recommended after the box benchmark.",
- "note": "verdicts: the entries with a measured gain at or over this file's bar (on the pancake base, TO BE MEASURED on this branch); preset: the rest of the pancake daily preset, enabled as the preset has them, not separately measured. Needs the 16-row build (tools/pancake/build_updated_rdna3.sh: -DSTRATA_WINDOW_MAX_T=16) for --lookup-max-t 12 and the ECAP gate."
+ "note": "verdicts: the entries with a measured gain at or over this file's bar (on the pancake base, TO BE MEASURED on this branch); preset: the rest of the pancake daily preset, enabled as the preset has them, not separately measured. Needs the 16-row build (tools/pancake/build_updated_rdna3.sh: -DSTRATA_WINDOW_MAX_T=16) for --lookup-max-t 12 and the ECAP gate. Owner order 2026-11-19 late: \"use their full flags with their settings and add our remaining flags, don't override their values\": this file only ADDS to rdna3/configs/<setup>.json (tools/pancake/box_chains/bench_updatedRD_conf.py checks that no value of the setup changes); theirs_kept lists every setup value that stays."
 }
