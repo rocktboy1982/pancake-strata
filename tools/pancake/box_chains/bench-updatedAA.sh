@@ -169,21 +169,43 @@ tuneup_checks() {  # read-only: sysfs / proc reads only (no sudo, no sysctl writ
   timeout 120 sh $td/host_tune_ab.sh plan > $od/host_tune_ab_plan.txt 2>&1; say "TUNEUP host_tune_ab plan exit=$? (the A/B itself changes sysctl and is the owner's)"
   timeout 120 sh $td/os_tune.sh > $od/os_tune_check.txt 2>&1; say "TUNEUP os_tune check exit=$? $(tail -n 3 $od/os_tune_check.txt | tr '\n' ' ' | cut -c1-240)"
 }
-diag() {  # diag NAME EXE BUDGET_MIN FLAGS
-  nm=$1; exe=$2; budget=$3; only=$4
+# 2026-11-19 14:59 (first run): `timeout 1080 sh flag_diag.sh` ended flag_diag after 18 min (2 flags: an engine start per arm, 4 arms, noisy repeats) but its
+# abtest.py / serve/server.py / strata engine kept running, diag-plain.stdout stayed empty, and diag updated's abtest refused to start (exit 3: all 5 flags
+# UNTESTED).  Now: the diagnostic runs in its OWN SESSION (setsid) under `timeout --signal=TERM --kill-after=100` (flag_diag.py stops its running arm's process
+# group on TERM); afterwards the chain waits (<= 60 s) until no process of that session is left and SIGKILLs only that session's leftovers, each logged
+# (DIAG-REAP).  flag_diag.py: one abtest start per arm (the default once), case short only, no retries, a hard limit per arm (FLAG_TIMEOUT s: UNTESTED-TIMEOUT),
+# verdicts.json rewritten after every arm.  Budget and limit come from the per-arm limit: budget (flags + 1) x FLAG_TIMEOUT, limit (flags + 1) x (FLAG_TIMEOUT + 90) + 180 s.
+FLAG_TIMEOUT=${FLAG_TIMEOUT:-240}
+sess_members() { ps -eo pid=,sid=,pgid=,args= 2>/dev/null | awk -v s="$1" '$2 == s || $3 == s { pid = $1; $1 = $2 = $3 = ""; sub(/^ +/, ""); print pid " " $0 }'; }
+run_diag_group() {  # run_diag_group SECONDS LOG CMD...: CMD in its own session; TERM to its group at SECONDS, KILL 100 s later; then reap that session only
+  secs=$1; log=$2; shift 2
+  setsid timeout --signal=TERM --kill-after=100 "$secs" "$@" > "$log" 2>&1 &   # (a background job of a non-interactive sh is no group leader: setsid does not fork, $! is the session id)
+  sid=$!; wait $sid; rc=$?
+  n=0; while [ -n "$(sess_members $sid)" ] && [ $n -lt 30 ]; do sleep 2; n=$((n + 1)); done
+  left=$(sess_members $sid)
+  if [ -n "$left" ]; then
+    say "DIAG-REAP session $sid still running 60 s after the diagnostic ended, killed: $(echo "$left" | cut -c1-160 | tr '\n' ';')"
+    echo "$left" | while read -r p _; do kill -KILL "$p" 2>/dev/null; done; sleep 3
+    [ -z "$(sess_members $sid)" ] || say "ERROR DIAG-REAP session $sid: processes survive SIGKILL: $(sess_members $sid | cut -c1-160 | tr '\n' ';')"
+  fi
+  return $rc
+}
+diag() {  # diag NAME EXE FLAGS
+  nm=$1; exe=$2; only=$3
+  nf=$(echo "$only" | tr ',' '\n' | grep -c .); budget=$(( (nf + 1) * FLAG_TIMEOUT / 60 + 1 )); lim=$(( (nf + 1) * (FLAG_TIMEOUT + 90) + 180 ))
   sed "s#\"exe\": \"[^\"]*\"#\"exe\": \"$exe\"#; s#<REPO>#$R#g" $R/configs/pancake/flashnext-iq2_xs-plain-upstream.json > $O/diag-$nm-config.json
-  say "START diag $nm $(date +%F_%T)"
-  FLAG_DIAG_ABTEST=$R/tools/pancake/abtest.py timeout $(( (budget + 8) * 60 )) sh $US/tools/pancake/flag_diag.sh run $O/diag-$nm-config.json $O/diag-$nm --budget-min $budget \
-    --only $only > $O/diag-$nm.stdout 2>&1; rc=$?
+  say "START diag $nm $(date +%F_%T) (limit $lim s: $nf flags x $FLAG_TIMEOUT s per arm + base + margin)"
+  export FLAG_DIAG_ABTEST=$R/tools/pancake/abtest.py; run_diag_group $lim $O/diag-$nm.stdout sh $US/tools/pancake/flag_diag.sh run $O/diag-$nm-config.json $O/diag-$nm \
+    --budget-min $budget --flag-timeout $FLAG_TIMEOUT --only $only; rc=$?
   say "END diag $nm exit=$rc $(date +%T)"; cut -c1-200 $O/diag-$nm.stdout | tail -8 >> $L
   [ -f $O/diag-$nm/verdicts.json ] || say "ERROR diag $nm wrote no verdicts.json: $(grep -m1 . $O/diag-$nm.stdout 2>/dev/null | cut -c1-240) (log $O/diag-$nm.stdout; the benchmark goes on: the diagnostics are a first, cheap step)"
 }
-# plain release: only the two switches that exist in v0.2.16 (10 min).  updated build: its five hardware-dependent switches (18 min); STRATA_HIPBLASLT_TUNING
-# is NOT repeated (the plain run judged the same table).  flag_diag starts the engine once per flag + twice for the default; exact flags must give the
-# same text (parity smoke) and are screened on 2 short prompts.
+# plain release: only the two switches that exist in v0.2.16.  updated build: its five hardware-dependent switches; STRATA_HIPBLASLT_TUNING is NOT repeated
+# (the plain run judged the same table).  flag_diag starts the engine once per flag + once for the default; exact flags must give the same text (parity) and are
+# screened on the short case.
 need_disk DIAG; wait_idle; tuneup_checks
-diag plain $BUP/strata 10 STRATA_HIPBLASLT_TUNING,STRATA_PF_F16
-diag updated $BUS/strata 18 STRATA_RDNA_Q6K,STRATA_GR_RDNA,STRATA_RDNA_MMVQ_WAVE,STRATA_COMBINE_CPU,STRATA_VERIFY_ECAP
+diag plain $BUP/strata STRATA_HIPBLASLT_TUNING,STRATA_PF_F16
+diag updated $BUS/strata STRATA_RDNA_Q6K,STRATA_GR_RDNA,STRATA_RDNA_MMVQ_WAVE,STRATA_COMBINE_CPU,STRATA_VERIFY_ECAP
 say "TUNEUP done after $(elapsed) s"
 
 # ------------------------------------------------------------------ 4 / 5. the two specs (two-pass: screen, confirm only for an arm with a benefit)

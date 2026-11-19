@@ -221,6 +221,8 @@ miss.
 
 **SECOND RD ATTEMPT FAILED, FIXED (2026-11-19 14:34-14:37, T-978):** the plain Strata-rdna3 build failed again: the empty rccl stub was wrong, because `src/core/peer_transport.inc` (experimental rccl peer transport) declares RCCL types and function pointers. The stub header now declares exactly the RCCL API that file uses (the functions are loaded with dlsym, so no link flag); updated-strata-rdna3 guards that code with STRATA_PEER_RCCL. Nothing was measured. RD re-run with `bench-updatedRD.v4.sh` after the upstream benchmark.
 
+**US DIAGNOSTICS FAILED, FIXED (2026-11-19 14:59-15:17, T-979):** the chain's timeout ended flag_diag after 18 min for 2 flags but left its abtest / server / engine running, so the updated build's diagnostic was refused (all 5 flags UNTESTED); specs 220 / 221 ran on. flag_diag now runs one engine start per arm, case short, 240 s per arm (UNTESTED-TIMEOUT), writes verdicts after every arm; the chains run it in its own session and reap only that session's leftovers. The RD chain copy on the box (bench-updatedRD.v4.sh, not started yet) was replaced atomically with the fixed script at 15:40 box clock; flag_diag fixes pushed to updated-strata-rdna3 first (it syncs that tree at its start). Queue the diag-only rerun `bench-diagUS.sh` (existing US builds, marker WINDIAGUS_DONE) after RD.
+
 1. **DONE: chain 6** (`WINCHAIN6_DONE` 2026-11-16 20:44, pancake.service started again) `/home/dan/clone-of-d/src/win-chain6.sh` (started 2026-11-16 10:51; log
    `/home/dan/clone-of-d/src/win-chain6.log`, results `/home/dan/auto-runs/win6-<spec>.jsonl`; waits 3 idle minutes before every
    step, starts pancake.service at the end, then writes `WINCHAIN6_DONE`). Done: builds and ctest cpu 175/175, gpu 154/154 (T-603);

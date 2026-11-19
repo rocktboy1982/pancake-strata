@@ -39,6 +39,8 @@ import json, os, sys, runpy
 H = os.environ["HWIN"]; REPO = os.environ["REPO_TOOLS"]
 args = sys.argv[1:]
 open(H + "/calls.log", "a").write("PY " + " ".join(args) + "\n")
+if args and args[0] == "-u":        # python3 -u (unbuffered: a killed diagnostic still leaves its stdout)
+    args = args[1:]
 fails = [f for f in os.environ.get("STUB_FAIL", "").split(",") if f]
 joined = " ".join(args)
 def fail():
@@ -62,6 +64,10 @@ if name == "flag_diag.py":
         out = opt("--out"); os.makedirs(out, exist_ok=True)
         open(out + "/verdicts.json", "w").write("{}")
         print("POOL_FUSE_PHASES GAIN")
+        if os.environ.get("STUB_DIAG_LEFTOVER"):   # the 2026-11-19 failure: the diagnostic ends, a child of its session keeps running
+            open(H + "/sess.txt", "w").write(f"999991 @SID@ @SID@ python3 tools/pancake/abtest.py {out}/spec-base.json\n")
+        if os.environ.get("STUB_DIAG_EXIT"):
+            sys.exit(int(os.environ["STUB_DIAG_EXIT"]))
     elif "--hardware" in args:
         print('{"gfx": "gfx1100"}')
     sys.exit(0)
@@ -135,6 +141,7 @@ SH_STUBS = {
               'echo "$m" | awk \'$1 ~ /^[0-9]+$/ {print $1}\'; exit 0\n'),   # a line "PID ARGS" also prints its pid (aa_live, the scheduler)
     "ps": ('case "$*" in\n'
            '  "-eo pid=,args=") cat "$H/ps.txt" 2>/dev/null ;;\n'
+           '  "-eo pid=,sid=,pgid=,args=") [ -f "$H/sess.txt" ] && sed "s/@SID@/$(cat "$H/sid.txt" 2>/dev/null)/g" "$H/sess.txt" ;;\n'
            '  "-o args= -p "*) grep -E "^ *$4 " "$H/ps.txt" | sed -E "s/^ *[0-9]+ +//" ;;\n'
            '  "-o stat= -p "*) cat "$H/stat.$4" 2>/dev/null ;;\n'
            'esac\nexit 0\n'),
@@ -146,7 +153,9 @@ SH_STUBS = {
     "sudo": 'cat > /dev/null\n',
     "git": 'printf "abc123\\trefs/heads/port/rdna3-decode\\n"\n',
     "curl": 'while [ $# -gt 0 ]; do [ "$1" = -o ] && out=$2; shift; done; cp "$H/fake-src.tgz" "$out"\n',
-    "timeout": 'shift; exec "$@"\n',
+    "timeout": ('echo "TIMEOUT $*" >> "$H/calls.log"\n'
+                'while :; do case $1 in -k|-s) shift 2 ;; -*) shift ;; *) break ;; esac; done; shift; exec "$@"\n'),
+    "setsid": 'echo "SETSID $$ $*" >> "$H/calls.log"; echo $$ > "$H/sid.txt"; exec "$@"\n',
     "nice": 'shift 2; exec "$@"\n',
     "python3": 'exec "$PYREAL" "$H/stub/pystub.py" "$@"\n',
     "ctest": ('echo "ctest $*" >> "$H/calls.log"\n'
@@ -862,7 +871,11 @@ BU = "bench-updatedAA.sh"
 FLAG_DIAG_STUB = r'''#!/bin/sh
 case "$1" in
   run) [ "$FD_EMPTY" = 1 ] && { echo "flag_diag: no AMD graphics card could be read (rocminfo / sysfs)"; exit 1; }
-       mkdir -p "$3"; echo "{\"verdicts\": []}" > "$3/verdicts.json"; echo "GAIN STRATA_RDNA_Q6K"; echo "15.0 minutes; verdicts in $3/verdicts.json" ;;
+       mkdir -p "$3"; echo "{\"verdicts\": []}" > "$3/verdicts.json"; echo "GAIN STRATA_RDNA_Q6K"; echo "15.0 minutes; verdicts in $3/verdicts.json"
+       echo "FLAG_DIAG $* abtest=$FLAG_DIAG_ABTEST" >> "$H/calls.log"
+       case "$3" in *diag-plain) [ "$FD_LEFTOVER" = 1 ] && echo "999992 @SID@ @SID@ python3 serve/server.py --engine strata --config $3/x.json" > "$H/sess.txt" ;;
+                    *) rm -f "$H/sess.txt" ;; esac
+       [ -n "$FD_EXIT" ] && exit "$FD_EXIT" ;;
   hw) echo "{\"gfx\": \"gfx1100\"}" ;;
   --write-recommended) echo "{\"schema\": \"strata.tuned-flags/1\", \"profiles\": []}" > "$3"; echo "wrote $3" ;;
 esac
@@ -1051,6 +1064,39 @@ def test_bench_updated_smoke_of_the_updated_build_stops_before_diagnostics(tmp_p
     assert lines[-1] == "WINBENCHUS_DONE"
 
 
+def test_bench_updated_diag_runs_in_its_own_session_with_limits_sized_from_the_per_flag_timeout(tmp_path):
+    """2026-11-19 14:59: `timeout 1080` ended flag_diag after 18 min for 2 flags and left its abtest / server / engine running.  Now each
+    diagnostic runs under setsid + timeout --signal=TERM --kill-after=100, its limit and budget come from the per-arm limit (240 s)."""
+    box = Box(tmp_path)
+    prepare_bu(box)
+    box.finish(box.start(BU))
+    lines = box.log("bench-updatedAA.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHUS_DONE" and "DIAG-REAP" not in text and "ERROR" not in text, text
+    to = diag_timeout_call(box, "flag_diag.sh")
+    assert len(to) == 2 and all("--signal=TERM" in c and "--kill-after=100" in c for c in to), to
+    assert [int(c.split()[3]) for c in to] == [3 * (240 + 90) + 180, 6 * (240 + 90) + 180]
+    fd = [c for c in box.calls() if c.startswith("FLAG_DIAG run")]
+    assert len(fd) == 2 and "--budget-min 13" in fd[0] and "--budget-min 25" in fd[1] and all("--flag-timeout 240" in c for c in fd), fd
+    assert all("abtest=" in c and c.endswith("tools/pancake/abtest.py") for c in fd), fd     # FLAG_DIAG_ABTEST reaches flag_diag through the function
+    assert sum(1 for c in box.calls() if c.startswith("SETSID") and "flag_diag.sh" in c) == 2
+
+
+def test_bench_updated_diag_leftovers_are_reaped_before_the_next_diagnostic(tmp_path):
+    """The exact 14:59 sequence: diag plain ends by its limit (124) with a server of its session still alive; the chain kills that one
+    process (logged) before diag updated starts, so diag updated's abtest is not refused."""
+    box = Box(tmp_path)
+    prepare_bu(box)
+    box.finish(box.start(BU, env={"FD_LEFTOVER": "1", "FD_EXIT": "124"}))
+    lines = box.log("bench-updatedAA.log")
+    text = "\n".join(lines)
+    reap = [l for l in lines if l.startswith("DIAG-REAP")]
+    assert len(reap) == 1 and "999992" in reap[0] and "serve/server.py" in reap[0], lines
+    assert text.index("END diag plain exit=124") > text.index("START diag plain")
+    assert text.index("DIAG-REAP") < text.index("END diag plain") < text.index("START diag updated") < text.index("START 220-screen")
+    assert lines[-1] == "WINBENCHUS_DONE"
+
+
 def test_bench_updated_empty_verdicts_is_an_error_with_the_underlying_message(tmp_path):
     box = Box(tmp_path)
     prepare_bu(box)
@@ -1073,6 +1119,86 @@ def test_bench_updated_screen_exit_2_logs_the_first_error_lines(tmp_path):
     assert "it needs --native SHARD1" in err[0], err[0]                 # the engine log of the failed start says why
     assert any(l.startswith("ERROR spec 220 screen exit=2") for l in lines)
     assert "START 221-screen" in "\n".join(lines) and lines[-1] == "WINBENCHUS_DONE"
+
+
+# ------------------------------------------------------------------------------------------------ bench-diagUS.sh (diag-only rerun of the US builds)
+DU = "bench-diagUS.sh"
+
+
+def prepare_du(box):
+    prepare_bu(box)
+    pkg = box.tmp / "bu-src" / "x"
+    (pkg / "tools/pancake/flag_diag.py").write_text("# stub of the fixed version: --flag-timeout\n")
+    (pkg / "tools/pancake/diag_group.py").write_text("# stub\n")
+    (box.tmp / "fake-src.tgz").unlink()
+    subprocess.run(["tar", "czf", (box.tmp / "fake-src.tgz").as_posix(), "-C", (box.tmp / "bu-src").as_posix(), "x"], check=True)
+    for b in ("build-up", "build-us"):
+        (box.tmp / "mnt" / "benchus" / b).mkdir(parents=True)
+        (box.tmp / "mnt" / "benchus" / b / "strata").write_text("#!/bin/sh\nexit 0\n", newline="\n")
+    (box.R / "configs" / "pancake").mkdir(parents=True)
+    shutil.copy(HERE.parents[1] / "configs/pancake/flashnext-iq2_xs-plain-upstream.json", box.R / "configs/pancake/")
+    (box.R / "tools" / "pancake" / "abtest.py").write_text("# stub\n")
+    (box.S / "bench-updatedRD.log").write_text("START\nWINBENCHRD_DONE\n")
+
+
+def test_diag_us_runs_only_the_two_fixed_diagnostics_on_the_existing_builds(tmp_path):
+    box = Box(tmp_path)
+    prepare_du(box)
+    box.finish(box.start(DU, env={"BENCH_SCHED": "1", "BENCH_PREIDLED": "1", "BENCH_KEEP_SERVICE_DOWN": "1", "SVC_DOWN": "1"}))
+    lines = box.log("bench-diagUS.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINDIAGUS_DONE" and "ERROR" not in text and "ABORTED" not in text, lines
+    assert_start_end_pairs(lines)
+    calls = box.calls()
+    assert not any(c.startswith("cmake") for c in calls), "builds nothing"
+    assert not any(c.startswith("SIG") for c in calls), "never touches the (frozen) AA shell"
+    assert not any(c.startswith("SYSTEMCTL") and "start" in c for c in calls), "service stays down"
+    fd = [c for c in calls if c.startswith("FLAG_DIAG run")]
+    assert len(fd) == 2 and "diag-rerun/diag-plain" in fd[0] and "diag-rerun/diag-updated" in fd[1], fd
+    assert "--only STRATA_HIPBLASLT_TUNING,STRATA_PF_F16" in fd[0] and "STRATA_VERIFY_ECAP" in fd[1]
+    assert all("--flag-timeout 240" in c for c in fd)
+    cfgs = [json.loads((box.tmp / "auto-runs" / "winbenchus" / "diag-rerun" / f"diag-{n}-config.json").read_text())["exe"] for n in ("plain", "updated")]
+    assert cfgs[0].endswith("benchus/build-up/strata") and cfgs[1].endswith("benchus/build-us/strata"), cfgs
+    to = diag_timeout_call(box, "flag_diag.sh")
+    assert [int(c.split()[3]) for c in to] == [3 * 330 + 180, 6 * 330 + 180] and all("--kill-after=100" in c for c in to)
+    assert all("src-us-diag/tools/pancake/flag_diag.sh" in c for c in to), "the fixed flag_diag from its own folder (src-us untouched)"
+    assert (box.tmp / "auto-runs" / "winbenchus" / "diag-rerun" / "tuned-flags-recommended.json").exists()
+    assert text.index("START diag plain") < text.index("END diag plain") < text.index("START diag updated")
+
+
+def test_diag_us_standalone_waits_for_the_rd_marker_and_reaps_leftovers(tmp_path):
+    box = Box(tmp_path)
+    prepare_du(box)
+    (box.S / "bench-updatedRD.log").write_text("START\n")
+    p = box.start(DU, env={"BENCH_PREIDLED": "1", "SVC_DOWN": "1", "FD_LEFTOVER": "1"})
+    time.sleep(1.5)
+    assert p.poll() is None and len(box.log("bench-diagUS.log")) == 1, "waits for WINBENCHRD_DONE"
+    append(box, "bench-updatedRD.log", "WINBENCHRD_DONE")
+    box.finish(p)
+    lines = box.log("bench-diagUS.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINDIAGUS_DONE"
+    assert any(l.startswith("DIAG-REAP") and "999992" in l for l in lines), lines
+    assert text.index("DIAG-REAP") < text.index("START diag updated")
+
+
+def test_diag_us_stops_when_a_build_is_missing(tmp_path):
+    box = Box(tmp_path)
+    prepare_du(box)
+    (box.tmp / "mnt" / "benchus" / "build-us" / "strata").unlink()
+    box.finish(box.start(DU, env={"BENCH_SCHED": "1", "BENCH_PREIDLED": "1", "SVC_DOWN": "1"}))
+    lines = box.log("bench-diagUS.log")
+    ab = [l for l in lines if l.startswith("WINDIAGUS_ABORTED")]
+    assert ab and "build-us/strata" in ab[0] and lines[-1] == "WINDIAGUS_DONE", lines
+    assert not any(c.startswith("FLAG_DIAG") for c in box.calls())
+
+
+def test_diag_us_name_is_invisible_to_every_busy_pattern(tmp_path):
+    box = Box(tmp_path)
+    for name in ("win-chainV.sh", "xtail-chainX.sh", "ytail-chainY.sh", "ztail-chainZ.sh", AA, BU, BD):
+        assert busy_result(box, name, ["sh ./bench-diagUS.sh"]) == "IDLE", name
+    assert busy_result(box, DU, ["sh ./bench-updatedRD.v4.sh"]) == "BUSY"      # it never overlaps a running benchmark chain
+    assert busy_result(box, DU, ["4242 sh ./redo-chainAA.sh"]) == "IDLE"
 
 
 def test_bench_updated_name_is_invisible_to_every_busy_pattern_and_sees_the_others(tmp_path):
@@ -1193,6 +1319,42 @@ def test_bd_waits_for_both_markers_then_runs_in_the_ordered_flow(tmp_path):
     assert str(box.tmp / "mnt") in spec or "/mnt/" in spec, "arms point at /mnt/pancake builds"
     spec2 = (box.tmp / "auto-runs" / "benchRD" / "251.json").read_text()
     assert "@UPDATED_SRC@" not in spec2 and "@UPDATED@" not in spec2 and "src-updated/tools/hip/gfx1100-hipblaslt-100401.txt" in spec2
+
+
+def diag_timeout_call(box, marker="flag_diag.py"):
+    return [c for c in box.calls() if c.startswith("TIMEOUT") and marker in c]
+
+
+def test_bd_diag_runs_in_its_own_session_with_a_limit_sized_from_the_per_flag_timeout(tmp_path):
+    """2026-11-19 (US chain): `timeout` ended flag_diag but its abtest / server / engine kept running.  Now the diagnostic runs under
+    setsid + timeout --signal=TERM --kill-after, the limit is (flags + 1) x (per-flag + 90) + ctest + margin, and no leftover means no reap."""
+    box = Box(tmp_path)
+    prepare_bd(box)
+    box.finish(box.start(BD))
+    lines = box.log("bench-updatedRD.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHRD_DONE" and "DIAG-REAP" not in text and "ERROR" not in text
+    calls = box.calls()
+    to = diag_timeout_call(box)
+    assert len(to) == 1 and "--signal=TERM" in to[0] and "--kill-after=100" in to[0], to
+    assert int(to[0].split()[3]) == 6 * (240 + 90) + 300 + 180          # 5 flags + base, ctest of the exact flags, margin
+    assert any(c.startswith("SETSID") and "flag_diag.py" in c for c in calls)
+    py = [c for c in calls if c.startswith("PY") and "flag_diag.py" in c and " run " in c]
+    assert py and "--flag-timeout 240" in py[0] and "--ctest-timeout 300" in py[0] and py[0].startswith("PY -u "), py
+    assert "limit 2460 s" in text
+
+
+def test_bd_diag_leftovers_of_its_session_are_killed_and_logged_and_the_chain_goes_on(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    box.finish(box.start(BD, env={"STUB_DIAG_LEFTOVER": "1", "STUB_DIAG_EXIT": "124"}))
+    lines = box.log("bench-updatedRD.log")
+    text = "\n".join(lines)
+    reap = [l for l in lines if l.startswith("DIAG-REAP")]
+    assert reap and "999991" in reap[0] and "abtest.py" in reap[0], lines
+    assert "END diag-updated exit=124" in text
+    assert text.index("DIAG-REAP") < text.index("END diag-updated") < text.index("START 250-screen")   # reaped before the next measurement
+    assert lines[-1] == "WINBENCHRD_DONE"
 
 
 def test_bd_failed_build_restores_the_binary_logs_error_and_stops(tmp_path):
