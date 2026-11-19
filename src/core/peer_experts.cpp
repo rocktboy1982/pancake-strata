@@ -15,14 +15,21 @@
 #include <cstring>
 #include <cstdlib>
 #include <stdexcept>
+// RCCL is used only by the experimental rccl peer transport (peer_transport.inc), which takes its functions with dlopen/dlsym (no link to librccl);
+// the header is optional: without it (ROCm 10.0 ships librccl.so without headers: pancake benchmark, 2026-11-19) STRATA_PEER_RCCL is 0 and the rccl
+// transport reports an error at open().
+#define STRATA_PEER_RCCL 0
 #if defined(STRATA_USE_HIP) && defined(__linux__)
-// no RCCL symbol is used in this file; the header is optional (ROCm 10.0 ships librccl.so without headers: pancake benchmark, 2026-11-19)
 #if defined(__has_include)
 #if __has_include(<rccl/rccl.h>)
 #include <rccl/rccl.h>
+#undef STRATA_PEER_RCCL
+#define STRATA_PEER_RCCL 1
 #endif
 #else
 #include <rccl/rccl.h>
+#undef STRATA_PEER_RCCL
+#define STRATA_PEER_RCCL 1
 #endif
 #include <dlfcn.h>
 #endif

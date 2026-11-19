@@ -12,7 +12,7 @@ public:
     float* receive = nullptr;
     double launch_ms = 0, reported_launch_ms = 0, reported_wait_ms = 0;
     uint64_t calls = 0, input_bytes = 0, output_bytes = 0, last_calls = 0;
-#if defined(STRATA_USE_HIP) && defined(__linux__)
+#if STRATA_PEER_RCCL   // Linux HIP build with rccl/rccl.h (peer_experts.cpp)
     void* library = nullptr;
     ncclComm_t comm[2]{};
     decltype(&ncclCommInitAll) init = nullptr;
@@ -31,13 +31,13 @@ public:
         {On on(0);cu(cudaStreamCreateWithFlags(&primary_stream,cudaStreamNonBlocking));cu(cudaEventCreateWithFlags(&input_ready,cudaEventDisableTiming));cu(cudaMalloc((void**)&receive,(size_t)CAP*H*sizeof(float)));}
         {On on(peer);cu(cudaEventCreateWithFlags(&produced,cudaEventDisableTiming));}
         if(mode=="rccl") {
-#if defined(STRATA_USE_HIP) && defined(__linux__)
+#if STRATA_PEER_RCCL   // Linux HIP build with rccl/rccl.h (peer_experts.cpp)
             library=dlopen("librccl.so.1",RTLD_NOW|RTLD_LOCAL);
             if(!library)throw std::runtime_error(std::string("RCCL load: ")+dlerror());
             symbol(init,"ncclCommInitAll");symbol(destroy,"ncclCommDestroy");symbol(group_start,"ncclGroupStart");symbol(group_end,"ncclGroupEnd");symbol(send,"ncclSend");symbol(recv,"ncclRecv");symbol(error_string,"ncclGetErrorString");
             On on(0);int devices[]={0,peer};nc(init(comm,2,devices));
 #else
-            throw std::runtime_error("RCCL experiment requires Linux HIP build");
+            throw std::runtime_error("RCCL experiment requires a Linux HIP build with rccl/rccl.h");
 #endif
         }
         std::fprintf(stderr,"strata peer transport: %s, device activation input and primary-VRAM result rows\n",mode.c_str());
@@ -46,7 +46,7 @@ public:
         input_bytes+=bytes;++calls;
         if(mode=="hoststore"){On on(peer);cu(cudaMemcpyAsync(dst,host,bytes,cudaMemcpyHostToDevice,peer_stream));return;}
         if(mode=="rccl") {
-#if defined(STRATA_USE_HIP) && defined(__linux__)
+#if STRATA_PEER_RCCL   // Linux HIP build with rccl/rccl.h (peer_experts.cpp)
             nc(group_start());{On on(0);nc(send(src,bytes,ncclUint8,1,comm[0],primary_stream));}{On on(peer);nc(recv(dst,bytes,ncclUint8,0,comm[1],peer_stream));}nc(group_end());
 #endif
         }else if((mode=="push" || mode=="pushstore")) {
@@ -57,7 +57,7 @@ public:
     void result(const float* src,size_t bytes,cudaStream_t peer_stream) {
         output_bytes+=bytes;
         if(mode=="rccl") {
-#if defined(STRATA_USE_HIP) && defined(__linux__)
+#if STRATA_PEER_RCCL   // Linux HIP build with rccl/rccl.h (peer_experts.cpp)
             nc(group_start());{On on(peer);nc(send(src,bytes,ncclUint8,0,comm[1],peer_stream));}{On on(0);nc(recv(receive,bytes,ncclUint8,1,comm[0],primary_stream));}nc(group_end());
 #endif
         }else{
@@ -71,7 +71,7 @@ public:
     }
     ~PeerTransport() {
         {On on(0);if(primary_stream)cudaStreamSynchronize(primary_stream);}
-#if defined(STRATA_USE_HIP) && defined(__linux__)
+#if STRATA_PEER_RCCL   // Linux HIP build with rccl/rccl.h (peer_experts.cpp)
         for(int i=0;i<2;i++)if(comm[i]){On on(i?peer:0);destroy(comm[i]);}
         if(library)dlclose(library);
 #endif
