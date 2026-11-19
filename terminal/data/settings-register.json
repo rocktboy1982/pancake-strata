@@ -34941,6 +34941,39 @@
    "retired_in": ""
   },
   {
+   "name": "STRATA_RDNA_MMVQ_WAVE",
+   "backends": [
+    "cuda-hip"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/kernels/cuda/native_mmvq.cu",
+     "line": 2444,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "flag",
+   "default_state": null,
+   "code_default": null,
+   "engine_sets": [],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": "0d8e59aaa5",
+   "first_date": "2026-11-19",
+   "since": null,
+   "last_commit": "0d8e59aaa5",
+   "last_date": "2026-11-19",
+   "status": "opt-in",
+   "owner": "kernels/hip-rdna",
+   "note": "gfx1100 only: 3 = one wave per output row emulating the generic four-warp sums (bitwise the generic layout's order), no LDS / barrier; pancake T-009, T-378; the daily preset sets 3",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
    "name": "STRATA_RDNA_Q6K",
    "backends": [
     "cuda-hip"
