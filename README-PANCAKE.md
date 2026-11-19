@@ -247,4 +247,8 @@ this branch.
 
 ## 7. Commits of this branch
 
-See `git log v0.2.16..updated-strata`; each commit message names the ledger ids it relies on.
+The first commit of the branch is a snapshot of the tree of the upstream tag `v0.2.16` (upstream commit
+`64524fb9fc82222ddce554c0643b64f056ec8366`), parented on this fork's `main`, with `.github/workflows` left as in `main` (the account
+used to push has no `workflow` scope, so GitHub refuses a push that changes workflow files). The tree outside `.github/workflows` is
+identical to the tag. The commits after it are the changes described above; each commit message names the ledger ids it relies on.
+A pull request to upstream should be made from the same commits rebased onto the tag `v0.2.16` itself.
