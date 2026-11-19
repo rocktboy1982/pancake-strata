@@ -111,8 +111,46 @@ class Apply(unittest.TestCase):
         self.assertGreater(n, 0)
         self.assertEqual(n, sum(len(p["flags"]) for p in tf.load_profiles(tf.SHIPPED)))
         out, _ = self.go({"args": [], "env": {}}, [tf.SHIPPED])
-        self.assertEqual(out["env"]["STRATA_RDNA_Q6K"], "1")
         self.assertIn("--pcie-frac", out["args"])
+        # removed 2026-11-20 (owner order 2026-11-19 23:05): UNSUPPORTED on this branch's box diagnostics (RDNA_Q6K, GR_RDNA, RDNA_MMVQ_WAVE,
+        # HIPBLASLT_TUNING) and lossy without a passing gate (--lookup-max-t 12: gate-us REJECT); each removal carries its evidence
+        gone = {r["name"]: r for r in raw["removed"]}
+        self.assertEqual(set(gone), {"STRATA_RDNA_Q6K", "STRATA_GR_RDNA", "STRATA_RDNA_MMVQ_WAVE", "STRATA_HIPBLASLT_TUNING", "--lookup-max-t"})
+        for name, r in gone.items():
+            self.assertNotIn(name, out["env"])
+            self.assertNotIn(name, out["args"])
+            self.assertIn(r["verdict"], ("FAIL", "NO-GAIN", "UNSUPPORTED", "GATE-REJECT"))
+            self.assertTrue(r["evidence"])
+        for p in raw["profiles"]:
+            for f in p["flags"]:   # a lossy flag only with a passing gate
+                self.assertTrue(f["exact"] is True or f.get("quality_gate") == "PASS", f["name"])
+
+    def test_no_shipped_setting_points_outside_this_tree(self):
+        """Owner order 2026-11-19 23:05: a shipped setting names only files of this tree (<ROOT> / <REPO> = the checkout), never the pancake tree;
+        the model data folder (<STRATA_DATA>) and the build output (build-hip/) live elsewhere by design."""
+        root = Path(__file__).resolve().parents[3]
+
+        def strings(v):
+            if isinstance(v, dict):
+                return [x for w in v.values() for x in strings(w)]
+            if isinstance(v, list):
+                return [x for w in v for x in strings(w)]
+            return [v] if isinstance(v, str) else []
+        raw = json.loads(tf.SHIPPED.read_text(encoding="utf-8"))
+        for p in raw["profiles"]:
+            for f in p["flags"]:
+                v = str(f.get("value", ""))
+                if "/" in v:
+                    self.assertTrue(v.startswith("<ROOT>/"), v)
+                    self.assertTrue((root / v[len("<ROOT>/"):]).is_file(), v)
+        for rel in ("configs/pancake/flashnext-iq2_xs-updated-hip.json", "configs/pancake/flashnext-iq2_xs-plain-upstream.json",
+                    "bench/specs/220-updated-vs-upstream-short.json", "bench/specs/221-updated-vs-upstream-long.json"):
+            d = json.loads((root / rel).read_text(encoding="utf-8"))
+            for v in strings({k: d[k] for k in ("args", "env", "arms") if k in d}):
+                self.assertNotIn("clone-of-d/src/Strata/", v, rel)
+                self.assertNotIn("Strata-win", v, rel)
+                if v.startswith("<REPO>/") and not v.startswith("<REPO>/build-hip/"):
+                    self.assertTrue((root / v[len("<REPO>/"):]).is_file(), (rel, v))
 
     def test_never_raises(self):
         lines = []

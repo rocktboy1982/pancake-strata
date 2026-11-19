@@ -81,9 +81,10 @@ chain's first step builds it on the box.
 
 The fork's prompt-path table `gfx1100-hipblaslt-100401.txt` is the same file upstream already ships under `terminal/tools/hip/`
 (upstream commit by miskahm, 2026-10-04). The fork measured it as: 11.7K-token prompt read 1,345 -> 1,850-1,920 tok/s (+38 %,
-"provisional, noisy machine", T-096, no raw archive). This branch adds nothing here except that the tuned-flags profile for
-gfx1100 sets `STRATA_HIPBLASLT_TUNING` to that file. The engine checks the table's version header against the installed
-hipBLASLt and ignores a mismatch.
+"provisional, noisy machine", T-096, no raw archive). This branch adds nothing here. The tuned-flags profile for gfx1100 set
+`STRATA_HIPBLASLT_TUNING` to that file until 2026-11-20; the box diagnostics of this branch found it UNSUPPORTED (section 2.4a), so the
+profile no longer sets it. The benchmark preset still uses it (`<REPO>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt`). The engine
+checks the table's version header against the installed hipBLASLt and ignores a mismatch.
 
 ### 2.3 Learned expert profile (data file)
 
@@ -98,7 +99,7 @@ to one model family, so it is not part of the automatic tuned flags; it is used 
 
 Where. The normal start of the Terminal, `runtime start` and the app all call `apply_saved_tuning` in
 `terminal/serve/server_parts/http_api.py` before the saved-preset overlay. Two lines were added there; the logic is the new
-module `terminal/strata_control/tuned_flags.py` (tests: `terminal/tests/tuning/test_tuned_flags.py`, 11 tests with fake
+module `terminal/strata_control/tuned_flags.py` (tests: `terminal/tests/tuning/test_tuned_flags.py`, 12 tests with fake
 hardware and fake verdict files).
 
 Rules:
@@ -115,16 +116,44 @@ Rules:
    flag with another verdict.
 5. Unknown hardware (no profile matches, or no card could be read) keeps the plain defaults and prints one line saying so.
 
-The shipped profile holds six flags: `STRATA_RDNA_Q6K=1` (section 2.1), `STRATA_GR_RDNA=1` and `STRATA_RDNA_MMVQ_WAVE=3` (2.8, 2.9: the
-T-009 kernel bundle, 3.0 % is the bundle's bound 104 against 101 tok/s, not a per-flag figure), `STRATA_HIPBLASLT_TUNING` (2.2),
-`--pcie-frac 0` (+6 % short, +13 % edit, one run each, T-197; 0.15 / 0.3 / 0.55 were all slower, T-268) and `--lookup-max-t 12` (edit
-+8.8 % +-6.8, text differs, token-forcing quality gate PASS, T-126 / T-127, archive `bench/results/2026-11-10-test-phase/05c-lookup12*`).
+The shipped profile holds one flag since 2026-11-20: `--pcie-frac 0` (+6 % short, +13 % edit, one run each, T-197; 0.15 / 0.3 / 0.55
+were all slower, T-268). It held six before; the other five were removed after the box measurements of this branch (section 2.4a).
 `--adapt-every` / `--adapt-swaps` are not in it: the ledger shows no gain without `--pcie-frac 0` (T-199). Also not in it, each for a
 reason in the ledger: `STRATA_GR_RDNA_Q8` / `_A8` / `GR_INJ_UP` / `GR_FUSED` (lossy, no passing quality gate on record),
 `STRATA_ROUTE_PUBLISH` (21.60 to 21.51 ms per window, 0.4 %), `STRATA_WAIT_FUSE` (+1.2 %), `STRATA_COMBINE_CPU` (no single number),
 `STRATA_POOL_FUSE_PHASES` (+2.5 % +-1.7, short -1.3 %), `STRATA_VERIFY_ECAP` (its gates ran with a grammar guard v0.2.16 lacks).
-**None of these entries has run on a HIP build of this branch yet**: the profile applies them to every gfx1100 / ROCm 10.x start, so
-regenerate it from the benchmark's verdicts (`flag_diag.sh --write-recommended`) before relying on it; `STRATA_TUNED_FLAGS=0` removes it.
+`--pcie-frac 0` has not run alone on a HIP build of this branch; regenerate the profile from the benchmark's verdicts
+(`flag_diag.sh --write-recommended`) before relying on it; `STRATA_TUNED_FLAGS=0` removes it.
+
+### 2.4a Flags removed from the shipped profile (2026-11-20) and the data files the settings use
+
+Owner order 2026-11-19 23:05: remove from the shipped settings every flag that did not work on this branch. The rule: a FAIL, NO-GAIN
+or UNSUPPORTED verdict from the box diagnostics of this branch, or a lossy flag whose quality gate did not pass, leaves the shipped
+profile. Each removal is also recorded in `terminal/data/tuned-flags.json` (key `removed`, with the evidence).
+
+| flag | verdict on this branch | evidence |
+|---|---|---|
+| `STRATA_RDNA_Q6K=1` | UNSUPPORTED | flag_diag rerun on the box, updated build, 2026-11-19 (`/home/dan/auto-runs/winbenchus/diag-rerun/diag-updated/verdicts.json`): "claimed exact but the text differs from the default here" |
+| `STRATA_GR_RDNA=1` | UNSUPPORTED | same run, same reason |
+| `STRATA_RDNA_MMVQ_WAVE=3` | UNSUPPORTED | same run, same reason |
+| `STRATA_HIPBLASLT_TUNING` (100401 table) | UNSUPPORTED | flag_diag rerun, plain upstream build (`.../diag-rerun/diag-plain/verdicts.json`): text differs |
+| `--lookup-max-t 12` | lossy, gate did not pass | quality gate of this branch (`/home/dan/auto-runs/benchexact/gate-us`, spec 222, 48 requests, token forcing against plain upstream v0.2.16): `updated-exact` (keeps `--lookup-max-t 12`) REJECT on the rate rule, mismatch 3.379 % against 1.562 % / 1.360 % for two stock runs, +1.92 points, 90 % interval [+1.23, +2.74]; `updated` REJECT (3.964 %, +2.50 points); event rule PASS for both. AGENTS rule of the pancake line: never lossy without a passing gate |
+
+Not in the shipped profile before and so not removed from it: `STRATA_VERIFY_ECAP` (NO-GAIN -15.0 % on short, same updated-build run)
+and `STRATA_PF_F16=1` (NO-GAIN -21.2 % prompt, plain build). The benchmark preset `configs/pancake/flashnext-iq2_xs-updated-hip.json`
+and specs 220-223 are the measurement arms of the whole updated preset against plain upstream; they keep their flags (a single-flag
+negative on short is not a measurement of the arm, and ECAP's case is the code edit), so the next box runs measure the same arm.
+
+Data files. Every file a setting of this branch names is in this tree; nothing points into the pancake tree. The benchmark specs of
+the pancake harness now read them from the updated-strata tree the box chain builds (`/mnt/pancake/benchus/src-us/...`), not from
+the harness checkout. No file had to be copied in: both were already here, byte-identical to the pancake copies (same git blob).
+
+| file | size | origin | used by |
+|---|---|---|---|
+| `data/expert-profile-pancake.bin` | 196,632 bytes | ours: learned by the pancake line for the Flash-Next IQ2_XS files (T-194), committed here in `10480acdb` | `--expert-profile` of the updated preset and specs 220-223 |
+| `terminal/tools/hip/gfx1100-hipblaslt-100401.txt` | 1,401 bytes | upstream Strata v0.2.16 (commit by miskahm, 2026-10-04) | `STRATA_HIPBLASLT_TUNING` of the updated preset and specs 220-223 (the preset said `<REPO>/tools/hip/...`, a folder this tree does not have; now `<REPO>/terminal/tools/hip/...`) |
+
+Model weights, packs and the MTP head stay in the data folder (`<STRATA_DATA>`), not in the repository.
 
 ### 2.5 Per-flag diagnostics: `tools/pancake/flag_diag.sh`
 

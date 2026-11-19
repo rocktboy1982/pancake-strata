@@ -12,44 +12,8 @@
      24
     ]
    },
-   "source": "shipped default: the adopted pancake flags that are ported to this branch (ledger ids from pancake-strata TEST_LEDGER.md); regenerate with tools/pancake/flag_diag.sh --write-recommended after the box benchmark",
+   "source": "shipped default: the adopted pancake flags that are ported to this branch (ledger ids from pancake-strata TEST_LEDGER.md), minus every flag the 2026-11-19 box measurements of this branch found FAIL / NO-GAIN / UNSUPPORTED or lossy without a passing gate (top-level \"removed\", owner order 2026-11-19 23:05); regenerate with tools/pancake/flag_diag.sh --write-recommended after the box benchmark",
    "flags": [
-    {
-     "kind": "env",
-     "name": "STRATA_RDNA_Q6K",
-     "value": "1",
-     "verdict": "GAIN",
-     "exact": true,
-     "gain_pct": 4.3,
-     "ledger": "T-079 (microbench), T-081 (confirm edit +4.3% +-5.0, text identical; inside noise), T-009"
-    },
-    {
-     "kind": "env",
-     "name": "STRATA_GR_RDNA",
-     "value": "1",
-     "verdict": "GAIN",
-     "exact": true,
-     "gain_pct": 3.0,
-     "ledger": "T-009 (RDNA kernel bundle: decode 87-101 -> 104-108 tok/s; 3.0 = 104 against 101, a bound for the bundle, not a per-flag number)"
-    },
-    {
-     "kind": "env",
-     "name": "STRATA_RDNA_MMVQ_WAVE",
-     "value": "3",
-     "verdict": "GAIN",
-     "exact": true,
-     "gain_pct": 3.0,
-     "ledger": "T-009 (same bundle bound), T-072 (mode 1 is 4.5% slower than 3 on short)"
-    },
-    {
-     "kind": "env",
-     "name": "STRATA_HIPBLASLT_TUNING",
-     "value": "<ROOT>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt",
-     "verdict": "GAIN",
-     "exact": true,
-     "gain_pct": 38.0,
-     "ledger": "T-096"
-    },
     {
      "kind": "arg",
      "name": "--pcie-frac",
@@ -58,18 +22,77 @@
      "exact": true,
      "gain_pct": 6.0,
      "ledger": "T-197 (+6% short / +13% edit, one run), T-268 (0.15 / 0.3 / 0.55 worse)"
-    },
-    {
-     "kind": "arg",
-     "name": "--lookup-max-t",
-     "value": "12",
-     "verdict": "GAIN",
-     "exact": false,
-     "gain_pct": 8.8,
-     "ledger": "T-126, T-127",
-     "quality_gate": "PASS"
     }
    ]
   }
- ]
+ ],
+ "removed": [
+  {
+   "kind": "env",
+   "name": "STRATA_RDNA_Q6K",
+   "value": "1",
+   "was": {
+    "verdict": "GAIN",
+    "exact": true,
+    "gain_pct": 4.3,
+    "ledger": "T-079 (microbench), T-081 (confirm edit +4.3% +-5.0, text identical; inside noise), T-009"
+   },
+   "verdict": "UNSUPPORTED",
+   "evidence": "flag_diag rerun on the box 2026-11-19 (/home/dan/auto-runs/winbenchus/diag-rerun/diag-updated/verdicts.json, the updated build): UNSUPPORTED, \"claimed exact but the text differs from the default here\""
+  },
+  {
+   "kind": "env",
+   "name": "STRATA_GR_RDNA",
+   "value": "1",
+   "was": {
+    "verdict": "GAIN",
+    "exact": true,
+    "gain_pct": 3.0,
+    "ledger": "T-009 (RDNA kernel bundle: decode 87-101 -> 104-108 tok/s; 3.0 = 104 against 101, a bound for the bundle, not a per-flag number)"
+   },
+   "verdict": "UNSUPPORTED",
+   "evidence": "flag_diag rerun on the box 2026-11-19 (/home/dan/auto-runs/winbenchus/diag-rerun/diag-updated/verdicts.json, the updated build): UNSUPPORTED, \"claimed exact but the text differs from the default here\""
+  },
+  {
+   "kind": "env",
+   "name": "STRATA_RDNA_MMVQ_WAVE",
+   "value": "3",
+   "was": {
+    "verdict": "GAIN",
+    "exact": true,
+    "gain_pct": 3.0,
+    "ledger": "T-009 (same bundle bound), T-072 (mode 1 is 4.5% slower than 3 on short)"
+   },
+   "verdict": "UNSUPPORTED",
+   "evidence": "flag_diag rerun on the box 2026-11-19 (/home/dan/auto-runs/winbenchus/diag-rerun/diag-updated/verdicts.json, the updated build): UNSUPPORTED, \"claimed exact but the text differs from the default here\""
+  },
+  {
+   "kind": "env",
+   "name": "STRATA_HIPBLASLT_TUNING",
+   "value": "<ROOT>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt",
+   "was": {
+    "verdict": "GAIN",
+    "exact": true,
+    "gain_pct": 38.0,
+    "ledger": "T-096"
+   },
+   "verdict": "UNSUPPORTED",
+   "evidence": "flag_diag rerun on the box 2026-11-19 (/home/dan/auto-runs/winbenchus/diag-rerun/diag-plain/verdicts.json, the plain upstream build): UNSUPPORTED, \"claimed exact but the text differs from the default here\""
+  },
+  {
+   "kind": "arg",
+   "name": "--lookup-max-t",
+   "value": "12",
+   "was": {
+    "verdict": "GAIN",
+    "exact": false,
+    "gain_pct": 8.8,
+    "ledger": "T-126, T-127",
+    "quality_gate": "PASS"
+   },
+   "verdict": "GATE-REJECT",
+   "evidence": "lossy (exact false); the quality gate of this branch did not pass: /home/dan/auto-runs/benchexact/gate-us (spec 222, 48 requests, token forcing against plain upstream v0.2.16): updated-exact (which keeps --lookup-max-t 12) REJECT on the rate rule, mismatch 3.379% against 1.562% / 1.360% for two stock runs, +1.92 points, 90% interval [+1.23, +2.74]; updated REJECT (3.964%, +2.50 points); event rule PASS for both. AGENTS.md: never lossy without a passing gate. The pancake-base PASS (T-126/T-127) does not carry over."
+  }
+ ],
+ "removed_note": "Taken out of the gfx1100 profile 2026-11-20 (owner order 2026-11-19 23:05: remove what did not work): every flag with a FAIL / NO-GAIN / UNSUPPORTED verdict on this branch, and every lossy flag whose quality gate did not pass. Not measured as a single flag here and kept: --pcie-frac 0 (exact). The specs 220-223 measure the whole updated preset (configs/pancake/flashnext-iq2_xs-updated-hip.json), not this file."
 }
