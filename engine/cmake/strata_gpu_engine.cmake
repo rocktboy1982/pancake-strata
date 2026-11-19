@@ -108,6 +108,23 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     endif()
   endif()
   target_link_libraries(strata_kernels PUBLIC strata_core strata_artifact)
+  # the RDNA kernels (DPP / permlanex16 / sudot4) build on wave32 HIP only; CUDA and gfx906 builds take their
+  # "not available" answers from rdna_stub.cpp
+  if(STRATA_ENABLE_HIP)
+    target_sources(strata_kernels PRIVATE src/kernels/cuda/rdna_mmvq.cu)
+  else()
+    target_sources(strata_kernels PRIVATE src/kernels/cuda/rdna_stub.cpp)
+  endif()
+  # the gfx1100 multi-column decode GEMVs (rdna_mmvq.cu) against native_mmvq: bounded, not bitwise (GPU, synthetic, no model);
+  # exits 77 (skip) on a wave64 card
+  if(STRATA_ENABLE_HIP AND STRATA_BUILD_TESTS)
+    add_executable(rdna_mmvq_parity src/kernels/rdna_mmvq_parity.cpp)
+    target_include_directories(rdna_mmvq_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(rdna_mmvq_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    enable_testing()
+    add_test(NAME rdna_mmvq_parity COMMAND rdna_mmvq_parity)
+    set_tests_properties(rdna_mmvq_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+  endif()
   # Exact gfx1100 prompt scorer (PR1825 method port): optional standalone test,
   # also available where the published source omits tests/.
   option(STRATA_PARITY_GFX1100_QSA_SCORES "Build the exact gfx1100 QSA score/ID check" OFF)
