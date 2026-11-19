@@ -20,7 +20,14 @@ every other key), with only these substitutions, each one printed to the chain l
     image-position table (generate.cpp, o.vision) and starts nothing;
   - harness keys the pancake server that abtest starts needs and Strata-rdna3's file does not have: "log" (PRESET's engine log: abtest reads
     the decode / prompt lines from it) and "drafting": "mtp" (their arguments name the MTP drafter: --mtp, --mtp-q4, --mtp-window; without
-    the key the server's "auto" may start DFlash2, which the box has in Strata-data/dflash2 and their data folder does not).
+    the key the server's "auto" may start DFlash2, which the box has in Strata-data/dflash2 and their data folder does not);
+  - --mtp-q4 all -> proj ONLY when the substituted model's output.weight is stored in fewer bytes per row than Q4_0 (a model-file
+    dependency, not a preference; pancake TEST_LEDGER.md T-987): the engine's --mtp-q4 head copy (src/core/mtp.cpp make_q4_head) requantizes the
+    draft head's rows to Q4_0 and writes them back IN PLACE into the buffer sized for the head's own rows ("they are smaller"), which holds
+    for their IQ3_S model (output.weight Q6_K, 2100 bytes per row) but not for the box's IQ2_XS model (output.weight IQ4_XS, 1360 bytes per
+    row; Q4_0 needs 1440): the copy overruns the buffer and the engine exits 1 with "strata serve: mtp: writing the draft head".  "proj"
+    keeps the Q4_0 projections of theirs; the head stays IQ4_XS, already fewer bytes per draft step than the Q4_0 copy would be.  The head
+    type is read from the GGUF header (head_type below); an unreadable file keeps their value and says so.
 UPDATED = PLAIN + only what PLAIN does not set: exe = UPDATED_BUILD/strata and the shipped rdna3/recommended-flags file of the updated tree,
 applied the way rdna3/run.py applies it (rdna3/tuned_flags.py).  Every key and argument value of PLAIN must be unchanged in UPDATED (checked:
 the script exits with an error naming the overridden value).  Where the pancake daily preset has another value for something Strata-rdna3 sets
@@ -29,7 +36,68 @@ stays in both configs and the pancake value is a spec arm (250 updated+pf16-1; 2
 max-context-131072, conversation-cache-2048; sampling: no arm, abtest sends temperature 0 in every request)."""
 import json
 import posixpath
+import struct
 import sys
+
+# ggml type id -> (name, elements per block, bytes per block): the row size of a head row in its GGUF type
+GGML_BLOCK = {0: ("F32", 1, 4), 1: ("F16", 1, 2), 2: ("Q4_0", 32, 18), 3: ("Q4_1", 32, 20), 6: ("Q5_0", 32, 22), 7: ("Q5_1", 32, 24),
+              8: ("Q8_0", 32, 34), 9: ("Q8_1", 32, 36), 10: ("Q2_K", 256, 84), 11: ("Q3_K", 256, 110), 12: ("Q4_K", 256, 144),
+              13: ("Q5_K", 256, 176), 14: ("Q6_K", 256, 210), 15: ("Q8_K", 256, 292), 16: ("IQ2_XXS", 256, 66), 17: ("IQ2_XS", 256, 74),
+              18: ("IQ3_XXS", 256, 98), 19: ("IQ1_S", 256, 50), 20: ("IQ4_NL", 32, 18), 21: ("IQ3_S", 256, 110), 22: ("IQ2_S", 256, 82),
+              23: ("IQ4_XS", 256, 136), 29: ("IQ1_M", 256, 56), 30: ("BF16", 1, 2), 34: ("TQ1_0", 256, 54), 35: ("TQ2_0", 256, 66)}
+
+
+def head_type(gguf_path, name="output.weight"):
+    """(ggml type id, n_embd) of tensor NAME from a GGUF file's header, or None when the file cannot be read or has no such tensor."""
+    scalar = {0: 1, 1: 1, 2: 2, 3: 2, 4: 4, 5: 4, 6: 4, 7: 1, 10: 8, 11: 8, 12: 8}
+    try:
+        with open(gguf_path, "rb") as f:
+            def u(fmt):
+                return struct.unpack("<" + fmt, f.read(struct.calcsize(fmt)))[0]
+
+            def string():
+                return f.read(u("Q"))
+
+            def skip(t):
+                if t in scalar:
+                    f.seek(scalar[t], 1)
+                elif t == 8:
+                    f.seek(u("Q"), 1)
+                elif t == 9:
+                    et, n = u("I"), u("Q")
+                    if et in scalar:
+                        f.seek(scalar[et] * n, 1)
+                    else:
+                        for _ in range(n):
+                            skip(et)
+                else:
+                    raise ValueError("gguf value type %d" % t)
+            if f.read(4) != b"GGUF":
+                return None
+            u("I")
+            n_t, n_kv = u("Q"), u("Q")
+            for _ in range(n_kv):
+                string()
+                skip(u("I"))
+            for _ in range(n_t):
+                nm = string().decode("utf-8", "replace")
+                dims = [u("Q") for _ in range(u("I"))]
+                t = u("I")
+                u("Q")
+                if nm == name:
+                    return t, dims[0]
+    except (OSError, ValueError, struct.error):
+        return None
+    return None
+
+
+def q4_head_fits(ht):
+    """True/False: does the engine's in-place Q4_0 copy of the draft head fit the rows of head type HT ((type, n_embd)); None = unknown type."""
+    t, n = ht
+    if t not in GGML_BLOCK:
+        return None
+    _, be, bb = GGML_BLOCK[t]
+    return n // 32 * 18 <= n // be * bb
 
 # pancake preset items that are not added to the updated config, with the reason (printed as NOT-ADDED lines)
 NOT_ADDED = {
@@ -98,8 +166,8 @@ def overrides(plain, upd):
     return bad
 
 
-def build(preset, plain_src, upd_src, bp, bu, tf, hw=None):
-    """(plain, updated, recommended-file path, log lines)."""
+def build(preset, plain_src, upd_src, bp, bu, tf, hw=None, head_reader=head_type):
+    """(plain, updated, recommended-file path, log lines).  HEAD_READER(gguf path) -> (ggml type, n_embd) of output.weight or None."""
     p = json.load(open(preset))
     their = json.load(open(plain_src + "/rdna3/configs/iq3-1gpu.json"))
     pa = argmap(p["args"])
@@ -124,6 +192,27 @@ def build(preset, plain_src, upd_src, bp, bu, tf, hw=None):
         i = args.index("--native") + 2
         args[i:i] = ["--ple-gguf", pa["--ple-gguf"]]
         log.append("SUBST model --ple-gguf %s added after --native (the IQ2_XS model's second shard, as the preset runs it)" % pa["--ple-gguf"])
+    q4 = argmap(args).get("--mtp-q4")
+    if q4 in ("all", "head"):
+        ht = head_reader(pa["--native"])
+        fits = q4_head_fits(ht) if ht else None
+        if fits is False:
+            nm, be, bb = GGML_BLOCK[ht[0]]
+            new = "proj" if q4 == "all" else None
+            why = ("model-file dependency (pancake TEST_LEDGER.md T-987): the IQ2_XS GGUF's output.weight is %s, %d bytes per row; the engine's --mtp-q4 "
+                   "head copy rewrites the draft head IN PLACE as Q4_0, %d bytes per row, which only fits a head stored in >= 4.5 bits (their "
+                   "IQ3_S head is Q6_K) and otherwise exits 1 with \"mtp: writing the draft head\"; the projections stay Q4_0 as theirs, the head "
+                   "stays %s (already fewer bytes per draft step)" % (nm, ht[1] // be * bb, ht[1] // 32 * 18, nm))
+            if new:
+                set_arg(args, "--mtp-q4", new)
+            else:
+                i = args.index("--mtp-q4")
+                del args[i:i + 2]
+            log.append("SUBST --mtp-q4 %s -> %s: %s" % (q4, new or "<removed>", why))
+        elif fits is None:
+            log.append("UNCHECKED --mtp-q4 %s kept: the head type of %s could not be read (%r)" % (q4, pa["--native"], ht))
+        else:
+            log.append("CHECKED --mtp-q4 %s kept: the model's output.weight (%s) is >= Q4_0 per row" % (q4, GGML_BLOCK[ht[0]][0]))
     log.append("SUBST model tokenizer: %s -> %s" % (plain.get("tokenizer"), p["tokenizer"]))
     plain["tokenizer"] = p["tokenizer"]
     if "vision" in plain:
