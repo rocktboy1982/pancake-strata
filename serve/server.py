@@ -79,6 +79,7 @@ from serve import ready as ready_file  # noqa: E402
 from serve import owner_guard  # noqa: E402
 from serve import launch_identity  # noqa: E402
 from serve import logit_bias as bias_api  # noqa: E402
+from serve import grammar as grammar_api  # noqa: E402
 from serve import lifeline  # noqa: E402
 from serve.structured import StructuredOutputError, prepare_format, validated_json  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
@@ -1001,6 +1002,8 @@ class StrataEngine:
                  env: dict | None = None, lazy: bool = False, cpus: list[int] | None = None, _attempt: int = 0):
         self.spawn = (exe, list(args), cwd, log, env, False, cpus)   # to start it again after it died (issue #27)
         self.session_save_reclaim = '--session-save-reclaim' in args
+        # --grammar on: tool calls and JSON response formats are held to their grammar by the engine (serve/grammar.py)
+        self.grammar = '--grammar' in args and args[args.index('--grammar') + 1:args.index('--grammar') + 2] == ['on']
         paths = {k: v for k, v in zip(args, args[1:]) if k in ("--native", "--pack")}
         self.model_path = paths.get("--native") or paths.get("--pack", "pack/full")
         self.log_path = log
@@ -1510,7 +1513,8 @@ class StrataEngine:
             pn = prefix.get("tokens")
             if isinstance(pn, int) and not isinstance(pn, bool) and pn > 0:
                 keys += f" pin={pn}"
-        return keys + StrataEngine.projection_key(sampling) + bias_api.engine_key(sampling.get("logit_bias"))
+        return keys + StrataEngine.projection_key(sampling) + bias_api.engine_key(sampling.get("logit_bias")) + \
+            grammar_api.engine_key(sampling.get("strata_grammar"))
 
     @staticmethod
     def projection_key(sampling: dict) -> str:
@@ -7223,6 +7227,10 @@ def make_handler(svc: Service):
             messages, validator = prepare_format(req.get("response_format"), messages)
             if validator is not None and (tools or req.get("strata_mcp")):
                 raise ValueError("structured response_format with tools/MCP is not supported")
+            # the engine holds the reply to the tool-call or JSON grammar (--grammar on, or strict: true in the request)
+            req["strata_grammar"] = grammar_api.grammar_spec(getattr(svc.engine, "grammar", False), tools,
+                                                             req.get("tool_choice"), req.get("tools"),
+                                                             req.get("response_format"))
             svc.load()
             max_req = max_new = int(req.get("max_completion_tokens") or req.get("max_tokens") or 0)   # 0/-1: the rest
             bias_api.validate_request(req, svc.engine, len(getattr(svc.tok, "tokens", ())) or None)
@@ -7413,6 +7421,10 @@ def make_handler(svc: Service):
                 print(f"[strata] /v1/responses: left out the hosted tools {', '.join(sorted(set(skipped) - noted))} "
                       f"(this server cannot run them)", flush=True)
                 noted.update(skipped)
+            # item 89: the engine holds tool calls / JSON to their grammar here too, as on /v1/chat/completions
+            req = {**req, "strata_grammar": grammar_api.grammar_spec(getattr(svc.engine, "grammar", False), tools,
+                                                                    req.get("tool_choice"), req.get("tools"),
+                                                                    responses_api.text_format(req))}
             if req.get("max_output_tokens") is None and "max_tokens" in svc.shared:   # the shared Chat settings
                 req = {**req, "max_output_tokens": svc.shared["max_tokens"]}
             try:
@@ -7472,6 +7484,9 @@ def make_handler(svc: Service):
             if tool_choice_of(req.get("tool_choice"))[0] == "none":   # Anthropic's {"type": "none"}: no tools offered
                 tools = None
             force = svc.force_text(forced_call(req.get("tool_choice"), tools))        # "any" / {"type": "tool", "name": N}
+            # item 89: the tool-call grammar on the Anthropic route too
+            req["strata_grammar"] = grammar_api.grammar_spec(getattr(svc.engine, "grammar", False), tools,
+                                                             req.get("tool_choice"), req.get("tools"), None)
             max_new = int(req.get("max_tokens") or 0)                  # 0/-1: the rest of the context
             svc.reasoning_budget(req)                         # a bad value is a 400 before anything is sent
             stop_strings(req)                                 # ... and so is a bad stop / stop_sequences

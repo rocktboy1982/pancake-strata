@@ -133,6 +133,11 @@ public:
     }
     // One request's fixed vocabulary bias. Empty clears it; copied only when changed, on the final stage's device.
     bool set_logit_bias(const std::vector<float>& bias, std::string& err);
+    /// Draws row `t` of the window just run again, with `bias` (one float per vocabulary entry, -inf bans) in place of
+    /// the request's logit_bias; the penalties, the filters and the position's draw are the window's own. `pos0` is the
+    /// window's first position. The token is in `token`; the window's other rows are untouched.  (basalt c7813a6c3: the
+    /// grammar's masked redraw of the first pick it refuses.)
+    bool resample_row(int t, int64_t pos0, const std::vector<float>& bias, int32_t& token, std::string& err);
 
     /// The penalty histories for `sampling_.penalty_last_n`: ONE ROW PER WINDOW ROW, T rows of `history_len`
     /// int32 slots at that stride (`strata::kernels::penalty_rows` builds them), most recent token LAST, unused
@@ -168,8 +173,8 @@ public:
 
     /// MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): the NEXT run's rows 1..T-1
     /// are drafts, so the expert pool may skip the CPU experts that only those rows name past the cap.  The decode loop
-    /// says so per window: not for a first window (its rows may be prompt tokens).  A borrow for that run only, like
-    /// set_spec_q: run clears it
+    /// says so per window: not for a first window (its rows may be prompt tokens) and not while the request's grammar is
+    /// enforcing (a tool call or a JSON reply in progress).  A borrow for that run only, like set_spec_q: run clears it
     /// on every path, so a window whose caller says nothing (a prompt read, a batch or pipelined window) is never capped.
     void set_ecap_window(bool drafts) { ecap_next_ = drafts; if (next_) next_->set_ecap_window(drafts); }
     /// STRATA_VERIFY_ECAP as init took it: the cap per draft row, -1 off.
@@ -534,6 +539,7 @@ private:
 #endif
     std::vector<float> logit_bias_host_;
     float* logit_bias_device_ = nullptr;
+    float* row_bias_device_ = nullptr;   ///< resample_row's bias
     int device_ = -1;                    ///< the device `init` ran on: run/commit switch to it (layer split)
     unsigned long long* rr_stats_ = nullptr;   ///< STRATA_ROUTE_RESIDENT's counters on device_ (#1578); null: none
     std::atomic<bool> released_{false};  ///< #267: release_gpu_waits ran (maybe on the watchdog thread): no more windows
