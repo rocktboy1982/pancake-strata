@@ -987,6 +987,7 @@ def prepare_bd(box, markers=True):
     (tree / "tools/pancake/flag_diag.py").write_text("# stub\n")
     shutil.copy(CHAINS / "bench_updatedRD_conf.py", tree / "tools/pancake/box_chains/")
     shutil.copy(HERE.parent.parent / "bench" / "specs" / "250-rdna3-updated-vs-plain.json", tree / "bench/specs/")
+    shutil.copy(HERE.parent.parent / "bench" / "specs" / "251-rdna3-hipblaslt-and-profile.json", tree / "bench/specs/")
     subprocess.run(["tar", "czf", (box.tmp / "fake-src.tgz").as_posix(), "-C", (box.tmp / "srcdir").as_posix(), "pancake-strata-abc"], check=True)
 
 
@@ -1010,10 +1011,10 @@ def test_bd_waits_for_both_markers_then_runs_in_the_ordered_flow(tmp_path):
     assert_service_discipline(box)
     for must in ("SYNC nicejunjie/Strata-rdna3 8b01b0c8512d388552e8601b3aff6753d05286e0", "SYNC rocktboy1982/pancake-strata updated-strata-rdna3",
                  "SYNC rocktboy1982/pancake-strata port/rdna3-decode", "BUILD_END plain exit=0", "BUILD_END updated exit=0", "ENGINE plain", "ENGINE updated",
-                 "END ctest exit=0", "CONFIG written", "START diag-updated", "START diag-plain", "START 250-screen", "START 250-confirm"):
+                 "END ctest exit=0", "CONFIG written", "START diag-updated", "START diag-plain", "START 250-screen", "START 250-confirm", "START 251-screen"):
         assert must in text, must
     order = ["BUILD_END plain exit=0", "BUILD_END updated exit=0", "START ctest", "CONFIG written", "START diag-updated", "START diag-plain",
-             "START 250-screen", "START 250-confirm"]
+             "START 250-screen", "START 250-confirm", "START 251-screen"]
     pos = [text.index(k) for k in order]
     assert pos == sorted(pos), order
     calls = box.calls()
@@ -1022,6 +1023,8 @@ def test_bd_waits_for_both_markers_then_runs_in_the_ordered_flow(tmp_path):
     spec = (box.tmp / "auto-runs" / "benchRD" / "250.json").read_text()
     assert "@PLAIN@" not in spec and "@UPDATED@" not in spec and "build-plain/strata" in spec and "build-updated/strata" in spec
     assert str(box.tmp / "mnt") in spec or "/mnt/" in spec, "arms point at /mnt/pancake builds"
+    spec2 = (box.tmp / "auto-runs" / "benchRD" / "251.json").read_text()
+    assert "@UPDATED_SRC@" not in spec2 and "@UPDATED@" not in spec2 and "src-updated/tools/hip/gfx1100-hipblaslt-100401.txt" in spec2
 
 
 def test_bd_failed_build_restores_the_binary_logs_error_and_stops(tmp_path):
@@ -1076,6 +1079,18 @@ def test_bd_name_is_invisible_to_every_busy_pattern_and_sees_the_others(tmp_path
         assert busy_result(box, BD, [other]) == "BUSY", other
 
 
+def test_bd_spec_251_arms_and_not_in_the_shipped_file():
+    spec = json.loads((HERE.parent.parent / "bench" / "specs" / "251-rdna3-hipblaslt-and-profile.json").read_text())
+    assert set(spec["arms"]) == {"updated", "hipblaslt-100401", "profile-pancake"}
+    assert spec["arms"]["hipblaslt-100401"]["env"]["STRATA_HIPBLASLT_TUNING"].endswith("gfx1100-hipblaslt-100401.txt")
+    assert spec["arms"]["profile-pancake"]["args"]["--expert-profile"].endswith("data/expert-profile-pancake.bin")
+    rec = HERE.parent.parent / "rdna3" / "recommended-flags" / "gfx1100.json"
+    if rec.exists():       # on the updated-strata-rdna3 branch: neither arm's value is in the shipped file until a measured GAIN
+        shipped = json.loads(rec.read_text())
+        assert "STRATA_HIPBLASLT_TUNING" not in shipped["env"] and "--expert-profile" not in shipped["args"]
+        assert spec["arms"]["updated"]["env"] == shipped["env"]
+
+
 def test_bd_spec_and_conf(tmp_path):
     spec = json.loads((HERE.parent.parent / "bench" / "specs" / "250-rdna3-updated-vs-plain.json").read_text())
     assert set(spec["arms"]) == {"plain", "updated", "updated-ecap6"} and spec["cases"] == ["short", "edit", "long10k", "long32k", "long64k", "long100k"]
@@ -1095,10 +1110,10 @@ def test_bd_spec_and_conf(tmp_path):
     (tmp_path / "rdna3" / "configs").mkdir(parents=True)
     (tmp_path / "rdna3" / "configs" / "iq3-1gpu.json").write_text(json.dumps({"env": {"STRATA_PF_F16": "2", "X": "@STRATA@/t"}}))
     preset = tmp_path / "preset.json"
-    preset.write_text(json.dumps({"exe": "e", "args": ["--spec", "4", "--grammar", "on", "--lookup-max-t", "12", "--kv", "int8"],
+    preset.write_text(json.dumps({"exe": "e", "args": ["--spec", "4", "--grammar", "on", "--lookup-max-t", "12", "--expert-profile", "/pancake/p.bin", "--kv", "int8"],
                                   "env": {"STRATA_VERIFY_ECAP": "1"}, "grammar": True, "port": 8080}))
     plain, upd, path = mod.build(str(preset), str(tmp_path), "/u", "/b/plain", "/b/upd", TF)
-    assert plain["args"] == ["--spec", "4", "--kv", "int8"] and "grammar" not in plain
+    assert plain["args"] == ["--spec", "4", "--expert-profile", str(tmp_path) + "/data/expert-profile.bin", "--kv", "int8"] and "grammar" not in plain
     assert plain["env"] == {"STRATA_PF_F16": "2", "X": str(tmp_path) + "/t"}      # the plain build runs with the env of Strata-rdna3's own setup config
     assert plain["exe"] == "/b/plain/strata" and upd["exe"] == "/b/upd/strata"
     assert upd["env"]["STRATA_VERIFY_ECAP"] == "0" and "STRATA_VERIFY_ECAP" not in plain["env"]
