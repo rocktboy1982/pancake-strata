@@ -18,8 +18,9 @@ every other key), with only these substitutions, each one printed to the chain l
   - the "vision" section is dropped: the server would start the separate picture reader @STRATA@/engine/strata-vision (not built here) with
     the IQ3_S GGUF; a text benchmark never sends a picture.  The engine argument --vision stays: in the engine it only sets up the identity
     image-position table (generate.cpp, o.vision) and starts nothing;
-  - harness keys the pancake server that abtest starts needs and Strata-rdna3's file does not have: "log" (PRESET's engine log: abtest reads
-    the decode / prompt lines from it) and "drafting": "mtp" (their arguments name the MTP drafter: --mtp, --mtp-q4, --mtp-window; without
+  - harness keys the pancake server that abtest starts needs and Strata-rdna3's file does not have: "log" (the engine log abtest reads the
+    decode / prompt lines from: engine.log next to OUT_PLAIN, the chain's work folder; it no longer points into the pancake tree as PRESET's
+    log did, owner order 2026-11-19 23:05) and "drafting": "mtp" (their arguments name the MTP drafter: --mtp, --mtp-q4, --mtp-window; without
     the key the server's "auto" may start DFlash2, which the box has in Strata-data/dflash2 and their data folder does not);
   - --mtp-q4 all -> proj ONLY when the substituted model's output.weight is stored in fewer bytes per row than Q4_0 (a model-file
     dependency, not a preference; pancake TEST_LEDGER.md T-987): the engine's --mtp-q4 head copy (src/core/mtp.cpp make_q4_head) requantizes the
@@ -29,7 +30,10 @@ every other key), with only these substitutions, each one printed to the chain l
     keeps the Q4_0 projections of theirs; the head stays IQ4_XS, already fewer bytes per draft step than the Q4_0 copy would be.  The head
     type is read from the GGUF header (head_type below); an unreadable file keeps their value and says so.
 UPDATED = PLAIN + only what PLAIN does not set: exe = UPDATED_BUILD/strata and the shipped rdna3/recommended-flags file of the updated tree,
-applied the way rdna3/run.py applies it (rdna3/tuned_flags.py).  Every key and argument value of PLAIN must be unchanged in UPDATED (checked:
+applied the way rdna3/run.py applies it (rdna3/tuned_flags.py), WITHOUT the file's values that would change a value of PLAIN: since the owner
+order of 2026-11-19 23:05 the shipped file may set a value measured GAIN on that branch over Strata-rdna3's (its "overrides_theirs", e.g.
+STRATA_PF_F16=1), but the benchmark arms never override their values; each such value is left out of UPDATED and printed as a
+SHIPPED-NOT-IN-ARM line (spec 250 arm updated+pf16-1 runs it).  Every key and argument value of PLAIN must be unchanged in UPDATED (checked:
 the script exits with an error naming the overridden value).  Where the pancake daily preset has another value for something Strata-rdna3 sets
 (PF_F16, the hipBLASLt table, the expert profile, --max-context, --conversation-cache-mib, --mtp-draft-vocab, sampling), Strata-rdna3's value
 stays in both configs and the pancake value is a spec arm (250 updated+pf16-1; 251 hipblaslt-100401, profile-pancake, draft-vocab-en,
@@ -166,8 +170,26 @@ def overrides(plain, upd):
     return bad
 
 
-def build(preset, plain_src, upd_src, bp, bu, tf, hw=None, head_reader=head_type):
-    """(plain, updated, recommended-file path, log lines).  HEAD_READER(gguf path) -> (ggml type, n_embd) of output.weight or None."""
+def arm_part(rec, plain):
+    """(the part of recommended file REC that only adds to PLAIN, [(kind, name, file value, plain value)] left out because it would change PLAIN)."""
+    pe, pa = plain.get("env", {}), argmap(plain.get("args", []))
+    env, args, out = {}, {}, []
+    for k, v in (rec.get("env") or {}).items():
+        if k in pe and str(pe[k]) != str(v):
+            out.append(("env", k, str(v), pe[k]))
+        else:
+            env[k] = v
+    for k, v in (rec.get("args") or {}).items():
+        if k in pa and (pa[k] or "") != str(v):
+            out.append(("arg", k, str(v), pa[k]))
+        else:
+            args[k] = v
+    return {**rec, "env": env, "args": args}, out
+
+
+def build(preset, plain_src, upd_src, bp, bu, tf, hw=None, head_reader=head_type, log_path=None):
+    """(plain, updated, recommended-file path, log lines).  HEAD_READER(gguf path) -> (ggml type, n_embd) of output.weight or None.
+    LOG_PATH: the engine log of both configs (main: engine.log next to OUT_PLAIN; default PLAIN_SRC/engine-bench.log), never PRESET's."""
     p = json.load(open(preset))
     their = json.load(open(plain_src + "/rdna3/configs/iq3-1gpu.json"))
     pa = argmap(p["args"])
@@ -220,7 +242,8 @@ def build(preset, plain_src, upd_src, bp, bu, tf, hw=None, head_reader=head_type
         log.append("DROPPED the \"vision\" section: the server would start the separate picture reader (engine/strata-vision, not built here; "
                    "the IQ3_S GGUF) and a text benchmark sends no picture; the engine argument --vision is KEPT (it only sets up the identity "
                    "image-position table, generate.cpp o.vision)")
-    for k, v, why in (("log", p.get("log"), "abtest reads the engine's decode / prompt lines from it"),
+    log_path = log_path or posixpath.join(plain_src, "engine-bench.log")
+    for k, v, why in (("log", log_path, "abtest reads the engine's decode / prompt lines from it (the chain's work folder, not the pancake tree)"),
                       ("drafting", "mtp", "their arguments name the MTP drafter (--mtp, --mtp-q4, --mtp-window); the server's default \"auto\" "
                                           "could start DFlash2 (Strata-data/dflash2 is on the box)")):
         if k not in plain and v is not None:
@@ -234,7 +257,11 @@ def build(preset, plain_src, upd_src, bp, bu, tf, hw=None, head_reader=head_type
     upd["exe"] = bu + "/strata"
     rec, path = tf.load_recommended(hw or {"gfx": "gfx1100", "rocm": "10.0", "vram_gib": 20}, upd_src + "/rdna3/recommended-flags")
     if rec:
-        tf.apply_to_config(upd, rec, env={}, root=upd_src)
+        part, left = arm_part(rec, plain)
+        for kind, k, v, theirs in left:
+            log.append("SHIPPED-NOT-IN-ARM %s %s = %s (the shipped file overrides Strata-rdna3's %s with a value measured GAIN on that branch; owner rule: "
+                       "the benchmark arms never override their values, a spec arm runs it)" % (kind, k, v, theirs))
+        tf.apply_to_config(upd, part, env={}, root=upd_src)
     bad = overrides(plain, upd)
     if bad:
         raise SystemExit("CONFIG: the updated config overrides Strata-rdna3's values (owner rule: never): " + "; ".join(bad))
@@ -268,7 +295,8 @@ def main(argv):
     preset, plain_src, upd_src, bp, bu, out_plain, out_upd = argv[:7]
     sys.path.insert(0, upd_src + "/rdna3")
     import tuned_flags as tf
-    plain, upd, path, log = build(preset, plain_src, upd_src, bp, bu, tf)
+    log_path = posixpath.join(posixpath.dirname(posixpath.abspath(out_plain)), "engine.log")
+    plain, upd, path, log = build(preset, plain_src, upd_src, bp, bu, tf, log_path=log_path)
     json.dump(plain, open(out_plain, "w"), indent=1)
     json.dump(upd, open(out_upd, "w"), indent=1)
     for line in log:

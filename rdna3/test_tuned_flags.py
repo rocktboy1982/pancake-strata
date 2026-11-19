@@ -52,12 +52,19 @@ class T(unittest.TestCase):
     def test_shipped_default_for_gfx1100(self):
         rec, path = tf.load_recommended(HW)
         self.assertIsNotNone(rec)
-        self.assertEqual(rec["env"]["STRATA_POOL_FUSE_PHASES"], "1")
-        self.assertNotIn("STRATA_PF_F16", rec["env"])   # owner rule: Strata-rdna3's own PF_F16=2 stays; the pancake value is a spec arm
-        self.assertEqual(rec["env"]["STRATA_VERIFY_ECAP"], "0")          # the pancake daily preset's gated ECAP (16-row windows now)
-        self.assertEqual(rec["env"]["STRATA_VERIFY_ECAP_MIN_ROWS"], "9")
+        # removed 2026-11-20 (owner order 2026-11-19 23:05), measured on this branch by flag_diag: POOL_FUSE_PHASES FAIL (-5.97%, parity ctest
+        # failed), VERIFY_ECAP NO-GAIN (-7.37% short, no edit-case gain measured); each removal is recorded with its evidence
+        for k in ("STRATA_POOL_FUSE_PHASES", "STRATA_VERIFY_ECAP", "STRATA_VERIFY_ECAP_MIN_ROWS"):
+            self.assertNotIn(k, rec["env"])
+            self.assertTrue(any(k in e["was"] for e in rec["removed"].values()), k)
+        for e in rec["removed"].values():
+            self.assertIn(e["verdict"], ("FAIL", "NO-GAIN", "UNSUPPORTED"))
+            self.assertTrue(e["evidence"])
+        # PF_F16=1: flag_diag GAIN +10.27% on this branch with a passing gate (T-828): the shipped file sets it over Strata-rdna3's 2 and says so
+        self.assertEqual(rec["env"]["STRATA_PF_F16"], "1")
+        self.assertIn("STRATA_PF_F16", rec["overrides_theirs"])
+        self.assertNotIn("STRATA_PF_F16", rec["theirs_kept"])
         self.assertEqual(rec["args"]["--lookup-max-t"], "12")
-        self.assertIn("STRATA_PF_F16", rec["theirs_kept"])
         for k in rec["env"]:   # every exported key is either backed by a verdict or listed as a preset entry
             self.assertTrue(k in rec["preset"] or any(k in (e.get("env") or {}) for e in rec["verdicts"].values()), k)
 
@@ -66,6 +73,32 @@ class T(unittest.TestCase):
         for name, e in rec["verdicts"].items():
             self.assertTrue(tf.eligible(e), name)
 
+    def test_no_shipped_setting_points_outside_this_tree(self):
+        """Owner order 2026-11-19 23:05: every file a shipped setting names is in this tree (@STRATA@/...), never in the pancake tree; only the model
+        data folder (@DATA@: weights, packs, mtp) and the build output (engine/) live elsewhere."""
+        root = Path(__file__).resolve().parents[1]
+
+        def strings(v):
+            if isinstance(v, dict):
+                return [x for w in v.values() for x in strings(w)]
+            if isinstance(v, list):
+                return [x for w in v for x in strings(w)]
+            return [v] if isinstance(v, str) else []
+        for p in sorted((root / "rdna3" / "recommended-flags").glob("*.json")):
+            rec = json.loads(p.read_text())
+            for v in strings({"env": rec.get("env", {}), "args": rec.get("args", {})}):
+                if "/" in v or "\\" in v:
+                    self.assertTrue(v.startswith("@STRATA@/"), (p.name, v))
+                    self.assertTrue((root / v[len("@STRATA@/"):]).is_file(), (p.name, v))
+        for p in sorted((root / "rdna3" / "configs").glob("*.json")):
+            for v in strings(json.loads(p.read_text())):
+                if "/" not in v:
+                    continue
+                self.assertTrue(v.startswith("@STRATA@/") or v.startswith("@DATA@/"), (p.name, v))
+                self.assertNotIn("clone-of-d", v)
+                if v.startswith("@STRATA@/") and not v.startswith("@STRATA@/engine/"):
+                    self.assertTrue((root / v[len("@STRATA@/"):]).is_file(), (p.name, v))
+
     def test_small_card_gets_nothing(self):
         rec, _ = tf.load_recommended({"gfx": "gfx1100", "rocm": "10.0", "vram_gib": 8})
         self.assertIsNone(rec)
@@ -73,10 +106,11 @@ class T(unittest.TestCase):
     def test_apply_sets_and_user_env_wins(self):
         cfg = self.cfg()
         msgs = []
-        ch = tf.apply_startup(cfg, env={"STRATA_POOL_FUSE_PHASES": "0"}, hw=HW, say=msgs.append)
-        self.assertNotIn("STRATA_POOL_FUSE_PHASES", cfg["env"])      # the user's variable is theirs, the file stays out
-        self.assertEqual(cfg["env"]["STRATA_PF_F16"], "2")          # the setup's own value stays (the file does not carry PF_F16)
-        self.assertEqual(cfg["env"]["STRATA_VERIFY_ECAP"], "0")      # the file's additions are set
+        ch = tf.apply_startup(cfg, env={"STRATA_PIN_BY_NEED": "0"}, hw=HW, say=msgs.append)
+        self.assertNotIn("STRATA_PIN_BY_NEED", cfg["env"])           # the user's variable is theirs, the file stays out
+        self.assertEqual(cfg["env"]["STRATA_PF_F16"], "1")          # the file's measured GAIN replaces the setup's 2 (overrides_theirs)
+        self.assertEqual(cfg["env"]["STRATA_EXPDEC"], "1")           # the file's additions are set
+        self.assertNotIn("STRATA_VERIFY_ECAP", cfg["env"])          # removed from the file
         self.assertEqual(cfg["env"]["GPU_MAX_HW_QUEUES"], "6")
         self.assertTrue(ch and len(msgs) == 1 and "tuned flags from" in msgs[0])
 

@@ -39,8 +39,9 @@ never changed. On hardware with no matching file the setup runs unchanged and on
 text) at 2% or more, or lossy at 3% or more with a passing quality gate. `flag_diag.sh` prints OK, UNSUPPORTED, NO-GAIN, GAIN or FAIL for each candidate
 and writes the file for the hardware; `--write-recommended` copies the verdicts of the last run into `rdna3/recommended-flags/`. The shipped file for
 gfx1100 now holds the whole pancake preset on top of Strata-rdna3 (section 2.15): `verdicts` lists the entries with a measured gain at or over the bar on the
-pancake base, `preset` the rest of the pancake daily preset (enabled as the preset has them, not separately measured), `theirs_kept` the settings where
-Strata-rdna3's own value stays. It is to be regenerated from the benchmark of section 4.
+pancake base or on this branch, `preset` the rest of the pancake daily preset (enabled as the preset has them, not separately measured), `theirs_kept` the settings where
+Strata-rdna3's own value stays, `overrides_theirs` the one value measured GAIN on this branch that replaces Strata-rdna3's (`STRATA_PF_F16=1`), and `removed` the
+flags taken out after the 2026-11-19 measurements, with the evidence (section 2.17). It is to be regenerated from the benchmark of section 4.
 
 The tuning scripts are ported from the pancake line unchanged, except that `host_tune_ab.sh` takes the A/B harness paths from `AB_ABTEST`, `AB_LOADTIME`
 and `AB_SPEC` (the harness is not part of this tree). The list of host settings was taken from reading
@@ -48,14 +49,14 @@ and `AB_SPEC` (the harness is not part of this tree). The list of host settings 
 
 ## 2. The ported enhancements
 
-### 2.1 `STRATA_POOL_FUSE_PHASES` (exact, default off)
+### 2.1 `STRATA_POOL_FUSE_PHASES` (exact, default off; removed from the shipped file 2026-11-20: FAIL on this branch, section 2.17)
 What: the CPU expert pool runs a layer's gate/up tasks and down tasks in one phase; a down task waits only for its own expert, whose last gate/up task
 has quantized its input. The row ranges and kernels are those of the two-phase path, so the output is identical. Enable: `STRATA_POOL_FUSE_PHASES=1`.
 Files: `src/kernels/cpu/pool.cpp`, `include/strata/kernels/cpu/pool.hpp`. Measured: code edit +2.5% +-1.7 over the two-phase path, 3 repeats, short chat
 neutral (T-224; `bench/results/2026-11-09-test-phase/03b-fuse-min.summary.txt`, `03-cpu-pool.summary.txt`, quality `03b-fuse-min.quality.txt`: gate PASS). The first
 version had a defect found by the first test (a stale task count cut the down rows wrongly or divided by zero); the version here has the fix.
 
-### 2.2 `STRATA_VERIFY_ECAP`, `STRATA_VERIFY_ECAP_MIN_ROWS` (lossy, default off)
+### 2.2 `STRATA_VERIFY_ECAP`, `STRATA_VERIFY_ECAP_MIN_ROWS` (lossy, default off; removed from the shipped file 2026-11-20: NO-GAIN, section 2.17)
 What: in a decode verify window each draft row (rows 1 to T-1, never row 0, whose output is always committed) reads at most n CPU-resident experts that row 0
 and the earlier rows do not read anyway, kept by routing rank; the other draft-only experts are skipped like `STRATA_ROUTE_TAIL_SKIP` experts (neither copied nor
 computed, a zero row, routing weights as routed). `STRATA_VERIFY_ECAP_MIN_ROWS=N` lets the cap act only in windows of N rows or more. Host side only; no captured
@@ -67,9 +68,10 @@ Measured on the pancake base (6 clean runs per arm): cap 0 from 9-row windows, e
 (T-589, `bench/quality-hip/2026-11-15-ecap-gated`); tool-call task gate PASS: 99.4% success, tool-call validity 100% over 180 runs (T-591,
 `bench/results/2026-11-16-taskgate-ecap`). An ungated cap 0 was rejected by the same gate (+0.95 points, T-271).
 The gain was measured on windows of 9 or more rows (the prompt-lookup windows of `--lookup-max-t 12` in a 16-row build). This branch now has those windows
-(section 2.9), so the shipped file carries the pancake preset's gated form, `STRATA_VERIFY_ECAP=0` with `STRATA_VERIFY_ECAP_MIN_ROWS=9`, together with
+(section 2.9), so the shipped file carried the pancake preset's gated form, `STRATA_VERIFY_ECAP=0` with `STRATA_VERIFY_ECAP_MIN_ROWS=9`, together with
 `--lookup-max-t 12` and `--grammar on` (the tool-call gate ran with the grammar guard on, section 2.5). Before this round the windows were at most 8 rows and the
-gate never opened (the first box screen of spec 250 saw no ECAP effect for that reason).
+gate never opened (the first box screen of spec 250 saw no ECAP effect for that reason). Since 2026-11-20 the shipped file no longer carries ECAP (section 2.17);
+spec 252 arm `updated+ecap9` measures it on the edit case.
 
 ### 2.3 Two fixes
 `sampler.cu` (T-573): a NaN temperature fell through the `t <= 0` test into a uniform draw over the top-k list; `sampler_parity` measured 4 of 4 picks wrong. One
@@ -79,13 +81,18 @@ token, so decode is not affected. Files: `include/strata/kernels/sampler.hpp`, `
 `src/kernels/cuda/elementwise.cu`, `src/kernels/elementwise_parity.cpp`. Both compile for sm_75 (nvcc 12.8). No archive was kept for T-573 and T-576 (the ledger rows
 are the record).
 
-### 2.4 `STRATA_PF_F16=1` (lossy; NOT shipped since 2026-11-19 night, spec arm `updated+pf16-1`)
+### 2.4 `STRATA_PF_F16=1` (lossy; shipped again since 2026-11-20 after a GAIN on this branch; the benchmark arms keep 2, spec arm `updated+pf16-1`)
 The F16 prompt-expert kernels are already in Strata-rdna3; its setup configs set `STRATA_PF_F16` to 2, which leaves them off. The pancake line measured 1: prompt
 tok/s +15.1% +-0.4 at 14K, +16.7% +-0.2 at 32K, +17.3% +-0.5 at 64K tokens, no effect at 3K (+0.3%) or on decode (T-820, `bench/results/2026-11-17-chainC/winC-161.*`);
 token-forcing gate PASS on rate and event rules (mismatch 1.700% against 1.637% and 1.605%, +0.08 points, 90% interval [-0.075, +0.234], T-828,
 `bench/results/2026-11-17-chainQ/winQ-163.stdout`), while the stricter near-tie column failed (98.3% top-1 agreement; reported as information). On this tree the
 value 1 replaces Strata-rdna3's own F16 prompt path (2), and the first box screen of spec 250 saw the updated arm (then with PF_F16=1) slower on prompts (10K 1110-1462
-against 1367-1501 tok/s, preliminary, noisy). Owner rule: Strata-rdna3's PF_F16=2 stays in the shipped file; spec 250 arm `updated+pf16-1` measures 1 against it.
+against 1367-1501 tok/s, preliminary, noisy). Owner rule (2026-11-19 night): Strata-rdna3's PF_F16=2 stays; spec 250 arm `updated+pf16-1` measures 1 against it.
+2026-11-20: `flag_diag` on the updated build of this branch measured PF_F16=1 GAIN, +10.27 % on short (1 rep; text differs, gate T-828), and the owner order of
+2026-11-19 23:05 lets a measured GAIN set a value in the shipped file. So `rdna3/recommended-flags/gfx1100.json` sets `STRATA_PF_F16=1` again (key
+`overrides_theirs`). The benchmark arms still never override Strata-rdna3's values: `bench_updatedRD_conf.py` leaves the value out of the `updated` arm (a
+`SHIPPED-NOT-IN-ARM` line in the chain log) and spec 250 arm `updated+pf16-1` runs it. Its screen (2026-11-19 23:17, 1 rep, order effect flagged) was mixed against
+`updated`: short +8.8 points, edit 0, 10K +13.7, 32K +3.1, 64K -2.3, 100K -11.7.
 
 ### 2.5 Grammar-constrained decoding, `--grammar on` (default off)
 What: a request's `grammar` key (a GBNF tool-call or JSON-schema grammar) is enforced on the sampled tokens inside speculative decoding. After each verify window the first kept
@@ -170,13 +177,14 @@ Gap list: the pancake daily preset entry by entry against Strata-rdna3 `8b01b0c8
 |---|---|---|---|
 | `GR_RDNA`, `GR_RDNA_Q8`, `GR_RDNA_A8`, `GR_INJ_UP`, `GR_FUSED`, `RDNA_Q6K`, `RDNA_MMVQ_WAVE=3`, `COMBINE_CPU`, `WAIT_FUSE`, `ROUTE_PUBLISH`, `QFUSE`, `VERIFY_QDEDUP`, `HEAD_MIX_MULTI`, `FUSE_CONVAB`, `HIP_WMMA`, `SELECT_WMMA`, `PA_FAST`, `PF_GEMM`, `PF_PAD`, `PF_FUSED`, `PF_HCDOWN`, `HC_UPMIX`, `GDN_HEAD`, `GDN_CHUNKED`, `GDN_PP=1`, `GDN_CONVL2`, `GDN_NOY`, `QSA_ROWS`, `KV_HOST_DMA`, `ADAPT_OVERLAP`, `STAGER_RING=64`, `PREFILL_RING=192`, `PREFILL_CPU_SHARE=0.6`, `PREFILL_CPU_SHARE_MAX=4096`, `PREFILL_AUTO_MAX=32768`, `SH_STREAM=0`, `GPU_MAX_HW_QUEUES=6`, `ENGINE_NICE=0` | in iq3-1gpu.json env (most also in gfx1100_default_env) | PRESENT-EQUAL | theirs (same value) |
 | `ROUTE_TAIL_SKIP=0`, `HC_Q8=0` | gfx1100_default_env (ROUTE_TAIL_SKIP 0); `native_dense.cpp` (HC_Q8 auto = off on gfx1100) | PRESENT-EQUAL | theirs (same value) |
-| `PF_F16=1` | 2 | PRESENT-DIFFERENT | theirs kept (2); arm `updated+pf16-1` (spec 250) |
+| `PF_F16=1` | 2 | PRESENT-DIFFERENT | theirs kept in the arm (2); arm `updated+pf16-1` (spec 250); the shipped file sets 1 since 2026-11-20 (measured GAIN, 2.4) |
 | `HIPBLASLT_TUNING` 100401 table | 100200 table | PRESENT-DIFFERENT | theirs kept; arm `hipblaslt-100401` (spec 251) |
 | `--expert-profile` pancake | `data/expert-profile.bin` | PRESENT-DIFFERENT | theirs kept; arm `profile-pancake` (spec 251) |
 | `--conversation-cache-mib 2048`, `--max-context 131072`, `--mtp-draft-vocab` en, temperature 0.1 | 8192, 262144, zh60k, 0.6 | PRESENT-DIFFERENT | theirs kept in the shipped file (the benchmark runs the pancake values in both arms) |
 | `--spec 4`, `--spec-min-p 0.5`, `--kv int8`, `--kv-resident 32768`, `--pcie-frac 0`, `--adapt-every 1`, `--adapt-swaps 32`, `--prefill auto`, `--expert-cache auto`, `--mtp` | same | PRESENT-EQUAL | theirs |
 | `PIN_BY_NEED`, `EXPDEC`, `EXPDEC_DOWN`, `EXCHANGE_ROTATE`, `KV_PREFETCH`, `PROMPT_ATTN_IMMA`, `ATTN_DAILY`, `--pool-affinity measure`, `--conversation-cache-min-tokens 8192` | the switch / option exists, not set | PRESENT, not set | ours added (2.14) |
-| `POOL_FUSE_PHASES`, `VERIFY_ECAP=0` + `_MIN_ROWS=9`, `--grammar on` | missing | ported earlier (2.1, 2.2, 2.5) | ours added |
+| `--grammar on` | missing | ported earlier (2.5) | ours added |
+| `POOL_FUSE_PHASES`, `VERIFY_ECAP=0` + `_MIN_ROWS=9` | missing | ported earlier (2.1, 2.2) | removed 2026-11-20 (FAIL / NO-GAIN on this branch, 2.17); ECAP is spec 252 arm `updated+ecap9` |
 | `--lookup-max-t 12` + 16-row windows (`STRATA_VERIFY_MAX_T=16`) | missing (8-row windows) | ported (2.9) | ours added (+ build flag) |
 | RDNA 9-16 column kernels, `ADAPT_PERSIST` (code defaults of the pancake build) | missing | ported (2.10, 2.13) | ours added (code default) |
 | `PF_GROUP_SCRATCH`, `PF_HC_REGION`, `PREFILL_EQUAL_TAIL` | missing | ported (2.11, 2.12) | ours added |
@@ -215,6 +223,38 @@ with the option on or off. Files: `CMakeLists.txt`, `include/strata/core/amd_com
 `src/core/arch_defaults.cpp`, `src/prefill/gemm.cu`, `src/kernels/cuda/qsa_select.cu`, the two tables in `tools/hip`, `tools/pancake/build_updated_rdna3.sh`;
 test `src/core/amd_community_test.cpp` (CTest `amd_community_test` and `amd_community_test_dot_off`, CPU). Pancake commits `3eb91676d`, `b130965ca`, `55ab701e1`.
 
+
+### 2.17 Removed from the shipped settings after the 2026-11-19 measurements; data files the settings use
+
+Owner order 2026-11-19 23:05: remove from the shipped settings everything that did not work on this branch. Rule: a flag with a FAIL, NO-GAIN or otherwise
+negative verdict measured on this branch leaves `rdna3/recommended-flags/gfx1100.json` (and so the `updated` arm of specs 250 / 251 / 252, which is that file
+minus the values that would change Strata-rdna3's); `VERIFY_ECAP` leaves it unless an edit-case measurement shows a gain. Each removal is in the file under
+`removed`, with the evidence. The measurement arms stay.
+
+| flag | verdict on this branch | evidence |
+|---|---|---|
+| `STRATA_POOL_FUSE_PHASES=1` | FAIL | `flag_diag` on the updated build, 2026-11-19 (box `/home/dan/auto-runs/benchRD-diag-updated/verdicts.json`, short case, 1 rep): -5.97 %; claimed exact, but a parity ctest of the flag failed |
+| `STRATA_VERIFY_ECAP=0` + `_MIN_ROWS=9` | NO-GAIN | same run (MIN_ROWS 6 in the diagnostic): -7.37 % on short. No edit-case measurement on this branch shows a gain: spec 250's screen (2026-11-19 23:17) has no ECAP-only arm, and spec 252 had not finished at removal time. Spec 252 now has the arm `updated+ecap9` (= `updated` + ECAP) for the edit case |
+
+Kept: `--lookup-max-t 12` (no verdict here yet; pancake T-126 / T-127) and every `preset` entry (not measured one by one). Added: `STRATA_PF_F16=1` (GAIN, section
+2.4). Not ours to change: `STRATA_RDNA_MMVQ_WAVE=3` (GAIN +27.34 %, exact) and `STRATA_KV_HOST_DMA=1` (+22.49 %, but the text differs) are Strata-rdna3's own setup
+values. The spec 251 arms of the pancake values (hipBLASLt 100401 table, pancake expert profile, English draft vocabulary, 131072 context, 2048 MiB conversation
+cache) showed no gain against the plain base (confirm 2026-11-19 18:47 on the thin build: no difference; screen 2026-11-19 23:56: short -14.3 % to +4.0 %, 32K
+-26.0 % to -40.0 %, all dropped); they were never in the shipped file and stay as arms.
+
+Data files. Every file a setting of this branch names is in this tree; nothing points into the pancake tree. No file had to be copied in: the three files the spec
+251 arms use were already here, byte-identical to the pancake copies (same git blob), and the arms name them as `@UPDATED_SRC@/...` (this tree as the box chain
+fetches it). `bench_updatedRD_conf.py` no longer takes the engine log path from the pancake preset (it pointed into the pancake checkout); the log now lies next
+to the generated configs. Tests: `rdna3/test_tuned_flags.py` checks that every path in `rdna3/recommended-flags/*.json` and `rdna3/configs/*.json` is
+`@STRATA@/...` (an existing file of this tree; `engine/` is the build output) or `@DATA@/...`.
+
+| file | size | origin | used by |
+|---|---|---|---|
+| `data/expert-profile-pancake.bin` | 196,632 bytes | ours: learned by the pancake line for the Flash-Next IQ2_XS files (T-194), committed here in `0f7513312` | spec 251 arm `profile-pancake` |
+| `data/draft_vocab_en.bin` | 162,100 bytes | Strata-rdna3 `8b01b0c85` (snapshot commit `0e2d9f2b7`; the same file as the pancake line's) | spec 251 arm `draft-vocab-en` |
+| `tools/hip/gfx1100-hipblaslt-100401.txt` | 1,401 bytes | Strata-rdna3 `8b01b0c85` (snapshot commit `0e2d9f2b7`; the same file as the pancake line's) | spec 251 arm `hipblaslt-100401` |
+
+Model weights, packs and the MTP head stay in the data folder (`@DATA@`), not in the repository.
 ## 3. Diagnostic tests and how to reproduce
 Host checks run for this branch (no GPU needed): `python -m pytest rdna3/test_tuned_flags.py tools/pancake/test_flag_diag.py tools/pancake/test_host_tune.py
 tools/pancake/test_pcie_link.py` (fake hardware, fake verdicts, fake sysfs); `verify_ecap_test` (CTest, CPU). The HIP engine files compile only on a Linux

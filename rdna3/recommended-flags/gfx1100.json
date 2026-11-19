@@ -6,9 +6,7 @@
   "vram_gib_min": 16
  },
  "env": {
-  "STRATA_POOL_FUSE_PHASES": "1",
-  "STRATA_VERIFY_ECAP": "0",
-  "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+  "STRATA_PF_F16": "1",
   "STRATA_PIN_BY_NEED": "1",
   "STRATA_EXPDEC": "1",
   "STRATA_EXPDEC_DOWN": "1",
@@ -29,25 +27,15 @@
   "--conversation-cache-min-tokens": "8192"
  },
  "verdicts": {
-  "STRATA_POOL_FUSE_PHASES": {
+  "STRATA_PF_F16": {
    "env": {
-    "STRATA_POOL_FUSE_PHASES": "1"
-   },
-   "verdict": "GAIN",
-   "exact": true,
-   "gain_pct": 2.5,
-   "note": "T-224: edit +2.5% +-1.7, output identical; measured on the pancake base, TO BE MEASURED on this branch"
-  },
-  "STRATA_VERIFY_ECAP=0,MIN_ROWS=9": {
-   "env": {
-    "STRATA_VERIFY_ECAP": "0",
-    "STRATA_VERIFY_ECAP_MIN_ROWS": "9"
+    "STRATA_PF_F16": "1"
    },
    "verdict": "GAIN",
    "exact": false,
    "gate_pass": true,
-   "gain_pct": 41.7,
-   "note": "T-588 edit +41.7% +-5.6 over no ECAP, short +2.8%; T-589 token forcing PASS, T-591 tool-call gate PASS (grammar guard ported); needs the 9..16-row windows of the 16-row build + --lookup-max-t 12 (ported); TO BE MEASURED here"
+   "gain_pct": 10.27,
+   "note": "measured on THIS branch: flag_diag on the updated build 2026-11-19 (box /home/dan/auto-runs/benchRD-diag-updated/verdicts.json, short case, 1 rep): +10.27% against the setup's PF_F16=2, text differs (lossy); quality gate T-828 (token forcing PASS, pancake base). Overrides Strata-rdna3's own value 2 (overrides_theirs); the benchmark arms never override their values, spec 250 arm updated+pf16-1 measures it (screen 2026-11-19 23:17, n=1, order effect: vs updated short +8.8 pts, edit 0, long10k +13.7, long32k +3.1, long64k -2.3, long100k -11.7: inconclusive)"
   },
   "--lookup-max-t 12": {
    "args": {
@@ -57,7 +45,7 @@
    "exact": false,
    "gate_pass": true,
    "gain_pct": 8.8,
-   "note": "T-126/T-127: edit +8.8% +-6.8, quality PASS, on the pancake base (16-row HIP build); TO BE MEASURED here"
+   "note": "T-126/T-127: edit +8.8% +-6.8, quality PASS, on the pancake base (16-row HIP build); not measured alone on this branch (no FAIL / NO-GAIN verdict here)"
   }
  },
  "preset": {
@@ -78,12 +66,11 @@
   "--conversation-cache-min-tokens 8192": "pancake preset (T-183 with --conversation-cache-mib 2048); this tree's setup keeps its own --conversation-cache-mib 8192"
  },
  "theirs_kept": {
-  "STRATA_PF_F16": "2 kept (ours 1, T-820): spec 250 arm updated+pf16-1 decides",
-  "STRATA_HIPBLASLT_TUNING": "the setup's gfx1100-hipblaslt-100200.txt kept (ours 100401, T-096): spec 251 arm hipblaslt-100401 decides",
-  "--expert-profile": "data/expert-profile.bin kept (ours data/expert-profile-pancake.bin, T-194): spec 251 arm profile-pancake decides",
-  "--conversation-cache-mib": "8192 kept (ours 2048): spec 251 arm conversation-cache-2048",
-  "--max-context": "262144 kept (ours 131072): spec 251 arm max-context-131072",
-  "--mtp-draft-vocab": "rdna3/draft_vocab_zh60k.bin kept (ours data/draft_vocab_en.bin): spec 251 arm draft-vocab-en",
+  "STRATA_HIPBLASLT_TUNING": "the setup's gfx1100-hipblaslt-100200.txt kept (ours 100401, T-096): spec 251 arm hipblaslt-100401 measured no gain (confirm 2026-11-19 18:47 thin build: no difference; screen 2026-11-19 23:56 vs the plain base: short +4.0%, long32k -26.0%, dropped)",
+  "--expert-profile": "data/expert-profile.bin kept (ours data/expert-profile-pancake.bin, T-194): spec 251 arm profile-pancake measured no gain (confirm 18:47: no difference; screen 23:56 vs the plain base: short -6.4%, long32k -39.8%, dropped)",
+  "--conversation-cache-mib": "8192 kept (ours 2048): spec 251 arm conversation-cache-2048 screen 23:56 vs the plain base: short -14.3%, long32k -36.2%, dropped",
+  "--max-context": "262144 kept (ours 131072): spec 251 arm max-context-131072 screen 23:56 vs the plain base: short -10.8%, long32k -35.1%, dropped",
+  "--mtp-draft-vocab": "rdna3/draft_vocab_zh60k.bin kept (ours data/draft_vocab_en.bin): spec 251 arm draft-vocab-en screen 23:56 vs the plain base: short -13.2%, long32k -40.0%, dropped",
   "sampling": "temperature 0.6 and presence_penalty 0.0 kept (ours 0.1): no arm, abtest sends temperature 0 in every request",
   "--conversation-cache-slots": "8 kept (the pancake preset does not set it)",
   "--ple-io": "direct kept",
@@ -93,8 +80,32 @@
   "--mtp-q4": "all kept",
   "--mtp-window": "4096 kept",
   "--stats": "kept",
-  "--vision": "kept (rdna3/run.py --no-vision drops it)"
+  "--vision": "kept (rdna3/run.py --no-vision drops it)",
+  "STRATA_RDNA_MMVQ_WAVE": "3 kept (the same value as ours); flag_diag 2026-11-19 on the updated build: GAIN +27.34% short, exact",
+  "STRATA_KV_HOST_DMA": "1 kept (theirs; the pancake preset does not set it); flag_diag 2026-11-19: +22.49% short but claimed exact and the text differs (lossy, no gate here): theirs, not ours to change"
  },
- "source": "the pancake daily preset (configs/pancake/flashnext-iq2_xs-fast-hip.json) on top of Strata-rdna3's own setup and engine defaults: every setting Strata-rdna3 does not have, with the pancake value; where both have one, Strata-rdna3's value stays (theirs_kept) and the pancake value is a spec arm (bench/specs/250, 251). Owner order 2026-11-19. Regenerate with tools/pancake/flag_diag.sh --write-recommended after the box benchmark.",
- "note": "verdicts: the entries with a measured gain at or over this file's bar (on the pancake base, TO BE MEASURED on this branch); preset: the rest of the pancake daily preset, enabled as the preset has them, not separately measured. Needs the 16-row build (tools/pancake/build_updated_rdna3.sh: -DSTRATA_WINDOW_MAX_T=16) for --lookup-max-t 12 and the ECAP gate. Owner order 2026-11-19 late: \"use their full flags with their settings and add our remaining flags, don't override their values\": this file only ADDS to rdna3/configs/<setup>.json (tools/pancake/box_chains/bench_updatedRD_conf.py checks that no value of the setup changes); theirs_kept lists every setup value that stays."
+ "overrides_theirs": {
+  "STRATA_PF_F16": "1 over the setup's 2: measured GAIN on this branch (verdicts.STRATA_PF_F16). The benchmark's updated arm keeps their 2 (bench_updatedRD_conf.py leaves out every recommended value that would change a setup value and logs it); spec 250 arm updated+pf16-1 runs this file's value."
+ },
+ "removed": {
+  "STRATA_POOL_FUSE_PHASES": {
+   "was": {
+    "STRATA_POOL_FUSE_PHASES": "1"
+   },
+   "verdict": "FAIL",
+   "gain_pct": -5.97,
+   "evidence": "flag_diag on the updated build 2026-11-19 (box /home/dan/auto-runs/benchRD-diag-updated/verdicts.json, short, 1 rep): -5.97%, claimed exact but a parity ctest of the flag failed (text differs). Removed 2026-11-20, owner order 2026-11-19 23:05."
+  },
+  "STRATA_VERIFY_ECAP=0,MIN_ROWS=9": {
+   "was": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9"
+   },
+   "verdict": "NO-GAIN",
+   "gain_pct": -7.37,
+   "evidence": "flag_diag on the updated build 2026-11-19 (verdicts.json above; short case only, 1 rep, MIN_ROWS 6 in the diag): -7.37% NO-GAIN. ECAP is meant for the edit case, but no edit-case measurement on this branch shows a gain: spec 250 screen 2026-11-19 23:17 has no ECAP-only arm (updated vs plain edit +43.6% +-758, no difference), spec 252 (updated vs updated+ecap9) had not finished at removal time. Removed 2026-11-20 by the owner rule (removed unless an edit-case measurement shows a gain); spec 252 arm updated+ecap9 keeps measuring it."
+  }
+ },
+ "source": "the pancake daily preset (configs/pancake/flashnext-iq2_xs-fast-hip.json) on top of Strata-rdna3's own setup and engine defaults: every setting Strata-rdna3 does not have, with the pancake value; where both have one, Strata-rdna3's value stays (theirs_kept) and the pancake value is a spec arm (bench/specs/250, 251), except a value measured GAIN on this branch (overrides_theirs: PF_F16=1). Owner orders 2026-11-19 and 2026-11-19 23:05 (flags with a FAIL / NO-GAIN verdict on this branch removed: removed). Regenerate with tools/pancake/flag_diag.sh --write-recommended after the box benchmark.",
+ "note": "verdicts: the entries with a measured gain at or over this file's bar (PF_F16 measured on this branch, --lookup-max-t on the pancake base); preset: the rest of the pancake daily preset, enabled as the preset has them, not separately measured. Needs the 16-row build (tools/pancake/build_updated_rdna3.sh: -DSTRATA_WINDOW_MAX_T=16) for --lookup-max-t 12. Owner order 2026-11-19 late: \"use their full flags with their settings and add our remaining flags, don't override their values\": the benchmark arms only ADD to rdna3/configs/<setup>.json (tools/pancake/box_chains/bench_updatedRD_conf.py leaves out of the updated arm every value of this file that would change a setup value, and checks that none changes); theirs_kept lists every setup value that stays, overrides_theirs the measured GAIN that this file sets over a setup value (owner order 2026-11-19 23:05: a measured GAIN may set it in the shipped file). removed: the flags taken out after the 2026-11-19 measurements on this branch, with the evidence. No value of this file points outside this tree."
 }
