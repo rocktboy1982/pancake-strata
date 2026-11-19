@@ -1212,10 +1212,15 @@ def test_bench_updated_name_is_invisible_to_every_busy_pattern_and_sees_the_othe
         assert busy_result(box, BU, [other]) == "BUSY", other
 
 
+US_SRC = "/mnt/pancake/benchus/src-us"
+
+
 def test_updated_vs_upstream_specs_match_the_preset():
     root = HERE.parents[1]
     plain = json.loads((root / "configs/pancake/flashnext-iq2_xs-plain-upstream.json").read_text())
-    preset = json.loads((root / "configs/pancake/flashnext-iq2_xs-updated-hip.json").read_text())
+    # the preset is an updated-strata preset (<REPO> = the updated-strata checkout); the specs run it from the tree the chain builds (/mnt/pancake/benchus/src-us)
+    preset = json.loads((root / "configs/pancake/flashnext-iq2_xs-updated-hip.json").read_text().replace("<REPO>/data/", US_SRC + "/data/")
+                        .replace("<REPO>/terminal/", US_SRC + "/terminal/"))
     for n in ("220-updated-vs-upstream-short", "221-updated-vs-upstream-long"):
         spec = json.loads((root / f"bench/specs/{n}.json").read_text())
         arm = spec["arms"]["updated"]
@@ -1662,7 +1667,7 @@ def test_bd_spec_251_arms_and_not_in_the_shipped_file():
     if rec.exists():       # on the updated-strata-rdna3 branch: neither arm's value is in the shipped file until a measured GAIN
         shipped = json.loads(rec.read_text())
         assert "STRATA_HIPBLASLT_TUNING" not in shipped["env"] and "--expert-profile" not in shipped["args"]
-        assert spec["arms"]["updated"]["env"] == shipped["env"]
+        assert spec["arms"]["updated"]["env"] == {k: v for k, v in shipped["env"].items() if k not in THEIR_IQ3_1GPU["env"]}
 
 
 # Strata-rdna3 8b01b0c85 rdna3/configs/iq3-1gpu.json, byte for byte as the box's synced copy /mnt/pancake/benchRD/src-plain has it (2026-11-19)
@@ -1806,18 +1811,37 @@ def test_bd_conf_updated_is_plain_plus_additions_with_no_override(tmp_path):
     assert upd["env"] == {**plain["env"], **rec["env"]} and not set(rec["env"]) & set(plain["env"])
     assert upd["args"] == plain["args"] + [x for k, v in rec["args"].items() for x in (k, v)]
     assert {k: v for k, v in upd.items() if k not in ("exe", "env", "args")} == {k: v for k, v in plain.items() if k not in ("exe", "env", "args")}
-    # the owner's list: the 13 env keys + --grammar on, --lookup-max-t 12, --pool-affinity measure, --conversation-cache-min-tokens 8192, and the preset's
-    # remaining explicit values (ROUTE_TAIL_SKIP=0, HC_Q8=0: the engine defaults)
-    assert set(rec["env"]) == {"STRATA_POOL_FUSE_PHASES", "STRATA_VERIFY_ECAP", "STRATA_VERIFY_ECAP_MIN_ROWS", "STRATA_PIN_BY_NEED", "STRATA_EXPDEC",
+    # the owner's list: the env keys + --grammar on, --lookup-max-t 12, --pool-affinity measure, --conversation-cache-min-tokens 8192, and the preset's
+    # remaining explicit values (ROUTE_TAIL_SKIP=0, HC_Q8=0: the engine defaults); POOL_FUSE_PHASES (FAIL) and VERIFY_ECAP (NO-GAIN) removed 2026-11-20
+    assert set(rec["env"]) == {"STRATA_PIN_BY_NEED", "STRATA_EXPDEC",
                                "STRATA_EXPDEC_DOWN", "STRATA_EXCHANGE_ROTATE", "STRATA_KV_PREFETCH", "STRATA_PROMPT_ATTN_IMMA", "STRATA_ATTN_DAILY",
                                "STRATA_PF_GROUP_SCRATCH", "STRATA_PF_HC_REGION", "STRATA_PREFILL_EQUAL_TAIL", "STRATA_ROUTE_TAIL_SKIP", "STRATA_HC_Q8"}
     assert rec["args"] == {"--grammar": "on", "--lookup-max-t": "12", "--pool-affinity": "measure", "--conversation-cache-min-tokens": "8192"}
     assert any(l.startswith("NOT-ADDED env STRATA_AGENT_COUNTERS") for l in log)
-    # a recommended file that would change a value of theirs stops the script, naming it
-    for bad in ({"env": {"STRATA_PF_F16": "1"}, "args": {}}, {"env": {}, "args": {"--max-context": "131072"}}):
-        with pytest.raises(SystemExit) as e:
-            bd_build(tmp_path / ("b" + str(len(bad["env"]))), bad)
-        assert "overrides Strata-rdna3's values" in str(e.value)
+    # a recommended value that would change a value of theirs (the shipped file's overrides_theirs, e.g. PF_F16=1 measured GAIN) is left out of the
+    # updated arm and logged: the arms never override their values (owner order 2026-11-19 23:05)
+    for i, over in enumerate(({"env": {**rec["env"], "STRATA_PF_F16": "1"}, "args": rec["args"]},
+                              {"env": rec["env"], "args": {**rec["args"], "--max-context": "131072"}})):
+        p2, u2, log2 = bd_build(tmp_path / ("o%d" % i), over)
+        assert mod.overrides(p2, u2) == [] and u2["env"]["STRATA_PF_F16"] == "2" and flags_of(u2["args"])["--max-context"] == "262144"
+        assert u2["env"] == upd["env"] and u2["args"] == upd["args"]
+        left = [l for l in log2 if l.startswith("SHIPPED-NOT-IN-ARM")]
+        assert len(left) == 1 and ("STRATA_PF_F16 = 1" in left[0] or "--max-context = 131072" in left[0]) and "never override" in left[0], left
+    # the engine log of both configs: never the pancake preset's log in the pancake tree
+    assert "clone-of-d/src/Strata/" not in plain["log"] and plain["log"] == upd["log"]
+
+    # a value the arm-part filter misses still stops the script, naming it
+    class Over(BdTF):
+        @staticmethod
+        def apply_to_config(cfg, rec, env, root):
+            cfg["env"]["STRATA_PF_F16"] = "1"
+    (tmp_path / "x" / "plain" / "rdna3" / "configs").mkdir(parents=True)
+    (tmp_path / "x" / "plain" / "rdna3" / "configs" / "iq3-1gpu.json").write_text(json.dumps(THEIR_IQ3_1GPU))
+    (tmp_path / "x" / "preset.json").write_text(json.dumps(BOX_PRESET))
+    Over.rec = rec
+    with pytest.raises(SystemExit) as e:
+        mod.build(str(tmp_path / "x" / "preset.json"), str(tmp_path / "x" / "plain"), "/u", "/bp", "/bu", Over, head_reader=lambda p: None)
+    assert "overrides Strata-rdna3's values" in str(e.value)
 
 
 def write_gguf(path, tensors, kv=()):
@@ -1879,12 +1903,16 @@ def test_bd_spec_arms_overlay_the_plain_config_without_touching_their_values():
     upd = s250["arms"]["updated"]
     assert set(s250["arms"]) == {"plain", "updated", "updated+pf16-1"} and s250["cases"] == ["short", "edit", "long10k", "long32k", "long64k", "long100k"]
     assert s250["arms"]["plain"] == {"exe": "@PLAIN@/strata"} and s252["arms"]["plain"] == {"exe": "@PLAIN@/strata"}
-    for arm in (upd, s251["arms"]["updated"], s252["arms"]["updated"], s252["arms"]["updated-exact"]):
+    for arm in (upd, s251["arms"]["updated"], s252["arms"]["updated"], s252["arms"]["updated+ecap9"]):
         assert not set(arm["env"]) & theirs_env and not set(arm["args"]) & theirs_args, arm
-    assert s251["arms"]["updated"] == upd and s252["arms"]["updated"] == upd
-    exact = {k: v for k, v in upd["env"].items() if k not in ("STRATA_VERIFY_ECAP", "STRATA_VERIFY_ECAP_MIN_ROWS")}
-    assert s252["arms"]["updated-exact"] == {**upd, "env": exact}
-    assert (upd["env"]["STRATA_VERIFY_ECAP"], upd["env"]["STRATA_VERIFY_ECAP_MIN_ROWS"]) == ("0", "9")
+    assert s251["arms"]["updated"] == upd and s252["arms"]["updated"] == upd and set(s252["arms"]) == {"plain", "updated", "updated+ecap9"}
+    # removed 2026-11-20 (owner order 2026-11-19 23:05): POOL_FUSE_PHASES (flag_diag FAIL), VERIFY_ECAP (NO-GAIN, no edit-case gain): out of every arm but
+    # updated+ecap9, the measurement arm of ECAP on the edit case
+    for sp in (s250, s251, s252):
+        for name, arm in sp["arms"].items():
+            assert "STRATA_POOL_FUSE_PHASES" not in arm.get("env", {}), name
+            assert ("STRATA_VERIFY_ECAP" in arm.get("env", {})) == (name == "updated+ecap9"), name
+    assert s252["arms"]["updated+ecap9"] == {**upd, "env": {**upd["env"], "STRATA_VERIFY_ECAP": "0", "STRATA_VERIFY_ECAP_MIN_ROWS": "9"}}
     one = {("250", "updated+pf16-1"): ("env", "STRATA_PF_F16", "1"),
            ("251", "hipblaslt-100401"): ("env", "STRATA_HIPBLASLT_TUNING", "@UPDATED_SRC@/tools/hip/gfx1100-hipblaslt-100401.txt"),
            ("251", "profile-pancake"): ("args", "--expert-profile", "@UPDATED_SRC@/data/expert-profile-pancake.bin"),
@@ -1896,10 +1924,50 @@ def test_bd_spec_arms_overlay_the_plain_config_without_touching_their_values():
         assert key in (theirs_env if kind == "env" else theirs_args), key            # a setting of theirs: never in the updated arm, its own arm
         assert arm == {**upd, kind: {**upd[kind], key: val}}, name
     rec = HERE.parent.parent / "rdna3" / "recommended-flags" / "gfx1100.json"
-    if rec.exists():       # on the updated-strata-rdna3 branch: the spec's updated arm is exactly the shipped file, which sets nothing of theirs
+    if rec.exists():       # on the updated-strata-rdna3 branch: the spec's updated arm is the shipped file minus its overrides_theirs (PF_F16=1: arm updated+pf16-1)
         shipped = json.loads(rec.read_text())
-        assert upd["env"] == shipped["env"] and upd["args"] == shipped["args"]
-        assert not set(shipped["env"]) & theirs_env and not set(shipped["args"]) & theirs_args
+        assert upd["env"] == {k: v for k, v in shipped["env"].items() if k not in theirs_env} and upd["args"] == shipped["args"]
+        assert set(shipped["env"]) & theirs_env == set(shipped["overrides_theirs"]) and not set(shipped["args"]) & theirs_args
+        assert s250["arms"]["updated+pf16-1"]["env"] == shipped["env"]
+
+
+def _paths(value):
+    """Every string of a spec arm / config value that names a file or folder (has a slash)."""
+    if isinstance(value, dict):
+        return [x for v in value.values() for x in _paths(v)]
+    if isinstance(value, list):
+        return [x for v in value for x in _paths(v)]
+    return [value] if isinstance(value, str) and "/" in value else []
+
+
+def test_bd_and_bench_us_no_setting_of_an_updated_arm_points_outside_its_tree(tmp_path):
+    """Owner order 2026-11-19 23:05: the settings of the updated trees use their own files (the expert profile, the hipBLASLt table, the draft vocab are in
+    each tree, byte-identical to the pancake copies); only the builds and the model data folder (Strata-data: weights, packs, mtp) live elsewhere."""
+    data = "/home/dan/clone-of-d/Strata-data/"
+    us = {"220-updated-vs-upstream-short.json", "221-updated-vs-upstream-long.json", "222-updated-exact-vs-upstream-short.json",
+          "223-updated-exact-vs-upstream-long.json"}
+    rd = {"250-rdna3-updated-vs-plain.json", "251-rdna3-hipblaslt-and-profile.json", "252-rdna3-updated-exact.json"}
+    for n in us | rd:
+        spec = json.loads((SPECS / n).read_text())
+        for name, arm in spec["arms"].items():
+            if name.startswith("plain"):
+                continue
+            for v in _paths(arm):
+                if n in us:
+                    ok = v.startswith(US_SRC + "/") or v == "/mnt/pancake/benchus/build-us/strata" or v.startswith(data)
+                else:
+                    ok = v.startswith("@UPDATED_SRC@/") or v == "@UPDATED@/strata"
+                assert ok, (n, name, v)
+                assert "<REPO>" not in v and "clone-of-d/src/Strata/" not in v and "Strata-win" not in v, (n, name, v)
+    # the two RD configs bench_updatedRD_conf.py writes: nothing in the pancake tree (/home/dan/clone-of-d/src/Strata), the preset's log included
+    plain, upd, _ = bd_build(tmp_path, bd_arm_rec())
+    for cfg in (plain, upd):
+        for v in _paths(cfg):
+            assert "clone-of-d/src/Strata/" not in v and "Strata-win" not in v, v
+    # the updated-strata preset: its own files under <REPO> (the updated-strata checkout: data/ and terminal/tools/hip/)
+    preset = json.loads((HERE.parents[1] / "configs/pancake/flashnext-iq2_xs-updated-hip.json").read_text())
+    files = [v for v in _paths({"a": preset["args"], "e": preset["env"]}) if v.startswith("<REPO>/")]
+    assert files == ["<REPO>/data/expert-profile-pancake.bin", "<REPO>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt"], files
 
 
 def test_bd_and_rdgate_diag_hand_flag_diag_an_abtest_path_abtest_does_not_take_for_another_test():
@@ -2233,8 +2301,9 @@ def test_bench_exact_full_flow_order_gate_invocation_and_markers(tmp_path):
             and "/auto-runs/benchexact/gate-us" in qg[0]), qg     # the T-828 settings: default set-v2, near-tie column on
     sp = json.loads((box.tmp / "auto-runs" / "benchexact" / "work" / "252.json").read_text())
     assert sp["arms"]["plain"]["exe"].endswith("/mnt/benchRD/build-plain/strata") and sp["base"].endswith("auto-runs/benchRD/config-plain.json")
-    s252 = json.loads((SPECS / "252-rdna3-updated-exact.json").read_text())       # the arms as the spec file has them (T-984 full preset)
-    assert sp["arms"]["updated-exact"]["env"] == s252["arms"]["updated-exact"]["env"] and "STRATA_VERIFY_ECAP" not in sp["arms"]["updated-exact"]["env"]
+    s252 = json.loads((SPECS / "252-rdna3-updated-exact.json").read_text())       # the arms as the spec file has them (2026-11-20: ECAP only in updated+ecap9)
+    assert sp["arms"]["updated"]["env"] == s252["arms"]["updated"]["env"] and "STRATA_VERIFY_ECAP" not in sp["arms"]["updated"]["env"]
+    assert sp["arms"]["updated+ecap9"]["env"]["STRATA_VERIFY_ECAP_MIN_ROWS"] == "9"
     conf = json.loads((box.tmp / "auto-runs" / "benchexact" / "work" / "252-confirm.json").read_text())
     assert conf["cases"] == ["short", "edit"] and conf["drift_check"] is False
     assert sum(1 for c in box.calls() if c.startswith("SETSID")) == 5                     # every long step in its own session
@@ -2403,7 +2472,8 @@ def test_bench_exact_specs_are_the_updated_arm_minus_exactly_the_lossy_switches(
     assert ex["args"] == upd["args"] and ex["exe"] == upd["exe"]
     s252 = json.loads((root / "bench/specs/252-rdna3-updated-exact.json").read_text())
     shipped = json.loads((root / "bench/specs/250-rdna3-updated-vs-plain.json").read_text())["arms"]["updated"]["env"]
-    assert s252["arms"]["updated"]["env"] == shipped and s252["arms"]["updated-exact"]["env"] == {k: v for k, v in shipped.items() if k not in ("STRATA_VERIFY_ECAP", "STRATA_VERIFY_ECAP_MIN_ROWS")}
+    assert s252["arms"]["updated"]["env"] == shipped and "STRATA_VERIFY_ECAP" not in shipped
+    assert s252["arms"]["updated+ecap9"]["env"] == {**shipped, "STRATA_VERIFY_ECAP": "0", "STRATA_VERIFY_ECAP_MIN_ROWS": "9"}
 
 
 def test_sched_bench_extra_runs_the_third_chain_alone_or_after_both(tmp_path):

@@ -13,10 +13,9 @@
   "plain": {
    "exe": "@PLAIN@/strata"
   },
-  "updated-exact": {
+  "updated": {
    "exe": "@UPDATED@/strata",
    "env": {
-    "STRATA_POOL_FUSE_PHASES": "1",
     "STRATA_PIN_BY_NEED": "1",
     "STRATA_EXPDEC": "1",
     "STRATA_EXPDEC_DOWN": "1",
@@ -37,12 +36,9 @@
     "--conversation-cache-min-tokens": "8192"
    }
   },
-  "updated": {
+  "updated+ecap9": {
    "exe": "@UPDATED@/strata",
    "env": {
-    "STRATA_POOL_FUSE_PHASES": "1",
-    "STRATA_VERIFY_ECAP": "0",
-    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
     "STRATA_PIN_BY_NEED": "1",
     "STRATA_EXPDEC": "1",
     "STRATA_EXPDEC_DOWN": "1",
@@ -54,7 +50,9 @@
     "STRATA_PF_HC_REGION": "1",
     "STRATA_PREFILL_EQUAL_TAIL": "1",
     "STRATA_ROUTE_TAIL_SKIP": "0",
-    "STRATA_HC_Q8": "0"
+    "STRATA_HC_Q8": "0",
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9"
    },
    "args": {
     "--grammar": "on",
@@ -64,9 +62,9 @@
    }
   }
  },
- "note": "RDNA3 follow-up of spec 250 (owner order 2026-11-19; arms re-made 2026-11-19 night, TEST_LEDGER.md T-984): updated = spec 250's updated arm (Strata-rdna3 + the whole pancake daily preset: exactly rdna3/recommended-flags/gfx1100.json's env + args of updated-strata-rdna3); updated-exact = updated minus its lossy additions, by the convention of spec 222 (the lossy switches of MOD_PLAN.md section 3): STRATA_VERIFY_ECAP and STRATA_VERIFY_ECAP_MIN_ROWS; PF_F16 is no longer an addition (Strata-rdna3's own 2 stays in both arms through the plain config). Both arms run the 16-row build (-DSTRATA_WINDOW_MAX_T=16) with --lookup-max-t 12 (as spec 222 keeps the lookup windows in its exact arm). The plain config is Strata-rdna3's own setup config exactly (only the model is the box's IQ2_XS; bench_updatedRD_conf.py), and both arms only add to it. Exact means relative to the plain config, which carries Strata-rdna3's own lossy defaults in every arm. Driven by tools/pancake/box_chains/bench-exact.sh. NOT MEASURED.",
+ "note": "RDNA3 follow-up of spec 250 (owner order 2026-11-19; arms re-made 2026-11-20 after the removals, owner order 2026-11-19 23:05). updated = spec 250's updated arm (Strata-rdna3 + the pancake daily preset, exactly rdna3/recommended-flags/gfx1100.json's env + args of updated-strata-rdna3 minus the values that would change a setup value, i.e. without STRATA_PF_F16=1): since STRATA_VERIFY_ECAP (+_MIN_ROWS) left the shipped file (flag_diag NO-GAIN -7.37% short, no edit-case gain measured) this arm carries no lossy switch of MOD_PLAN.md section 3 besides --lookup-max-t 12 (kept in the exact arm by spec 222's convention), so it is the exact arm; updated+ecap9 = updated + STRATA_VERIFY_ECAP=0 with STRATA_VERIFY_ECAP_MIN_ROWS=9: the measurement of the removed lossy flag on the edit case (it re-enters the shipped file only with an edit-case GAIN and a passing gate). STRATA_POOL_FUSE_PHASES is out of both (flag_diag FAIL). Both arms run the 16-row build (-DSTRATA_WINDOW_MAX_T=16) with --lookup-max-t 12. The plain config is Strata-rdna3's own setup config exactly (only the model is the box's IQ2_XS; bench_updatedRD_conf.py), and both arms only add to it. Exact means relative to the plain config, which carries Strata-rdna3's own lossy defaults in every arm. Driven by tools/pancake/box_chains/bench-exact.sh. NOT MEASURED.",
  "stop": [
   "an arm whose server dies before ready twice: stop and read the engine log",
-  "a DIFFERENT text of updated-exact vs plain on short / edit is placement noise or a build difference, never a quality verdict by itself"
+  "a DIFFERENT text of updated vs plain on short / edit is placement noise or a build difference, never a quality verdict by itself"
  ]
 }

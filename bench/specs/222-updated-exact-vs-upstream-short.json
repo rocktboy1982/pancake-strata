@@ -15,7 +15,7 @@
   "updated-exact": {
    "exe": "/mnt/pancake/benchus/build-us/strata",
    "args": {
-    "--expert-profile": "<REPO>/data/expert-profile-pancake.bin",
+    "--expert-profile": "/mnt/pancake/benchus/src-us/data/expert-profile-pancake.bin",
     "--adapt-swaps": "32",
     "--pool-affinity": "measure",
     "--pcie-frac": "0",
@@ -56,7 +56,7 @@
     "STRATA_KV_HOST_DMA": "1",
     "STRATA_ADAPT_OVERLAP": "1",
     "STRATA_QSA_ROWS": "1",
-    "STRATA_HIPBLASLT_TUNING": "<REPO>/tools/hip/gfx1100-hipblaslt-100401.txt",
+    "STRATA_HIPBLASLT_TUNING": "/mnt/pancake/benchus/src-us/terminal/tools/hip/gfx1100-hipblaslt-100401.txt",
     "STRATA_RDNA_MMVQ_WAVE": "3",
     "STRATA_GR_RDNA": "1",
     "STRATA_RDNA_Q6K": "1",
@@ -73,7 +73,7 @@
   "updated": {
    "exe": "/mnt/pancake/benchus/build-us/strata",
    "args": {
-    "--expert-profile": "<REPO>/data/expert-profile-pancake.bin",
+    "--expert-profile": "/mnt/pancake/benchus/src-us/data/expert-profile-pancake.bin",
     "--adapt-swaps": "32",
     "--pool-affinity": "measure",
     "--pcie-frac": "0",
@@ -121,7 +121,7 @@
     "STRATA_KV_HOST_DMA": "1",
     "STRATA_ADAPT_OVERLAP": "1",
     "STRATA_QSA_ROWS": "1",
-    "STRATA_HIPBLASLT_TUNING": "<REPO>/tools/hip/gfx1100-hipblaslt-100401.txt",
+    "STRATA_HIPBLASLT_TUNING": "/mnt/pancake/benchus/src-us/terminal/tools/hip/gfx1100-hipblaslt-100401.txt",
     "STRATA_RDNA_MMVQ_WAVE": "3",
     "STRATA_GR_RDNA": "1",
     "STRATA_GR_RDNA_Q8": "1",
@@ -140,7 +140,7 @@
    }
   }
  },
- "note": "EXACT arm and QUALITY GATE of the plain-vs-updated benchmark (owner order 2026-11-19; spec 220 plus one arm). updated-exact = the updated arm with the 11 lossy switches of MOD_PLAN.md section 3 and ECAP set to the exact path of the v0.2.16-based updated-strata engine (read from its sources; unconfirmed static analysis until the gate runs): unset STRATA_GDN_CONVL2 (prefill/kernels.cu gdn_conv: unset = mode 0, the unfused conv), STRATA_GR_RDNA_Q8 (core/native_dense.cpp gr_rdna_q8_env: only '1' turns it on), STRATA_GR_RDNA_A8 (kernels/cuda/rdna_gr.cu launch: only '1', and only on the Q8 copies; STRATA_GR_INJ_UP / STRATA_GR_FUSED are read inside that branch and are inert here), STRATA_HC_UPMIX (prefill/prefill.cpp hc_upmix), STRATA_PA_FAST (kernels/cuda/qsa_prompt_attn.cu), STRATA_PF_F16 (prefill/moe_f16_common.cuh requested: only '1'), STRATA_PF_HCDOWN (prefill/prefill.cpp pf_hcdown), STRATA_SELECT_WMMA (kernels/cuda/qsa_select.cu: unset keeps the warp scorer), STRATA_PREFILL_AUTO_MAX (program/generate.cpp --prefill auto: unset = 8192-token chunks, as plain-upstream), STRATA_VERIFY_ECAP + _MIN_ROWS (core/verify.cpp: unset = no cap); explicit off values STRATA_PREFILL_CPU_SHARE=0 (prefill/prefill.cpp cpu_share_explicit: 0 = no CPU share, 'the 0.1.40.3 bytes'; unset is also off on a discrete gfx1100) and STRATA_ROUTE_TAIL_SKIP=0 (core/expert_source.cpp tail_skip_rank: 0 = off; unset is also off here, the engine default is gfx12-only: program/generate.cpp decode_defaults_arch_ok), so this arm keeps the updated arm's value there. core/arch_defaults.cpp sets no switch on a discrete gfx1100 (its tables are gfx12 / gfx1151 / integrated GPUs only). Kept: the exact core (GR_RDNA=1, RDNA_MMVQ_WAVE=3, COMBINE_CPU, WAIT_FUSE, POOL_FUSE_PHASES, RDNA_Q6K, ROUTE_PUBLISH, ...) and the prompt switches the fast preset counts as exact (HIP_WMMA, PF_GEMM, PF_FUSED, ...): 'exact' is relative to the daily base (MOD_PLAN.md section 3), not bitwise to plain-upstream (upstream's own comments call PF_GEMM / PF_FUSED bit-changing); the quality gate of this arm against plain-upstream says whether it loses quality. Run by tools/pancake/box_chains/bench-exact.sh on the builds of bench-updatedAA.sh (no rebuild): abtest.py --tier screen --drift-check (base-late = plain-upstream again at the end); confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 3 --no-early-stop only for an arm with a screen benefit (updated is excluded there: spec 220's confirm measured it); quality_gate.py on these three arms (plain-upstream scored twice, set-v2, --near-tie: the settings of TEST_LEDGER.md T-828). NOT MEASURED.",
+ "note": "EXACT arm and QUALITY GATE of the plain-vs-updated benchmark (owner order 2026-11-19; spec 220 plus one arm). updated-exact = the updated arm with the 11 lossy switches of MOD_PLAN.md section 3 and ECAP set to the exact path of the v0.2.16-based updated-strata engine (read from its sources; unconfirmed static analysis until the gate runs): unset STRATA_GDN_CONVL2 (prefill/kernels.cu gdn_conv: unset = mode 0, the unfused conv), STRATA_GR_RDNA_Q8 (core/native_dense.cpp gr_rdna_q8_env: only '1' turns it on), STRATA_GR_RDNA_A8 (kernels/cuda/rdna_gr.cu launch: only '1', and only on the Q8 copies; STRATA_GR_INJ_UP / STRATA_GR_FUSED are read inside that branch and are inert here), STRATA_HC_UPMIX (prefill/prefill.cpp hc_upmix), STRATA_PA_FAST (kernels/cuda/qsa_prompt_attn.cu), STRATA_PF_F16 (prefill/moe_f16_common.cuh requested: only '1'), STRATA_PF_HCDOWN (prefill/prefill.cpp pf_hcdown), STRATA_SELECT_WMMA (kernels/cuda/qsa_select.cu: unset keeps the warp scorer), STRATA_PREFILL_AUTO_MAX (program/generate.cpp --prefill auto: unset = 8192-token chunks, as plain-upstream), STRATA_VERIFY_ECAP + _MIN_ROWS (core/verify.cpp: unset = no cap); explicit off values STRATA_PREFILL_CPU_SHARE=0 (prefill/prefill.cpp cpu_share_explicit: 0 = no CPU share, 'the 0.1.40.3 bytes'; unset is also off on a discrete gfx1100) and STRATA_ROUTE_TAIL_SKIP=0 (core/expert_source.cpp tail_skip_rank: 0 = off; unset is also off here, the engine default is gfx12-only: program/generate.cpp decode_defaults_arch_ok), so this arm keeps the updated arm's value there. core/arch_defaults.cpp sets no switch on a discrete gfx1100 (its tables are gfx12 / gfx1151 / integrated GPUs only). Kept: the exact core (GR_RDNA=1, RDNA_MMVQ_WAVE=3, COMBINE_CPU, WAIT_FUSE, POOL_FUSE_PHASES, RDNA_Q6K, ROUTE_PUBLISH, ...) and the prompt switches the fast preset counts as exact (HIP_WMMA, PF_GEMM, PF_FUSED, ...): 'exact' is relative to the daily base (MOD_PLAN.md section 3), not bitwise to plain-upstream (upstream's own comments call PF_GEMM / PF_FUSED bit-changing); the quality gate of this arm against plain-upstream says whether it loses quality. Run by tools/pancake/box_chains/bench-exact.sh on the builds of bench-updatedAA.sh (no rebuild): abtest.py --tier screen --drift-check (base-late = plain-upstream again at the end); confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 3 --no-early-stop only for an arm with a screen benefit (updated is excluded there: spec 220's confirm measured it); quality_gate.py on these three arms (plain-upstream scored twice, set-v2, --near-tie: the settings of TEST_LEDGER.md T-828). NOT MEASURED. Paths 2026-11-20 (owner order 2026-11-19 23:05: no setting points into the pancake tree): the updated arms read the expert profile and the hipBLASLt table from the updated-strata tree the chain builds (/mnt/pancake/benchus/src-us: data/expert-profile-pancake.bin, terminal/tools/hip/gfx1100-hipblaslt-100401.txt, byte-identical to the pancake copies), not from <REPO> (abtest's harness = the pancake tree).",
  "stop": [
   "an arm whose server dies before ready twice: stop and read the engine log",
   "updated-exact text DIFFERENT from plain-upstream is expected (placement-dependent: spec 220's base-late differed too); the quality gate decides, not the hash"

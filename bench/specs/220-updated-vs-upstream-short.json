@@ -15,7 +15,7 @@
   "updated": {
    "exe": "/mnt/pancake/benchus/build-us/strata",
    "args": {
-    "--expert-profile": "<REPO>/data/expert-profile-pancake.bin",
+    "--expert-profile": "/mnt/pancake/benchus/src-us/data/expert-profile-pancake.bin",
     "--adapt-swaps": "32",
     "--pool-affinity": "measure",
     "--pcie-frac": "0",
@@ -63,7 +63,7 @@
     "STRATA_KV_HOST_DMA": "1",
     "STRATA_ADAPT_OVERLAP": "1",
     "STRATA_QSA_ROWS": "1",
-    "STRATA_HIPBLASLT_TUNING": "<REPO>/tools/hip/gfx1100-hipblaslt-100401.txt",
+    "STRATA_HIPBLASLT_TUNING": "/mnt/pancake/benchus/src-us/terminal/tools/hip/gfx1100-hipblaslt-100401.txt",
     "STRATA_RDNA_MMVQ_WAVE": "3",
     "STRATA_GR_RDNA": "1",
     "STRATA_GR_RDNA_Q8": "1",
@@ -82,5 +82,5 @@
    }
   }
  },
- "note": "Updated-strata against the plain upstream Strata release v0.2.16 (MOD_PLAN section 5 note 'updated-strata'): plain-upstream = the release built with its own default flags and run with model arguments only; updated = the updated-strata branch built by tools/pancake/build_updated.sh and run with the adopted daily preset (configs/pancake/flashnext-iq2_xs-updated-hip.json: the daily fast-hip preset without STRATA_AGENT_COUNTERS (log only), STRATA_PREFILL_EQUAL_TAIL (trial, under the 2% bar), --grammar and --mtp-draft-vocab, which v0.2.16 does not have or the ledger shows flat). Same exact model files and server fields. Decode tok/s of short and edit (the code-edit case); text identity per case is printed by abtest (generated text vs base). Run by tools/pancake/box_chains/bench-updatedAA.sh: abtest.py --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5 --no-early-stop."
+ "note": "Updated-strata against the plain upstream Strata release v0.2.16 (MOD_PLAN section 5 note 'updated-strata'): plain-upstream = the release built with its own default flags and run with model arguments only; updated = the updated-strata branch built by tools/pancake/build_updated.sh and run with the adopted daily preset (configs/pancake/flashnext-iq2_xs-updated-hip.json: the daily fast-hip preset without STRATA_AGENT_COUNTERS (log only), STRATA_PREFILL_EQUAL_TAIL (trial, under the 2% bar), --grammar and --mtp-draft-vocab, which v0.2.16 does not have or the ledger shows flat). Same exact model files and server fields. Decode tok/s of short and edit (the code-edit case); text identity per case is printed by abtest (generated text vs base). Run by tools/pancake/box_chains/bench-updatedAA.sh: abtest.py --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5 --no-early-stop. Paths 2026-11-20 (owner order 2026-11-19 23:05: no setting points into the pancake tree): the updated arms read the expert profile and the hipBLASLt table from the updated-strata tree the chain builds (/mnt/pancake/benchus/src-us: data/expert-profile-pancake.bin, terminal/tools/hip/gfx1100-hipblaslt-100401.txt, byte-identical to the pancake copies), not from <REPO> (abtest's harness = the pancake tree)."
 }
