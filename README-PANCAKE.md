@@ -116,13 +116,15 @@ Rules:
    flag with another verdict.
 5. Unknown hardware (no profile matches, or no card could be read) keeps the plain defaults and prints one line saying so.
 
-The shipped profile holds one flag since 2026-11-20: `--pcie-frac 0` (+6 % short, +13 % edit, one run each, T-197; 0.15 / 0.3 / 0.55
-were all slower, T-268). It held six before; the other five were removed after the box measurements of this branch (section 2.4a).
+The shipped profile holds four flags since 2026-11-20: `STRATA_RDNA_Q6K=1` (section 2.1), `STRATA_GR_RDNA=1` and `STRATA_RDNA_MMVQ_WAVE=3`
+(2.8, 2.9: the T-009 kernel bundle, 3.0 % is the bundle's bound 104 against 101 tok/s, not a per-flag figure) and `--pcie-frac 0` (+6 % short,
++13 % edit, one run each, T-197; 0.15 / 0.3 / 0.55 were all slower, T-268). It held six before; two were removed after the box
+measurements of this branch (section 2.4a).
 `--adapt-every` / `--adapt-swaps` are not in it: the ledger shows no gain without `--pcie-frac 0` (T-199). Also not in it, each for a
 reason in the ledger: `STRATA_GR_RDNA_Q8` / `_A8` / `GR_INJ_UP` / `GR_FUSED` (lossy, no passing quality gate on record),
 `STRATA_ROUTE_PUBLISH` (21.60 to 21.51 ms per window, 0.4 %), `STRATA_WAIT_FUSE` (+1.2 %), `STRATA_COMBINE_CPU` (no single number),
 `STRATA_POOL_FUSE_PHASES` (+2.5 % +-1.7, short -1.3 %), `STRATA_VERIFY_ECAP` (its gates ran with a grammar guard v0.2.16 lacks).
-`--pcie-frac 0` has not run alone on a HIP build of this branch; regenerate the profile from the benchmark's verdicts
+None of the four has a valid single-flag verdict on a HIP build of this branch yet; regenerate the profile from the benchmark's verdicts
 (`flag_diag.sh --write-recommended`) before relying on it; `STRATA_TUNED_FLAGS=0` removes it.
 
 ### 2.4a Flags removed from the shipped profile (2026-11-20) and the data files the settings use
@@ -133,11 +135,18 @@ profile. Each removal is also recorded in `terminal/data/tuned-flags.json` (key 
 
 | flag | verdict on this branch | evidence |
 |---|---|---|
-| `STRATA_RDNA_Q6K=1` | UNSUPPORTED | flag_diag rerun on the box, updated build, 2026-11-19 (`/home/dan/auto-runs/winbenchus/diag-rerun/diag-updated/verdicts.json`): "claimed exact but the text differs from the default here" |
-| `STRATA_GR_RDNA=1` | UNSUPPORTED | same run, same reason |
-| `STRATA_RDNA_MMVQ_WAVE=3` | UNSUPPORTED | same run, same reason |
 | `STRATA_HIPBLASLT_TUNING` (100401 table) | UNSUPPORTED | flag_diag rerun, plain upstream build (`.../diag-rerun/diag-plain/verdicts.json`): text differs |
 | `--lookup-max-t 12` | lossy, gate did not pass | quality gate of this branch (`/home/dan/auto-runs/benchexact/gate-us`, spec 222, 48 requests, token forcing against plain upstream v0.2.16): `updated-exact` (keeps `--lookup-max-t 12`) REJECT on the rate rule, mismatch 3.379 % against 1.562 % / 1.360 % for two stock runs, +1.92 points, 90 % interval [+1.23, +2.74]; `updated` REJECT (3.964 %, +2.50 points); event rule PASS for both. AGENTS rule of the pancake line: never lossy without a passing gate |
+
+Restored the same day (owner decision 2026-11-20): `STRATA_RDNA_Q6K=1`, `STRATA_GR_RDNA=1`, `STRATA_RDNA_MMVQ_WAVE=3`. The rerun
+(`/home/dan/auto-runs/winbenchus/diag-rerun/diag-updated/verdicts.json`) called them UNSUPPORTED because their text differed from the
+default, but on this model plain upstream against itself (`base-late`) also gave different text in every run that day, so text
+identity cannot judge exactness here. Their parity ctests (`rdna_mmvq_parity`, `rdna_gr_parity`; both bounded by a tolerance, not
+bitwise, by their own description) are the judge; they have not run on the box yet. `STRATA_HIPBLASLT_TUNING` was removed for the
+same text-identity reason and stays out pending an owner decision. `tools/pancake/flag_diag.py` now starts the default a second time
+when a claimed-exact flag's text differs: if the repeat differs too, the flag keeps its speed verdict with exactness
+"EXACT-UNVERIFIED (base vs base also differs)"; `--ctest BUILD_DIR` runs the flag's parity ctest (FAIL is the verdict, PASS is
+recorded; "Not Run" is no result). A text difference alone never gives UNSUPPORTED.
 
 Not in the shipped profile before and so not removed from it: `STRATA_VERIFY_ECAP` (NO-GAIN -15.0 % on short, same updated-build run)
 and `STRATA_PF_F16=1` (NO-GAIN -21.2 % prompt, plain build). The benchmark preset `configs/pancake/flashnext-iq2_xs-updated-hip.json`

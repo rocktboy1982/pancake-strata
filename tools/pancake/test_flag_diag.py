@@ -66,10 +66,10 @@ class Detect(unittest.TestCase):
 
 
 class Classify(unittest.TestCase):
-    def arms(self, cand_dec, texts="same", again=100.5):
+    def arms(self, cand_dec, texts="same", again=100.5, again_texts=None):
         t = json.dumps({"short": "h1"}, sort_keys=True)
         return {"base": {"decode": 100.0, "prompt": 1000.0, "texts": t, "ok": True},
-                "base-again": {"decode": again, "prompt": 1000.0, "texts": t, "ok": True},
+                "base-again": {"decode": again, "prompt": 1000.0, "texts": again_texts or t, "ok": True},
                 "F": {"decode": cand_dec, "prompt": 1000.0, "texts": t if texts == "same" else "other", "ok": True}}
 
     def flag(self, exact=True, gate=None, metric="decode"):
@@ -84,10 +84,26 @@ class Classify(unittest.TestCase):
     def test_inside_noise(self):
         self.assertEqual(fd.classify(self.flag(), self.arms(102.5, again=104.0))["verdict"], "NO-GAIN")
 
-    def test_exact_parity_broken(self):
+    def test_exact_text_differs_never_unsupported(self):
+        # owner order 2026-11-20: the default differs from itself on this model; then a claimed-exact flag keeps its speed verdict, EXACT-UNVERIFIED
+        v = fd.classify(self.flag(), self.arms(120.0, texts="other", again_texts="third"))
+        self.assertEqual((v["verdict"], v["exact"]), ("GAIN", True))
+        self.assertEqual(v["exactness"], "EXACT-UNVERIFIED (base vs base also differs)")
+        # the default's repeat is identical: a real difference, judged as lossy (lossy bar, needs a gate), still not UNSUPPORTED
         v = fd.classify(self.flag(), self.arms(120.0, texts="other"))
-        self.assertEqual(v["verdict"], "UNSUPPORTED")
-        self.assertIn("text differs", v["reason"])
+        self.assertEqual((v["verdict"], v["exact"]), ("GAIN", False))
+        self.assertIn("treated as lossy", v["exactness"])
+        self.assertIn("quality gate", v["reason"])
+        self.assertEqual(fd.classify(self.flag(), self.arms(102.5, texts="other"))["verdict"], "NO-GAIN")   # 2.5 % < the lossy bar
+
+    def test_parity_ctest_is_the_judge(self):
+        c = self.flag()
+        c["ctest"] = "^x$"
+        v = fd.classify(c, self.arms(120.0, texts="other", again_texts="third"))
+        self.assertEqual(fd.apply_ctest(v, False, c)["verdict"], "FAIL")
+        ok = fd.apply_ctest(v, True, c)
+        self.assertEqual((ok["verdict"], ok["parity_ctest"]), ("GAIN", "PASS"))
+        self.assertTrue(ok["exactness"].startswith("EXACT (parity ctest PASS"))
 
     def test_lossy_bar_is_3(self):
         self.assertEqual(fd.classify(self.flag(exact=False), self.arms(102.5))["verdict"], "NO-GAIN")
@@ -102,6 +118,32 @@ class Classify(unittest.TestCase):
 
 
 class Run(unittest.TestCase):
+    def test_text_differs_runs_the_default_again_once_and_the_ctests(self):
+        hw = fd.detect(fake_root(), lambda cmd: ROCMINFO)
+        out = Path(tempfile.mkdtemp())
+        arms, cmds = [], []
+
+        def run(cmd, log, timeout_s):
+            if cmd[0] == "ctest":
+                cmds.append(cmd)
+                return (0 if "rdna_gr" in cmd[cmd.index("-R") + 1] else 8), False
+            spec = json.loads(Path(cmd[cmd.index("--tier") - 1]).read_text())
+            arm = next(iter(spec["arms"]))
+            arms.append(arm)
+            text = {"base": "h1"}.get(arm, "h-" + arm)     # every start gives other text, the default too
+            rec = json.loads(jsonl(row(arm, "short", {"base": 100.0, "base-again": 100.5}.get(arm, 110.0))))
+            rec["texts"] = {"short": text}
+            Path(cmd[cmd.index("--out") + 1]).write_text(json.dumps(rec) + "\n")
+            return 0, False
+        res = fd.run("cfg.json", out, ["STRATA_RDNA_Q6K", "STRATA_GR_RDNA"], 60.0, Path("abtest.py"), runner=run, hw=hw, ctest="/b")
+        self.assertEqual(arms, ["base", "STRATA_RDNA_Q6K", "base-again", "STRATA_GR_RDNA"])
+        v = {x["name"]: x for x in res["verdicts"]}
+        self.assertEqual((v["STRATA_GR_RDNA"]["verdict"], v["STRATA_GR_RDNA"]["parity_ctest"]), ("GAIN", "PASS"))
+        self.assertEqual((v["STRATA_RDNA_Q6K"]["verdict"], v["STRATA_RDNA_Q6K"]["parity_ctest"]), ("FAIL", "FAIL"))
+        self.assertEqual(len(cmds), 2)
+        self.assertTrue(fd.ctest_not_run("7/7 Test #154: pool_stress ....***Not Run   0.00 sec"))
+        self.assertFalse(fd.ctest_not_run("1/1 Test #3: rdna_gr_parity .... Failed"))
+
     def test_parse_and_run(self):
         hw = fd.detect(fake_root(), lambda cmd: ROCMINFO)
         out = Path(tempfile.mkdtemp())

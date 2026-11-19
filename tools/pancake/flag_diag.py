@@ -13,10 +13,17 @@ Per flag: (a) hardware check without starting anything (UNSUPPORTED with the rea
 (b) one engine start with the flag next to two starts of the default (the second is the noise floor), 2 short prompts each,
 through tools/pancake/abtest.py: the engine must start and answer (smoke); a flag claimed exact must produce the same text
 as the default (parity); decode / prompt tok/s against the default (quick screen);
-(c) verdict:  UNSUPPORTED (cannot run here, failed to start, or claimed exact and not identical)
+(c) verdict:  UNSUPPORTED (cannot run here, or failed to start)
+              FAIL        (a parity ctest of a flag claimed exact failed: run --ctest BUILD_DIR)
               NO-GAIN     (runs, below the bar or inside the noise floor)
               GAIN        (exact and >= 2 % end to end, or lossy and >= 3 %)
               UNTESTED    (budget ended before this flag)
+Exactness (owner order 2026-11-20): on this model the text of the default against ITSELF differs from run to run (placement), so
+text identity cannot judge a flag claimed exact.  When such a flag's text differs, the default is started once more (arm
+base-again): if that repeat differs too, the flag keeps its speed verdict with `exactness: EXACT-UNVERIFIED (base vs base also
+differs)`; if the repeat is identical, the flag is treated as lossy (its speed verdict against the lossy bar).  The judge of
+exactness is the flag's parity ctest (`ctest` in CANDIDATES, run with --ctest BUILD_DIR): PASS is recorded, FAIL is the verdict.
+A text difference alone never makes a flag UNSUPPORTED.
 A lossy GAIN enters the recommended file only with a passing quality gate (`quality_gate: PASS`, from the ledger or a run of
 tools/pancake/quality_gate.py); the quick screen cannot judge quality.  The file format and the rule are
 terminal/strata_control/tuned_flags.py (`accepted`), which the normal start path applies.
@@ -46,17 +53,17 @@ GFX11_12 = ("gfx11", "gfx12")
 ANY = ()
 
 
-def C(name, kind, value, exact, metric, needs, ledger, gate=None, note="", extra=None):
+def C(name, kind, value, exact, metric, needs, ledger, gate=None, note="", extra=None, ctest=None):
     """`extra`: more environment settings the flag needs in the same arm (a switch that only acts together with others); a
-    recommended profile gets them as flags too."""
+    recommended profile gets them as flags too.  `ctest`: the regex (ctest -R) of the flag's parity tests in a build tree."""
     return {"name": name, "kind": kind, "value": value, "exact": exact, "metric": metric, "needs": needs,
-            "ledger": ledger, "quality_gate": gate, "note": note, "extra": extra or {}}
+            "ledger": ledger, "quality_gate": gate, "note": note, "extra": extra or {}, "ctest": ctest}
 
 
 # The candidates: the adopted flags ported to this branch, plus the hardware-dependent ones.  `needs`: gfx prefixes
 # (empty = any AMD card) and extra requirements ("hipblaslt": the library and a table for this architecture).
 CANDIDATES: list[dict[str, Any]] = [
-    C("STRATA_RDNA_Q6K", "env", "1", True, "decode", {"gfx": GFX11, "wave": 32}, "T-009, T-079"),
+    C("STRATA_RDNA_Q6K", "env", "1", True, "decode", {"gfx": GFX11, "wave": 32}, "T-009, T-079", ctest="^rdna_mmvq_parity$"),
     C("STRATA_HIPBLASLT_TUNING", "env", "<ROOT>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt", True, "prompt",
       {"gfx": ("gfx1100",), "hipblaslt": True}, "T-096"),
     C("--pcie-frac", "arg", "0", True, "decode", {"gfx": ANY, "pcie_link": True}, "T-197, T-268"),
@@ -67,7 +74,7 @@ CANDIDATES: list[dict[str, Any]] = [
     C("STRATA_HIP_WMMA", "env", "1", True, "decode", {"gfx": GFX11_12}, "T-072 (no-op in the preset)"),
     # the ported hyper-connection read, wave and fusion switches (updated-strata): the ledger has the kernel bundle (T-009) and
     # single numbers where noted; the diagnostic measures each here
-    C("STRATA_GR_RDNA", "env", "1", True, "decode", {"gfx": GFX11, "wave": 32}, "T-009 (kernel bundle)"),
+    C("STRATA_GR_RDNA", "env", "1", True, "decode", {"gfx": GFX11, "wave": 32}, "T-009 (kernel bundle)", ctest="^rdna_gr_parity$"),
     C("STRATA_GR_RDNA_Q8", "env", "1", False, "decode", {"gfx": GFX11, "wave": 32}, "T-009, T-378",
       extra={"STRATA_GR_RDNA": "1"}),
     C("STRATA_GR_FUSED", "env", "1", False, "decode", {"gfx": GFX11, "wave": 32}, "T-378",
@@ -172,19 +179,26 @@ def classify(c: dict[str, Any], arms: dict[str, dict[str, Any]]) -> dict[str, An
         return {**v, "verdict": "UNSUPPORTED", "reason": "the engine did not start or answer with this flag"}
     if not base or not base.get("ok"):
         return {**v, "verdict": "UNTESTED", "reason": "no base measurement"}
+    exact = bool(c["exact"])
     if c["exact"] and base.get("texts") != cand.get("texts"):
-        return {**v, "verdict": "UNSUPPORTED", "reason": "claimed exact but the text differs from the default here"}
+        if again and again.get("ok") and again.get("texts") is not None and again.get("texts") != base.get("texts"):
+            v["exactness"] = "EXACT-UNVERIFIED (base vs base also differs)"
+        else:
+            exact = False
+            v["exact"] = False
+            v["exactness"] = ("TEXT-DIFFERS: claimed exact, the text differs from the default and a repeat of the default is "
+                              + ("identical" if again and again.get("ok") else "not measured") + ": treated as lossy")
     m = c["metric"]
     b, k = base.get(m), cand.get(m)
     if not b or not k:
         return {**v, "verdict": "UNTESTED", "reason": f"no {m} tok/s measured"}
     gain = (k / b - 1.0) * 100.0
     noise = abs((again.get(m) / b - 1.0) * 100.0) if again and again.get(m) else 0.0
-    bar = tuned_flags.EXACT_MIN_GAIN if c["exact"] else tuned_flags.LOSSY_MIN_GAIN
+    bar = tuned_flags.EXACT_MIN_GAIN if exact else tuned_flags.LOSSY_MIN_GAIN
     v.update({"gain_pct": round(gain, 1), "noise_pct": round(noise, 1), "bar_pct": bar})
     if gain >= bar and gain > noise:
         v["verdict"] = "GAIN"
-        if not c["exact"] and v.get("quality_gate") != "PASS":
+        if not exact and v.get("quality_gate") != "PASS":
             v["reason"] = "lossy: needs a passing quality gate before it is recommended"
     else:
         v["verdict"] = "NO-GAIN"
@@ -201,9 +215,44 @@ def _row(c: dict[str, Any], verdict: str, reason: str) -> dict[str, Any]:
             "metric": c["metric"], "verdict": verdict, "reason": reason}
 
 
+def ctest_not_run(text):
+    """True when ctest ran nothing it could judge: the test binaries are not built ("Not Run") or no test matched.  Not a FAIL:
+    the 2026-11-19 RD diagnostic called POOL_FUSE_PHASES FAIL from 7 pool tests that were all "Not Run" (no test build)."""
+    return bool(text) and ("Not Run" in text or "No tests were found" in text)
+
+
+def run_ctest(build_dir: str, flags: list[dict[str, Any]], out: Path, timeout_s: float = 300.0,
+              runner: Callable[[list[str], Path, float], tuple] | None = None) -> dict[str, bool | None]:
+    """The parity ctests of the flags claimed exact that name one: {name: True (pass) / False (fail) / None (timeout)}."""
+    runner = runner or _run_harness
+    res: dict[str, bool | None] = {}
+    for c in flags:
+        if not c.get("ctest") or not c["exact"]:
+            continue
+        slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", c["name"])
+        log = out / f"ctest-{slug}.log"
+        rc, to = runner(["ctest", "--test-dir", str(build_dir), "-R", c["ctest"], "--output-on-failure"], log, timeout_s)
+        text = log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
+        res[c["name"]] = None if to or ctest_not_run(text) else rc == 0
+    return res
+
+
+def apply_ctest(v: dict[str, Any], ok: bool | None, c: dict[str, Any]) -> dict[str, Any]:
+    """The parity ctest is the judge of exactness: FAIL is the verdict, PASS is recorded (and settles an unverified text check)."""
+    if ok is False:
+        return {**v, "verdict": "FAIL", "parity_ctest": "FAIL", "reason": f"the parity ctest ({c['ctest']}) of this flag claimed exact failed"}
+    if ok is True:
+        v = {**v, "parity_ctest": "PASS"}
+        if str(v.get("exactness", "")).startswith("EXACT-UNVERIFIED"):
+            v["exactness"] = "EXACT (parity ctest PASS; text identity not usable: base vs base also differs)"
+    elif ok is None:
+        v = {**v, "parity_ctest": "NOT-RUN"}
+    return v
+
+
 def run(config: str, out: Path, only: list[str] | None, budget_min: float, harness: Path,
         runner: Callable[[list[str], Path, float], tuple] | None = None, hw: dict[str, Any] | None = None,
-        flag_timeout: float = 240.0) -> dict[str, Any]:
+        flag_timeout: float = 240.0, ctest: str | None = None, ctest_timeout: float = 300.0) -> dict[str, Any]:
     """Since 2026-11-19 (the chain's diag plain ran 18 min for 2 flags, then its timeout left abtest / server / engine running):
     ONE abtest.py screen per arm (base once, then each flag), case `short` only, no retries, quiet wait <= 30 s, each arm in its
     own process group with a hard limit (`flag_timeout` s; past it the group is stopped and the flag is UNTESTED-TIMEOUT:
@@ -275,6 +324,12 @@ def run(config: str, out: Path, only: list[str] | None, budget_min: float, harne
             for i, c in enumerate(keep):
                 current = keep[i:]
                 rc, to, got = one(c["name"])
+                cand = got.get(c["name"])
+                if (c["exact"] and cand and cand.get("ok") and cand.get("texts") != arms["base"].get("texts")
+                        and "base-again" not in arms):
+                    # the text check needs to know whether the default differs from itself here (one more start, once)
+                    _, _, again = one("base-again")
+                    arms["base-again"] = again.get("base-again") or {"ok": False}
                 if c["name"] not in got and to:
                     verdicts[slot[c["name"]]] = _row(c, "UNTESTED-TIMEOUT", f"no result within {flag_timeout:g} s per flag (engine start + "
                                                      "short prompt); its process group was stopped")
@@ -284,6 +339,9 @@ def run(config: str, out: Path, only: list[str] | None, budget_min: float, harne
                     verdicts[slot[c["name"]]] = classify(c, {**arms, **got})
                 save(False)
             current = []
+        if ctest:
+            for name, ok in run_ctest(ctest, keep, out, ctest_timeout, runner).items():
+                verdicts[slot[name]] = apply_ctest(verdicts[slot[name]], ok, next(c for c in keep if c["name"] == name))
         return save(True)
     except (Stopped, KeyboardInterrupt):
         for c in current:
@@ -345,6 +403,9 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--harness", default=os.environ.get("FLAG_DIAG_ABTEST", str(HERE / "abtest.py")))
     r.add_argument("--flag-timeout", type=float, default=float(os.environ.get("FLAG_DIAG_FLAG_TIMEOUT", "240")),
                    help="seconds per arm (engine start + short case); past it the arm's process group is stopped: UNTESTED-TIMEOUT")
+    r.add_argument("--ctest", default=os.environ.get("FLAG_DIAG_CTEST", ""),
+                   help="a build tree: run the parity ctests of the flags claimed exact (the judge of exactness)")
+    r.add_argument("--ctest-timeout", type=float, default=300.0)
     w = sub.add_parser("write-recommended")
     w.add_argument("--verdicts", required=True)
     w.add_argument("--out", required=True)
@@ -364,12 +425,12 @@ def main(argv: list[str] | None = None) -> int:
         signal.signal(signal.SIGTERM, on_term)
         try:
             res = run(a.config, Path(a.out), [s for s in a.only.split(",") if s] or None, a.budget_min, Path(a.harness),
-                      flag_timeout=a.flag_timeout)
+                      flag_timeout=a.flag_timeout, ctest=a.ctest or None, ctest_timeout=a.ctest_timeout)
         except (Stopped, KeyboardInterrupt):
             print(f"flag_diag: stopped; partial verdicts in {Path(a.out) / 'verdicts.json'}", flush=True)
             return 124
         for v in res["verdicts"]:
-            print(f"{v['verdict']:11} {v['name']:28} {v.get('gain_pct', ''):>6} {v.get('reason', '')}")
+            print(f"{v['verdict']:11} {v['name']:28} {v.get('gain_pct', ''):>6} {v.get('reason', '')} {v.get('exactness', '')}".rstrip())
         print(f"{res['minutes']} minutes; verdicts in {Path(a.out) / 'verdicts.json'}")
     else:
         doc = write_recommended(json.loads(Path(a.verdicts).read_text(encoding="utf-8")), Path(a.out), a.merge)

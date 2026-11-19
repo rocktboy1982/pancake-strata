@@ -112,10 +112,11 @@ class Apply(unittest.TestCase):
         self.assertEqual(n, sum(len(p["flags"]) for p in tf.load_profiles(tf.SHIPPED)))
         out, _ = self.go({"args": [], "env": {}}, [tf.SHIPPED])
         self.assertIn("--pcie-frac", out["args"])
-        # removed 2026-11-20 (owner order 2026-11-19 23:05): UNSUPPORTED on this branch's box diagnostics (RDNA_Q6K, GR_RDNA, RDNA_MMVQ_WAVE,
-        # HIPBLASLT_TUNING) and lossy without a passing gate (--lookup-max-t 12: gate-us REJECT); each removal carries its evidence
+        # the three RDNA kernels stay (owner decision 2026-11-20: text identity cannot judge exactness on this model, the parity ctests do)
+        self.assertEqual((out["env"]["STRATA_RDNA_Q6K"], out["env"]["STRATA_GR_RDNA"], out["env"]["STRATA_RDNA_MMVQ_WAVE"]), ("1", "1", "3"))
+        # removed 2026-11-20 (owner order 2026-11-19 23:05): HIPBLASLT_TUNING (UNSUPPORTED) and --lookup-max-t 12 (lossy, gate-us REJECT)
         gone = {r["name"]: r for r in raw["removed"]}
-        self.assertEqual(set(gone), {"STRATA_RDNA_Q6K", "STRATA_GR_RDNA", "STRATA_RDNA_MMVQ_WAVE", "STRATA_HIPBLASLT_TUNING", "--lookup-max-t"})
+        self.assertEqual(set(gone), {"STRATA_HIPBLASLT_TUNING", "--lookup-max-t"})
         for name, r in gone.items():
             self.assertNotIn(name, out["env"])
             self.assertNotIn(name, out["args"])
