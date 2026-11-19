@@ -1,0 +1,2460 @@
+{
+ "note": "Registry of tools/pancake/box_chains/sweep.py (owner orders 2026-11-20: test every coded flag that was NEVER TESTED on gfx1100 once, triage, confirm only the promising; already-measured flags keep their verdict and get no arm). untested[branch]: generated 2026-11-20 from the branch trees: (1) the switches of the updated arm (US spec 220 updated, RD spec 250 updated) and (2) the owner's named switches the branch's engine reads, and (3) every other STRATA_* switch the branch's engine reads whose pancake disk-env class (src/core/conversation_disk_env.def) is Key / KeyIfSet / Speed / Unsure and whose code reads it as on/off (value: the non-default side), minus names of other hardware / models / backends / debug / log / path / multi-GPU / batch; each WITHOUT a pancake TEST_LEDGER.md measurement row that names it (a speed number in the result column, hardware the box / 7900 / gfx1100 / HIP, verdict not PORTED / NOT RUN / NOT MEASURED / CODED / QUEUED) and without a 2026-11-19 box verdict (US diag rerun, RD benchRD-diag-updated, RD specs 250-252 arms). The ledger match is by name (heuristic); measured[branch] lists the skipped ones with their source. An untested switch the updated arm sets becomes a minus arm (taken out), any other a plus arm (its value). exact=false (lossy bars): MOD_PLAN.md section 3 switches, --lookup-max-t, and disk-env classes Key / KeyIfSet / Unsure. The MOD_PLAN.md section 6 items 24, 25, 38, 42, 44, 46, 47, 48, 50, 51, 53: their switches are not in either branch's engine except STRATA_DENSE_MMQ (measured: ledger T-906 on the box), so none is swept. @SRC@ = the branch tree the chain built.",
+ "lossy": [
+  "STRATA_GDN_CONVL2",
+  "STRATA_GR_RDNA_Q8",
+  "STRATA_GR_RDNA_A8",
+  "STRATA_GR_INJ_UP",
+  "STRATA_GR_FUSED",
+  "STRATA_HC_UPMIX",
+  "STRATA_PA_FAST",
+  "STRATA_PF_F16",
+  "STRATA_PF_HCDOWN",
+  "STRATA_SELECT_WMMA",
+  "STRATA_PREFILL_AUTO_MAX",
+  "STRATA_VERIFY_ECAP",
+  "STRATA_PREFILL_CPU_SHARE",
+  "STRATA_ROUTE_TAIL_SKIP",
+  "STRATA_PROMPT_ATTN_IMMA",
+  "STRATA_HIPBLASLT_TUNING",
+  "--lookup-max-t"
+ ],
+ "groups": {
+  "STRATA_VERIFY_ECAP": [
+   "STRATA_VERIFY_ECAP",
+   "STRATA_VERIFY_ECAP_MIN_ROWS"
+  ]
+ },
+ "protected": {
+  "STRATA_VERIFY_ECAP": [
+   "edit"
+  ],
+  "STRATA_RDNA_Q6K": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_GR_RDNA": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_RDNA_MMVQ_WAVE": [
+   "short",
+   "edit",
+   "longdec32k"
+  ]
+ },
+ "untested": {
+  "us": [
+   {
+    "name": "STRATA_ROUTE_TAIL_SKIP",
+    "env": {
+     "STRATA_ROUTE_TAIL_SKIP": "0"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PIN_BY_NEED",
+    "env": {
+     "STRATA_PIN_BY_NEED": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EXPDEC",
+    "env": {
+     "STRATA_EXPDEC": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EXCHANGE_ROTATE",
+    "env": {
+     "STRATA_EXCHANGE_ROTATE": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ATTN_DAILY",
+    "env": {
+     "STRATA_ATTN_DAILY": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PROMPT_ATTN_IMMA",
+    "env": {
+     "STRATA_PROMPT_ATTN_IMMA": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": false
+   },
+   {
+    "name": "STRATA_KV_PREFETCH",
+    "env": {
+     "STRATA_KV_PREFETCH": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PF_GROUP_SCRATCH",
+    "env": {
+     "STRATA_PF_GROUP_SCRATCH": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_SELECT_WMMA",
+    "env": {
+     "STRATA_SELECT_WMMA": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": false
+   },
+   {
+    "name": "STRATA_SH_STREAM",
+    "env": {
+     "STRATA_SH_STREAM": "0"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_QFUSE",
+    "env": {
+     "STRATA_QFUSE": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_VERIFY_QDEDUP",
+    "env": {
+     "STRATA_VERIFY_QDEDUP": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_STAGER_RING",
+    "env": {
+     "STRATA_STAGER_RING": "64"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PREFILL_CPU_SHARE_MAX",
+    "env": {
+     "STRATA_PREFILL_CPU_SHARE_MAX": "4096"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_GDN_HEAD",
+    "env": {
+     "STRATA_GDN_HEAD": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_GDN_CHUNKED",
+    "env": {
+     "STRATA_GDN_CHUNKED": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_GDN_CONVL2",
+    "env": {
+     "STRATA_GDN_CONVL2": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GDN_NOY",
+    "env": {
+     "STRATA_GDN_NOY": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PF_GEMM",
+    "env": {
+     "STRATA_PF_GEMM": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PF_PAD",
+    "env": {
+     "STRATA_PF_PAD": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_HC_UPMIX",
+    "env": {
+     "STRATA_HC_UPMIX": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PF_HCDOWN",
+    "env": {
+     "STRATA_PF_HCDOWN": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": false
+   },
+   {
+    "name": "STRATA_FUSE_CONVAB",
+    "env": {
+     "STRATA_FUSE_CONVAB": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_HEAD_MIX_MULTI",
+    "env": {
+     "STRATA_HEAD_MIX_MULTI": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_KV_HOST_DMA",
+    "env": {
+     "STRATA_KV_HOST_DMA": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_QSA_ROWS",
+    "env": {
+     "STRATA_QSA_ROWS": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_GR_RDNA_Q8",
+    "env": {
+     "STRATA_GR_RDNA_Q8": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GR_RDNA_A8",
+    "env": {
+     "STRATA_GR_RDNA_A8": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GR_INJ_UP",
+    "env": {
+     "STRATA_GR_INJ_UP": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GR_FUSED",
+    "env": {
+     "STRATA_GR_FUSED": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": false
+   },
+   {
+    "name": "STRATA_ENGINE_NICE",
+    "env": {
+     "STRATA_ENGINE_NICE": "0"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "--expert-profile",
+    "args": {
+     "--expert-profile": "/mnt/pancake/benchus/src-us/data/expert-profile-pancake.bin"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "--pool-affinity",
+    "args": {
+     "--pool-affinity": "measure"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "--adapt-every",
+    "args": {
+     "--adapt-every": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "--conversation-cache-min-tokens",
+    "args": {
+     "--conversation-cache-min-tokens": "8192"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_AMD_COMMUNITY_TUNING",
+    "env": {
+     "STRATA_AMD_COMMUNITY_TUNING": "0"
+    },
+    "why": "ported / named switch not in the updated arm; no gfx1100 ledger row, no box verdict",
+    "source": "owner list 2026-11-20 + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ADAPT_CALLBACK_WARMUP",
+    "env": {
+     "STRATA_ADAPT_CALLBACK_WARMUP": "0"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ADAPT_NOWAIT",
+    "env": {
+     "STRATA_ADAPT_NOWAIT": "1"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ADAPT_OVERLAP_RESIDENT",
+    "env": {
+     "STRATA_ADAPT_OVERLAP_RESIDENT": "1"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ADMIT_MERGE_FIRST",
+    "env": {
+     "STRATA_ADMIT_MERGE_FIRST": "0"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ATTN_LANECELL",
+    "env": {
+     "STRATA_ATTN_LANECELL": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ATTN_MERGE_V2",
+    "env": {
+     "STRATA_ATTN_MERGE_V2": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ATTN_V3",
+    "env": {
+     "STRATA_ATTN_V3": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: decode attention v3); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_CKPT_ASYNC",
+    "env": {
+     "STRATA_CKPT_ASYNC": "1"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_CKPT_GATHER",
+    "env": {
+     "STRATA_CKPT_GATHER": "1"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_CKPT_POOL",
+    "env": {
+     "STRATA_CKPT_POOL": "1"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_CKPT_THREADS",
+    "env": {
+     "STRATA_CKPT_THREADS": "0"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_CPU_IQ_ALL_EXACT1",
+    "env": {
+     "STRATA_CPU_IQ_ALL_EXACT1": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_CVEC_FUSE",
+    "env": {
+     "STRATA_CVEC_FUSE": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_DEQUANT_SIDE",
+    "env": {
+     "STRATA_DEQUANT_SIDE": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_DOWN_WS",
+    "env": {
+     "STRATA_DOWN_WS": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_DRAFT_KEEP",
+    "env": {
+     "STRATA_DRAFT_KEEP": "1"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EARLY_REMOTE_CONTEXTS",
+    "env": {
+     "STRATA_EARLY_REMOTE_CONTEXTS": "1"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EMBED_VRAM",
+    "env": {
+     "STRATA_EMBED_VRAM": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EMB_REUSE_ACCOUNT",
+    "env": {
+     "STRATA_EMB_REUSE_ACCOUNT": "1"
+    },
+    "why": "coded switch (disk-env class Speed: VRAM accounting for chunk sizing); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EXPERT_V2",
+    "env": {
+     "STRATA_EXPERT_V2": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EXPERT_V2K",
+    "env": {
+     "STRATA_EXPERT_V2K": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EXP_MODE",
+    "env": {
+     "STRATA_EXP_MODE": "0"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: F14 per-format expert layouts: bitwise only per native_expert_bench on one RTX 3); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_FS_SLOTS",
+    "env": {
+     "STRATA_FS_SLOTS": "1"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_FUSE_DECODE",
+    "env": {
+     "STRATA_FUSE_DECODE": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_FUSE_HEAD_GR",
+    "env": {
+     "STRATA_FUSE_HEAD_GR": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: head HC read fused); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GDN_CHUNKED_MIN",
+    "env": {
+     "STRATA_GDN_CHUNKED_MIN": "0"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: length from which the chunked GDN scan applies (default 30000 on gfx12)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GDN_TC",
+    "env": {
+     "STRATA_GDN_TC": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: tensor-core GDN scan (opt-in)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GROUPED_V1",
+    "env": {
+     "STRATA_GROUPED_V1": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: grouped expert kernel generation); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GR_Q32_G",
+    "env": {
+     "STRATA_GR_Q32_G": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_GR_Q8_PFS",
+    "env": {
+     "STRATA_GR_Q8_PFS": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_HCD_EXACT",
+    "env": {
+     "STRATA_HCD_EXACT": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_HC_Q8_ALL_STAGES",
+    "env": {
+     "STRATA_HC_Q8_ALL_STAGES": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: which stages read the int8 HC image (modifies HC_Q8)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_HC_Q8_INJECT",
+    "env": {
+     "STRATA_HC_Q8_INJECT": "1"
+    },
+    "why": "coded switch (disk-env class Key: int8 HC image of the inject rows); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_HIP_ADAPT_KERNEL_COPY",
+    "env": {
+     "STRATA_HIP_ADAPT_KERNEL_COPY": "1"
+    },
+    "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_HIP_SWIGLU_FUSED",
+    "env": {
+     "STRATA_HIP_SWIGLU_FUSED": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_IQ_STAGE_GRID",
+    "env": {
+     "STRATA_IQ_STAGE_GRID": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_IQ_STAGE_GRID_MMVQ",
+    "env": {
+     "STRATA_IQ_STAGE_GRID_MMVQ": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_IQ_STAGE_TABLES",
+    "env": {
+     "STRATA_IQ_STAGE_TABLES": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_KVA",
+    "env": {
+     "STRATA_KVA": "0"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: approximate prefill plan (research): the late layers of a cold prompt are approx); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_KVA_ANY_MODEL",
+    "env": {
+     "STRATA_KVA_ANY_MODEL": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: allows KVA on any model); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_KVA_DRAFT_FLOOR",
+    "env": {
+     "STRATA_KVA_DRAFT_FLOOR": "1"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_KVA_MIN_PROMPT",
+    "env": {
+     "STRATA_KVA_MIN_PROMPT": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: prompt length that triggers KVA); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_KVA_ORACLE_FP32",
+    "env": {
+     "STRATA_KVA_ORACLE_FP32": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: KVA oracle precision); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_KVA_SUFFIX",
+    "env": {
+     "STRATA_KVA_SUFFIX": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: exact tail length); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_KV_GROW",
+    "env": {
+     "STRATA_KV_GROW": "0"
+    },
+    "why": "coded switch (disk-env class Speed: KV placement/growth); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_KV_HOST_REGISTER",
+    "env": {
+     "STRATA_KV_HOST_REGISTER": "1"
+    },
+    "why": "coded switch (disk-env class Speed: KV placement/growth); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_LFUSE",
+    "env": {
+     "STRATA_LFUSE": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_LFUSE_GATE",
+    "env": {
+     "STRATA_LFUSE_GATE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_LFUSE_PAIR",
+    "env": {
+     "STRATA_LFUSE_PAIR": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_LM_HIP",
+    "env": {
+     "STRATA_LM_HIP": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: HIP LM head variant); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MMQ_KQ",
+    "env": {
+     "STRATA_MMQ_KQ": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: K-quant experts on MMQ (first-token KL ~0.03)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MMVQ_IL",
+    "env": {
+     "STRATA_MMVQ_IL": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_MMVQ_IL_120",
+    "env": {
+     "STRATA_MMVQ_IL_120": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: IL row table for big 12.0 cards); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MMVQ_IL_Q3K",
+    "env": {
+     "STRATA_MMVQ_IL_Q3K": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: IL kernel for Q3_K); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MMVQ_IL_T1",
+    "env": {
+     "STRATA_MMVQ_IL_T1": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: IL kernel for one token); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MMVQ_IL_WIDE",
+    "env": {
+     "STRATA_MMVQ_IL_WIDE": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: wide IL kernels); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MMVQ_WAVE",
+    "env": {
+     "STRATA_MMVQ_WAVE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_MTP_CATCHUP_ALL",
+    "env": {
+     "STRATA_MTP_CATCHUP_ALL": "0"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_MTP_FULL_HEAD",
+    "env": {
+     "STRATA_MTP_FULL_HEAD": "1"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_MTP_TOP2",
+    "env": {
+     "STRATA_MTP_TOP2": "1"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_NORM_ROPE",
+    "env": {
+     "STRATA_NORM_ROPE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_NO_MMVQ_ROWS2",
+    "env": {
+     "STRATA_NO_MMVQ_ROWS2": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: rows-2 MMVQ layout off); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_NO_MULTI_GR",
+    "env": {
+     "STRATA_NO_MULTI_GR": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_NO_NORM_ROPE",
+    "env": {
+     "STRATA_NO_NORM_ROPE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_NO_SUB16_GU",
+    "env": {
+     "STRATA_NO_SUB16_GU": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_OLD_GROUPED",
+    "env": {
+     "STRATA_OLD_GROUPED": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: old Q2_0 grouped kernel kept for A/B; no bitwise claim found); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_OLD_IQ_MMVQ",
+    "env": {
+     "STRATA_OLD_IQ_MMVQ": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_OLD_Q80_SCALED",
+    "env": {
+     "STRATA_OLD_Q80_SCALED": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: old Q8_0 scaled activation quantizer); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PA_RPF",
+    "env": {
+     "STRATA_PA_RPF": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PA_TRIM",
+    "env": {
+     "STRATA_PA_TRIM": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PA_V2T",
+    "env": {
+     "STRATA_PA_V2T": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: Turing v2 attention with register staging (changes answers)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PCIE_AUTO_CANON",
+    "env": {
+     "STRATA_PCIE_AUTO_CANON": "1"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PF_BK64",
+    "env": {
+     "STRATA_PF_BK64": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PF_FUSED_F16",
+    "env": {
+     "STRATA_PF_FUSED_F16": "1"
+    },
+    "why": "coded switch (disk-env class Key: F16 products in the fused prompt experts (rounding level)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PF_FUSED_NATIVE",
+    "env": {
+     "STRATA_PF_FUSED_NATIVE": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: native fused kernel); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PF_FUSED_Q2N",
+    "env": {
+     "STRATA_PF_FUSED_Q2N": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: Q2_0 fused prompt kernel (own bits, MMQ otherwise)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PF_FUSED_Q50",
+    "env": {
+     "STRATA_PF_FUSED_Q50": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: Q5_0 fused kernel (default on for F16 on gfx1151)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PF_Q8D_F16",
+    "env": {
+     "STRATA_PF_Q8D_F16": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: F16 q8 down variant); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PF_WMMA2",
+    "env": {
+     "STRATA_PF_WMMA2": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: second WMMA expert kernel); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PIPED_MTP",
+    "env": {
+     "STRATA_PIPED_MTP": "0"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PLE_COMPACT",
+    "env": {
+     "STRATA_PLE_COMPACT": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PLE_COPY_STREAM",
+    "env": {
+     "STRATA_PLE_COPY_STREAM": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_POOL_UMWAIT_C02",
+    "env": {
+     "STRATA_POOL_UMWAIT_C02": "1"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PREFILL_EQUAL",
+    "env": {
+     "STRATA_PREFILL_EQUAL": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: equal-size chunks: changes rounding); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PREFILL_HELP",
+    "env": {
+     "STRATA_PREFILL_HELP": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: idle stage computes a share of streamed experts (not bit-identical)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PREFILL_HOST_PLAN",
+    "env": {
+     "STRATA_PREFILL_HOST_PLAN": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: chunk shape (generate.cpp:10454: only the chunk shape, i.e. rounding)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PREFILL_LM_EVEN",
+    "env": {
+     "STRATA_PREFILL_LM_EVEN": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: even vs largest-that-fits super-chunks: changes the super-chunk geometry (like N); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PROMPT_ATTN_Q4",
+    "env": {
+     "STRATA_PROMPT_ATTN_Q4": "0"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: Q4_0-KV prompt attention kernel); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PROMPT_ATTN_Q4_TC",
+    "env": {
+     "STRATA_PROMPT_ATTN_Q4_TC": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: Q4 tensor-core prompt attention); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_Q2_BITPLANE",
+    "env": {
+     "STRATA_Q2_BITPLANE": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: lossy bit-plane Q2_0 dot); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_Q2_WARP",
+    "env": {
+     "STRATA_Q2_WARP": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: Q2_0 warp kernel); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_Q6_PACKED",
+    "env": {
+     "STRATA_Q6_PACKED": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_Q8_GATHER_WIDE",
+    "env": {
+     "STRATA_Q8_GATHER_WIDE": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: wide Q8 KV gather); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_Q8_PACKED",
+    "env": {
+     "STRATA_Q8_PACKED": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_QSA_FUSE_GATE",
+    "env": {
+     "STRATA_QSA_FUSE_GATE": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: QSA gate fusion); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_QSA_FUSE_NR",
+    "env": {
+     "STRATA_QSA_FUSE_NR": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_QSA_SLOTS",
+    "env": {
+     "STRATA_QSA_SLOTS": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_RING_BYTES",
+    "env": {
+     "STRATA_RING_BYTES": "0"
+    },
+    "why": "coded switch (disk-env class Speed: staging ring size); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ROPE_TABLE",
+    "env": {
+     "STRATA_ROPE_TABLE": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: RoPE table source (sincos values)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_S2_SWIGLU_Q8",
+    "env": {
+     "STRATA_S2_SWIGLU_Q8": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: fused SwiGLU + q8 in the S2 grouped kernel); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_SELECT_SIMT",
+    "env": {
+     "STRATA_SELECT_SIMT": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: FP32 tiled scorer, another summation order); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_SH_FORK_LATE",
+    "env": {
+     "STRATA_SH_FORK_LATE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_SIDE_MIXER",
+    "env": {
+     "STRATA_SIDE_MIXER": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_SLOT_CKPT_MOVE",
+    "env": {
+     "STRATA_SLOT_CKPT_MOVE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_SMALL_UNR",
+    "env": {
+     "STRATA_SMALL_UNR": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_SPEC_GUMBEL",
+    "env": {
+     "STRATA_SPEC_GUMBEL": "1"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_STAGE_TRIM",
+    "env": {
+     "STRATA_STAGE_TRIM": "0"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_TOPK_ACTIVE_ANY",
+    "env": {
+     "STRATA_TOPK_ACTIVE_ANY": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_TOPK_STREAM",
+    "env": {
+     "STRATA_TOPK_STREAM": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: top-k stream variant); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_TQ_STAGE",
+    "env": {
+     "STRATA_TQ_STAGE": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: TQ staging); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_TQ_SUB8",
+    "env": {
+     "STRATA_TQ_SUB8": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: TQ sub-8 kernels); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_TSUM",
+    "env": {
+     "STRATA_TSUM": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_VERIFY_ASYNC_LAUNCH",
+    "env": {
+     "STRATA_VERIFY_ASYNC_LAUNCH": "1"
+    },
+    "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_VERIFY_COHERENT",
+    "env": {
+     "STRATA_VERIFY_COHERENT": "1"
+    },
+    "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_VNNI_TIER",
+    "env": {
+     "STRATA_VNNI_TIER": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: CPU row-kernel tier (VNNI forms; \\); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_WMMA_BF16",
+    "env": {
+     "STRATA_WMMA_BF16": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: BF16 WMMA GEMM); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_XN_F16",
+    "env": {
+     "STRATA_XN_F16": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   }
+  ],
+  "rd": [
+   {
+    "name": "STRATA_PIN_BY_NEED",
+    "env": {
+     "STRATA_PIN_BY_NEED": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EXPDEC",
+    "env": {
+     "STRATA_EXPDEC": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EXCHANGE_ROTATE",
+    "env": {
+     "STRATA_EXCHANGE_ROTATE": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_KV_PREFETCH",
+    "env": {
+     "STRATA_KV_PREFETCH": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PROMPT_ATTN_IMMA",
+    "env": {
+     "STRATA_PROMPT_ATTN_IMMA": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": false
+   },
+   {
+    "name": "STRATA_ATTN_DAILY",
+    "env": {
+     "STRATA_ATTN_DAILY": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PF_GROUP_SCRATCH",
+    "env": {
+     "STRATA_PF_GROUP_SCRATCH": "1"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ROUTE_TAIL_SKIP",
+    "env": {
+     "STRATA_ROUTE_TAIL_SKIP": "0"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": false
+   },
+   {
+    "name": "--grammar",
+    "args": {
+     "--grammar": "on"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "--pool-affinity",
+    "args": {
+     "--pool-affinity": "measure"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "--conversation-cache-min-tokens",
+    "args": {
+     "--conversation-cache-min-tokens": "8192"
+    },
+    "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+    "source": "updated arm",
+    "exact": true
+   },
+   {
+    "name": "STRATA_GR_RDNA_Q8",
+    "env": {
+     "STRATA_GR_RDNA_Q8": "1"
+    },
+    "why": "ported / named switch not in the updated arm; no gfx1100 ledger row, no box verdict",
+    "source": "owner list 2026-11-20 + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GR_RDNA_A8",
+    "env": {
+     "STRATA_GR_RDNA_A8": "1"
+    },
+    "why": "ported / named switch not in the updated arm; no gfx1100 ledger row, no box verdict",
+    "source": "owner list 2026-11-20 + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GR_INJ_UP",
+    "env": {
+     "STRATA_GR_INJ_UP": "1"
+    },
+    "why": "ported / named switch not in the updated arm; no gfx1100 ledger row, no box verdict",
+    "source": "owner list 2026-11-20 + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GR_FUSED",
+    "env": {
+     "STRATA_GR_FUSED": "1"
+    },
+    "why": "ported / named switch not in the updated arm; no gfx1100 ledger row, no box verdict",
+    "source": "owner list 2026-11-20 + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_ADAPT_PERSIST",
+    "env": {
+     "STRATA_ADAPT_PERSIST": "0"
+    },
+    "why": "ported / named switch not in the updated arm; no gfx1100 ledger row, no box verdict",
+    "source": "owner list 2026-11-20 + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_AMD_COMMUNITY_TUNING",
+    "env": {
+     "STRATA_AMD_COMMUNITY_TUNING": "0"
+    },
+    "why": "ported / named switch not in the updated arm; no gfx1100 ledger row, no box verdict",
+    "source": "owner list 2026-11-20 + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ADAPT_CALLBACK_WARMUP",
+    "env": {
+     "STRATA_ADAPT_CALLBACK_WARMUP": "0"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ADAPT_NOWAIT",
+    "env": {
+     "STRATA_ADAPT_NOWAIT": "1"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ADAPT_OVERLAP_RESIDENT",
+    "env": {
+     "STRATA_ADAPT_OVERLAP_RESIDENT": "1"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ADMIT_MERGE_FIRST",
+    "env": {
+     "STRATA_ADMIT_MERGE_FIRST": "0"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ATTN_LANECELL",
+    "env": {
+     "STRATA_ATTN_LANECELL": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ATTN_V3",
+    "env": {
+     "STRATA_ATTN_V3": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: decode attention v3); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_CKPT_POOL",
+    "env": {
+     "STRATA_CKPT_POOL": "0"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_CKPT_THREADS",
+    "env": {
+     "STRATA_CKPT_THREADS": "0"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_CPU_IQ_ALL_EXACT1",
+    "env": {
+     "STRATA_CPU_IQ_ALL_EXACT1": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_CVEC_FUSE",
+    "env": {
+     "STRATA_CVEC_FUSE": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EARLY_REMOTE_CONTEXTS",
+    "env": {
+     "STRATA_EARLY_REMOTE_CONTEXTS": "1"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EMB_REUSE_ACCOUNT",
+    "env": {
+     "STRATA_EMB_REUSE_ACCOUNT": "1"
+    },
+    "why": "coded switch (disk-env class Speed: VRAM accounting for chunk sizing); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EXPERT_V2",
+    "env": {
+     "STRATA_EXPERT_V2": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EXPERT_V2K",
+    "env": {
+     "STRATA_EXPERT_V2K": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_EXP_MODE",
+    "env": {
+     "STRATA_EXP_MODE": "0"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: F14 per-format expert layouts: bitwise only per native_expert_bench on one RTX 3); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_FS_SLOTS",
+    "env": {
+     "STRATA_FS_SLOTS": "1"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_FUSE_DECODE",
+    "env": {
+     "STRATA_FUSE_DECODE": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_FUSE_HEAD_GR",
+    "env": {
+     "STRATA_FUSE_HEAD_GR": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: head HC read fused); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GROUPED_V1",
+    "env": {
+     "STRATA_GROUPED_V1": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: grouped expert kernel generation); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_HCD_EXACT",
+    "env": {
+     "STRATA_HCD_EXACT": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_HC_Q8_INJECT",
+    "env": {
+     "STRATA_HC_Q8_INJECT": "1"
+    },
+    "why": "coded switch (disk-env class Key: int8 HC image of the inject rows); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_HC_REQ8",
+    "env": {
+     "STRATA_HC_REQ8": "1"
+    },
+    "why": "coded switch (disk-env class Key: HC projections loaded as int8 (changes the output)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_HC_UPMIX",
+    "env": {
+     "STRATA_HC_UPMIX": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: HC up projection + mix in one kernel (bit-changing, KL gated)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_HC_WN4",
+    "env": {
+     "STRATA_HC_WN4": "0"
+    },
+    "why": "coded switch (disk-env class Speed: rdna3 3dbb40516: prompt HC write+norm with 16-byte accesses; same bits (gr_wn4_p); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_HIP_ADAPT_KERNEL_COPY",
+    "env": {
+     "STRATA_HIP_ADAPT_KERNEL_COPY": "1"
+    },
+    "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_HIP_SWIGLU_FUSED",
+    "env": {
+     "STRATA_HIP_SWIGLU_FUSED": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_IQ_STAGE_GRID",
+    "env": {
+     "STRATA_IQ_STAGE_GRID": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_IQ_STAGE_GRID_MMVQ",
+    "env": {
+     "STRATA_IQ_STAGE_GRID_MMVQ": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_IQ_STAGE_TABLES",
+    "env": {
+     "STRATA_IQ_STAGE_TABLES": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_KV_HOST_REGISTER",
+    "env": {
+     "STRATA_KV_HOST_REGISTER": "1"
+    },
+    "why": "coded switch (disk-env class Speed: KV placement/growth); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_LFUSE",
+    "env": {
+     "STRATA_LFUSE": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_LFUSE_GATE",
+    "env": {
+     "STRATA_LFUSE_GATE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_LFUSE_PAIR",
+    "env": {
+     "STRATA_LFUSE_PAIR": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_MMQ_KQ",
+    "env": {
+     "STRATA_MMQ_KQ": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: K-quant experts on MMQ (first-token KL ~0.03)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MMVF_AUX",
+    "env": {
+     "STRATA_MMVF_AUX": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_MMVQ_IL",
+    "env": {
+     "STRATA_MMVQ_IL": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_MMVQ_IL_120",
+    "env": {
+     "STRATA_MMVQ_IL_120": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: IL row table for big 12.0 cards); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MMVQ_IL_Q3K",
+    "env": {
+     "STRATA_MMVQ_IL_Q3K": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: IL kernel for Q3_K); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MMVQ_IL_T1",
+    "env": {
+     "STRATA_MMVQ_IL_T1": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: IL kernel for one token); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MMVQ_IL_WIDE",
+    "env": {
+     "STRATA_MMVQ_IL_WIDE": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: wide IL kernels); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MMVQ_WAVE",
+    "env": {
+     "STRATA_MMVQ_WAVE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_MTP_CATCHUP_ALL",
+    "env": {
+     "STRATA_MTP_CATCHUP_ALL": "0"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_MTP_FULL_HEAD",
+    "env": {
+     "STRATA_MTP_FULL_HEAD": "1"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_MTP_TOP2",
+    "env": {
+     "STRATA_MTP_TOP2": "1"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_NORM_ROPE",
+    "env": {
+     "STRATA_NORM_ROPE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_NO_MMVQ_ROWS2",
+    "env": {
+     "STRATA_NO_MMVQ_ROWS2": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: rows-2 MMVQ layout off); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_NO_MULTI_GR",
+    "env": {
+     "STRATA_NO_MULTI_GR": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_NO_NORM_ROPE",
+    "env": {
+     "STRATA_NO_NORM_ROPE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_NO_SUB16_GU",
+    "env": {
+     "STRATA_NO_SUB16_GU": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_OLD_GROUPED",
+    "env": {
+     "STRATA_OLD_GROUPED": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: old Q2_0 grouped kernel kept for A/B; no bitwise claim found); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_OLD_IQ_MMVQ",
+    "env": {
+     "STRATA_OLD_IQ_MMVQ": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PA_V2T",
+    "env": {
+     "STRATA_PA_V2T": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: Turing v2 attention with register staging (changes answers)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PCIE_AUTO_CANON",
+    "env": {
+     "STRATA_PCIE_AUTO_CANON": "1"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PCIE_OFF",
+    "env": {
+     "STRATA_PCIE_OFF": "0"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PF_BK64",
+    "env": {
+     "STRATA_PF_BK64": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PF_FUSED_NATIVE",
+    "env": {
+     "STRATA_PF_FUSED_NATIVE": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: native fused kernel); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PF_GEMM",
+    "env": {
+     "STRATA_PF_GEMM": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: prompt projections on WMMA GEMM (bit-changing)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PF_HCDOWN",
+    "env": {
+     "STRATA_PF_HCDOWN": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: HC down by WMMA kernel (first-token KL doubled at 16K)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PF_PAD",
+    "env": {
+     "STRATA_PF_PAD": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PF_WMMA2",
+    "env": {
+     "STRATA_PF_WMMA2": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: second WMMA expert kernel); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_POOL_UMWAIT_C02",
+    "env": {
+     "STRATA_POOL_UMWAIT_C02": "1"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PREFILL_EQUAL",
+    "env": {
+     "STRATA_PREFILL_EQUAL": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: equal-size chunks: changes rounding); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PREFILL_HELP",
+    "env": {
+     "STRATA_PREFILL_HELP": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: idle stage computes a share of streamed experts (not bit-identical)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PREFILL_HOST_PLAN",
+    "env": {
+     "STRATA_PREFILL_HOST_PLAN": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: chunk shape (generate.cpp:10454: only the chunk shape, i.e. rounding)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PROMPT_ATTN_Q4",
+    "env": {
+     "STRATA_PROMPT_ATTN_Q4": "0"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: Q4_0-KV prompt attention kernel); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PROMPT_ATTN_Q4_TC",
+    "env": {
+     "STRATA_PROMPT_ATTN_Q4_TC": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: Q4 tensor-core prompt attention); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_Q2_BITPLANE",
+    "env": {
+     "STRATA_Q2_BITPLANE": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: lossy bit-plane Q2_0 dot); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_Q2_WARP",
+    "env": {
+     "STRATA_Q2_WARP": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: Q2_0 warp kernel); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_Q6_PACKED",
+    "env": {
+     "STRATA_Q6_PACKED": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_Q8_GATHER_WIDE",
+    "env": {
+     "STRATA_Q8_GATHER_WIDE": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: wide Q8 KV gather); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_Q8_PACKED",
+    "env": {
+     "STRATA_Q8_PACKED": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_QSA_ROWS",
+    "env": {
+     "STRATA_QSA_ROWS": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_QSA_SLOTS",
+    "env": {
+     "STRATA_QSA_SLOTS": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_RESIDENT_PIN",
+    "env": {
+     "STRATA_RESIDENT_PIN": "0"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_RING_BYTES",
+    "env": {
+     "STRATA_RING_BYTES": "0"
+    },
+    "why": "coded switch (disk-env class Speed: staging ring size); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ROPE_TABLE",
+    "env": {
+     "STRATA_ROPE_TABLE": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: RoPE table source (sincos values)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_S2_SWIGLU_Q8",
+    "env": {
+     "STRATA_S2_SWIGLU_Q8": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: fused SwiGLU + q8 in the S2 grouped kernel); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_SELECT_SIMT",
+    "env": {
+     "STRATA_SELECT_SIMT": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: FP32 tiled scorer, another summation order); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_SELECT_WMMA",
+    "env": {
+     "STRATA_SELECT_WMMA": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: matrix-core block scorer (not bitwise, cutoff cells flip)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_SH_FORK_LATE",
+    "env": {
+     "STRATA_SH_FORK_LATE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_SH_STREAM",
+    "env": {
+     "STRATA_SH_STREAM": "0"
+    },
+    "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_SLOT_CKPT_MOVE",
+    "env": {
+     "STRATA_SLOT_CKPT_MOVE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_SPEC_GUMBEL",
+    "env": {
+     "STRATA_SPEC_GUMBEL": "1"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_TOPK_ACTIVE_ANY",
+    "env": {
+     "STRATA_TOPK_ACTIVE_ANY": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_TOPK_STREAM",
+    "env": {
+     "STRATA_TOPK_STREAM": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: top-k stream variant); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_TQ_STAGE",
+    "env": {
+     "STRATA_TQ_STAGE": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: TQ staging); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_TQ_SUB8",
+    "env": {
+     "STRATA_TQ_SUB8": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: TQ sub-8 kernels); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_TSUM",
+    "env": {
+     "STRATA_TSUM": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_VERIFY_ASYNC_LAUNCH",
+    "env": {
+     "STRATA_VERIFY_ASYNC_LAUNCH": "1"
+    },
+    "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_VERIFY_COHERENT",
+    "env": {
+     "STRATA_VERIFY_COHERENT": "1"
+    },
+    "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   },
+   {
+    "name": "STRATA_WMMA_BF16",
+    "env": {
+     "STRATA_WMMA_BF16": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: BF16 WMMA GEMM); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false
+   },
+   {
+    "name": "STRATA_XN_F16",
+    "env": {
+     "STRATA_XN_F16": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true
+   }
+  ]
+ },
+ "measured": {
+  "us": {
+   "STRATA_PF_HC_REGION": "ledger T-800",
+   "STRATA_HC_Q8": "ledger T-012",
+   "STRATA_PREFILL_CPU_SHARE": "ledger T-827",
+   "STRATA_HIP_WMMA": "ledger T-072",
+   "STRATA_PREFILL_AUTO_MAX": "ledger T-106, T-614",
+   "STRATA_PF_FUSED": "ledger T-803",
+   "GPU_MAX_HW_QUEUES": "ledger T-010",
+   "STRATA_GDN_PP": "ledger T-474, T-527, T-642, T-921",
+   "STRATA_PA_FAST": "ledger T-768",
+   "STRATA_PF_F16": "diag rerun 2026-11-19 (plain build) NO-GAIN",
+   "STRATA_PREFILL_RING": "ledger T-920",
+   "STRATA_ADAPT_OVERLAP": "ledger T-845",
+   "STRATA_HIPBLASLT_TUNING": "diag rerun 2026-11-19 (plain build)",
+   "STRATA_RDNA_MMVQ_WAVE": "diag rerun 2026-11-19",
+   "STRATA_GR_RDNA": "diag rerun 2026-11-19",
+   "STRATA_RDNA_Q6K": "diag rerun 2026-11-19 (UNSUPPORTED, text; owner: invalid, kept)",
+   "STRATA_VERIFY_ECAP": "diag rerun 2026-11-19 NO-GAIN short; spec 222 updated vs updated-exact",
+   "STRATA_COMBINE_CPU": "diag rerun 2026-11-19",
+   "STRATA_WAIT_FUSE": "diag rerun 2026-11-19 (with COMBINE_CPU)",
+   "STRATA_ROUTE_PUBLISH": "ledger T-009, T-549, T-839",
+   "STRATA_POOL_FUSE_PHASES": "ledger T-224",
+   "STRATA_EXPDEC_DOWN": "ledger T-037, T-040, T-222",
+   "--adapt-swaps": "ledger T-248, T-827",
+   "--pcie-frac": "ledger T-197, T-268, T-605, T-640 (+1)",
+   "--lookup-max-t": "ledger T-116, T-126, T-127, T-561",
+   "--conversation-cache-mib": "ledger T-690",
+   "STRATA_DENSE_MMQ": "ledger T-615"
+  },
+  "rd": {
+   "STRATA_VERIFY_ECAP": "benchRD-diag-updated; spec 252 screen",
+   "STRATA_EXPDEC_DOWN": "ledger T-037, T-040, T-222",
+   "STRATA_PF_HC_REGION": "ledger T-800",
+   "STRATA_PREFILL_EQUAL_TAIL": "ledger T-679, T-810, T-822",
+   "STRATA_HC_Q8": "ledger T-012",
+   "--lookup-max-t": "ledger T-116, T-126, T-127, T-561",
+   "STRATA_GR_RDNA": "ledger T-649, T-650, T-678",
+   "STRATA_RDNA_MMVQ_WAVE": "benchRD-diag-updated GAIN",
+   "STRATA_COMBINE_CPU": "ledger T-009, T-313",
+   "STRATA_WAIT_FUSE": "ledger T-009",
+   "STRATA_ROUTE_PUBLISH": "ledger T-009, T-549, T-839",
+   "STRATA_POOL_FUSE_PHASES": "benchRD-diag-updated 2026-11-19 -5.97%",
+   "STRATA_PF_F16": "benchRD-diag-updated GAIN; spec 250 updated+pf16-1",
+   "STRATA_RDNA_KQ_MAXCOLS": "ledger T-080, T-699, T-767",
+   "STRATA_DENSE_MMQ": "ledger T-615"
+  }
+ }
+}

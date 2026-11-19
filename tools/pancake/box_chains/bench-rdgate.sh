@@ -1,6 +1,6 @@
 #!/bin/sh
 # bench-rdgate.sh - TASK GATE of the RDNA3 benchmark (owner approved 2026-11-19): updated-strata-rdna3 `updated` (the shipped recommended flags minus the values that
-# would change Strata-rdna3's: exactly what config-updated.json adds over config-plain.json; POOL_FUSE_PHASES / VERIFY_ECAP removed 2026-11-20) against the PLAIN Strata-rdna3, judged by tools/pancake/task_gate.py.
+# would change Strata-rdna3's: exactly what config-updated.json adds over config-plain.json; POOL_FUSE_PHASES removed 2026-11-20, ECAP kept) against the PLAIN Strata-rdna3, judged by tools/pancake/task_gate.py.
 # Log /home/dan/clone-of-d/src/bench-rdgate.log, last line WINBENCHRDGATE_DONE (also after an abort or a signal; the line before it is then WINBENCHRDGATE_ABORTED).
 # Results: /home/dan/auto-runs/benchrdgate/ (gate/REPORT.txt, gate/runs-*.jsonl, benchrdgate-gate.stdout, work/rdgate.json).  The file name has no "win-chain",
 # "redo-chain" or "tail-chain": no busy() pattern of another chain sees it (T-944).

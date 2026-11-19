@@ -19,6 +19,8 @@
   "updated": {
    "exe": "@UPDATED@/strata",
    "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
     "STRATA_PIN_BY_NEED": "1",
     "STRATA_EXPDEC": "1",
     "STRATA_EXPDEC_DOWN": "1",
@@ -42,6 +44,8 @@
   "updated+pf16-1": {
    "exe": "@UPDATED@/strata",
    "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
     "STRATA_PIN_BY_NEED": "1",
     "STRATA_EXPDEC": "1",
     "STRATA_EXPDEC_DOWN": "1",
@@ -64,14 +68,14 @@
    }
   }
  },
- "note": "Strata-rdna3 (plain: its own build and its own setup config rdna3/configs/iq3-1gpu.json EXACTLY: every env key, every argument with its value (--max-context 262144, --conversation-cache-mib 8192 / -slots 8, --mtp-draft-vocab rdna3/draft_vocab_zh60k.bin, --mtp-q4 all (proj on the box: the IQ2_XS model's IQ4_XS head cannot take the engine's in-place Q4_0 head copy, a model-file dependency, TEST_LEDGER.md T-987), --mtp-window 4096, --pool-workers 12, --vram-reserve-mib 512, --ple-io direct, --ple-row-cache 1048576, --stats, --vision), its sampling; only the model is the box's IQ2_XS and the picture-reader section is dropped, tools/pancake/box_chains/bench_updatedRD_conf.py) against updated-strata-rdna3 = plain + the WHOLE pancake daily preset (owner rule 2026-11-19: settings Strata-rdna3 does not have get the pancake value; where both have one, Strata-rdna3's value stays and the pancake value is its own arm). Build: 16-row verify windows (-DSTRATA_WINDOW_MAX_T=16, tools/pancake/build_updated_rdna3.sh). The updated arm's diff against plain is exactly this spec's env + args, the same as rdna3/recommended-flags/gfx1100.json of that branch: --lookup-max-t 12 (T-126/127), --grammar on (T-315), PIN_BY_NEED, EXPDEC, EXPDEC_DOWN (T-040), EXCHANGE_ROTATE, KV_PREFETCH, PROMPT_ATTN_IMMA, ATTN_DAILY (inert on HIP), PF_GROUP_SCRATCH, PF_HC_REGION, PREFILL_EQUAL_TAIL (T-679), ROUTE_TAIL_SKIP=0 and HC_Q8=0 (the preset's explicit values, equal to the engine defaults); code defaults of the branch: RDNA 9-16 column kernels (T-080/081), STRATA_ADAPT_PERSIST. updated+pf16-1 adds the one differing value of the env block: PF_F16=1 (pancake T-820) against Strata-rdna3's own PF_F16=2. Spec 251 carries the two other differing values (hipBLASLt table, expert profile). Driven by tools/pancake/box_chains/bench-updatedRD.sh (fills @CONFIG_PLAIN@, @PLAIN@, @UPDATED@). NOT MEASURED. 2026-11-20 (owner order 2026-11-19 23:05: remove what did not work): STRATA_POOL_FUSE_PHASES (flag_diag FAIL -5.97% on the updated build, parity ctest failed) and STRATA_VERIFY_ECAP=0 + _MIN_ROWS=9 (flag_diag NO-GAIN -7.37% short; no edit-case gain measured on this branch) are out of rdna3/recommended-flags/gfx1100.json and so out of every updated-family arm; spec 252 arm updated+ecap9 keeps measuring ECAP on the edit case; the shipped file now sets STRATA_PF_F16=1 (flag_diag GAIN +10.27%), which the arms leave out (their 2 stays; arm updated+pf16-1 runs it).",
+ "note": "Strata-rdna3 (plain: its own build and its own setup config rdna3/configs/iq3-1gpu.json EXACTLY: every env key, every argument with its value (--max-context 262144, --conversation-cache-mib 8192 / -slots 8, --mtp-draft-vocab rdna3/draft_vocab_zh60k.bin, --mtp-q4 all (proj on the box: the IQ2_XS model's IQ4_XS head cannot take the engine's in-place Q4_0 head copy, a model-file dependency, TEST_LEDGER.md T-987), --mtp-window 4096, --pool-workers 12, --vram-reserve-mib 512, --ple-io direct, --ple-row-cache 1048576, --stats, --vision), its sampling; only the model is the box's IQ2_XS and the picture-reader section is dropped, tools/pancake/box_chains/bench_updatedRD_conf.py) against updated-strata-rdna3 = plain + the WHOLE pancake daily preset (owner rule 2026-11-19: settings Strata-rdna3 does not have get the pancake value; where both have one, Strata-rdna3's value stays and the pancake value is its own arm). Build: 16-row verify windows (-DSTRATA_WINDOW_MAX_T=16, tools/pancake/build_updated_rdna3.sh). The updated arm's diff against plain is exactly this spec's env + args, the same as rdna3/recommended-flags/gfx1100.json of that branch: --lookup-max-t 12 (T-126/127), --grammar on (T-315), PIN_BY_NEED, EXPDEC, EXPDEC_DOWN (T-040), EXCHANGE_ROTATE, KV_PREFETCH, PROMPT_ATTN_IMMA, ATTN_DAILY (inert on HIP), PF_GROUP_SCRATCH, PF_HC_REGION, PREFILL_EQUAL_TAIL (T-679), ROUTE_TAIL_SKIP=0 and HC_Q8=0 (the preset's explicit values, equal to the engine defaults); code defaults of the branch: RDNA 9-16 column kernels (T-080/081), STRATA_ADAPT_PERSIST. updated+pf16-1 adds the one differing value of the env block: PF_F16=1 (pancake T-820) against Strata-rdna3's own PF_F16=2. Spec 251 carries the two other differing values (hipBLASLt table, expert profile). Driven by tools/pancake/box_chains/bench-updatedRD.sh (fills @CONFIG_PLAIN@, @PLAIN@, @UPDATED@). NOT MEASURED. 2026-11-20 (owner order 2026-11-19 23:05: remove what did not work): STRATA_POOL_FUSE_PHASES (flag_diag FAIL -5.97% on the updated build, parity ctest failed) and STRATA_VERIFY_ECAP=0 + _MIN_ROWS=9 (flag_diag NO-GAIN -7.37% short; no edit-case gain measured on this branch) are out of rdna3/recommended-flags/gfx1100.json and so out of every updated-family arm; spec 252 arm updated+ecap9 keeps measuring ECAP on the edit case; the shipped file now sets STRATA_PF_F16=1 (flag_diag GAIN +10.27%), which the arms leave out (their 2 stays; arm updated+pf16-1 runs it). 2026-11-20 later (owner decision): STRATA_VERIFY_ECAP=0 + _MIN_ROWS=9 are back in the shipped file and in every updated-family arm (spec 250 screen edit +43.6% / +43.8% vs plain with ECAP + 16-row windows; spec 252 screen 2026-11-20 night (benchexact-252-screen.stdout, n=2): updated edit +40.4% vs updated-exact +30.2% vs plain; gates T-589 / T-591 PASS on the pancake line; against it the one-rep short diag -7.37%); spec 252 is plain / updated-exact / updated again. STRATA_POOL_FUSE_PHASES stays out (-5.97% on the one-rep short diag; its FAIL verdict was invalid: the pool ctests were Not Run).",
  "predict": [
   {
    "arm": "updated",
    "case": "edit",
-   "lo": -5.0,
-   "hi": 20.0,
-   "why": "without ECAP (removed 2026-11-20) the edit gain is --lookup-max-t 12 (+8.8% on the pancake base, T-126) and the preset switches"
+   "lo": 5.0,
+   "hi": 50.0,
+   "why": "ECAP cap 0 from 9 rows in the 16-row windows of --lookup-max-t 12: edit +41.7% +-5.6 on the pancake base (T-588), lookup 12 +8.8% (T-126)"
   },
   {
    "arm": "updated+pf16-1",

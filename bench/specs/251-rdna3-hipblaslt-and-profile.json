@@ -13,6 +13,8 @@
   "updated": {
    "exe": "@UPDATED@/strata",
    "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
     "STRATA_PIN_BY_NEED": "1",
     "STRATA_EXPDEC": "1",
     "STRATA_EXPDEC_DOWN": "1",
@@ -36,6 +38,8 @@
   "hipblaslt-100401": {
    "exe": "@UPDATED@/strata",
    "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
     "STRATA_PIN_BY_NEED": "1",
     "STRATA_EXPDEC": "1",
     "STRATA_EXPDEC_DOWN": "1",
@@ -60,6 +64,8 @@
   "profile-pancake": {
    "exe": "@UPDATED@/strata",
    "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
     "STRATA_PIN_BY_NEED": "1",
     "STRATA_EXPDEC": "1",
     "STRATA_EXPDEC_DOWN": "1",
@@ -84,6 +90,8 @@
   "draft-vocab-en": {
    "exe": "@UPDATED@/strata",
    "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
     "STRATA_PIN_BY_NEED": "1",
     "STRATA_EXPDEC": "1",
     "STRATA_EXPDEC_DOWN": "1",
@@ -108,6 +116,8 @@
   "max-context-131072": {
    "exe": "@UPDATED@/strata",
    "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
     "STRATA_PIN_BY_NEED": "1",
     "STRATA_EXPDEC": "1",
     "STRATA_EXPDEC_DOWN": "1",
@@ -132,6 +142,8 @@
   "conversation-cache-2048": {
    "exe": "@UPDATED@/strata",
    "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
     "STRATA_PIN_BY_NEED": "1",
     "STRATA_EXPDEC": "1",
     "STRATA_EXPDEC_DOWN": "1",
@@ -173,5 +185,5 @@
  "stop": [
   "an arm whose server dies before ready twice: stop the spec and read the engine log"
  ],
- "note": "Second spec of the RDNA3 benchmark: the remaining settings where the pancake preset and Strata-rdna3 differ (owner rule 2026-11-19: Strata-rdna3's value stays in the updated arm, the pancake value is an arm). updated = the full pancake preset on Strata-rdna3 (as spec 250's updated arm: Strata-rdna3's table gfx1100-hipblaslt-100200.txt and its data/expert-profile.bin); hipblaslt-100401 swaps in the pancake table (tools/hip/gfx1100-hipblaslt-100401.txt, T-096); profile-pancake swaps in the learned profile (data/expert-profile-pancake.bin, T-194, specific to Qwen3.8-Flash-Next IQ2_XS). Since the configs keep Strata-rdna3's whole setup (2026-11-19 late, owner order: their values are never overridden), three more of its values differ from the pancake preset and get an arm each: draft-vocab-en (--mtp-draft-vocab data/draft_vocab_en.bin against their rdna3/draft_vocab_zh60k.bin), max-context-131072 (against their 262144), conversation-cache-2048 (--conversation-cache-mib 2048 against their 8192). The preset's temperature 0.1 (theirs 0.6) gets no arm: abtest sends temperature 0 in every request. Driven by tools/pancake/box_chains/bench-updatedRD.sh (fills @CONFIG_PLAIN@, @UPDATED@, @UPDATED_SRC@). NOT MEASURED. 2026-11-20 (owner order 2026-11-19 23:05: remove what did not work): STRATA_POOL_FUSE_PHASES (flag_diag FAIL -5.97% on the updated build, parity ctest failed) and STRATA_VERIFY_ECAP=0 + _MIN_ROWS=9 (flag_diag NO-GAIN -7.37% short; no edit-case gain measured on this branch) are out of rdna3/recommended-flags/gfx1100.json and so out of every updated-family arm; spec 252 arm updated+ecap9 keeps measuring ECAP on the edit case; the shipped file now sets STRATA_PF_F16=1 (flag_diag GAIN +10.27%), which the arms leave out (their 2 stays; arm updated+pf16-1 runs it)."
+ "note": "Second spec of the RDNA3 benchmark: the remaining settings where the pancake preset and Strata-rdna3 differ (owner rule 2026-11-19: Strata-rdna3's value stays in the updated arm, the pancake value is an arm). updated = the full pancake preset on Strata-rdna3 (as spec 250's updated arm: Strata-rdna3's table gfx1100-hipblaslt-100200.txt and its data/expert-profile.bin); hipblaslt-100401 swaps in the pancake table (tools/hip/gfx1100-hipblaslt-100401.txt, T-096); profile-pancake swaps in the learned profile (data/expert-profile-pancake.bin, T-194, specific to Qwen3.8-Flash-Next IQ2_XS). Since the configs keep Strata-rdna3's whole setup (2026-11-19 late, owner order: their values are never overridden), three more of its values differ from the pancake preset and get an arm each: draft-vocab-en (--mtp-draft-vocab data/draft_vocab_en.bin against their rdna3/draft_vocab_zh60k.bin), max-context-131072 (against their 262144), conversation-cache-2048 (--conversation-cache-mib 2048 against their 8192). The preset's temperature 0.1 (theirs 0.6) gets no arm: abtest sends temperature 0 in every request. Driven by tools/pancake/box_chains/bench-updatedRD.sh (fills @CONFIG_PLAIN@, @UPDATED@, @UPDATED_SRC@). NOT MEASURED. 2026-11-20 (owner order 2026-11-19 23:05: remove what did not work): STRATA_POOL_FUSE_PHASES (flag_diag FAIL -5.97% on the updated build, parity ctest failed) and STRATA_VERIFY_ECAP=0 + _MIN_ROWS=9 (flag_diag NO-GAIN -7.37% short; no edit-case gain measured on this branch) are out of rdna3/recommended-flags/gfx1100.json and so out of every updated-family arm; spec 252 arm updated+ecap9 keeps measuring ECAP on the edit case; the shipped file now sets STRATA_PF_F16=1 (flag_diag GAIN +10.27%), which the arms leave out (their 2 stays; arm updated+pf16-1 runs it). 2026-11-20 later (owner decision): STRATA_VERIFY_ECAP=0 + _MIN_ROWS=9 are back in the shipped file and in every updated-family arm (spec 250 screen edit +43.6% / +43.8% vs plain with ECAP + 16-row windows; spec 252 screen 2026-11-20 night (benchexact-252-screen.stdout, n=2): updated edit +40.4% vs updated-exact +30.2% vs plain; gates T-589 / T-591 PASS on the pancake line; against it the one-rep short diag -7.37%); spec 252 is plain / updated-exact / updated again. STRATA_POOL_FUSE_PHASES stays out (-5.97% on the one-rep short diag; its FAIL verdict was invalid: the pool ctests were Not Run)."
 }

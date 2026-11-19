@@ -50,7 +50,7 @@ def opt(name, default=None):
 if not args:
     sys.exit(0)
 a0 = args[0]
-if a0.endswith("chainT-decide.py"):
+if a0.endswith("chainT-decide.py") or a0.endswith("box_chains/sweep.py"):
     sys.argv = args; runpy.run_path(a0, run_name="__main__")
 if a0 == "-m":
     sys.exit(1 if fail() else 0)
@@ -83,7 +83,13 @@ if name == "abtest.py":
         print("rep 0 " + arms[0] + ": FAILED (server died before ready)")
         print("ABORT: the server died twice before ready (fix the machine first)")
         sys.exit(2)
-    if out:
+    if out and os.environ.get("STUB_ARM_DECODE"):     # {arm: {case: tok/s}}: one record per arm of the spec, as a full run writes
+        dec = json.loads(os.environ["STUB_ARM_DECODE"])
+        for arm in arms:
+            d = dec.get(arm, dec.get("*", {}))
+            open(out, "a").write(json.dumps({"arm": arm, "rows": [{"case": c, "decode_tps": d.get(c, 100.0), "prompt_tps": d.get(c + "-prompt", 1000.0)}
+                                                                    for c in spec.get("cases", ["short", "edit"])]}) + "\n")
+    elif out:
         open(out, "a").write(json.dumps({"arm": arms[0], "rows": [{"case": "short", "decode_tps": 12.5, "prompt_tps": 100.0}]}) + "\n")
     print("abtest stub", joined)
     for case in ("c1", "c2"):
@@ -1812,8 +1818,8 @@ def test_bd_conf_updated_is_plain_plus_additions_with_no_override(tmp_path):
     assert upd["args"] == plain["args"] + [x for k, v in rec["args"].items() for x in (k, v)]
     assert {k: v for k, v in upd.items() if k not in ("exe", "env", "args")} == {k: v for k, v in plain.items() if k not in ("exe", "env", "args")}
     # the owner's list: the env keys + --grammar on, --lookup-max-t 12, --pool-affinity measure, --conversation-cache-min-tokens 8192, and the preset's
-    # remaining explicit values (ROUTE_TAIL_SKIP=0, HC_Q8=0: the engine defaults); POOL_FUSE_PHASES (FAIL) and VERIFY_ECAP (NO-GAIN) removed 2026-11-20
-    assert set(rec["env"]) == {"STRATA_PIN_BY_NEED", "STRATA_EXPDEC",
+    # remaining explicit values (ROUTE_TAIL_SKIP=0, HC_Q8=0: the engine defaults); POOL_FUSE_PHASES removed 2026-11-20, ECAP kept (owner decision)
+    assert set(rec["env"]) == {"STRATA_VERIFY_ECAP", "STRATA_VERIFY_ECAP_MIN_ROWS", "STRATA_PIN_BY_NEED", "STRATA_EXPDEC",
                                "STRATA_EXPDEC_DOWN", "STRATA_EXCHANGE_ROTATE", "STRATA_KV_PREFETCH", "STRATA_PROMPT_ATTN_IMMA", "STRATA_ATTN_DAILY",
                                "STRATA_PF_GROUP_SCRATCH", "STRATA_PF_HC_REGION", "STRATA_PREFILL_EQUAL_TAIL", "STRATA_ROUTE_TAIL_SKIP", "STRATA_HC_Q8"}
     assert rec["args"] == {"--grammar": "on", "--lookup-max-t": "12", "--pool-affinity": "measure", "--conversation-cache-min-tokens": "8192"}
@@ -1903,16 +1909,18 @@ def test_bd_spec_arms_overlay_the_plain_config_without_touching_their_values():
     upd = s250["arms"]["updated"]
     assert set(s250["arms"]) == {"plain", "updated", "updated+pf16-1"} and s250["cases"] == ["short", "edit", "long10k", "long32k", "long64k", "long100k"]
     assert s250["arms"]["plain"] == {"exe": "@PLAIN@/strata"} and s252["arms"]["plain"] == {"exe": "@PLAIN@/strata"}
-    for arm in (upd, s251["arms"]["updated"], s252["arms"]["updated"], s252["arms"]["updated+ecap9"]):
+    for arm in (upd, s251["arms"]["updated"], s252["arms"]["updated"], s252["arms"]["updated-exact"]):
         assert not set(arm["env"]) & theirs_env and not set(arm["args"]) & theirs_args, arm
-    assert s251["arms"]["updated"] == upd and s252["arms"]["updated"] == upd and set(s252["arms"]) == {"plain", "updated", "updated+ecap9"}
-    # removed 2026-11-20 (owner order 2026-11-19 23:05): POOL_FUSE_PHASES (flag_diag FAIL), VERIFY_ECAP (NO-GAIN, no edit-case gain): out of every arm but
-    # updated+ecap9, the measurement arm of ECAP on the edit case
+    assert s251["arms"]["updated"] == upd and s252["arms"]["updated"] == upd and list(s252["arms"]) == ["plain", "updated-exact", "updated"]
+    # 2026-11-20: POOL_FUSE_PHASES out of every arm (removed from the shipped file); ECAP kept (owner decision): in every updated-family arm but
+    # updated-exact, which is updated minus ECAP (spec 252 measures ECAP alone)
+    exact = {k: v for k, v in upd["env"].items() if k not in ("STRATA_VERIFY_ECAP", "STRATA_VERIFY_ECAP_MIN_ROWS")}
+    assert s252["arms"]["updated-exact"] == {**upd, "env": exact}
+    assert (upd["env"]["STRATA_VERIFY_ECAP"], upd["env"]["STRATA_VERIFY_ECAP_MIN_ROWS"]) == ("0", "9")
     for sp in (s250, s251, s252):
         for name, arm in sp["arms"].items():
             assert "STRATA_POOL_FUSE_PHASES" not in arm.get("env", {}), name
-            assert ("STRATA_VERIFY_ECAP" in arm.get("env", {})) == (name == "updated+ecap9"), name
-    assert s252["arms"]["updated+ecap9"] == {**upd, "env": {**upd["env"], "STRATA_VERIFY_ECAP": "0", "STRATA_VERIFY_ECAP_MIN_ROWS": "9"}}
+            assert ("STRATA_VERIFY_ECAP" in arm.get("env", {})) == (name not in ("plain", "updated-exact")), name
     one = {("250", "updated+pf16-1"): ("env", "STRATA_PF_F16", "1"),
            ("251", "hipblaslt-100401"): ("env", "STRATA_HIPBLASLT_TUNING", "@UPDATED_SRC@/tools/hip/gfx1100-hipblaslt-100401.txt"),
            ("251", "profile-pancake"): ("args", "--expert-profile", "@UPDATED_SRC@/data/expert-profile-pancake.bin"),
@@ -2220,6 +2228,7 @@ BE_REAP = 'echo "REAP $*" >> "$H/calls.log"\ncase $2 in 9999*) rm -f "$H/lstart.
 BE_PY = ('case "$*" in *quality_gate.py*)\n'
          '  [ -n "$GATE_ORPHAN" ] && { echo "999993 @SID@ 999993" > "$H/ptree.txt"; echo "Thu Nov 19 16:00:00 2026" > "$H/lstart.999993"; /usr/bin/sleep 1; }\n'
          '  [ -n "$GATE_HANG" ] && /usr/bin/sleep "$GATE_HANG" ;;\n'
+         '  *abtest.py*) [ -n "$AB_HANG" ] && /usr/bin/sleep "$AB_HANG" ;;\n'
          'esac\nexec "$PYREAL" "$H/stub/pystub.py" "$@"\n')
 BE_ENV = {"BENCH_SCHED": "1", "BENCH_PREIDLED": "1", "BENCH_KEEP_SERVICE_DOWN": "1", "SVC_DOWN": "1"}
 
@@ -2232,7 +2241,9 @@ def prepare_be(box, us=True, rd=True, follow=False):
     pkg = box.tmp / "be-src" / "x"
     root = HERE.parents[1]
     for rel in ("bench/specs/222-updated-exact-vs-upstream-short.json", "bench/specs/223-updated-exact-vs-upstream-long.json",
-                "bench/specs/252-rdna3-updated-exact.json", "configs/pancake/flashnext-iq2_xs-plain-upstream.json"):
+                "bench/specs/252-rdna3-updated-exact.json", "configs/pancake/flashnext-iq2_xs-plain-upstream.json",
+                "tools/pancake/box_chains/sweep.py", "tools/pancake/box_chains/sweep_candidates.json",
+                "bench/specs/220-updated-vs-upstream-short.json"):
         (pkg / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(root / rel, pkg / rel)
     for rel in ("tools/pancake/abtest.py", "tools/pancake/quality_gate.py", "tools/force_check.py", "bench/quality/set-v2.json", "serve/__init__.py",
@@ -2301,9 +2312,9 @@ def test_bench_exact_full_flow_order_gate_invocation_and_markers(tmp_path):
             and "/auto-runs/benchexact/gate-us" in qg[0]), qg     # the T-828 settings: default set-v2, near-tie column on
     sp = json.loads((box.tmp / "auto-runs" / "benchexact" / "work" / "252.json").read_text())
     assert sp["arms"]["plain"]["exe"].endswith("/mnt/benchRD/build-plain/strata") and sp["base"].endswith("auto-runs/benchRD/config-plain.json")
-    s252 = json.loads((SPECS / "252-rdna3-updated-exact.json").read_text())       # the arms as the spec file has them (2026-11-20: ECAP only in updated+ecap9)
-    assert sp["arms"]["updated"]["env"] == s252["arms"]["updated"]["env"] and "STRATA_VERIFY_ECAP" not in sp["arms"]["updated"]["env"]
-    assert sp["arms"]["updated+ecap9"]["env"]["STRATA_VERIFY_ECAP_MIN_ROWS"] == "9"
+    s252 = json.loads((SPECS / "252-rdna3-updated-exact.json").read_text())       # the arms as the spec file has them (updated-exact = updated minus ECAP)
+    assert sp["arms"]["updated-exact"]["env"] == s252["arms"]["updated-exact"]["env"] and "STRATA_VERIFY_ECAP" not in sp["arms"]["updated-exact"]["env"]
+    assert sp["arms"]["updated"]["env"]["STRATA_VERIFY_ECAP_MIN_ROWS"] == "9"
     conf = json.loads((box.tmp / "auto-runs" / "benchexact" / "work" / "252-confirm.json").read_text())
     assert conf["cases"] == ["short", "edit"] and conf["drift_check"] is False
     assert sum(1 for c in box.calls() if c.startswith("SETSID")) == 5                     # every long step in its own session
@@ -2472,8 +2483,224 @@ def test_bench_exact_specs_are_the_updated_arm_minus_exactly_the_lossy_switches(
     assert ex["args"] == upd["args"] and ex["exe"] == upd["exe"]
     s252 = json.loads((root / "bench/specs/252-rdna3-updated-exact.json").read_text())
     shipped = json.loads((root / "bench/specs/250-rdna3-updated-vs-plain.json").read_text())["arms"]["updated"]["env"]
-    assert s252["arms"]["updated"]["env"] == shipped and "STRATA_VERIFY_ECAP" not in shipped
-    assert s252["arms"]["updated+ecap9"]["env"] == {**shipped, "STRATA_VERIFY_ECAP": "0", "STRATA_VERIFY_ECAP_MIN_ROWS": "9"}
+    assert s252["arms"]["updated"]["env"] == shipped and s252["arms"]["updated-exact"]["env"] == {k: v for k, v in shipped.items() if k not in ("STRATA_VERIFY_ECAP", "STRATA_VERIFY_ECAP_MIN_ROWS")}
+
+
+# ------------------------------------------------------------------------------------------------ bench-sweep.sh (full flag sweep, both branches)
+SW = "bench-sweep.sh"
+
+
+def sweep_mod():
+    spec_ = importlib.util.spec_from_file_location("sweep", CHAINS / "sweep.py")
+    mod = importlib.util.module_from_spec(spec_)
+    spec_.loader.exec_module(mod)
+    return mod
+
+
+def sweep_registry():
+    return json.loads((CHAINS / "sweep_candidates.json").read_text())
+
+
+def test_sweep_registry_lists_only_never_tested_switches_with_a_reason_and_the_measured_ones_with_their_source():
+    reg = sweep_registry()
+    for br in ("us", "rd"):
+        unt, mea = reg["untested"][br], reg["measured"][br]
+        names = [c["name"] for c in unt]
+        assert len(names) == len(set(names)) and not set(names) & set(mea), br
+        assert all(c["why"] and c["source"] and (c.get("env") or c.get("args")) and isinstance(c["exact"], bool) for c in unt), br
+        assert all(v for v in mea.values()), br
+    # the 2026-11-19 box verdicts and the ledger keep their flags out of pass 1
+    for k in ("STRATA_RDNA_Q6K", "STRATA_GR_RDNA", "STRATA_RDNA_MMVQ_WAVE", "STRATA_VERIFY_ECAP", "STRATA_PF_F16", "--lookup-max-t"):
+        assert k in reg["measured"]["us"], k
+    for k in ("STRATA_POOL_FUSE_PHASES", "STRATA_VERIFY_ECAP", "STRATA_PF_F16", "STRATA_RDNA_MMVQ_WAVE"):
+        assert k in reg["measured"]["rd"], k
+    assert not any(re.search(r"GFX906|GFX1151|IGPU|DBG|DUMP|TRACE", c["name"]) for br in ("us", "rd") for c in reg["untested"][br])
+
+
+def test_sweep_us_arms_minus_the_untested_switches_of_the_updated_arm_plus_the_others():
+    mod, reg = sweep_mod(), sweep_registry()
+    arm = json.loads((SPECS / "220-updated-vs-upstream-short.json").read_text())["arms"]["updated"]
+    spec, meta = mod.build_spec("us", "/x/plain.json", arm, reg, "/mnt/pancake/benchus/src-us", plain={"env": {}, "args": []})
+    flags = meta["flags"]
+    unt = reg["untested"]["us"]
+    in_arm = {c["name"] for c in unt if any(k in arm["env"] or k in arm["args"] for k in list(c.get("env") or {}) + list(c.get("args") or {}))}
+    assert {f["flag"] for f in flags.values() if f["kind"] == "minus"} == in_arm and in_arm
+    assert {f["flag"] for f in flags.values() if f["kind"] == "plus"} == {c["name"] for c in unt} - in_arm
+    assert not {f["flag"] for f in flags.values()} & set(reg["measured"]["us"])          # measured: no arm
+    assert list(spec["arms"])[0] == "updated" and spec["arms"]["updated"] == arm and spec["drift_check"] is True
+    assert spec["cases"] == ["short", "edit", "longdec32k"] and spec["reps"] == 1 and spec["base"] == "/x/plain.json"
+    m = next(n for n, f in flags.items() if f["kind"] == "minus")
+    k = flags[m]["keys"][0]
+    assert k not in spec["arms"][m]["env"] and len(spec["arms"][m]["env"]) == len(arm["env"]) - 1 and spec["arms"][m]["args"] == arm["args"]
+    pl = next(n for n, f in flags.items() if f["kind"] == "plus")
+    assert spec["arms"][pl]["env"] == {**arm["env"], **flags[pl]["env"]}
+    # one run would be over 2.5 h: 5 slices fit, together they are the whole list
+    n = len(flags)
+    assert n == len(unt) and sum(mod.estimate(n)) > 9000
+    parts = [mod.build_spec("us", "/x/plain.json", arm, reg, "/s", "%d/5" % k, plain={"env": {}, "args": []})[1]["flags"] for k in (1, 2, 3, 4, 5)]
+    assert set().union(*map(set, parts)) == set(flags) and sum(len(x) for x in parts) == n
+    assert all(sum(mod.estimate(len(x))) <= 9000 for x in parts)
+
+
+def test_sweep_rd_arm_is_what_config_updated_adds_and_a_plus_value_theirs_already_run_gets_no_arm(tmp_path):
+    mod, reg = sweep_mod(), sweep_registry()
+    rec = bd_arm_rec()
+    plain, upd, _ = bd_build(tmp_path, rec)
+    arm = mod.arm_from_configs(plain, upd)
+    assert arm["env"] == rec["env"] and arm["args"] == rec["args"] and arm["exe"] == upd["exe"]   # theirs are not in the arm
+    spec, meta = mod.build_spec("rd", "/p.json", arm, reg, "/mnt/pancake/benchRD/src-updated", plain=plain)
+    plus = {f["flag"] for f in meta["flags"].values() if f["kind"] == "plus"}
+    same = {c["name"] for c in reg["untested"]["rd"] if all(plain["env"].get(k) == v for k, v in (c.get("env") or {}).items()) and c.get("env")}
+    assert same and not plus & same                                                                # e.g. GR_INJ_UP=1: their setup runs it
+    assert plus == {c["name"] for c in reg["untested"]["rd"]} - same - {f["flag"] for f in meta["flags"].values() if f["kind"] == "minus"}
+    parts = [mod.build_spec("rd", "/p.json", arm, reg, "/s", "%d/3" % k, plain=plain)[1]["flags"] for k in (1, 2, 3)]
+    assert all(sum(mod.estimate(len(x))) <= 9000 for x in parts) and sum(len(x) for x in parts) == len(meta["flags"])
+
+
+def test_sweep_triage_thresholds_promising_then_keep_drop_retest_gate():
+    mod = sweep_mod()
+    meta = {"branch": "rd", "slice": "1/1", "protected": {}, "flags": {
+        "plus-A": {"flag": "A", "kind": "plus", "exact": True}, "plus-L": {"flag": "L", "kind": "plus", "exact": False},
+        "minus-M": {"flag": "M", "kind": "minus", "exact": True}, "plus-W": {"flag": "W", "kind": "plus", "exact": True},
+        "plus-F": {"flag": "F", "kind": "plus", "exact": True}, "plus-N": {"flag": "N", "kind": "plus", "exact": True},
+        "plus-U": {"flag": "U", "kind": "plus", "exact": True}}}
+
+    def rows(vals):
+        return [json.dumps({"arm": a, "rows": [{"case": c, "decode_tps": v[c], "prompt_tps": v.get(c + "-prompt")} for c in ("short", "edit", "longdec32k")]})
+                for a, v in vals.items()]
+    b = {"short": 100.0, "edit": 100.0, "longdec32k": 100.0, "longdec32k-prompt": 1000.0}
+    p1 = rows({"updated": b, "base-late": b,
+               "plus-A": {**b, "short": 101.2},                 # exact +1.2 % >= 1.0: promising
+               "plus-L": {**b, "short": 101.2},                 # lossy +1.2 % < 1.5: low performer
+               "minus-M": {**b, "edit": 97.0},                  # taking M out costs edit 3 %: M helps +3.1 %
+               "plus-W": {**b, "short": 105.0, "edit": 96.0},   # a case below -3 %: low performer
+               "plus-F": {**b, "short": 102.0},                 # promising, not confirmed in pass 2
+               "plus-N": {**b, "short": 101.5}})                # promising, no pass-2 rows
+    p1.append(json.dumps({"arm": "plus-L2", "rows": []}))
+    t1 = mod.triage(meta, p1)
+    v1 = {k: r["verdict"] for k, r in t1["flags"].items()}
+    assert v1 == {"A": "RETEST", "L": "DROP", "M": "RETEST", "W": "DROP", "F": "RETEST", "N": "RETEST", "U": "UNTESTED"}
+    assert t1["flags"]["M"]["pass1"]["edit"] == 3.09 and t1["flags"]["W"]["promising"] is False
+    spec = {"arms": {"updated": {}, "plus-A": {}, "plus-L": {}, "minus-M": {}, "plus-W": {}, "plus-F": {}, "plus-N": {}, "plus-U": {}}}
+    s2, names = mod.pass2_spec(spec, t1, max_flags=3)
+    assert names == ["M", "F", "N"] and list(s2["arms"]) == ["updated", "minus-M", "plus-F", "plus-N"] and s2["reps"] == 3 and s2["drift_check"] is False
+    p2 = rows({"updated": b, "plus-A": {**b, "short": 102.5}, "minus-M": {**b, "edit": 96.0}, "plus-F": {**b, "short": 100.5}})
+    lossy = dict(meta, flags={**meta["flags"], "minus-M": {"flag": "M", "kind": "minus", "exact": False}})
+    t2 = mod.triage(lossy, p1, p2)
+    v2 = {k: r["verdict"] for k, r in t2["flags"].items()}
+    assert v2["A"] == "KEEP" and v2["M"] == "RETEST-GATE" and v2["F"] == "DROP" and v2["N"] == "RETEST" and v2["L"] == "DROP"
+    assert t2["flags"]["A"]["pass2"]["short"] == 2.5
+
+
+def sweep_rd_configs(box, tmp_path):
+    plain, upd, _ = bd_build(tmp_path / "cfg", bd_arm_rec())
+    (box.tmp / "auto-runs" / "benchRD" / "config-plain.json").write_text(json.dumps(plain))
+    (box.tmp / "auto-runs" / "benchRD" / "config-updated.json").write_text(json.dumps(upd))
+    f = box.tmp / "mnt" / "benchRD" / "src-updated" / "data" / "expert-profile-pancake.bin"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text("x")
+
+
+def test_bench_sweep_rd_full_flow_pass1_triage_pass2_and_the_triage_file(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box, us=False)
+    sweep_rd_configs(box, tmp_path)
+    b = {"short": 100.0, "edit": 140.0, "longdec32k": 30.0, "longdec32k-prompt": 1500.0}
+    plain = json.loads((box.tmp / "auto-runs" / "benchRD" / "config-plain.json").read_text())
+    upd = json.loads((box.tmp / "auto-runs" / "benchRD" / "config-updated.json").read_text())
+    mod = sweep_mod()
+    _, meta = mod.build_spec("rd", "/p.json", mod.arm_from_configs(plain, upd), sweep_registry(), "/s", "1/3", plain=plain)
+    win = next(n for n, f in meta["flags"].items() if f["kind"] == "plus" and f["exact"])
+    wflag = meta["flags"][win]["flag"]
+    n1 = len(meta["flags"])
+    dec = {"*": b, win: {**b, "short": 104.0}}
+    box.finish(box.start(SW, env=be_env(SWEEP_BRANCH="rd", SWEEP_SLICE="1/3", STUB_ARM_DECODE=json.dumps(dec))), timeout=240)
+    lines = box.log("bench-sweep.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHSWEEP_DONE" and "ERROR" not in text and "ABORTED" not in text, text
+    assert_start_end_pairs(lines)
+    order = ["PREREQ ok (rd)", "SYNC harness", "PREREQ harness ok", "SWEEP rd slice 1/3: %d flag arms" % n1, "BUDGET ",
+             "START rd-p1-1of3", "END rd-p1-1of3 exit=0", "PASS2 1 flag(s): " + wflag, "START rd-p2-1of3", "END rd-p2-1of3 exit=0",
+             "TRIAGE KEEP", "TRIAGE file", "SUMMARY branch rd slice 1/3: pass 1 exit=0, pass 2 exit=0", "service stays down"]
+    pos = [text.index(k) for k in order]
+    assert pos == sorted(pos), order
+    ab = be_calls(box, "abtest.py")
+    assert len(ab) == 2 and "--tier screen" in ab[0] and "--drift-check" in ab[0] and "--retries 0" in ab[0], ab
+    assert "--tier confirm" in ab[1] and "--reps 3" in ab[1] and "rd-p2-1of3.json" in ab[1]
+    tri = json.loads((box.tmp / "auto-runs" / "benchsweep" / "rd-triage.json").read_text())
+    assert tri["flags"][wflag]["verdict"] == "KEEP" and tri["flags"][wflag]["pass2"]["short"] == 4.0
+    assert all(r["verdict"] == "DROP" for f, r in tri["flags"].items() if f != wflag) and tri["slices"] == ["1/3"]
+    assert (box.tmp / "auto-runs" / "benchsweep" / "rd-triage-1of3.json").exists()
+    assert sum(1 for c in box.calls() if c.startswith("SETSID")) == 2                    # each abtest run in its own session
+    assert not any(c.startswith("SIG") for c in box.calls())
+    assert not any(c.startswith("SYSTEMCTL") and (" start " in c or " stop " in c) for c in box.calls())
+
+
+def test_bench_sweep_us_whole_branch_over_2h30_stops_before_any_start_and_names_the_split(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box, rd=False)
+    f = box.tmp / "mnt" / "benchus" / "src-us" / "data" / "expert-profile-pancake.bin"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text("x")
+    box.finish(box.start(SW, env=be_env(SWEEP_BRANCH="us")), timeout=240)
+    text = "\n".join(box.log("bench-sweep.log"))
+    assert "SWEEP us slice 1/1: %d flag arms" % len(sweep_registry()["untested"]["us"]) in text and "ERROR BUDGET" in text and "split it" in text and "WINBENCHSWEEP_ABORTED" in text, text
+    assert not be_calls(box, "abtest.py")
+    box2 = Box(tmp_path / "b") if (tmp_path / "b").mkdir() is None else None
+    prepare_be(box2, rd=False)
+    f = box2.tmp / "mnt" / "benchus" / "src-us" / "data" / "expert-profile-pancake.bin"
+    f.parent.mkdir(parents=True, exist_ok=True)
+    f.write_text("x")
+    box2.finish(box2.start(SW, env=be_env(SWEEP_BRANCH="us", SWEEP_SLICE="2/5")), timeout=240)
+    t2 = "\n".join(box2.log("bench-sweep.log"))
+    assert "SWEEP us slice 2/5: 31 flag arms" in t2 and "START us-p1-2of5" in t2 and "ERROR" not in t2, t2
+    assert (box2.tmp / "auto-runs" / "benchsweep" / "us-triage-2of5.json").exists() and (box2.tmp / "auto-runs" / "benchsweep" / "us-triage.json").exists()
+
+
+def test_bench_sweep_bad_branch_and_missing_builds_abort_before_any_download(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box, us=False, rd=False)
+    box.finish(box.start(SW, env=be_env()))
+    text = "\n".join(box.log("bench-sweep.log"))
+    assert "SWEEP_BRANCH must be us or rd" in text and box.log("bench-sweep.log")[-1] == "WINBENCHSWEEP_DONE"
+    (tmp_path / "b").mkdir()
+    box2 = Box(tmp_path / "b")
+    prepare_be(box2, us=False, rd=False)
+    box2.finish(box2.start(SW, env=be_env(SWEEP_BRANCH="rd")))
+    t2 = "\n".join(box2.log("bench-sweep.log"))
+    assert "PREREQ missing:" in t2 and "build-updated/strata" in t2 and "SYNC harness" not in t2 and not be_calls(box2, "abtest.py")
+
+
+def test_bench_sweep_pass1_over_its_limit_is_stopped_reaped_and_the_triage_still_written(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box, us=False)
+    sweep_rd_configs(box, tmp_path)
+    box.finish(box.start(SW, env=be_env(SWEEP_BRANCH="rd", SWEEP_SLICE="3/3", AB_HANG="30", BENCH_BUDGET_S="80")), timeout=300)
+    lines = box.log("bench-sweep.log")
+    text = "\n".join(lines)
+    assert any(l.startswith("TIMEOUT rd-p1-3of3") for l in lines), lines
+    assert any(c.startswith("REAP -TERM") for c in box.calls())
+    assert "END rd-p1-3of3 exit=124" in text and "PASS2 none" in text and lines[-1] == "WINBENCHSWEEP_DONE"
+    tri = json.loads((box.tmp / "auto-runs" / "benchsweep" / "rd-triage.json").read_text())
+    assert all(r["verdict"] == "UNTESTED" for r in tri["flags"].values())
+
+
+def test_bench_sweep_name_is_invisible_to_every_busy_pattern_and_sees_the_benchmark_chains(tmp_path):
+    box = Box(tmp_path)
+    for chain in ("win-chainT.sh", "redo-chainAA.sh", "bench-updatedAA.sh", "bench-updatedRD.sh", "bench-exact.sh", SW):
+        assert busy_result(box, chain, ["sh ./bench-sweep.sh"]) == "IDLE", chain
+    for other in ("sh ./bench-updatedRD.v8.sh", "sh ./bench-exact.v3.sh", "sh ./bench-rdgate.v2.sh", "python3 tools/pancake/abtest.py x"):
+        assert busy_result(box, SW, [other]) == "BUSY", other
+
+
+def test_sched_bench_extra_runs_the_sweep_with_its_log_and_marker(tmp_path):
+    box = Box(tmp_path)
+    prepare_sched(box)
+    (box.S / "bench-sweep.v1.sh").write_text(FAKE_CHAIN.format(name="sweep", log=(box.S / "bench-sweep.log").as_posix(), marker="WINBENCHSWEEP_DONE"), newline="\n")
+    box.finish(box.start(SCHED, env=sched_env(BENCH_ONLY="EXTRA", BENCH_EXTRA="./bench-sweep.v1.sh", BENCH_NO_RESUME="1")))
+    text = "\n".join(box.log("bench-sched.log"))
+    assert "END EXTRA exit=0 last-log-line=WINBENCHSWEEP_DONE" in text and "ERROR" not in text, text
+    assert "[b]ench-(updated(AA|RD)|diagUS|exact|rdgate|sweep)" in (CHAINS / SCHED).read_text()
 
 
 def test_sched_bench_extra_runs_the_third_chain_alone_or_after_both(tmp_path):
