@@ -1180,7 +1180,7 @@ def test_bd_waits_for_both_markers_then_runs_in_the_ordered_flow(tmp_path):
     assert not any("diag-plain" in c for c in calls)
     assert any(c.startswith("cmake") and "benchRD/build-plain" in c for c in calls)
     stub = box.h + "/mnt/benchRD/rccl-stub"
-    assert (box.tmp / "mnt" / "benchRD" / "rccl-stub" / "rccl" / "rccl.h").exists() and "PREREQ rccl/rccl.h is not in" in text
+    assert "ncclSend" in (box.tmp / "mnt" / "benchRD" / "rccl-stub" / "rccl" / "rccl.h").read_text() and "PREREQ rccl/rccl.h is not in" in text
     cpi = [c for c in calls if c.startswith("CPI ")]
     assert cpi and all(c == "CPI " + stub for c in cpi), cpi            # every cmake of both builds saw the stub dir (the plain tree's source and CMake flags are untouched)
     assert any("--" in c and c.endswith("-k 0") for c in calls if c.startswith("cmake --build")), "ninja -k 0: one build shows every error"
@@ -1261,6 +1261,76 @@ def test_bd_no_rccl_stub_when_rocm_has_the_header(tmp_path):
     assert all(c == "CPI " for c in box.calls() if c.startswith("CPI ")), "CPLUS_INCLUDE_PATH stays empty when the header exists"
 
 
+# what Strata-rdna3 8b01b0c85 src/core/peer_transport.inc (inside peer_experts.cpp, STRATA_USE_HIP + Linux) uses from rccl/rccl.h; the functions are
+# taken with dlopen("librccl.so.1") + dlsym, so the stub only needs declarations (second RD attempt: the EMPTY stub gave 'ncclGroupEnd' was not declared)
+RCCL_USED = ["ncclComm_t", "ncclResult_t", "ncclSuccess", "ncclUint8", "ncclCommInitAll", "ncclCommDestroy", "ncclGroupStart", "ncclGroupEnd",
+             "ncclSend", "ncclRecv", "ncclGetErrorString"]
+
+
+def test_bd_rccl_stub_declares_the_rccl_api_peer_transport_uses(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    box.finish(box.start(BD))
+    h = (box.tmp / "mnt" / "benchRD" / "rccl-stub" / "rccl" / "rccl.h").read_text()
+    code = re.sub(r"/\*.*?\*/", "", h, flags=re.S)
+    for name in RCCL_USED:
+        assert re.search(r"\b%s\b" % name, code), name
+    assert re.search(r'extern "C"', code) and "#ifndef NCCL_H_" in code and code.count("#endif") >= 3
+    assert "typedef struct ncclComm* ncclComm_t;" in code and "typedef struct ihipStream_t* hipStream_t;" in code
+    # nccl.h enum values (the dlsym'd librccl.so.1 functions read them)
+    assert re.search(r"\bncclSuccess = 0\b", code) and re.search(r"\bncclUint8 = 1\b", code) and re.search(r"\bncclFloat32 = 7\b", code)
+    sig = {"ncclCommInitAll": "ncclResult_t ncclCommInitAll(ncclComm_t* comm, int ndev, const int* devlist);",
+           "ncclCommDestroy": "ncclResult_t ncclCommDestroy(ncclComm_t comm);",
+           "ncclGroupStart": "ncclResult_t ncclGroupStart(void);", "ncclGroupEnd": "ncclResult_t ncclGroupEnd(void);",
+           "ncclSend": "ncclResult_t ncclSend(const void* sendbuff, size_t count, ncclDataType_t datatype, int peer, ncclComm_t comm, hipStream_t stream);",
+           "ncclRecv": "ncclResult_t ncclRecv(void* recvbuff, size_t count, ncclDataType_t datatype, int peer, ncclComm_t comm, hipStream_t stream);",
+           "ncclGetErrorString": "const char* ncclGetErrorString(ncclResult_t result);"}
+    for name, s in sig.items():
+        assert s in code, name
+    calls = box.calls()
+    assert not any("-lrccl" in c or "LINKER_FLAGS" in c for c in calls), "dlsym only: no link flag"
+    lines = box.log("bench-updatedRD.log")
+    assert any("PREREQ rccl/rccl.h is not in" in l and "no -lrccl" in l for l in lines)
+
+
+def test_bd_rccl_stub_compiles_with_peer_transport_like_code(tmp_path):
+    """Syntax check of the generated stub with a peer_transport.inc-like user (HIP typedef first, as hip_runtime_api.h has it) and as C99."""
+    cxx = shutil.which("clang++") or shutil.which("g++") or (r"C:\Program Files\LLVM\bin\clang++.exe" if Path(r"C:\Program Files\LLVM\bin\clang++.exe").exists() else None)
+    if not cxx or not SH:
+        pytest.skip("no C++ compiler or sh")
+    src = (CHAINS / BD).read_text(encoding="utf-8")
+    fn = re.search(r"^rccl_stub\(\) \{.*?^EOF\n\}\n", src, flags=re.S | re.M).group(0)
+    (tmp_path / "fn.sh").write_text(fn + "rccl_stub\n", newline="\n")
+    (tmp_path / "inc" / "rccl").mkdir(parents=True)
+    out = subprocess.run([SH, str(tmp_path / "fn.sh")], capture_output=True, text=True, check=True).stdout
+    (tmp_path / "inc" / "rccl" / "rccl.h").write_text(out, newline="\n")
+    (tmp_path / "t.cpp").write_text(r'''typedef struct ihipStream_t* hipStream_t;
+typedef hipStream_t cudaStream_t;
+#include <rccl/rccl.h>
+extern "C" void* dlsym(void*, const char*);
+struct T {
+    void* library = nullptr;
+    ncclComm_t comm[2]{};
+    decltype(&ncclCommInitAll) init = nullptr; decltype(&ncclCommDestroy) destroy = nullptr;
+    decltype(&ncclGroupStart) group_start = nullptr; decltype(&ncclGroupEnd) group_end = nullptr;
+    decltype(&ncclSend) send = nullptr; decltype(&ncclRecv) recv = nullptr; decltype(&ncclGetErrorString) error_string = nullptr;
+    cudaStream_t s = nullptr;
+    int nc(ncclResult_t e) { return e != ncclSuccess ? error_string(e)[0] : 0; }
+    template<class F> void symbol(F& f, const char* n) { f = reinterpret_cast<F>(dlsym(library, n)); }
+    void run(float* d, const float* x, unsigned long b) {
+        symbol(init, "ncclCommInitAll"); symbol(send, "ncclSend"); int dev[] = {0, 1}; nc(init(comm, 2, dev));
+        nc(group_start()); nc(send(x, b, ncclUint8, 1, comm[0], s)); nc(recv(d, b, ncclUint8, 0, comm[1], s)); nc(group_end()); destroy(comm[0]); }
+};
+int main() { T t; t.run(nullptr, nullptr, 4); return 0; }
+''')
+    (tmp_path / "t.c").write_text("#include <rccl/rccl.h>\nint main(void){ ncclDataType_t t = ncclUint8; return (int)t + (int)ncclSuccess; }\n")
+    tgt = ["-target", "x86_64-linux-gnu"] if "clang" in Path(cxx).name else []
+    r = subprocess.run([cxx, *tgt, "-std=c++17", "-Wall", "-Werror", "-fsyntax-only", "-I", str(tmp_path / "inc"), str(tmp_path / "t.cpp")], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+    r = subprocess.run([cxx, *tgt, "-x", "c", "-std=c99", "-Wall", "-Werror", "-fsyntax-only", "-I", str(tmp_path / "inc"), str(tmp_path / "t.c")], capture_output=True, text=True)
+    assert r.returncode == 0, r.stderr
+
+
 def test_bd_smoke_failure_stops_before_the_updated_build_with_the_engine_error(tmp_path):
     box = Box(tmp_path)
     prepare_bd(box)
@@ -1299,14 +1369,29 @@ def test_bd_empty_verdicts_and_screen_exit_2_log_the_underlying_message(tmp_path
 
 
 def test_peer_experts_rccl_include_is_optional_when_the_file_has_it():
-    """Strata-rdna3's peer_experts.cpp includes <rccl/rccl.h> without using it; this box's ROCm has no rccl headers (the plain build failed on it)."""
+    """Strata-rdna3's peer_experts.cpp includes <rccl/rccl.h> for peer_transport.inc (rccl transport, dlsym); this box's ROCm has no rccl headers.
+    When the header is optional (__has_include), every RCCL use in peer_transport.inc must sit under STRATA_PEER_RCCL."""
     f = HERE.parents[1] / "src" / "core" / "peer_experts.cpp"
     if not f.exists():
         pytest.skip("no src/core/peer_experts.cpp in this branch")
     txt = f.read_text()
     if "#include <rccl/rccl.h>" in txt:
         assert "__has_include(<rccl/rccl.h>)" in txt
-    assert not re.search(r"\b(nccl|rccl)[A-Z]\w*\(", txt), "the include is optional only while no RCCL function is called"
+    assert not re.search(r"\b(nccl|rccl)[A-Z]\w*\(", txt), "RCCL calls live in peer_transport.inc only"
+    inc = f.parent / "peer_transport.inc"
+    if "__has_include(<rccl/rccl.h>)" in txt and inc.exists():
+        assert "#define STRATA_PEER_RCCL 1" in txt and "#define STRATA_PEER_RCCL 0" in txt
+        depth, guarded = 0, []
+        for line in inc.read_text().splitlines():
+            s = line.strip()
+            if s.startswith("#if"):
+                guarded.append("STRATA_PEER_RCCL" in s); continue
+            if s.startswith("#endif"):
+                guarded.pop(); continue
+            if s.startswith("#else"):
+                guarded[-1] = False; continue
+            if re.search(r"\bnccl[A-Z]\w*|\bdl(open|sym|close|error)\b", s):
+                assert any(guarded), line
 
 
 def test_bd_name_is_invisible_to_every_busy_pattern_and_sees_the_others(tmp_path):

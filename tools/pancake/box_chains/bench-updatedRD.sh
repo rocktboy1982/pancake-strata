@@ -25,10 +25,13 @@
 #        judged by spec 250; HIPBLASLT_TUNING and EXPERT_PROFILE are dropped from the diagnostics: spec 251 measures exactly those two) | 5 spec 250 screen, decide, confirm |
 #        6 spec 251 screen | 7 recommended-flags file from the verdicts | 8 summary (service stays down under the scheduler).
 # 2026-11-19 PM (first scheduled run aborted at the plain build after 3 minutes, nothing measured): src/core/peer_experts.cpp of Strata-rdna3 (and of updated-strata-rdna3) has
-# `#include <rccl/rccl.h>` under STRATA_USE_HIP on Linux but uses no RCCL symbol; this box's ROCm 10.0 has librccl.so and NO rccl headers.  Now: PREREQ makes an EMPTY stub
+# `#include <rccl/rccl.h>` under STRATA_USE_HIP on Linux and believed unused; this box's ROCm 10.0 has librccl.so and NO rccl headers.  Then: PREREQ made an EMPTY stub
 # $PM/rccl-stub/rccl/rccl.h when the ROCm tree has none and the two builds see it through CPLUS_INCLUDE_PATH (no source and no CMake flag of the plain tree changed; the updated
 # tree also guards the include with __has_include); ninja runs with -k 0 so ONE build shows every error; a PREBUILD SMOKE (engine start + one short request of the arm exactly
 # as spec 250 runs it, <= 15 min) follows each build, so a broken build or launch ends the chain with the engine's error line instead of after hours.
+# 2026-11-19 late (second RD attempt, plain build): the EMPTY stub was wrong: src/core/peer_transport.inc (included by peer_experts.cpp) declares ncclComm_t and
+# decltype(&ncclSend) etc. (39 errors: 'ncclGroupEnd' was not declared in this scope ...).  Now PREREQ writes a stub with the exact RCCL/NCCL C declarations that file
+# uses (rccl_stub below); the functions are taken with dlopen("librccl.so.1") + dlsym only in the rccl peer transport, so no -lrccl and no linker flag is needed.
 # Verdicts: /home/dan/auto-runs/benchRD-diag-updated/ (verdicts.json, abtest.stdout), benchRD-tuneup/, benchRD-recommended/, benchRD-250-*.jsonl / .stdout.
 # Estimate (minutes, box idle): sync 5, builds 2 x 5-10, ctests 3, tune-up 5 + diagnostics 20, 250 screen 30, 250 confirm 25, 251 screen 15 => about 115 min, worst case 125 (target <= 120).
 S=/home/dan/clone-of-d/src; R=$S/Strata-win; L=$S/bench-updatedRD.log; O=/home/dan/auto-runs; T=$O/benchRD; PM=/mnt/pancake/benchRD
@@ -65,7 +68,41 @@ errline() {  # errline STDOUT_FILE WORKDIR: the first error-looking line of the 
   e=; for f in "$2"/*.engine.log "$2"/*.out; do [ -f "$f" ] || continue; e=$(grep -i -E "$pat" "$f" 2>/dev/null | tail -n 1 | cut -c1-240); [ -n "$e" ] && break; done
   echo "first error line of the stdout: [$a]; engine log: [$e]"
 }
-prereq() {  # build and launch prerequisites: one ERROR naming every missing file, before anything is downloaded or built; makes the empty rccl stub when ROCm has no rccl header
+rccl_stub() {  # stdout: the minimal rccl/rccl.h for this box (ROCm 10.0 ships librccl.so.1 and no rccl headers). Strata-rdna3's src/core/peer_transport.inc (inside
+  # peer_experts.cpp, STRATA_USE_HIP + Linux) uses exactly: ncclComm_t, ncclResult_t/ncclSuccess, ncclUint8, and decltype(&f) of ncclCommInitAll, ncclCommDestroy,
+  # ncclGroupStart, ncclGroupEnd, ncclSend, ncclRecv, ncclGetErrorString; the functions are taken with dlopen("librccl.so.1") + dlsym only when STRATA_PEER_TRANSPORT=rccl
+  # (never in a single-GPU run), so the build needs the declarations and no link flag.  Signatures and enum values as in the public nccl.h / rccl.h (BSD-licensed API).
+  cat <<'EOF'
+/* rccl/rccl.h stub written by bench-updatedRD.sh PREREQ: ROCm 10.0 on this box ships librccl.so.1 without headers.
+ * Only the subset of the public NCCL/RCCL C API (nccl.h / rccl.h, BSD license) that Strata-rdna3 src/core/peer_transport.inc uses.
+ * The functions are resolved with dlsym at run time (librccl.so.1 exports them with C linkage); nothing here is linked. */
+#ifndef NCCL_H_
+#define NCCL_H_
+#define RCCL_H_
+#include <stddef.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+typedef struct ihipStream_t* hipStream_t;   /* identical to HIP's own typedef */
+typedef struct ncclComm* ncclComm_t;
+typedef enum { ncclSuccess = 0, ncclUnhandledCudaError = 1, ncclSystemError = 2, ncclInternalError = 3, ncclInvalidArgument = 4,
+               ncclInvalidUsage = 5, ncclRemoteError = 6, ncclInProgress = 7, ncclNumResults = 8 } ncclResult_t;
+typedef enum { ncclInt8 = 0, ncclChar = 0, ncclUint8 = 1, ncclInt32 = 2, ncclInt = 2, ncclUint32 = 3, ncclInt64 = 4, ncclUint64 = 5,
+               ncclFloat16 = 6, ncclHalf = 6, ncclFloat32 = 7, ncclFloat = 7, ncclFloat64 = 8, ncclDouble = 8, ncclBfloat16 = 9 } ncclDataType_t;
+ncclResult_t ncclCommInitAll(ncclComm_t* comm, int ndev, const int* devlist);
+ncclResult_t ncclCommDestroy(ncclComm_t comm);
+ncclResult_t ncclGroupStart(void);
+ncclResult_t ncclGroupEnd(void);
+ncclResult_t ncclSend(const void* sendbuff, size_t count, ncclDataType_t datatype, int peer, ncclComm_t comm, hipStream_t stream);
+ncclResult_t ncclRecv(void* recvbuff, size_t count, ncclDataType_t datatype, int peer, ncclComm_t comm, hipStream_t stream);
+const char* ncclGetErrorString(ncclResult_t result);
+#ifdef __cplusplus
+}
+#endif
+#endif /* NCCL_H_ */
+EOF
+}
+prereq() {  # build and launch prerequisites: one ERROR naming every missing file, before anything is downloaded or built; writes the rccl stub header when ROCm has no rccl header
   miss=
   for f in $ROCM/bin/rocminfo $ROCM/bin/hipcc $ROCM/lib/llvm/bin/clang++ $CM $NINJA $ROCM/include/hip/hip_runtime.h $GGML_DIR $S/Strata/pancake-flashnext-iq2_xs-fast-hip.json \
            $DATA/packs/iq2_xs/tokenizer $DATA/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf \
@@ -77,9 +114,8 @@ prereq() {  # build and launch prerequisites: one ERROR naming every missing fil
   rocminfo 2>/dev/null | grep -q -E "Name: +gfx" || abort "PREREQ rocminfo lists no gfx device (HIP_VISIBLE_DEVICES=$HIP_VISIBLE_DEVICES)"
   if [ -f $ROCM/include/rccl/rccl.h ]; then say "PREREQ rccl/rccl.h found in ROCm: no stub"
   else
-    mkdir -p $PM/rccl-stub/rccl && echo "/* empty stub: src/core/peer_experts.cpp only includes this header and uses no RCCL symbol; ROCm 10.0 here ships librccl.so without headers */" > $PM/rccl-stub/rccl/rccl.h \
-      || abort "PREREQ cannot write the rccl stub in $PM/rccl-stub"
-    RCCL_INC=$PM/rccl-stub; say "PREREQ rccl/rccl.h is not in $ROCM/include: an empty stub header dir $RCCL_INC is put on CPLUS_INCLUDE_PATH for both builds (nothing else of the plain build changed)"
+    { mkdir -p $PM/rccl-stub/rccl && rccl_stub > $PM/rccl-stub/rccl/rccl.h; } || abort "PREREQ cannot write the rccl stub in $PM/rccl-stub"
+    RCCL_INC=$PM/rccl-stub; say "PREREQ rccl/rccl.h is not in $ROCM/include: a stub header with the RCCL declarations src/core/peer_transport.inc uses (resolved with dlopen/dlsym at run time, no -lrccl) in $RCCL_INC is put on CPLUS_INCLUDE_PATH for both builds (nothing else of the plain build changed)"
   fi
   say "PREREQ ok: ROCm tools, compiler, cmake, ninja, llama.cpp checkout, model + pack + mtp files, rocminfo sees a gfx device $(date +%T)"
 }
@@ -161,7 +197,7 @@ say "CONFIG written: $T/config-plain.json $T/config-updated.json"
 
 sed "s#@PLAIN@#$BP#; s#@UPDATED@#$BU#; s#@CONFIG_PLAIN@#$T/config-plain.json#" $SPEC > $T/250.json
 wait_idle
-# the plain tree is built as its README says (Manual build) plus what this box needs: ROCm / ninja / the offline llama.cpp checkout, and the empty rccl stub on CPLUS_INCLUDE_PATH
+# the plain tree is built as its README says (Manual build) plus what this box needs: ROCm / ninja / the offline llama.cpp checkout, and the rccl stub header dir on CPLUS_INCLUDE_PATH
 # (RCCL_INC is empty when ROCm has the header); ninja -k 0 keeps going after a failure so that the log shows every error
 build plain $BP sh -c "${RCCL_INC:+export CPLUS_INCLUDE_PATH=$RCCL_INC; }HIP_PLATFORM=amd ROCM_PATH=$ROCM HIP_PATH=$ROCM $CM -S $PLAIN_SRC -B $BP -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTRATA_ENABLE_HIP=ON \
   -DSTRATA_ENABLE_CUDA=OFF -DSTRATA_PREFILL_MMQ=ON -DSTRATA_MMQ_KQUANTS=ON -DCMAKE_HIP_ARCHITECTURES=gfx1100 -DCMAKE_HIP_COMPILER=$ROCM/lib/llvm/bin/clang++ \
