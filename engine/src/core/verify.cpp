@@ -1761,6 +1761,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                 a.q8_down = (const uint8_t*) wd[half]->hc_q8; a.q8_up = (const uint8_t*) wu[half]->hc_q8;
                 a.q8_inject = (const uint8_t*) wi[half]->hc_q8;
                 a.s_down = wd[half]->q8_scale; a.s_up = wu[half]->q8_scale;
+                a.r8_down = (const int8_t*) wd[half]->hc_r8; a.r8_up = (const int8_t*) wu[half]->hc_r8;   // STRATA_GR_RDNA_Q8
                 a.eps = EPS; a.lo = lo_ + t * g.hc_lr; a.rs = rs_ + t * HC;
                 a.inject_out = inj_out + t * HC; a.mixed = mixed_ + t * N;
                 if (qcnt_ != nullptr) {   // S26 STRATA_QFUSE: the consumer's q8_1 image written by the read itself

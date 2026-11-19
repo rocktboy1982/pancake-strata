@@ -111,12 +111,32 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   # the RDNA kernels (DPP / permlanex16 / sudot4) build on wave32 HIP only; CUDA and gfx906 builds take their
   # "not available" answers from rdna_stub.cpp
   if(STRATA_ENABLE_HIP)
-    target_sources(strata_kernels PRIVATE src/kernels/cuda/rdna_mmvq.cu)
+    target_sources(strata_kernels PRIVATE src/kernels/cuda/rdna_gr.cu src/kernels/cuda/rdna_mmvq.cu)
   else()
     target_sources(strata_kernels PRIVATE src/kernels/cuda/rdna_stub.cpp)
   endif()
   # the gfx1100 multi-column decode GEMVs (rdna_mmvq.cu) against native_mmvq: bounded, not bitwise (GPU, synthetic, no model);
   # exits 77 (skip) on a wave64 card
+  # the gfx1100 hyper-connection read (rdna_gr.cu) against the default read: one test per kernel variant the environment selects (the
+  # BF16 read, the int8 read, its int8-activation A8 form, A8 with the inject rows in their own blocks, and that in one fused launch)
+  if(STRATA_ENABLE_HIP AND STRATA_BUILD_TESTS AND NOT STRATA_HIP_GFX906)
+    add_executable(rdna_gr_parity src/kernels/rdna_gr_parity.cpp)
+    target_include_directories(rdna_gr_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(rdna_gr_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    enable_testing()
+    add_test(NAME rdna_gr_parity COMMAND rdna_gr_parity)
+    add_test(NAME rdna_gr_parity_q8 COMMAND rdna_gr_parity --q8)
+    add_test(NAME rdna_gr_parity_a8 COMMAND rdna_gr_parity --q8 --tol 3e-2)
+    add_test(NAME rdna_gr_parity_a8_injup COMMAND rdna_gr_parity --q8 --tol 3e-2)
+    add_test(NAME rdna_gr_parity_a8_fused COMMAND rdna_gr_parity --q8 --tol 3e-2)
+    set(_rdna_gr_off "STRATA_GR_RDNA_A8=0;STRATA_GR_INJ_UP=0;STRATA_GR_FUSED=0")
+    set_tests_properties(rdna_gr_parity rdna_gr_parity_q8 PROPERTIES ENVIRONMENT "${_rdna_gr_off}")
+    set_tests_properties(rdna_gr_parity_a8 PROPERTIES ENVIRONMENT "STRATA_GR_RDNA_A8=1;STRATA_GR_INJ_UP=0;STRATA_GR_FUSED=0")
+    set_tests_properties(rdna_gr_parity_a8_injup PROPERTIES ENVIRONMENT "STRATA_GR_RDNA_A8=1;STRATA_GR_INJ_UP=1;STRATA_GR_FUSED=0")
+    set_tests_properties(rdna_gr_parity_a8_fused PROPERTIES ENVIRONMENT "STRATA_GR_RDNA_A8=1;STRATA_GR_INJ_UP=1;STRATA_GR_FUSED=1")
+    set_tests_properties(rdna_gr_parity rdna_gr_parity_q8 rdna_gr_parity_a8 rdna_gr_parity_a8_injup rdna_gr_parity_a8_fused
+                         PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+  endif()
   if(STRATA_ENABLE_HIP AND STRATA_BUILD_TESTS)
     add_executable(rdna_mmvq_parity src/kernels/rdna_mmvq_parity.cpp)
     target_include_directories(rdna_mmvq_parity PRIVATE ${_strata_gpu_include_directories})

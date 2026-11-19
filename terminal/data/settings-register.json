@@ -10918,6 +10918,72 @@
    "retired_in": ""
   },
   {
+   "name": "STRATA_GR_FUSED",
+   "backends": [
+    "cuda-hip"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/kernels/cuda/rdna_gr.cu",
+     "line": 633,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "flag",
+   "default_state": "off",
+   "code_default": null,
+   "engine_sets": [],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": null,
+   "first_date": null,
+   "since": null,
+   "last_commit": null,
+   "last_date": null,
+   "status": "opt-in",
+   "owner": "kernels/hip-rdna",
+   "note": "with GR_INJ_UP: down and up passes in one launch with a grid barrier; pancake T-378",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
+   "name": "STRATA_GR_INJ_UP",
+   "backends": [
+    "cuda-hip"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/kernels/cuda/rdna_gr.cu",
+     "line": 632,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "flag",
+   "default_state": "off",
+   "code_default": null,
+   "engine_sets": [],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": null,
+   "first_date": null,
+   "since": null,
+   "last_commit": null,
+   "last_date": null,
+   "status": "opt-in",
+   "owner": "kernels/hip-rdna",
+   "note": "with GR_RDNA_A8: the inject rows in their own blocks of the up pass; pancake T-378",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
    "name": "STRATA_GR_LARGE_GRF",
    "backends": [
     "sycl"
@@ -11227,6 +11293,122 @@
    "status": "default",
    "owner": "kernels/cuda",
    "note": "[auto] tunable with a built-in default 2 (src/kernels/cuda/fused_gr.cu:1595)",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
+   "name": "STRATA_GR_RDNA",
+   "backends": [
+    "cuda-hip"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/kernels/cuda/rdna_gr.cu",
+     "line": 702,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    },
+    {
+     "file": "engine/src/program/generate.cpp",
+     "line": 5524,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "flag",
+   "default_state": "off",
+   "code_default": null,
+   "engine_sets": [
+    {
+     "file": "engine/src/kernels/rdna_gr_parity.cpp",
+     "line": 95
+    }
+   ],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": null,
+   "first_date": null,
+   "since": null,
+   "last_commit": null,
+   "last_date": null,
+   "status": "opt-in",
+   "owner": "kernels/hip-rdna",
+   "note": "gfx1100 hyper-connection read (rdna_gr.cu): split-K down + partial-folding up, another summation order; pancake T-009 (decode 87-101 to 104-108 tok/s with the kernel bundle), T-378; the daily preset sets 1",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
+   "name": "STRATA_GR_RDNA_A8",
+   "backends": [
+    "cuda-hip"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/kernels/cuda/rdna_gr.cu",
+     "line": 630,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "flag",
+   "default_state": "off",
+   "code_default": null,
+   "engine_sets": [],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": null,
+   "first_date": null,
+   "since": null,
+   "last_commit": null,
+   "last_date": null,
+   "status": "opt-in",
+   "owner": "kernels/hip-rdna",
+   "note": "with GR_RDNA_Q8: int8 activations + dot4 in the read (lossy); pancake T-378",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
+   "name": "STRATA_GR_RDNA_Q8",
+   "backends": [
+    "cuda-hip"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/core/native_dense.cpp",
+     "line": 98,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    },
+    {
+     "file": "engine/src/program/generate.cpp",
+     "line": 5525,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "flag",
+   "default_state": "off",
+   "code_default": null,
+   "engine_sets": [],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": null,
+   "first_date": null,
+   "since": null,
+   "last_commit": null,
+   "last_date": null,
+   "status": "opt-in",
+   "owner": "kernels/hip-rdna",
+   "note": "with STRATA_GR_RDNA=1: int8 + fp16-scale copies of the hc down/up projections made at load (hc_r8), the BF16 copies stay off the card; lossy; pancake T-009, T-378",
    "retire_after": "",
    "retired_in": ""
   },
