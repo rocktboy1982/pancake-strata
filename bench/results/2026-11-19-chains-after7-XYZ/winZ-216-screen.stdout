@@ -1,0 +1,42 @@
+rep 0 base                 short 121.3 short 112.5 edit 169.1 edit 193.6  foreign CPU 9% [('claude', 3), ('pipewire', 2), ('ptyxis', 2)]  gpu 1948/1249 MHz 55C 150W gtt 21M cpu 4152MHz 53C igpu 1%/vcn 0% fclk 1600
+rep 0 spec                 short 117.6 short 109.2 edit 169.5 edit 192.2  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2057/1249 MHz 56C 159W gtt 21M cpu 4231MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 spec-small           short 118.4 short 109.6 edit 167.0 edit 191.6  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2061/1249 MHz 57C 160W gtt 21M cpu 4082MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 spec-big             short 109.4 short 102.6 edit 125.2 edit 181.5  foreign CPU 3% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1902/1249 MHz 57C 156W gtt 21M cpu 4109MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 base-late            short 83.6 short 108.0 edit 147.5 edit 181.7  foreign CPU 9% [('kcompactd0', 16), ('kworker/0:1+events_freezable', 5), ('kworker/9:1-events_freezable', 4)]  gpu 1969/1249 MHz 56C 151W gtt 21M cpu 3758MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late            short 89.7 short 110.3 edit 122.2 edit 188.2  foreign CPU 7% [('kcompactd0', 15), ('kworker/0:1-events', 4), ('kworker/1:0-events_freezable', 3)]  gpu 2049/1249 MHz 57C 163W gtt 21M cpu 3618MHz 52C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late            short 117.7 short 100.0 edit 169.2 edit 189.9  foreign CPU 8% [('kcompactd0', 16), ('kworker/0:1+events_freezable', 5), ('kworker/10:1-events_freezable', 2)]  gpu 1946/1249 MHz 56C 159W gtt 21M cpu 3678MHz 53C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late: every attempt noisy, keeping the quietest (7% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.9 +-  55.9  (n=2)
+                              drafts accepted 0.72
+  short  spec                    113.4 +-  53.4  (n=2)   vs base:  -3.0% +-  2.2%  -> worse
+                              drafts accepted 0.72
+  short  spec-small              114.0 +-  55.9  (n=2)   vs base:  -2.5% +-  0.0%  -> worse
+                              drafts accepted 0.72
+  short  spec-big                106.0 +-  43.2  (n=2)   vs base:  -9.3% +- 10.9%  -> no difference
+                              drafts accepted 0.72
+  short  base-late               100.0 +- 130.9  (n=2)   vs base: -14.5% +- 159.8%  -> no difference
+                              drafts accepted 0.74
+  edit   base                    181.3 +- 155.7  (n=2)
+                              drafts accepted 0.90
+  edit   spec                    180.8 +- 144.3  (n=2)   vs base:  -0.3% +-  6.3%  -> no difference
+                              drafts accepted 0.90
+  edit   spec-small              179.3 +- 156.3  (n=2)   vs base:  -1.1% +-  0.4%  -> worse
+                              drafts accepted 0.90
+  edit   spec-big                153.3 +- 357.8  (n=2)   vs base: -15.4% +- 111.4%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               155.2 +- 419.4  (n=2)   vs base: -14.4% +- 145.4%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  spec                 identical on every case -> exact
+  spec-small           identical on every case -> exact
+  spec-big             DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -14.5%  edit -14.4%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  spec                 short +4.6%  edit +7.5%  -> PROMOTE to confirm
+  spec-small           short +5.1%  edit +6.6%  -> PROMOTE to confirm
+  spec-big             short -2.3%  edit -8.9%  -> drop

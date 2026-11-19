@@ -1,0 +1,10 @@
+START 2026-11-18_11:52:52
+START 2026-11-18_12:34:15
+START 2026-11-18_20:02:35
+START 2026-11-18_20:40:56
+after7 done 03:10:56
+service stopped (idle) 03:13:57
+HEADER spec_lint exit=1
+ENGINE=0 (build-win/strata present)
+service started 03:13:58; disk / free 7476480 KB
+WINCHAINX_DONE

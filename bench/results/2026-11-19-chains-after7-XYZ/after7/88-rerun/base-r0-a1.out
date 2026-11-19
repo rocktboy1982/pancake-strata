@@ -1,0 +1,55 @@
+capped: tier=arena keep_gib=12 big_free_gib=33
+[strata] sampling defaults from the config: temperature=0.1, top_p=0.95, top_k=20
+loading the model (the first start takes a minute or two) ...
+[strata] effort_position "end" needs engine 0.1.39 or newer (--tail-role-token): the reasoning effort stays at the top of the prompt
+[strata] starting the engine: reading the model's weights ...
+Traceback (most recent call last):
+  File "/home/dan/clone-of-d/src/Strata-win/serve/server.py", line 12418, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/home/dan/clone-of-d/src/Strata-win/serve/server.py", line 11678, in main
+    return _main(argv, lifecycle_event=lifecycle_event, interrupt_exit_code=interrupt_exit_code)
+  File "/home/dan/clone-of-d/src/Strata-win/serve/server.py", line 12023, in _main
+    engine = start_engine_or_fallback(cfg, exe, effort_end, env, lazy, tok, offline=a.offline, batch_telemetry=a.batch_telemetry)
+  File "/home/dan/clone-of-d/src/Strata-win/serve/server.py", line 11197, in start_engine_or_fallback
+    return StrataEngine(exe, engine_args(cfg, exe) + (effort_end or []), cwd=cfg.get("cwd"), log=cfg.get("log"), env=env, lazy=lazy,
+                        retry_args=mtp_retry_args(cfg, exe, effort_end), retry_vram_args=nodraft_retry_args(cfg, exe, effort_end))
+  File "/home/dan/clone-of-d/src/Strata-win/serve/server.py", line 1399, in __init__
+    self.proc = popen("the Strata engine", [exe, "--serve", *args], cwd=cwd, stdin=subprocess.PIPE,
+                ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                      stdout=subprocess.PIPE, stderr=self.log, text=True, encoding="utf-8", errors="replace",
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                      bufsize=1, env=env, **pin)    # (#5044: a byte that is not UTF-8 killed the reader thread)
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/dan/clone-of-d/src/Strata-win/serve/server.py", line 117, in popen
+    return lifeline.popen(args, role, **kw)       # a child that cannot outlive this server (serve/lifeline.py)
+           ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^
+  File "/home/dan/clone-of-d/src/Strata-win/serve/lifeline.py", line 292, in popen
+    child = _the_anchor().call(lambda: subprocess.Popen(args, **kw))
+  File "/home/dan/clone-of-d/src/Strata-win/serve/lifeline.py", line 70, in call
+    return future.result()
+           ~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/concurrent/futures/_base.py", line 450, in result
+    return self.__get_result()
+           ~~~~~~~~~~~~~~~~~^^
+  File "/usr/lib/python3.14/concurrent/futures/_base.py", line 395, in __get_result
+    raise self._exception
+  File "/home/dan/clone-of-d/src/Strata-win/serve/lifeline.py", line 61, in _run
+    future.set_result(fn())
+                      ~~^^
+  File "/home/dan/clone-of-d/src/Strata-win/serve/lifeline.py", line 292, in <lambda>
+    child = _the_anchor().call(lambda: subprocess.Popen(args, **kw))
+                                       ~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1039, in __init__
+    self._execute_child(args, executable, preexec_fn, close_fds,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        pass_fds, cwd, env,
+                        ^^^^^^^^^^^^^^^^^^^
+    ...<5 lines>...
+                        gid, gids, uid, umask,
+                        ^^^^^^^^^^^^^^^^^^^^^^
+                        start_new_session, process_group)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/subprocess.py", line 1990, in _execute_child
+    raise child_exception_type(errno_num, err_msg, err_filename)
+FileNotFoundError: [Errno 2] No such file or directory: '/home/dan/clone-of-d/src/build-win/strata'

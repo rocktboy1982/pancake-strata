@@ -1,0 +1,17 @@
+rep 0 base: FAILED (server died before ready)
+rep 0 base: FAILED (server died before ready)
+ABORT: the server died twice before ready (free RAM in 2 MiB blocks: 33 GiB; fix the machine first: 'sudo tools/pancake/os_tune.sh compact'). Partial results below.
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                 no clean runs
+  short  adapt-idle-copy-1m   no clean runs
+  short  miss-skip-w02        no clean runs
+  short  miss-skip-w05        no clean runs
+  short  miss-skip-cum90      no clean runs
+  short  miss-skip-cum95      no clean runs
+  edit   base                 no clean runs
+  edit   adapt-idle-copy-1m   no clean runs
+  edit   miss-skip-w02        no clean runs
+  edit   miss-skip-w05        no clean runs
+  edit   miss-skip-cum90      no clean runs
+  edit   miss-skip-cum95      no clean runs

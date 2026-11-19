@@ -1,0 +1,58 @@
+START 2026-11-18_22:34:54
+chains V, after7, X and Y done 03:54:55
+service stopped (idle) 03:57:56
+SYNC start 04:00:57 df / = 7695020 KB, /mnt/pancake = 53044548 KB
+SYNC source: origin port/rdna3-decode e90cb7eef5f5531331aa6c2df94178c1e33f5e83 (codeload)
+SYNC exit=0 (11720 entries) 04:01:18
+HEADER tier_spec_copy.hpp + env table entries present: 1; replay_spec_copy.py present: 1
+HEADER spec_lint exit=1
+HEADER disk_env_table exit=0
+HEADER pytest replay_spec_copy exit=1 /home/dan/clone-of-d/src/Strata-win/.venv/bin/python3: No module named pytest
+BUILD build-win strata tier_spec_copy_test 04:01:49 (/ free 7694988 KB)
+BUILD_END build-win exit=0 04:05:26 (/ free 7694892 KB)
+START ctest tier_spec_copy 04:05:56
+END ctest tier_spec_copy exit=0 100% tests passed, 0 tests failed out of 1
+START replay routing-main 04:06:26
+END replay routing-main exit=0 04:06:28
+219 windows, k=10, cache slots 10909, round every 1 window(s), 32 swaps cap; staging: 4 slots/layer, 8 copies/round, conf 1.0, age 4 rounds; expert 1,442,667 B -> H2D 118 us (13.4 GB/s + 10 us), D2D 1
+bl           0.040 [0.021,0.060]       1.92   0.442 [0.309,0.550]         1.03              1.07         0.113 [0.059,0.175]       0.46%
+blt          0.058 [0.038,0.079]       3.01   0.482 [0.398,0.555]         1.05              1.56         0.164 [0.105,0.232]       0.66%
+ps           0.110 [0.100,0.119]       7.77   0.621 [0.587,0.655]         1.18              2.94         0.310 [0.282,0.340]       1.25%
+pst          0.115 [0.106,0.124]       7.94   0.613 [0.579,0.647]         1.18              3.07         0.323 [0.296,0.353]       1.30%
+la:0.6       0.273 [0.264,0.282]       7.34   0.001 [-0.016,0.016]         1.00              7.33         0.771 [0.734,0.801]       3.11%
+or           0.746 [0.613,0.870]     120.37   0.834 [0.649,0.909]         4.74             20.01         2.107 [1.776,2.412]       8.49%
+SKIP replays of real4: chain V left no trace in /home/dan/auto-runs/winV-conv
+SKIP replays of real5: chain V left no trace in /home/dan/auto-runs/winV-conv
+START replay real1-chain16a-main 04:06:59
+END replay real1-chain16a-main exit=0 04:07:06
+746 windows, k=10, cache slots 10909, round every 1 window(s), 32 swaps cap; staging: 4 slots/layer, 8 copies/round, conf 1.0, age 4 rounds; expert 1,442,667 B -> H2D 118 us (13.4 GB/s + 10 us), D2D 1
+bl           0.053 [0.041,0.064]       2.01   0.418 [0.340,0.482]         1.04              1.17         0.123 [0.091,0.156]       0.50%
+blt          0.066 [0.054,0.078]       2.71   0.460 [0.411,0.508]         1.06              1.46         0.154 [0.119,0.192]       0.62%
+ps           0.129 [0.121,0.138]       7.26   0.608 [0.580,0.636]         1.20              2.85         0.300 [0.274,0.328]       1.21%
+pst          0.133 [0.125,0.142]       7.64   0.616 [0.585,0.646]         1.21              2.94         0.309 [0.283,0.337]       1.25%
+la:0.6       0.284 [0.276,0.293]       6.28   0.003 [-0.011,0.016]         1.00              6.26         0.659 [0.623,0.695]       2.66%
+or           0.730 [0.653,0.807]      89.06   0.819 [0.735,0.872]         4.31             16.08         1.692 [1.526,1.864]       6.82%
+START 216-screen 2026-11-19_04:07:36
+END 216-screen exit=0 04:19:53
+PROOF spec: ok (3 logs, 'STRATA_ADAPT_SPEC_COPY=1:')
+      1 strata serve: spec copy: round 64, 22.8 us per round, staged 234, incoming 1092 of them staged 87 (8.0%), staged copies unused 130, staged but not landed 0
+      1 strata serve: spec copy: round 64, 19.0 us per round, staged 411, incoming 1092 of them staged 159 (14.6%), staged copies unused 227, staged but not landed 0
+      1 strata serve: spec copy: round 64, 18.6 us per round, staged 881, incoming 1092 of them staged 388 (35.5%), staged copies unused 467, staged but not landed 0
+      1 strata serve: spec copy: round 256, 21.6 us per round, staged 877, incoming 3530 of them staged 281 (8.0%), staged copies unused 582, staged but not landed 0
+      1 strata serve: spec copy: round 256, 20.2 us per round, staged 1505, incoming 3530 of them staged 490 (13.9%), staged copies unused 996, staged but not landed 0
+      1 strata serve: spec copy: round 256, 18.6 us per round, staged 3098, incoming 3530 of them staged 1115 (31.6%), staged copies unused 1964, staged but not landed 0
+strata serve: STRATA_ADAPT_SPEC_COPY=1: staging area 138.3 MiB of VRAM (96 slots x 1510400 B)
+strata serve: STRATA_ADAPT_SPEC_COPY=1: staging area 276.6 MiB of VRAM (192 slots x 1510400 B)
+strata serve: STRATA_ADAPT_SPEC_COPY=1: staging area 553.1 MiB of VRAM (384 slots x 1510400 B)
+  spec: short +4.6% edit +7.5%  -> WIN (bar 1%), exact
+  spec-small: short +5.1% edit +6.6%  -> WIN (bar 1%), exact
+  spec-big: short -2.3% edit -8.9%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+CONFIRM /home/dan/clone-of-d/src/Strata-win/bench/specs/217-adapt-spec-copy-confirm.json base,spec,spec-small
+START 216-confirm 2026-11-19_04:20:23
+END 216-confirm exit=0 04:46:16
+  short  spec                    102.6 +-   4.7  (n=6)   vs base:  -1.3% +- 16.3%  -> no difference
+  short  spec-small              102.4 +-   6.2  (n=3)   vs base:  -3.6% +-  nan%  -> no difference
+  edit   spec                    164.4 +-  16.2  (n=6)   vs base:  -5.2% +- 29.0%  -> no difference
+  edit   spec-small              178.2 +-   7.3  (n=3)   vs base:  +4.1% +-  nan%  -> no difference
+service started 04:46:16; disk / free 7693040 KB
+WINCHAINZ_DONE

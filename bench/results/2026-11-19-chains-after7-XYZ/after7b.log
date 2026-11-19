@@ -1,0 +1,19 @@
+QUEUED 2026-11-18_14:10:57
+read_ahead_kb 4096
+/home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf run 1
+4294967296 bytes (4.3 GB, 4.0 GiB) copied, 2.10827 s, 2.0 GB/s
+/home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf run 2
+4294967296 bytes (4.3 GB, 4.0 GiB) copied, 1.24245 s, 3.5 GB/s
+/home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf run 3
+4294967296 bytes (4.3 GB, 4.0 GiB) copied, 1.23471 s, 3.5 GB/s
+/home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf buffered
+4294967296 bytes (4.3 GB, 4.0 GiB) copied, 1.25476 s, 3.4 GB/s
+/home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf run 1
+4294967296 bytes (4.3 GB, 4.0 GiB) copied, 2.37847 s, 1.8 GB/s
+/home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf run 2
+4294967296 bytes (4.3 GB, 4.0 GiB) copied, 1.28459 s, 3.3 GB/s
+/home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf run 3
+4294967296 bytes (4.3 GB, 4.0 GiB) copied, 1.28056 s, 3.4 GB/s
+/home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf buffered
+4294967296 bytes (4.3 GB, 4.0 GiB) copied, 1.27927 s, 3.4 GB/s
+AFTER7B_DONE

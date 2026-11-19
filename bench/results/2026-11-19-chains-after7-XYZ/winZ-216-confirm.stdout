@@ -1,0 +1,50 @@
+rep 0 base                 short 110.9 edit 174.9 short 104.4 edit 169.2 short 97.2 edit 177.1  foreign CPU 6% [('kcompactd0', 21), ('kworker/0:2-events_freezable', 3), ('pipewire', 1)]  gpu 2046/1249 MHz 58C 165W gtt 21M cpu 4200MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 spec                 short 81.3 edit 103.3 short 90.5 edit 131.1 short 75.1 edit 176.9  foreign CPU 5% [('kcompactd0', 7), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2039/1249 MHz 58C 153W gtt 21M cpu 3913MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 spec-small           short 96.5 edit 131.1 short 99.6 edit 173.1 short 81.9 edit 172.9  foreign CPU 5% [('kcompactd0', 11), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2049/1249 MHz 58C 157W gtt 21M cpu 4087MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 spec-small           short 104.2 edit 177.7 short 102.3 edit 180.5 short 101.8 edit 150.8  foreign CPU 7% [('kcompactd0', 27), ('pipewire', 1), ('claude', 1)]  gpu 2049/1249 MHz 59C 161W gtt 21M cpu 4122MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 0 spec-small: slow start (more than 8.75% below the arm's other starts): run again
+rep 0 spec-small           short 98.3 edit 110.2 short 92.4 edit 89.1 short 96.0 edit 101.8  foreign CPU 5% [('kcompactd0', 12), ('kworker/0:2-events', 3), ('kworker/0:3-events', 1)]  gpu 2063/1249 MHz 59C 147W gtt 21M cpu 4125MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 0 spec-small: slow start (more than 8.75% below the arm's other starts): run again
+rep 0 spec-small           short 75.0 edit 174.7 short 100.6 edit 176.3 short 105.8 edit 144.3  foreign CPU 5% [('kcompactd0', 16), ('pipewire', 1), ('kworker/8:3-events', 1)]  gpu 2051/1249 MHz 58C 164W gtt 21M cpu 3972MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 1 spec                 short 106.9 edit 173.8 short 100.6 edit 169.0 short 99.4 edit 149.5  foreign CPU 6% [('kcompactd0', 15), ('kworker/3:1-mm_percpu_wq', 2), ('kworker/11:2-events', 2)]  gpu 2049/1249 MHz 59C 162W gtt 21M cpu 4114MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 0 spec: slow start (more than 8.75% below the arm's other starts): run again
+rep 0 spec                 short 102.8 edit 113.1 short 98.1 edit 114.6 short 95.0 edit 149.9  foreign CPU 5% [('kcompactd0', 15), ('pipewire', 1), ('kworker/8:3-events_freezable', 1)]  gpu 2061/1249 MHz 59C 152W gtt 21M cpu 4085MHz 57C igpu 0%/vcn 0% fclk 1600
+rep 0 spec: slow start (more than 8.75% below the arm's other starts): run again
+rep 0 spec                 short 106.5 edit 174.1 short 100.4 edit 168.8 short 101.6 edit 151.0  foreign CPU 6% [('kcompactd0', 16), ('pipewire', 1), ('kworker/9:3-events', 1)]  gpu 2028/1249 MHz 60C 159W gtt 21M cpu 4188MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 73.7 edit 177.0 short 82.8 edit 173.3 short 87.2 edit 176.0  foreign CPU 7% [('kcompactd0', 28), ('kworker/9:3-events_freezable', 5), ('kworker/8:2-mm_percpu_wq', 4)]  gpu 2057/1249 MHz 59C 165W gtt 21M cpu 4288MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 1 base: slow start (more than 8.75% below the arm's other starts): run again
+rep 1 base                 short 100.8 edit 172.0 short 89.4 edit 134.2 short 82.8 edit 164.3  foreign CPU 6% [('kcompactd0', 19), ('kworker/9:2-events', 5), ('kworker/0:2-events', 5)]  gpu 2053/1249 MHz 58C 160W gtt 21M cpu 3866MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 1 base: slow start (more than 8.75% below the arm's other starts): run again
+rep 1 base                 short 99.0 edit 136.5 short 107.5 edit 114.4 short 103.7 edit 116.3  foreign CPU 6% [('kcompactd0', 23), ('kworker/9:2-events', 2), ('pipewire', 1)]  gpu 2056/1249 MHz 58C 152W gtt 21M cpu 4146MHz 56C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 7 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 3 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  spec                 rep 0 attempt 0 slow start (means): short 82.3, edit 137.1
+  spec                 rep 0 attempt 1 slow start (means): short 98.6, edit 125.9
+  spec-small           rep 0 attempt 0 slow start (means): short 92.7, edit 159.0
+  spec-small           rep 0 attempt 1 slow start (means): short 95.6, edit 100.4
+  base                 rep 1 attempt 0 slow start (means): short 81.2, edit 175.4
+  base                 rep 1 attempt 1 slow start (means): short 91.0, edit 156.8
+  base                 rep 1 attempt 2 slow start (means): short 103.4, edit 122.4
+  spec-small           rep 0 attempt 2 pass 1: short 75.0 outside [92.7, 111.4], edit 174.7
+  spec-small           rep 0 attempt 2 pass 3: short 105.8, edit 144.3 outside [156.8, 194.2]
+  spec-small           rep 1 attempt 0 pass 3: short 101.8, edit 150.8 outside [156.8, 194.2]
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    104.2 +-  23.5  (n=3)
+                              drafts accepted 0.71
+  short  spec                    102.6 +-   4.7  (n=6)   vs base:  -1.3% +- 16.3%  -> no difference
+                              drafts accepted 0.71
+  short  spec-small              102.4 +-   6.2  (n=3)   vs base:  -3.6% +-  nan%  -> no difference
+                              drafts accepted 0.71
+  edit   base                    173.7 +-  14.0  (n=3)
+                              drafts accepted 0.88
+  edit   spec                    164.4 +-  16.2  (n=6)   vs base:  -5.2% +- 29.0%  -> no difference
+                              drafts accepted 0.88
+  edit   spec-small              178.2 +-   7.3  (n=3)   vs base:  +4.1% +-  nan%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  spec                 DIFFERENT text -> lossy or placement-dependent: quality gate
+  spec-small           DIFFERENT text -> lossy or placement-dependent: quality gate
