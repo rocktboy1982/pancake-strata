@@ -3,10 +3,12 @@
 
   bench_updatedRD_conf.py PRESET PLAIN_SRC UPDATED_SRC PLAIN_BUILD UPDATED_BUILD OUT_PLAIN OUT_UPDATED
 
-PRESET is the box's filled-in pancake preset (model paths, port, lib dirs).  Both configs keep its model arguments, drop --grammar and --lookup-max-t (grammar is off
-in both; the lookup windows are not in Strata-rdna3), point --expert-profile at Strata-rdna3's own profile (the plain build must not run the pancake line's learned
+PRESET is the box's filled-in pancake preset (model paths, port, lib dirs).  Both configs keep its model arguments, drop --grammar and --lookup-max-t (the plain
+build has neither: Strata-rdna3's windows are 8 rows and its engine has no --grammar; the updated config gets both back from the recommended-flags file), point --expert-profile at Strata-rdna3's own profile (the plain build must not run the pancake line's learned
 one) and take their env from Strata-rdna3's own setup config (rdna3/configs/iq3-1gpu.json: what the plain build runs with by default).  The updated config is the
-plain one plus the shipped recommended-flags file of the updated tree, applied the way rdna3/run.py applies it (rdna3/tuned_flags.py)."""
+plain one plus the shipped recommended-flags file of the updated tree, applied the way rdna3/run.py applies it (rdna3/tuned_flags.py).
+Since 2026-11-19 night that file is the whole pancake daily preset on top of Strata-rdna3 (every setting Strata-rdna3 lacks, with the pancake value;
+Strata-rdna3's own value stays where both have one): the same diff as spec 250's updated arm."""
 import json
 import sys
 

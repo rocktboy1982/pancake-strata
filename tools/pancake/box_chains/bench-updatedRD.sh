@@ -34,8 +34,14 @@
 # uses (rccl_stub below); the functions are taken with dlopen("librccl.so.1") + dlsym only in the rccl peer transport, so no -lrccl and no linker flag is needed.
 # Verdicts: /home/dan/auto-runs/benchRD-diag-updated/ (verdicts.json, abtest.stdout), benchRD-tuneup/, benchRD-recommended/, benchRD-250-*.jsonl / .stdout.
 # Estimate (minutes, box idle): sync 5, builds 2 x 5-10, ctests 3, tune-up 5 + diagnostics 20, 250 screen 30, 250 confirm 25, 251 screen 15 => about 115 min, worst case 125 (target <= 120).
+# 2026-11-19 night (owner order: the updated arm = Strata-rdna3 + the WHOLE pancake daily preset; the first port was too thin and ECAP's 9-row gate never opened
+# in 8-row windows): updated-strata-rdna3 now carries the 16-row verify windows + --lookup-max-t (upstream 9d3c8c366 + 03627326d), the RDNA 9-16 column
+# kernels, PF_GROUP_SCRATCH / PF_HC_REGION, PREFILL_EQUAL_TAIL and ADAPT_PERSIST; its build script passes -DSTRATA_WINDOW_MAX_T=16 (WINDOW_MAX_T); its
+# rdna3/recommended-flags/gfx1100.json and spec 250's updated arm are the plain config + every pancake preset setting Strata-rdna3 does not have (owner rule:
+# where both have a value, Strata-rdna3's stays and the pancake value is an arm: 250 updated+pf16-1, 251 hipblaslt-100401 / profile-pancake).  ctest runs by its
+# full path ($CT, not on PATH on the box) and also runs window_limits_test / draft_policy_test / prefill_plan_test (built with the updated engine).
 S=/home/dan/clone-of-d/src; R=$S/Strata-win; L=$S/bench-updatedRD.log; O=/home/dan/auto-runs; T=$O/benchRD; PM=/mnt/pancake/benchRD
-CM=/home/linuxbrew/.linuxbrew/bin/cmake
+CM=/home/linuxbrew/.linuxbrew/bin/cmake; CT=/home/linuxbrew/.linuxbrew/bin/ctest   # ctest is not on PATH on the box (T-983: "ctest: not found", exit 127)
 PLAIN_SRC=$PM/src-plain; UPD_SRC=$PM/src-updated; TOOLS=$PM/src-pancake
 BP=$PM/build-plain; BU=$PM/build-updated; ROCM=/opt/rocm/core-10.0
 DEC=$S/chainT-decide.py; T0=$(date +%s); BUDGET=${BENCH_BUDGET_S:-7200}
@@ -49,7 +55,7 @@ NINJA=$S/Strata/.venv/bin/ninja; DATA=/home/dan/clone-of-d/Strata-data; GGML_DIR
 HPY=${BENCH_HARNESS_PY:-$R/.venv/bin/python}
 export ABTEST_PYTHON=$HPY
 # $ROCM/bin first: flag_diag.py reads `rocminfo` through PATH (2026-11-19 13:33: "no AMD graphics card could be read" because it was not on PATH)
-export PATH=$ROCM/bin:$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
+export PATH=$ROCM/bin:$R/.venv/bin:/home/linuxbrew/.linuxbrew/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
 mkdir -p $T $PM $PM/bak
 echo "START $(date +%F_%T)" >> $L
 busy() { pgrep -f "[c]make --build|[n]inja|[c]lang|[c]c1plus|[c]test|[a]btest.py|[t]ask_gate.py|[r]eplay_turns.py|[q]uality_gate.py|[n]ight_queue.py|[s]erve/server.py|[s]trata --serve|[c]onv_trace.py|[a]uto-chain|[a]uto-post|[i]q_avx2_parity|[t]tft_bench.py|[w]in-chain[A-Za-z0-9]*\.sh|[x-z]tail-chain[A-Z]\.sh|[a]fter7" >/dev/null 2>&1; }
@@ -218,12 +224,12 @@ build plain $BP sh -c "${RCCL_INC:+export CPLUS_INCLUDE_PATH=$RCCL_INC; }HIP_PLA
   -DCMAKE_PREFIX_PATH=$ROCM -DSTRATA_GGML_DIR=$GGML_DIR -DCMAKE_MAKE_PROGRAM=$NINJA && \
   nice -n 10 $CM --build $BP -j8 --target strata -- -k 0"
 smoke plain $T/250.json plain
-build updated $BU env ${RCCL_INC:+CPLUS_INCLUDE_PATH=$RCCL_INC} sh $UPD_SRC/tools/pancake/build_updated_rdna3.sh $UPD_SRC $BU --target strata --target verify_ecap_test --target sampler_parity --target elementwise_parity
+build updated $BU env ${RCCL_INC:+CPLUS_INCLUDE_PATH=$RCCL_INC} sh $UPD_SRC/tools/pancake/build_updated_rdna3.sh $UPD_SRC $BU --target strata --target verify_ecap_test --target sampler_parity --target elementwise_parity --target window_limits_test --target draft_policy_test --target prefill_plan_test
 smoke updated $T/250.json updated
 
 # ------------------------------------------------------------------ 2. parity ctests of the updated build (a failure is reported, it does not hide the benchmark)
 wait_idle; say "START ctest $(date +%T)"
-ctest --test-dir $BU -R "verify_ecap_test|sampler_parity|elementwise_parity" --output-on-failure > $T/ctest.out 2>&1; rc=$?
+$CT --test-dir $BU -R "verify_ecap_test|sampler_parity|elementwise_parity|window_limits_test|draft_policy_test|prefill_plan_test" --output-on-failure > $T/ctest.out 2>&1; rc=$?
 say "END ctest exit=$rc $(date +%T)"
 if [ $rc -ne 0 ]; then say "ERROR ctest of the updated build exit=$rc (see $T/ctest.out); the benchmark goes on"; tail -n 15 $T/ctest.out >> $L; fi
 
