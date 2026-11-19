@@ -8150,8 +8150,37 @@ int main(int argc, char** argv) {
     // segment's chunk is chosen (the serve lend, generate's prompt); `request_chunk` is unchanged because
     // STRATA_SPLIT_SMALL_OWN uses it too.  The chunk geometry changes the rounding, so it is off by default.
     static const bool equal_chunks = [] { const char* e = std::getenv("STRATA_PREFILL_EQUAL"); return e != nullptr && e[0] == '1'; }();
+    // STRATA_PREFILL_EQUAL_TAIL=1 (opt-in; pancake MOD_PLAN 17.5 / D13, T-679; the idea is this tree's 5906629d): the case
+    // STRATA_PREFILL_EQUAL leaves - a segment longer than its chunk whose last chunk would be STAGED (shorter than
+    // stream_all_min_tokens(), at least STRATA_PREFILL_EQUAL_TAIL_MIN tokens, default 256) - reads in the same number of
+    // equal chunks, so every chunk streams (prefill_plan::equal_tail_chunk).  Unset: nothing below changes.  Changes the
+    // chunk geometry (rounding).
+    static const int64_t equal_tail_min = [] {
+        const int64_t v = strata::program::prefill_plan::equal_tail_min_from(std::getenv("STRATA_PREFILL_EQUAL_TAIL"),
+                                                                             std::getenv("STRATA_PREFILL_EQUAL_TAIL_MIN"));
+        if (v > 0)
+            std::fprintf(stderr, "strata: STRATA_PREFILL_EQUAL_TAIL=1: a prompt segment longer than its chunk whose last chunk "
+                                 "would be staged (%lld tokens or more, under the staged limit) reads in equal chunks instead\n",
+                         (long long) v);
+        return v;
+    }();
     auto equal_chunk = [&](int64_t tokens, int64_t max_chunk) -> int64_t {
         const int64_t plain = request_chunk(tokens, max_chunk);
+        if (equal_tail_min > 0) {
+            const int64_t c = strata::program::prefill_plan::equal_tail_chunk(
+                tokens, max_chunk, strata::prefill::Prefill::stream_all_min_tokens(), equal_tail_min);
+            if (c > 0) {
+                // one stderr line each time the plan differs from the default (the same segment again prints once)
+                thread_local int64_t seen_tokens = -1, seen_cap = -1;
+                if (tokens != seen_tokens || max_chunk != seen_cap) {
+                    seen_tokens = tokens;
+                    seen_cap = max_chunk;
+                    std::fprintf(stderr, "%s\n", strata::program::prefill_plan::describe_equal_tail(
+                                                     tokens, max_chunk, plain, c, strata::prefill::Prefill::stream_all_min_tokens()).c_str());
+                }
+                return c;
+            }
+        }
         if (!equal_chunks || tokens <= 0 || max_chunk <= 0) return plain;
         const int64_t n = tokens / max_chunk + (tokens % max_chunk != 0);
         const int64_t last = tokens - (n - 1) * max_chunk;
