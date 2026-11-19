@@ -74,11 +74,15 @@ class T(unittest.TestCase):
         self.assertEqual(cfg["env"]["GPU_MAX_HW_QUEUES"], "6")
         self.assertTrue(ch and len(msgs) == 1 and "tuned flags from" in msgs[0])
 
-    def test_config_argument_is_never_changed(self):
-        rec = {"env": {}, "args": {"--spec": "9", "--stats": ""}}
+    def test_recommended_argument_replaces_the_configs_value_or_is_appended(self):
+        rec = {"env": {}, "args": {"--spec": "9", "--stats": "", "--expert-profile": "@STRATA@/p.bin"}}
         cfg = self.cfg()
-        tf.apply_to_config(cfg, rec, env={})
-        self.assertEqual(cfg["args"], ["--spec", "4", "--stats"])
+        cfg["args"] += ["--expert-profile", "old.bin", "--kv", "int8"]
+        ch = tf.apply_to_config(cfg, rec, env={}, root="/r")
+        self.assertEqual(cfg["args"], ["--spec", "9", "--expert-profile", "/r/p.bin", "--kv", "int8", "--stats"])
+        self.assertEqual({c[1] for c in ch}, {"--spec", "--stats", "--expert-profile"})
+        cfg2 = self.cfg()
+        self.assertEqual(tf.apply_to_config(cfg2, {"env": {}, "args": {"--spec": "4"}}, env={}), [])   # same value: nothing changes
 
     def test_off_switches_are_byte_plain(self):
         for kw in ({"no_tuned": True, "env": {}}, {"no_tuned": False, "env": {"STRATA_TUNED_FLAGS": "0"}}):

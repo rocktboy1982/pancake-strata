@@ -46,8 +46,13 @@ CANDIDATES = {
     "SELECT_WMMA": {"env": {"STRATA_SELECT_WMMA": "1"}, "exact": False, "needs": ["wmma"]},
     "KV_HOST_DMA": {"env": {"STRATA_KV_HOST_DMA": "1"}, "exact": True, "needs": ["vmm"]},
     "PREFILL_RING": {"env": {"STRATA_PREFILL_RING": "192"}, "exact": True, "needs": []},
+    # the table is judged against the 100200 table this tree ships (base_env: what the base arm runs with instead of "no value")
     "HIPBLASLT_TUNING": {"env": {"STRATA_HIPBLASLT_TUNING": "@STRATA@/tools/hip/gfx1100-hipblaslt-100401.txt"}, "exact": False,
+                         "base_env": {"STRATA_HIPBLASLT_TUNING": "@STRATA@/tools/hip/gfx1100-hipblaslt-100200.txt"},
                          "needs": ["hipblaslt", "gfx1100"]},
+    # the learned profile of the pancake line (Qwen3.8-Flash-Next IQ2_XS only; T-194 measured it on another GPU) against the profile this tree ships
+    "EXPERT_PROFILE": {"args": {"--expert-profile": "@STRATA@/data/expert-profile-pancake.bin"}, "exact": False,
+                       "base_args": {"--expert-profile": "@STRATA@/data/expert-profile.bin"}, "needs": []},
     "GPU_MAX_HW_QUEUES": {"env": {"GPU_MAX_HW_QUEUES": "6"}, "exact": True, "needs": []},
     "RDNA_MMVQ_WAVE": {"env": {"STRATA_RDNA_MMVQ_WAVE": "3"}, "exact": True, "needs": ["rdna"]},
 }
@@ -86,13 +91,16 @@ def make_spec(base_cfg_path, flags, root=ROOT):
     """One abtest spec: base = every candidate key removed; one arm per flag."""
     env_keys, arg_keys = keys_of(flags)
     bare = {"env": {k: None for k in env_keys}, "args": {k: None for k in arg_keys}}
+    for f in flags:   # a flag judged against another value (not against "unset") keeps that value in the base arm
+        bare["env"].update({k: v.replace("@STRATA@", str(root)) for k, v in CANDIDATES[f].get("base_env", {}).items()})
+        bare["args"].update({k: v.replace("@STRATA@", str(root)) for k, v in CANDIDATES[f].get("base_args", {}).items()})
     arms = {"base": copy.deepcopy(bare)}
     for f in flags:
         a = copy.deepcopy(bare)
         for k, v in CANDIDATES[f].get("env", {}).items():
             a["env"][k] = v.replace("@STRATA@", str(root))
         for k, v in CANDIDATES[f].get("args", {}).items():
-            a["args"][k] = v
+            a["args"][k] = v.replace("@STRATA@", str(root))
         arms[f.lower().replace("_", "-")] = a
     return {"base": str(base_cfg_path), "lossy": True, "prefill": True, "cases": CASES, "reps": 1, "arms": arms,
             "note": "flag_diag.py: bare base (every candidate key removed) against one arm per flag; screen tier"}

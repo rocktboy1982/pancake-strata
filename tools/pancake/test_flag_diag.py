@@ -87,6 +87,13 @@ class T(unittest.TestCase):
         self.assertIsNone(spec["arms"]["pf-f16"]["env"]["STRATA_POOL_FUSE_PHASES"])
         self.assertTrue(set(spec["cases"]) <= {"short", "edit", "long3k"})
 
+    def test_table_and_profile_are_judged_against_the_shipped_values(self):
+        spec = fd.make_spec("base.json", ["HIPBLASLT_TUNING", "EXPERT_PROFILE"], root="/r")
+        self.assertTrue(spec["arms"]["base"]["env"]["STRATA_HIPBLASLT_TUNING"].endswith("100200.txt"))
+        self.assertTrue(spec["arms"]["hipblaslt-tuning"]["env"]["STRATA_HIPBLASLT_TUNING"].endswith("100401.txt"))
+        self.assertEqual(spec["arms"]["base"]["args"]["--expert-profile"], "/r/data/expert-profile.bin")
+        self.assertEqual(spec["arms"]["expert-profile"]["args"]["--expert-profile"], "/r/data/expert-profile-pancake.bin")
+
     def test_dry_run_cli_starts_nothing(self):
         with tempfile.TemporaryDirectory() as d:
             r = subprocess.run([sys.executable, str(HERE / "flag_diag.py"), "run", "--config", "x.json", "--dry-run", "--out", d],

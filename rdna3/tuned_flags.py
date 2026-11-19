@@ -9,7 +9,8 @@ script exports them before the engine starts.  The file is regenerated from meas
 
 Rules (one place, tested in rdna3/test_tuned_flags.py):
   * precedence: the process environment (the user) > the recommended file > the setup's config (rdna3/configs/*.json);
-    an argument the config already carries is never changed, a new one is appended;
+    a recommended argument replaces the value of the same argument in the setup config (the config's value is a default)
+    and is appended when the config has none;
   * `--no-tuned-flags` on run.py or STRATA_TUNED_FLAGS=0 gives the plain behaviour of the setup config, byte for byte;
   * only verdicts GAIN enter a written file, and only flags that are exact (bitwise parity) or lossy with a passing
     quality gate; UNSUPPORTED, NO-GAIN, OK (works, no measured gain) and FAIL never do;
@@ -144,7 +145,7 @@ def tuned_enabled(argv_off=False, env=None):
 
 def apply_to_config(cfg, rec, env=None, root=ROOT):
     """Overlay the recommended env and args on a filled-in server config (in place).  Returns the list of what changed
-    as (kind, name, old, new).  The process environment wins, an argument the config carries stays."""
+    as (kind, name, old, new).  The process environment wins; a recommended argument replaces the config's value."""
     env = os.environ if env is None else env
     changed = []
     cenv = cfg.setdefault("env", {})
@@ -157,9 +158,18 @@ def apply_to_config(cfg, rec, env=None, root=ROOT):
             cenv[k] = v
     args = cfg.setdefault("args", [])
     for k, v in (rec.get("args") or {}).items():
-        if k in args:
-            continue
         v = str(v).replace("@STRATA@", str(root))
+        if k in args:
+            i = args.index(k)
+            old = args[i + 1] if i + 1 < len(args) and not str(args[i + 1]).startswith("--") else None
+            if v == "" or old == v:
+                continue
+            if old is None:
+                args.insert(i + 1, v)
+            else:
+                args[i + 1] = v
+            changed.append(("arg", k, old, v))
+            continue
         args.append(k)
         if v != "":
             args.append(v)

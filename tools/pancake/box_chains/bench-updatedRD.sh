@@ -11,9 +11,9 @@
 # other job); nothing is killed or deleted; sources are synced with `tar xmf` semantics (mtimes reset, else ninja keeps stale objects); builds go OUTSIDE / to
 # /mnt/pancake/benchRD and stop when it has < 2 GB free; a failed configure / build / missing binary logs ERROR, puts the previous binary back (cp over, nothing
 # removed), starts the service and STOPS the chain (never a silent skip); the DONE marker is the last line: WINBENCHRD_DONE (also after an abort).
-# Order: 0 wait | 1 stop service, sync three trees | 2 build plain, build updated | 3 parity ctests of the updated build | 4 flag diagnostics (both builds, <= 30 min)
-#        | 5 spec 250 screen | 6 spec 250 confirm | 7 service back.
-# Estimate (hours, box idle): sync 0.2, builds 2 x (1.0 - 1.5), ctests 0.1, diagnostics 0.5, screen 0.5, confirm 2.2 (three arms) => about 6 h, worst case 7.3 h (target <= 8 h).
+# Order: 0 wait | 1 stop service, sync three trees | 2 build plain, build updated | 3 parity ctests of the updated build | 4 flag diagnostics (both builds, <= 35 min)
+#        | 5 spec 250 screen | 6 spec 250 confirm | 7 spec 251 screen (hipblaslt table 100401, learned profile; no confirm here) | 8 service back.
+# Estimate (hours, box idle): sync 0.2, builds 2 x (1.0 - 1.5), ctests 0.1, diagnostics 0.6, screen 0.5, confirm 2.2 (three arms), spec 251 screen 0.4 => about 6.7 h, worst case 8.0 h (target <= 8 h).
 S=/home/dan/clone-of-d/src; R=$S/Strata-win; L=$S/bench-updatedRD.log; O=/home/dan/auto-runs; T=$O/benchRD; PM=/mnt/pancake/benchRD
 CM=/home/linuxbrew/.linuxbrew/bin/cmake
 PLAIN_SRC=$PM/src-plain; UPD_SRC=$PM/src-updated; TOOLS=$PM/src-pancake
@@ -115,7 +115,7 @@ diag() {  # diag NAME CONFIG FLAGS [CTEST_DIR]
   cut -c1-200 $T/diag-$nm.stdout >> $L
   return $rc
 }
-diag updated $T/config-updated.json POOL_FUSE_PHASES,VERIFY_ECAP,PF_F16,HIPBLASLT_TUNING $BU
+diag updated $T/config-updated.json POOL_FUSE_PHASES,VERIFY_ECAP,PF_F16,HIPBLASLT_TUNING,EXPERT_PROFILE $BU
 diag plain $T/config-plain.json PF_F16,HIPBLASLT_TUNING
 
 # ------------------------------------------------------------------ 5. spec 250: screen, then the confirm (5 reps, blocks of 3, drift check; the arms differ by binary and by the shipped recommended flags)
@@ -125,6 +125,14 @@ grep -E "vs base|identical|DIFFERENT" $O/benchRD-250-screen.stdout | cut -c1-200
 ab $T/250.json 250-confirm --tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5 --drift-check
 grep -E "vs base|identical|DIFFERENT" $O/benchRD-250-confirm.stdout | cut -c1-200 >> $L
 
-# ------------------------------------------------------------------ 6. back
+# ------------------------------------------------------------------ 6. spec 251: the 100401 table and the learned profile against the updated build's own table and profile (screen only: a GAIN here needs a confirm later)
+SPEC2=$TOOLS/bench/specs/251-rdna3-hipblaslt-and-profile.json
+if [ -f $SPEC2 ]; then
+  sed "s#@UPDATED_SRC@#$UPD_SRC#g; s#@UPDATED@#$BU#g; s#@CONFIG_PLAIN@#$T/config-plain.json#" $SPEC2 > $T/251.json
+  ab $T/251.json 251-screen --tier screen --drift-check
+  grep -E "vs base|identical|DIFFERENT" $O/benchRD-251-screen.stdout | cut -c1-200 >> $L
+else say "ERROR spec 251 is missing in the synced pancake tree ($SPEC2); the table / profile arms did not run"; fi
+
+# ------------------------------------------------------------------ 7. back
 systemctl --user start pancake.service; say "service started $(date +%T); / free $(freekb /) KB, /mnt/pancake free $(freekb /mnt/pancake) KB"
 echo WINBENCHRD_DONE >> $L

@@ -3,10 +3,10 @@
 
   bench_updatedRD_conf.py PRESET PLAIN_SRC UPDATED_SRC PLAIN_BUILD UPDATED_BUILD OUT_PLAIN OUT_UPDATED
 
-PRESET is the box's filled-in pancake preset (model paths, port, lib dirs).  Both configs keep its model arguments, drop the arguments Strata-rdna3
-does not have (--grammar, --lookup-max-t) and take their env from Strata-rdna3's own setup config (rdna3/configs/iq3-1gpu.json: what the plain
-build runs with by default).  The updated config is the plain one plus the shipped recommended-flags file of the updated tree, applied the way
-rdna3/run.py applies it (rdna3/tuned_flags.py)."""
+PRESET is the box's filled-in pancake preset (model paths, port, lib dirs).  Both configs keep its model arguments, drop --grammar and --lookup-max-t (grammar is off
+in both; the lookup windows are not in Strata-rdna3), point --expert-profile at Strata-rdna3's own profile (the plain build must not run the pancake line's learned
+one) and take their env from Strata-rdna3's own setup config (rdna3/configs/iq3-1gpu.json: what the plain build runs with by default).  The updated config is the
+plain one plus the shipped recommended-flags file of the updated tree, applied the way rdna3/run.py applies it (rdna3/tuned_flags.py)."""
 import json
 import sys
 
@@ -24,6 +24,8 @@ def build(preset, plain_src, upd_src, bp, bu, tf, hw=None):
             continue
         keep.append(args[i])
         i += 1
+    if "--expert-profile" in keep:   # the plain build runs with Strata-rdna3's own profile, not the pancake line's learned one
+        keep[keep.index("--expert-profile") + 1] = plain_src + "/data/expert-profile.bin"
     p["args"] = keep
     p["env"] = {k: str(v).replace("@STRATA@", plain_src) for k, v in rd["env"].items()}
     for k in DROP_KEYS:
