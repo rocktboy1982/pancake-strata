@@ -3337,6 +3337,45 @@
    "retired_in": ""
   },
   {
+   "name": "STRATA_COMBINE_CPU",
+   "backends": [
+    "cuda-hip"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/core/verify.cpp",
+     "line": 1419,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    },
+    {
+     "file": "engine/src/kernels/cuda/native_bf16.cu",
+     "line": 395,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "flag",
+   "default_state": "off",
+   "code_default": null,
+   "engine_sets": [],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": null,
+   "first_date": null,
+   "since": null,
+   "last_commit": null,
+   "last_date": null,
+   "status": "opt-in",
+   "owner": "kernels/hip-rdna",
+   "note": "verify window: the combine reads the CPU expert rows straight from the mapped buffer and the GPU hit rows, with the shared gate in the router GEMV launch; bitwise the launches it replaces; pancake T-009 (nicejunjie, Strata-rdna3, 2745ea818); the daily preset sets 1",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
    "name": "STRATA_COMMIT_BATCH",
    "backends": [
     "cuda-hip"
