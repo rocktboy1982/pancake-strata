@@ -222,11 +222,33 @@ tuneup_checks() {  # sysfs / proc reads only: no sudo, no sysctl write, nothing 
   timeout 120 sh $td/host_tune_ab.sh plan > $od/host_tune_ab_plan.txt 2>&1; say "TUNEUP host_tune_ab plan exit=$? (the A/B itself changes sysctl and is the owner's)"
   timeout 120 sh $td/os_tune.sh > $od/os_tune_check.txt 2>&1; say "TUNEUP os_tune check exit=$? $(tail -n 3 $od/os_tune_check.txt | tr '\n' ' ' | cut -c1-240)"
 }
-diag() {  # diag NAME CONFIG FLAGS [CTEST_DIR]: one abtest screen of the base and one arm per flag (the harness of flag_diag.py), ctest parity per flag
+# 2026-11-19 (US chain, diag plain): `timeout 1080 sh flag_diag.sh` ended flag_diag after 18 min (2 flags) but its abtest.py / serve/server.py / strata engine
+# kept running, and the next diagnostic's abtest refused to start (exit 3: all 5 flags UNTESTED).  Now: the diagnostic runs in its OWN SESSION (setsid), under
+# `timeout --signal=TERM --kill-after=100` (flag_diag.py stops its running arm's process group on TERM: up to 30 + 60 s); afterwards the chain waits (<= 60 s) until
+# no process of that session is left and SIGKILLs only that session's leftovers, each one logged (DIAG-REAP).  Nothing outside the session is touched.
+# flag_diag.py itself: one abtest start per arm (base once), case short only, no retries, a hard limit per arm (FLAG_TIMEOUT s: UNTESTED-TIMEOUT), verdicts.json
+# rewritten after every arm, parity ctest only for flags claimed exact.  The chain limit is sized from that: (flags + 1) x (FLAG_TIMEOUT + 90) + ctest + 180 s.
+FLAG_TIMEOUT=${FLAG_TIMEOUT:-240}; CTEST_TIMEOUT=300
+sess_members() { ps -eo pid=,sid=,pgid=,args= 2>/dev/null | awk -v s="$1" '$2 == s || $3 == s { pid = $1; $1 = $2 = $3 = ""; sub(/^ +/, ""); print pid " " $0 }'; }
+run_diag_group() {  # run_diag_group SECONDS LOG CMD...: CMD in its own session; TERM to its group at SECONDS, KILL 100 s later; then reap that session only
+  secs=$1; log=$2; shift 2
+  setsid timeout --signal=TERM --kill-after=100 "$secs" "$@" > "$log" 2>&1 &   # (a background job of a non-interactive sh is no group leader: setsid does not fork, $! is the session id)
+  sid=$!; wait $sid; rc=$?
+  n=0; while [ -n "$(sess_members $sid)" ] && [ $n -lt 30 ]; do sleep 2; n=$((n + 1)); done
+  left=$(sess_members $sid)
+  if [ -n "$left" ]; then
+    say "DIAG-REAP session $sid still running 60 s after the diagnostic ended, killed: $(echo "$left" | cut -c1-160 | tr '\n' ';')"
+    echo "$left" | while read -r p _; do kill -KILL "$p" 2>/dev/null; done; sleep 3
+    [ -z "$(sess_members $sid)" ] || say "ERROR DIAG-REAP session $sid: processes survive SIGKILL: $(sess_members $sid | cut -c1-160 | tr '\n' ';')"
+  fi
+  return $rc
+}
+diag() {  # diag NAME CONFIG FLAGS [CTEST_DIR]: one abtest screen per arm (base once, then each flag; the harness of flag_diag.py), ctest parity for exact flags
   nm=$1; cf=$2; fl=$3; ct=${4:-}
-  say "START diag-$nm $(date +%F_%T)"
-  ( cd $TOOLS && timeout 1500 python3 $UPD_SRC/tools/pancake/flag_diag.py run --config $cf --flags $fl --abtest $TOOLS/tools/pancake/abtest.py --out $O/benchRD-diag-$nm \
-      ${ct:+--ctest $ct} ) > $O/benchRD-diag-$nm.stdout 2>&1; rc=$?
+  nf=$(echo "$fl" | tr ',' '\n' | grep -c .); lim=$(( (nf + 1) * (FLAG_TIMEOUT + 90) + ${ct:+$CTEST_TIMEOUT} + 180 ))
+  say "START diag-$nm $(date +%F_%T) (limit $lim s: $nf flags x $FLAG_TIMEOUT s per arm + base + margin)"
+  ( cd $TOOLS && run_diag_group $lim $O/benchRD-diag-$nm.stdout python3 -u $UPD_SRC/tools/pancake/flag_diag.py run --config $cf --flags $fl \
+      --abtest $TOOLS/tools/pancake/abtest.py --out $O/benchRD-diag-$nm --flag-timeout $FLAG_TIMEOUT --ctest-timeout $CTEST_TIMEOUT ${ct:+--ctest $ct} ); rc=$?
   say "END diag-$nm exit=$rc $(date +%T)"
   cut -c1-200 $O/benchRD-diag-$nm.stdout >> $L
   [ -f $O/benchRD-diag-$nm/verdicts.json ] || say "ERROR diag-$nm wrote no verdicts.json: $(grep -m1 . $O/benchRD-diag-$nm.stdout 2>/dev/null | cut -c1-240) (log $O/benchRD-diag-$nm.stdout; the benchmark goes on)"
