@@ -1,0 +1,6 @@
+layer records with weights: 34752 nonzero, 34752 present, 34752 in all
+wrote /home/dan/auto-runs/winW2-importance.txt: 48 layers x 512 experts, gate weight sums
+  budget 1%: 6026 of 24576 experts may stay out (24.5%)
+  budget 3%: 8715 of 24576 experts may stay out (35.5%)
+  budget 5%: 10381 of 24576 experts may stay out (42.2%)
+  budget 10%: 13087 of 24576 experts may stay out (53.3%)

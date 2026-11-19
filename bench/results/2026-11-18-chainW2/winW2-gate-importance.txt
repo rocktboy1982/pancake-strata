@@ -1,0 +1,8 @@
+154560 token-layer rows, top-10
+  correlation: no expert output norms in the input (needs an .npz with out_norm); losses below are weight mass
+  split at T1 0.6 / T2 0.9: high 48.9%, low 39.1%, skip 12.0% (HOBBIT, Mixtral top-2: 67 / 30 / 3); skipped share 6.96%
+  skip share by rank: 0% 0% 0% 0% 0% 0% 0% 2% 18% 100%
+  budget 1%: T2 0.95, skips 2.2% of entries; CPU entries skipped 4780/119785, CPU experts removed 3819/93460, modeled decode saving 0.4% (under the 2% gate)
+  budget 3%: T2 0.94, skips 4.7% of entries; CPU entries skipped 9699/119785, CPU experts removed 7582/93460, modeled decode saving 0.9% (under the 2% gate)
+  budget 5%: T2 0.93, skips 7.5% of entries; CPU entries skipped 14925/119785, CPU experts removed 11460/93460, modeled decode saving 1.3% (under the 2% gate)
+  budget 10%: T2 0.87, skips 16.2% of entries; CPU entries skipped 29346/119785, CPU experts removed 22306/93460, modeled decode saving 2.6% (over the 2% gate)
