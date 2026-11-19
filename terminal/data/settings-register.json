@@ -29494,6 +29494,39 @@
    "retired_in": ""
   },
   {
+   "name": "STRATA_POOL_FUSE_PHASES",
+   "backends": [
+    "cpu"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/kernels/cpu/pool.cpp",
+     "line": 1381,
+     "backend": "cpu",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "int",
+   "default_state": null,
+   "code_default": null,
+   "engine_sets": [],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": null,
+   "first_date": null,
+   "since": null,
+   "last_commit": null,
+   "last_date": null,
+   "status": "opt-in",
+   "owner": "kernels/cpu",
+   "note": "CPU expert pool: gate/up and down of a layer in one phase, a down task waits only for its own expert (output identical, same row ranges and kernels); pancake T-224 (edit +2.5% +-1.7, below the 2% bar with its interval; adopted in the daily preset)",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
    "name": "STRATA_POOL_SPIN_US",
    "backends": [
     "cpu"
