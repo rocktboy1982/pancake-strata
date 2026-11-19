@@ -6,7 +6,7 @@
 # What it does (nothing is killed, aborted, deleted; no sudo; no sudoers edit; no box file is edited in place):
 #   a. finds the AA shell, EXACTLY `sh ./redo-chainAA.sh` (cmdline checked; zero matches = AA is not running, several = ERROR and stop) and sends SIGSTOP to
 #      that one pid.  AA is a sequential `sh` script: it freezes BETWEEN its steps; the child that runs now (abtest, a build) is not touched and finishes;
-#   b. waits until no measured job runs (the busy() patterns of the chains, WITHOUT the frozen AA shell): 3 clean polls of 60 s = 3 idle minutes, once;
+#   b. waits until no measured job runs (the busy() patterns of the chains, WITHOUT the frozen AA shell): 2 clean polls of 15 s = 30 idle seconds (owner 2026-11-19), once;
 #   c. runs the two benchmark chains one after the other, in this shell (so their end is known): bench-updatedAA.sh (plain upstream Strata v0.2.16 against
 #      updated-strata, marker WINBENCHUS_DONE) and bench-updatedRD.sh (plain Strata-rdna3 against updated-strata-rdna3, marker WINBENCHRD_DONE), both with
 #      BENCH_SCHED=1 (no waiting for AA), BENCH_PREIDLED=1 (quick idle only), BENCH_KEEP_SERVICE_DOWN=1 (pancake.service stays down: AA needs the box without
@@ -48,9 +48,9 @@ else say "ERROR $# AA shells ($*): nothing stopped, nothing run"; echo BENCHSCHE
 
 # ------------------------------------------------------------------ b. wait for the box to be idle: the current AA step ends, then 3 clean polls
 q=0; n=0
-while [ $q -lt 3 ]; do
-  if busy; then q=0; n=$((n+1)); [ $((n % 10)) -eq 1 ] && say "WAIT a measured job of the frozen step is still running $(date +%T)"; else q=$((q+1)); fi
-  sleep 60
+while [ $q -lt 2 ]; do
+  if busy || pgrep -f "[b]ench-updated(AA|RD)[.a-z0-9]*\.sh" >/dev/null 2>&1; then q=0; n=$((n+1)); [ $((n % 40)) -eq 1 ] && say "WAIT a measured job of the frozen step is still running $(date +%T)"; else q=$((q+1)); fi
+  sleep 15
 done
 say "IDLE the box is idle $(date +%T)"
 
@@ -62,8 +62,9 @@ run_chain() {  # run_chain NAME SCRIPT LOG MARKER
   say "END $1 exit=$rc last-log-line=$last $(date +%T)"
   [ "$last" = "$4" ] || say "ERROR $1 ended without its marker $4 (exit $rc): see $3"
 }
-run_chain US "$US" $S/bench-updatedAA.log WINBENCHUS_DONE
-run_chain RD "$RD" $S/bench-updatedRD.log WINBENCHRD_DONE
+# BENCH_ONLY=US or RD runs one chain (a rerun of one benchmark)
+[ "${BENCH_ONLY:-}" = RD ] || run_chain US "$US" $S/bench-updatedAA.log WINBENCHUS_DONE
+[ "${BENCH_ONLY:-}" = US ] || run_chain RD "$RD" $S/bench-updatedRD.log WINBENCHRD_DONE
 
 # ------------------------------------------------------------------ d. AA goes on
 resume
