@@ -321,6 +321,7 @@ from serve import expert_heat  # noqa: E402
 from serve import commit_limit  # noqa: E402
 from serve import oomd_pacer  # noqa: E402
 from serve import lastrun  # noqa: E402
+from serve import status_page  # noqa: E402
 from serve.webfiles import subtree_file as web_subtree_file  # noqa: E402
 from strata_control import engine_component  # noqa: E402
 from strata_control import tls  # noqa: E402
@@ -6903,8 +6904,27 @@ def make_handler(svc: Service):
                 self.send_header("Content-Length", str(len(body)))
                 self.end_headers()
                 self.wfile.write(body)
-            elif path == "/status":
+            elif path in ("/status", "/pancake", "/status.json"):
+                # the project status page (serve/status_page.py, ported from pancake-strata): a browser asking for /status
+                # (Accept: text/html, or ?html=1) and /pancake get the page, drawn on the server so it reads with JavaScript
+                # off; with an API key set, the values only for a request that carries it.  /status.json is its data.
+                if path == "/pancake" or (path == "/status" and status_page.wants_html(self.headers.get("Accept", ""),
+                                                                                       urlsplit(self.path).query)):
+                    auth = self.headers.get("Authorization", "")
+                    given = auth[7:].strip() if auth.lower().startswith("bearer ") else self.headers.get("x-api-key", "")
+                    body = status_page.page(svc, not svc.api_key or key_matches(given, svc.api_key))
+                    self.send_response(200)
+                    self.send_header("Content-Type", "text/html; charset=utf-8")
+                    self.send_header("Content-Security-Policy", PAGE_CSP)
+                    self.send_header("Cache-Control", "no-store")
+                    self.send_header("Content-Length", str(len(body)))
+                    self.end_headers()
+                    self.wfile.write(body)
+                    return
                 if not self._authorized():                  # #212: it shows the end of the last answer
+                    return
+                if path == "/status.json":
+                    self._json(200, status_page.build(svc))
                     return
                 with svc.status_lock:
                     s = dict(svc.status)

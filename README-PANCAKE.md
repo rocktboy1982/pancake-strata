@@ -371,3 +371,32 @@ The first commit of the branch is a snapshot of the tree of the upstream tag `v0
 used to push has no `workflow` scope, so GitHub refuses a push that changes workflow files). The tree outside `.github/workflows` is
 identical to the tag. The commits after it are the changes described above; each commit message names the ledger ids it relies on.
 A pull request to upstream should be made from the same commits rebased onto the tag `v0.2.16` itself.
+
+## 8. Status page (`/status`, `/pancake`)
+
+Open `http://127.0.0.1:<port>/status` in a browser, or `/pancake`. The chat page's header and the API monitor link to it. `GET /status.json`
+returns the same data as JSON. `/status` without `Accept: text/html` (or `?html=1`) is still the old API answer. The page is read-only: GET
+only, no file from outside the tree, no new hardware probe. The server draws the page, so it reads with JavaScript off; with JavaScript it
+updates every 2 s. With an API key set, the values need the key (the page asks for it).
+
+What it shows:
+
+* Project: branch and head commit of the checkout (read from `.git`), engine version and build id (the engine's `BUILD.json`), backend,
+  model, context, run config, uptime.
+* Hardware: gfx architecture, ROCm version, VRAM, PCIe link, CPU, RAM. It uses `tuned_flags.detect_hardware` (rocminfo, sysfs, `/proc`; no
+  privileges), read once in the background.
+* Tuned flags: the profile of `terminal/strata_control/tuned_flags.py` that matches this machine (`$STRATA_TUNED_FLAGS_FILE` or
+  `~/.strata/tuned-flags.json`, then `terminal/data/tuned-flags.json`). Each flag shows its state at start: applied, yours (run config or
+  environment), changed by a saved tuning, or not applied. `STRATA_TUNED_FLAGS=0` or `--no-tuned-flags` shows "off".
+* Your settings: the run config's env and args, and the `STRATA_` / `HIP_` / `HSA_` variables of the environment.
+* Flag diagnostics: the verdicts of `tools/pancake/flag_diag.sh run`, when `$STRATA_FLAG_DIAG_VERDICTS` (or
+  `~/.strata/flag-diag/verdicts.json`) names a verdicts file.
+* Speed and caches: decode and prompt tok/s (now, run average, last request), prefix reuse, expert cache hit rate (last request, mean),
+  PCIe share, drafts accepted, the conversation cache from the engine's log, every INFO fact the engine reported (expert slots,
+  windows, ...), and the live GPU and RAM readings.
+
+A value that is not known prints as an em dash. Code: `terminal/serve/status_page.py`, `terminal/serve/web/status.html`,
+`terminal/serve/web/status.js`. Tests: `terminal/serve/test_status_page.py` (mock engine, no GPU). Credits: ours (pancake-strata
+`214c8cd31`, `19ffe37ab`, extended for this branch). The pancake line's two other web changes were already in this tree, so they were not
+ported again: `/?q=` fills in the question without sending it (`faf3db296`), and the speed cards show the run average when idle
+(`6acd50efe`).
