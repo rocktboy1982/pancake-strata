@@ -2444,6 +2444,80 @@ void wave_launch(const void* weights, const void* x_q8_1, float* y, int n_in, in
 }
 #define STRATA_WAVE_MMVQ(...) \
     if (!g_wave_off) { wave_launch<__VA_ARGS__>(weights, x_q8_1, y, n_in, n_out, ncols, stream); launch_check(); return; }
+#elif defined(STRATA_USE_HIP)
+// ---- RDNA (wave32) STRATA_RDNA_MMVQ_WAVE=3 (opt-in; pancake T-009, T-378): one wave per output row that emulates the generic
+// four-warp layout in registers: the same partial sums in the same order (tmp[j][g] per emulated warp g, added g = 1..3 in order, then
+// warp_sum), without the LDS exchange and the block barrier.  The same kernel serves every column count 1..16, so a column's result
+// does not depend on how many verify tokens ride along.  Selection depends on the shape only (never on ncols), as in the fork.
+const char* g_rdna_wave_env = std::getenv("STRATA_RDNA_MMVQ_WAVE");
+const bool g_wave_exact = g_rdna_wave_env && std::string(g_rdna_wave_env) == "3";
+bool g_wave_off = !g_wave_exact;
+template<typename F, int NCOLS>
+__launch_bounds__(256)
+__global__ void native_mmvq_wave_exact_kernel(const typename F::Block* __restrict__ w, const Q81Block* __restrict__ x,
+                                              float* __restrict__ y, int n_in, int n_out) {
+    const int lane = int(threadIdx.x) & 31;
+    const int row = int(blockIdx.x) * 8 + int(threadIdx.x) / 32;
+    if (row >= n_out) return;
+    const int blocks_per_row = n_in / F::DIV;
+    const int x_stride = n_in / Q8K;
+    float tmp[NCOLS][WARPS] = {};
+#pragma unroll
+    for (int g = 0; g < WARPS; ++g) {
+        const int tid = lane + g * WARP;
+        const int kqs = F::kqs(tid);
+        for (int kbx = tid / F::T; kbx < blocks_per_row; kbx += F::BPI) {
+            const typename F::W wv = F::load(w + std::size_t(row) * blocks_per_row + kbx, kqs);
+#pragma unroll
+            for (int j = 0; j < NCOLS; ++j)
+                tmp[j][g] += F::apply(wv, x + std::size_t(j) * x_stride + kbx * F::KBY, kqs);
+        }
+    }
+#pragma unroll
+    for (int j = 0; j < NCOLS; ++j) {
+        float v = tmp[j][0];
+#pragma unroll
+        for (int g = 1; g < WARPS; ++g) v += tmp[j][g];
+        v = warp_sum(v);
+        if (lane == 0) y[std::size_t(j) * n_out + row] = v;
+    }
+}
+template<typename F, int NCOLS>
+void wave_launch_n(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, cudaStream_t s) {
+    const auto* w = static_cast<const typename F::Block*>(weights);
+    const auto* x = static_cast<const Q81Block*>(x_q8_1);
+    const unsigned blocks = unsigned((std::size_t(n_out) + 7) / 8);
+    native_mmvq_wave_exact_kernel<F, NCOLS><<<blocks, 256, 0, s>>>(w, x, y, n_in, n_out);
+}
+template<typename F>
+void wave_launch(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols, void* stream) {
+    const auto s = static_cast<cudaStream_t>(stream);
+    switch (ncols) {
+        case 1: wave_launch_n<F, 1>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 2: wave_launch_n<F, 2>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 3: wave_launch_n<F, 3>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 4: wave_launch_n<F, 4>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 5: wave_launch_n<F, 5>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 6: wave_launch_n<F, 6>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 7: wave_launch_n<F, 7>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 8: wave_launch_n<F, 8>(weights, x_q8_1, y, n_in, n_out, s); break;
+#if STRATA_VERIFY_MAX_T > 8
+        case 9: wave_launch_n<F, 9>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 10: wave_launch_n<F, 10>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 11: wave_launch_n<F, 11>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 12: wave_launch_n<F, 12>(weights, x_q8_1, y, n_in, n_out, s); break;
+#if STRATA_VERIFY_MAX_T > 12
+        case 13: wave_launch_n<F, 13>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 14: wave_launch_n<F, 14>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 15: wave_launch_n<F, 15>(weights, x_q8_1, y, n_in, n_out, s); break;
+        case 16: wave_launch_n<F, 16>(weights, x_q8_1, y, n_in, n_out, s); break;
+#endif
+#endif
+        default: throw std::invalid_argument("native MMVQ (wave) requires 1 <= ncols <= MAX_NCOLS");
+    }
+}
+#define STRATA_WAVE_MMVQ(...) \
+    if (!g_wave_off) { wave_launch<__VA_ARGS__>(weights, x_q8_1, y, n_in, n_out, ncols, stream); launch_check(); return; }
 #else
 #define STRATA_WAVE_MMVQ(...)
 #endif
@@ -2457,7 +2531,15 @@ void small_mmvq(const void* weights, const void* x_q8_1, float* y,
     validate_pointer(x_q8_1);
     validate_pointer(y);
     validate_stream(stream);
+#if defined(STRATA_USE_HIP) && !defined(STRATA_HIP_GFX906)
+    // gfx1100 (Strata-rdna3): short output matrices lose occupancy with one wave per row; keep their existing layout for the
+    // 6144-wide projections.  Selection depends only on the shape, never on the number of verify tokens.
+    if (n_in <= 1024 || (n_in <= 2560 && n_out >= 1024)) {
+        STRATA_WAVE_MMVQ(SmallTraits<Weight, Qi>)
+    }
+#else
     STRATA_WAVE_MMVQ(SmallTraits<Weight, Qi>)
+#endif
     if (ncols > 1) {
         launch_multi<SmallTraits<Weight, Qi>>(weights, x_q8_1, y, n_in, n_out, ncols, stream);
         launch_check();
