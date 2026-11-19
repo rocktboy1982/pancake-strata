@@ -49,14 +49,14 @@ and `AB_SPEC` (the harness is not part of this tree). The list of host settings 
 
 ## 2. The ported enhancements
 
-### 2.1 `STRATA_POOL_FUSE_PHASES` (exact, default off; removed from the shipped file 2026-11-20: FAIL on this branch, section 2.17)
+### 2.1 `STRATA_POOL_FUSE_PHASES` (exact, default off; removed from the shipped file 2026-11-20: -5.97 % on a one-rep short screen; its FAIL verdict was invalid, section 2.17)
 What: the CPU expert pool runs a layer's gate/up tasks and down tasks in one phase; a down task waits only for its own expert, whose last gate/up task
 has quantized its input. The row ranges and kernels are those of the two-phase path, so the output is identical. Enable: `STRATA_POOL_FUSE_PHASES=1`.
 Files: `src/kernels/cpu/pool.cpp`, `include/strata/kernels/cpu/pool.hpp`. Measured: code edit +2.5% +-1.7 over the two-phase path, 3 repeats, short chat
 neutral (T-224; `bench/results/2026-11-09-test-phase/03b-fuse-min.summary.txt`, `03-cpu-pool.summary.txt`, quality `03b-fuse-min.quality.txt`: gate PASS). The first
 version had a defect found by the first test (a stale task count cut the down rows wrongly or divided by zero); the version here has the fix.
 
-### 2.2 `STRATA_VERIFY_ECAP`, `STRATA_VERIFY_ECAP_MIN_ROWS` (lossy, default off; removed from the shipped file 2026-11-20: NO-GAIN, section 2.17)
+### 2.2 `STRATA_VERIFY_ECAP`, `STRATA_VERIFY_ECAP_MIN_ROWS` (lossy, default off; in the shipped file, kept by owner decision 2026-11-20)
 What: in a decode verify window each draft row (rows 1 to T-1, never row 0, whose output is always committed) reads at most n CPU-resident experts that row 0
 and the earlier rows do not read anyway, kept by routing rank; the other draft-only experts are skipped like `STRATA_ROUTE_TAIL_SKIP` experts (neither copied nor
 computed, a zero row, routing weights as routed). `STRATA_VERIFY_ECAP_MIN_ROWS=N` lets the cap act only in windows of N rows or more. Host side only; no captured
@@ -68,10 +68,12 @@ Measured on the pancake base (6 clean runs per arm): cap 0 from 9-row windows, e
 (T-589, `bench/quality-hip/2026-11-15-ecap-gated`); tool-call task gate PASS: 99.4% success, tool-call validity 100% over 180 runs (T-591,
 `bench/results/2026-11-16-taskgate-ecap`). An ungated cap 0 was rejected by the same gate (+0.95 points, T-271).
 The gain was measured on windows of 9 or more rows (the prompt-lookup windows of `--lookup-max-t 12` in a 16-row build). This branch now has those windows
-(section 2.9), so the shipped file carried the pancake preset's gated form, `STRATA_VERIFY_ECAP=0` with `STRATA_VERIFY_ECAP_MIN_ROWS=9`, together with
+(section 2.9), so the shipped file carries the pancake preset's gated form, `STRATA_VERIFY_ECAP=0` with `STRATA_VERIFY_ECAP_MIN_ROWS=9`, together with
 `--lookup-max-t 12` and `--grammar on` (the tool-call gate ran with the grammar guard on, section 2.5). Before this round the windows were at most 8 rows and the
-gate never opened (the first box screen of spec 250 saw no ECAP effect for that reason). Since 2026-11-20 the shipped file no longer carries ECAP (section 2.17);
-spec 252 arm `updated+ecap9` measures it on the edit case.
+gate never opened (the first box screen of spec 250 saw no ECAP effect for that reason). On this branch (spec 250 screen 2026-11-19 23:17, one rep, order effect
+flagged) the updated arms with ECAP and the 16-row windows ran the edit case +43.6 % / +43.8 % against plain; the diagnostic's short case alone gave -7.37 %
+(MIN_ROWS 6). It was taken out of the shipped file on 2026-11-20 and put back the same day by owner decision; spec 252 `updated` against `updated-exact`
+measures ECAP alone.
 
 ### 2.3 Two fixes
 `sampler.cu` (T-573): a NaN temperature fell through the `t <= 0` test into a uniform draw over the top-k list; `sampler_parity` measured 4 of 4 picks wrong. One
@@ -184,7 +186,8 @@ Gap list: the pancake daily preset entry by entry against Strata-rdna3 `8b01b0c8
 | `--spec 4`, `--spec-min-p 0.5`, `--kv int8`, `--kv-resident 32768`, `--pcie-frac 0`, `--adapt-every 1`, `--adapt-swaps 32`, `--prefill auto`, `--expert-cache auto`, `--mtp` | same | PRESENT-EQUAL | theirs |
 | `PIN_BY_NEED`, `EXPDEC`, `EXPDEC_DOWN`, `EXCHANGE_ROTATE`, `KV_PREFETCH`, `PROMPT_ATTN_IMMA`, `ATTN_DAILY`, `--pool-affinity measure`, `--conversation-cache-min-tokens 8192` | the switch / option exists, not set | PRESENT, not set | ours added (2.14) |
 | `--grammar on` | missing | ported earlier (2.5) | ours added |
-| `POOL_FUSE_PHASES`, `VERIFY_ECAP=0` + `_MIN_ROWS=9` | missing | ported earlier (2.1, 2.2) | removed 2026-11-20 (FAIL / NO-GAIN on this branch, 2.17); ECAP is spec 252 arm `updated+ecap9` |
+| `VERIFY_ECAP=0` + `_MIN_ROWS=9` | missing | ported earlier (2.2) | ours added (kept by owner decision 2026-11-20) |
+| `POOL_FUSE_PHASES` | missing | ported earlier (2.1) | removed 2026-11-20 (2.17) |
 | `--lookup-max-t 12` + 16-row windows (`STRATA_VERIFY_MAX_T=16`) | missing (8-row windows) | ported (2.9) | ours added (+ build flag) |
 | RDNA 9-16 column kernels, `ADAPT_PERSIST` (code defaults of the pancake build) | missing | ported (2.10, 2.13) | ours added (code default) |
 | `PF_GROUP_SCRATCH`, `PF_HC_REGION`, `PREFILL_EQUAL_TAIL` | missing | ported (2.11, 2.12) | ours added |
@@ -228,13 +231,16 @@ test `src/core/amd_community_test.cpp` (CTest `amd_community_test` and `amd_comm
 
 Owner order 2026-11-19 23:05: remove from the shipped settings everything that did not work on this branch. Rule: a flag with a FAIL, NO-GAIN or otherwise
 negative verdict measured on this branch leaves `rdna3/recommended-flags/gfx1100.json` (and so the `updated` arm of specs 250 / 251 / 252, which is that file
-minus the values that would change Strata-rdna3's); `VERIFY_ECAP` leaves it unless an edit-case measurement shows a gain. Each removal is in the file under
-`removed`, with the evidence. The measurement arms stay.
+minus the values that would change Strata-rdna3's). Each removal is in the file under `removed`, with the evidence. The measurement arms stay. `VERIFY_ECAP` was
+removed too and put back the same day by owner decision (section 2.2).
 
 | flag | verdict on this branch | evidence |
 |---|---|---|
-| `STRATA_POOL_FUSE_PHASES=1` | FAIL | `flag_diag` on the updated build, 2026-11-19 (box `/home/dan/auto-runs/benchRD-diag-updated/verdicts.json`, short case, 1 rep): -5.97 %; claimed exact, but a parity ctest of the flag failed |
-| `STRATA_VERIFY_ECAP=0` + `_MIN_ROWS=9` | NO-GAIN | same run (MIN_ROWS 6 in the diagnostic): -7.37 % on short. No edit-case measurement on this branch shows a gain: spec 250's screen (2026-11-19 23:17) has no ECAP-only arm, and spec 252 had not finished at removal time. Spec 252 now has the arm `updated+ecap9` (= `updated` + ECAP) for the edit case |
+| `STRATA_POOL_FUSE_PHASES=1` | negative speed; the FAIL verdict is not valid | `flag_diag` on the updated build, 2026-11-19 (box `/home/dan/auto-runs/benchRD-diag-updated/verdicts.json`, short case, 1 rep): -5.97 %. Its FAIL came from 7 pool ctests that were all "Not Run" (the test binaries are not built in that tree): no parity result exists. `flag_diag.py` now reports "Not Run" as no result. The removal rests on the one-rep screen only |
+
+`flag_diag.py` (2026-11-20, owner order): on this model the default's text differs from itself from run to run, so text identity cannot judge a flag claimed
+exact. When such a flag's text differs, the diagnostic starts the default once more; if that repeat also differs, the flag keeps its speed verdict with
+exactness "EXACT-UNVERIFIED (base vs base also differs)"; the parity ctest (`--ctest`) is the judge (FAIL is the verdict, PASS is recorded).
 
 Kept: `--lookup-max-t 12` (no verdict here yet; pancake T-126 / T-127) and every `preset` entry (not measured one by one). Added: `STRATA_PF_F16=1` (GAIN, section
 2.4). Not ours to change: `STRATA_RDNA_MMVQ_WAVE=3` (GAIN +27.34 %, exact) and `STRATA_KV_HOST_DMA=1` (+22.49 %, but the text differs) are Strata-rdna3's own setup

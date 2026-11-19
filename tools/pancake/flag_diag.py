@@ -17,6 +17,12 @@ config with every candidate key removed (bare), each flag is its own arm (a bare
   GAIN         >= 2.0 % (text identical to base: exact) or >= 3.0 % (lossy) on a case, and not worse than -3 % on another
   OK           it starts and runs; nothing was measured (--dry-run / no abtest result)
 
+Exactness (owner order 2026-11-20): on this model the default's text differs from ITSELF from run to run (placement), so text
+identity cannot judge a flag claimed exact.  When such a flag's text differs, `run` starts the default once more (arm base-again):
+if that repeat differs too, the flag keeps its speed verdict (exact bar) with exactness "EXACT-UNVERIFIED (base vs base also
+differs)"; if the repeat is identical, it is judged as lossy (as before).  The judge of exactness is the flag's parity ctest
+(--ctest): FAIL is the verdict, PASS is recorded as parity_ctest.  A text difference alone never makes a flag UNSUPPORTED.
+
 and writes DIR/hardware.json, DIR/verdicts.json and DIR/recommended-flags.json (the preset env / args block for this hardware: only
 GAIN flags that are exact, or lossy with a passing quality gate; the gate verdicts recorded in the pancake ledger are listed in
 CANDIDATES["gate"], any other lossy flag needs --gate-pass).  `--write-recommended` copies that into rdna3/recommended-flags/, where
@@ -102,7 +108,7 @@ def make_spec(base_cfg_path, flags, root=ROOT):
     for f in flags:   # a flag judged against another value (not against "unset") keeps that value in the base arm
         bare["env"].update({k: v.replace("@STRATA@", str(root)) for k, v in CANDIDATES[f].get("base_env", {}).items()})
         bare["args"].update({k: v.replace("@STRATA@", str(root)) for k, v in CANDIDATES[f].get("base_args", {}).items()})
-    arms = {"base": copy.deepcopy(bare)}
+    arms = {"base": copy.deepcopy(bare), "base-again": copy.deepcopy(bare)}   # base-again: the default's own repeat (exactness, noise)
     for f in flags:
         a = copy.deepcopy(bare)
         for k, v in CANDIDATES[f].get("env", {}).items():
@@ -146,7 +152,8 @@ def crashed(text, arm):
 
 
 # ---------------------------------------------------------------------------------------------- verdicts
-def verdict_for(flag, hw, parsed, stdout="", ctest_ok=None, gate_pass=()):
+def verdict_for(flag, hw, parsed, stdout="", ctest_ok=None, gate_pass=(), base_differs=None):
+    """BASE_DIFFERS: True when a repeat of the default gave another text than the default (text identity unusable here)."""
     c = CANDIDATES[flag]
     arm = flag.lower().replace("_", "-")
     miss = unmet(flag, hw)
@@ -168,6 +175,9 @@ def verdict_for(flag, hw, parsed, stdout="", ctest_ok=None, gate_pass=()):
     best = max(deltas.values())
     worst = min(deltas.values())
     exact = bool(a["exact"]) if a["exact"] is not None else False
+    if c["exact"] and not exact and base_differs:
+        exact = True
+        e["exactness"] = "EXACT-UNVERIFIED (base vs base also differs)"
     e["exact"] = exact
     e["gain_pct"] = round(best, 2)
     e["cases"] = deltas
@@ -228,6 +238,13 @@ def parse_rows(base_jsonl, arm_jsonl, arm):
 
 
 # ---------------------------------------------------------------------------------------------- running
+
+def ctest_not_run(text):
+    """True when ctest ran nothing it could judge: the test binaries are not built ("Not Run") or no test matched.  Not a FAIL:
+    the 2026-11-19 RD diagnostic called POOL_FUSE_PHASES FAIL from 7 pool tests that were all "Not Run" (no test build)."""
+    return bool(text) and ("Not Run" in text or "No tests were found" in text)
+
+
 def run_ctest(build_dir, flags, runner=subprocess.run, timeout=600, out_dir=None):
     """Parity ctests of the flags CLAIMED EXACT only (a lossy flag's text differs by design; its quality gate is the ledger's).
     With out_dir: each ctest runs in its own process group with `timeout` (diag_group); a timeout counts as not run (None)."""
@@ -239,11 +256,13 @@ def run_ctest(build_dir, flags, runner=subprocess.run, timeout=600, out_dir=None
         cmd = ["ctest", "--test-dir", str(build_dir), "-R", rx, "--output-on-failure"]
         if out_dir is not None:
             import diag_group
-            rc, to, _ = diag_group.run(cmd, Path(out_dir) / ("ctest-%s.log" % f.lower()), timeout, say=lambda s: print(s, flush=True))
-            out[f] = None if to else rc == 0
+            log = Path(out_dir) / ("ctest-%s.log" % f.lower())
+            rc, to, _ = diag_group.run(cmd, log, timeout, say=lambda s: print(s, flush=True))
+            text = log.read_text(errors="replace") if log.exists() else ""
+            out[f] = None if to or ctest_not_run(text) else rc == 0
         else:
             r = runner(cmd, capture_output=True, text=True, timeout=timeout)
-            out[f] = r.returncode == 0
+            out[f] = None if ctest_not_run(getattr(r, "stdout", "") or "") else r.returncode == 0
     return out
 
 
@@ -255,6 +274,19 @@ def _arm_runner(cmd, log, timeout_s):
     import diag_group
     rc, to, _ = diag_group.run(cmd, log, timeout_s, say=lambda s: print(s, flush=True))
     return rc, to
+
+
+def apply_ctest(e, ok):
+    """The parity ctest is the judge of exactness: FAIL is the verdict, PASS is recorded (and settles an unverified text check)."""
+    if ok is False:
+        e.update(verdict="FAIL", parity_ctest="FAIL", note="a parity ctest of this flag failed")
+    elif ok is True:
+        e["parity_ctest"] = "PASS"
+        if str(e.get("exactness", "")).startswith("EXACT-UNVERIFIED"):
+            e["exactness"] = "EXACT (parity ctest PASS; text identity not usable: base vs base also differs)"
+    elif ok is None:
+        e["note"] = (e.get("note", "") + " parity ctest: not run (no result in time, or the test binaries are not built)").strip()
+    return e
 
 
 def run_arms(cfg, flags, hw, out, abtest, flag_timeout=240.0, runner=None, ctest=None, ctest_timeout=300.0, gate_pass=(),
@@ -296,6 +328,7 @@ def run_arms(cfg, flags, hw, out, abtest, flag_timeout=240.0, runner=None, ctest
 
     save()
     current = None
+    again = {}
     try:
         if not runnable:
             return v
@@ -319,16 +352,18 @@ def run_arms(cfg, flags, hw, out, abtest, flag_timeout=240.0, runner=None, ctest
             elif not parsed and rc == 3:
                 v[f].update(verdict="UNTESTED", note="abtest refused to start (another test or engine is running)")
             else:
-                v[f] = verdict_for(f, hw, parsed, log or "x", None, gate_pass)
+                if CANDIDATES[f]["exact"] and parsed.get(arm, {}).get("exact") is False and "differs" not in again:
+                    # does the default differ from itself here?  one more start of the default, once per diagnostic
+                    _, _, arows, _ = one("base-again")
+                    ap = parse_rows(base_rows, arows, "base-again").get("base-again")
+                    again["differs"] = (ap["exact"] is False) if ap else None
+                v[f] = verdict_for(f, hw, parsed, log or "x", None, gate_pass, again.get("differs"))
             save()
         current = None
         if ctest:
             ct = run_ctest(ctest, runnable, timeout=ctest_timeout, out_dir=out)
             for f, ok in ct.items():
-                if ok is False:
-                    v[f].update(verdict="FAIL", note="a parity ctest of this flag failed")
-                elif ok is None:
-                    v[f]["note"] = (v[f].get("note", "") + " parity ctest: no result within %g s" % ctest_timeout).strip()
+                apply_ctest(v[f], ok)
         save(True)
         return v
     except (Stopped, KeyboardInterrupt):

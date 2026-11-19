@@ -52,14 +52,14 @@ class T(unittest.TestCase):
     def test_shipped_default_for_gfx1100(self):
         rec, path = tf.load_recommended(HW)
         self.assertIsNotNone(rec)
-        # removed 2026-11-20 (owner order 2026-11-19 23:05), measured on this branch by flag_diag: POOL_FUSE_PHASES FAIL (-5.97%, parity ctest
-        # failed), VERIFY_ECAP NO-GAIN (-7.37% short, no edit-case gain measured); each removal is recorded with its evidence
-        for k in ("STRATA_POOL_FUSE_PHASES", "STRATA_VERIFY_ECAP", "STRATA_VERIFY_ECAP_MIN_ROWS"):
-            self.assertNotIn(k, rec["env"])
-            self.assertTrue(any(k in e["was"] for e in rec["removed"].values()), k)
-        for e in rec["removed"].values():
-            self.assertIn(e["verdict"], ("FAIL", "NO-GAIN", "UNSUPPORTED"))
-            self.assertTrue(e["evidence"])
+        # removed 2026-11-20 (owner order 2026-11-19 23:05): POOL_FUSE_PHASES (-5.97% on the one-rep short screen; its FAIL was invalid: the
+        # pool ctests were Not Run); recorded with its evidence
+        self.assertNotIn("STRATA_POOL_FUSE_PHASES", rec["env"])
+        self.assertEqual(set(rec["removed"]), {"STRATA_POOL_FUSE_PHASES"})
+        self.assertIn("Not Run", rec["removed"]["STRATA_POOL_FUSE_PHASES"]["evidence"])
+        # ECAP kept (owner decision 2026-11-20): spec 250 edit +43.6% with ECAP + 16-row windows, gates T-589 / T-591 PASS
+        self.assertEqual(rec["env"]["STRATA_VERIFY_ECAP"], "0")
+        self.assertEqual(rec["env"]["STRATA_VERIFY_ECAP_MIN_ROWS"], "9")
         # PF_F16=1: flag_diag GAIN +10.27% on this branch with a passing gate (T-828): the shipped file sets it over Strata-rdna3's 2 and says so
         self.assertEqual(rec["env"]["STRATA_PF_F16"], "1")
         self.assertIn("STRATA_PF_F16", rec["overrides_theirs"])
@@ -110,7 +110,7 @@ class T(unittest.TestCase):
         self.assertNotIn("STRATA_PIN_BY_NEED", cfg["env"])           # the user's variable is theirs, the file stays out
         self.assertEqual(cfg["env"]["STRATA_PF_F16"], "1")          # the file's measured GAIN replaces the setup's 2 (overrides_theirs)
         self.assertEqual(cfg["env"]["STRATA_EXPDEC"], "1")           # the file's additions are set
-        self.assertNotIn("STRATA_VERIFY_ECAP", cfg["env"])          # removed from the file
+        self.assertEqual(cfg["env"]["STRATA_VERIFY_ECAP"], "0")      # the gated ECAP of the file
         self.assertEqual(cfg["env"]["GPU_MAX_HW_QUEUES"], "6")
         self.assertTrue(ch and len(msgs) == 1 and "tuned flags from" in msgs[0])
 

@@ -81,7 +81,7 @@ class T(unittest.TestCase):
 
     def test_spec_has_bare_base_and_one_arm_per_flag(self):
         spec = fd.make_spec("base.json", ["POOL_FUSE_PHASES", "PF_F16"])
-        self.assertEqual(set(spec["arms"]), {"base", "pool-fuse-phases", "pf-f16"})
+        self.assertEqual(set(spec["arms"]), {"base", "base-again", "pool-fuse-phases", "pf-f16"})
         self.assertIsNone(spec["arms"]["base"]["env"]["STRATA_PF_F16"])
         self.assertEqual(spec["arms"]["pf-f16"]["env"]["STRATA_PF_F16"], "1")
         self.assertIsNone(spec["arms"]["pf-f16"]["env"]["STRATA_POOL_FUSE_PHASES"])
@@ -165,6 +165,45 @@ class T(unittest.TestCase):
         self.assertEqual(v["POOL_FUSE_PHASES"]["verdict"], "GAIN")
         self.assertEqual(v["VERIFY_ECAP"]["verdict"], "UNTESTED-TIMEOUT")
         self.assertEqual(v["KV_HOST_DMA"]["verdict"], "UNTESTED-TIMEOUT")
+
+    def test_text_differs_with_a_differing_default_is_exact_unverified_never_unsupported(self):
+        # owner order 2026-11-20: the default's text differs from itself on this model; base-again runs once, the flag keeps its speed verdict
+        dec = {"base": 100.0, "base-again": 100.2, "rdna-mmvq-wave": 127.0, "kv-host-dma": 103.0}
+        seen = []
+
+        def runner(cmd, log, timeout_s):
+            spec = json.loads(Path(cmd[cmd.index("--tier") - 1]).read_text())
+            arm = next(iter(spec["arms"]))
+            seen.append(arm)
+            Path(log).write_text("rep 0 %s ...\n" % arm)
+            Path(cmd[cmd.index("--out") + 1]).write_text(json.dumps({"arm": arm, "rows": [{"case": "short", "decode_tps": dec[arm]}],
+                                                                     "texts": {"short": "h-" + arm}}) + "\n")
+            return 0, False
+        with tempfile.TemporaryDirectory() as d:
+            v = fd.run_arms("cfg.json", ["RDNA_MMVQ_WAVE", "KV_HOST_DMA"], HW, Path(d), "abtest.py", runner=runner)
+        self.assertEqual(seen, ["base", "rdna-mmvq-wave", "base-again", "kv-host-dma"])
+        for f in ("RDNA_MMVQ_WAVE", "KV_HOST_DMA"):
+            self.assertEqual((v[f]["verdict"], v[f]["exact"]), ("GAIN", True), f)
+            self.assertEqual(v[f]["exactness"], "EXACT-UNVERIFIED (base vs base also differs)")
+        # an identical repeat of the default: the difference is real, judged as lossy (as before)
+        e = fd.verdict_for("KV_HOST_DMA", HW, {"kv-host-dma": {"cases": {"short": {"mean": 1, "delta": 5.0, "verdict": "better"}}, "exact": False}},
+                           "x", None, (), False)
+        self.assertFalse(e["exact"])
+        self.assertIn("treated as lossy", e["note"])
+        self.assertNotEqual(e["verdict"], "UNSUPPORTED")
+        # the parity ctest decides
+        self.assertEqual(fd.apply_ctest(dict(v["RDNA_MMVQ_WAVE"]), False)["verdict"], "FAIL")
+        ok = fd.apply_ctest(dict(v["RDNA_MMVQ_WAVE"]), True)
+        self.assertEqual((ok["verdict"], ok["parity_ctest"]), ("GAIN", "PASS"))
+        self.assertTrue(ok["exactness"].startswith("EXACT (parity ctest PASS"))
+
+    def test_ctest_not_run_is_no_result_not_a_fail(self):
+        class R:
+            returncode = 8
+            stdout = "1/7 Test #124: pool_tasks_test ....***Not Run   0.00 sec\n0% tests passed, 7 tests failed out of 7\n"
+        self.assertEqual(fd.run_ctest("/b", ["POOL_FUSE_PHASES"], runner=lambda cmd, **kw: R()), {"POOL_FUSE_PHASES": None})
+        R.stdout = "1/1 Test #3: pool_test .... Failed\n"
+        self.assertEqual(fd.run_ctest("/b", ["POOL_FUSE_PHASES"], runner=lambda cmd, **kw: R()), {"POOL_FUSE_PHASES": False})
 
     def test_ctest_only_for_exact_flags(self):
         calls = []
