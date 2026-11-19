@@ -52,7 +52,19 @@ if a0.endswith("chainT-decide.py"):
     sys.argv = args; runpy.run_path(a0, run_name="__main__")
 if a0 == "-m":
     sys.exit(1 if fail() else 0)
+if a0 == "-c":                      # inline python of the chains (spec edits, the recommended-flags writer): really run it
+    sys.argv = ["-c"] + args[2:]
+    exec(compile(args[1], "<c>", "exec"), {"__name__": "__main__"})
+    sys.exit(0)
 name = os.path.basename(a0)
+if name == "flag_diag.py":
+    if "run" in args:
+        out = opt("--out"); os.makedirs(out, exist_ok=True)
+        open(out + "/verdicts.json", "w").write("{}")
+        print("POOL_FUSE_PHASES GAIN")
+    elif "--hardware" in args:
+        print('{"gfx": "gfx1100"}')
+    sys.exit(0)
 if name == "abtest.py":
     spec = json.load(open(args[1]))
     arms = list(spec["arms"])
@@ -109,10 +121,18 @@ sys.exit(1 if fail() else 0)
 
 SH_STUBS = {
     "sleep": 'exec /usr/bin/sleep 0.01\n',
-    "pgrep": 'echo "pgrep $*" >> "$H/calls.log" 2>/dev/null; [ "$1" = -f ] || exit 2; grep -Eq -- "$2" "$H/procs.txt"\n',
+    "pgrep": ('echo "pgrep $*" >> "$H/calls.log" 2>/dev/null; [ "$1" = -f ] || exit 2; m=$(grep -E -- "$2" "$H/procs.txt") || exit 1\n'
+              'echo "$m" | awk \'$1 ~ /^[0-9]+$/ {print $1}\'; exit 0\n'),   # a line "PID ARGS" also prints its pid (aa_live, the scheduler)
+    "ps": ('case "$*" in\n'
+           '  "-eo pid=,args=") cat "$H/ps.txt" 2>/dev/null ;;\n'
+           '  "-o args= -p "*) grep -E "^ *$4 " "$H/ps.txt" | sed -E "s/^ *[0-9]+ +//" ;;\n'
+           '  "-o stat= -p "*) cat "$H/stat.$4" 2>/dev/null ;;\n'
+           'esac\nexit 0\n'),
+    "sigcmd": ('echo "SIG $*" >> "$H/calls.log"\n'
+               'case $1 in -STOP) echo T > "$H/stat.$2" ;; -CONT) echo S > "$H/stat.$2" ;; esac\n'),
     "ss": ('n=$(head -n1 "$H/clients" 2>/dev/null); [ -n "$n" ] || n=0; sed -i 1d "$H/clients" 2>/dev/null; '
            'echo "SS $n" >> "$H/calls.log"; i=0; while [ $i -lt $n ]; do echo ESTAB; i=$((i+1)); done\n'),
-    "systemctl": 'echo "SYSTEMCTL $*" >> "$H/calls.log"\n',
+    "systemctl": 'echo "SYSTEMCTL $*" >> "$H/calls.log"\ncase "$*" in *is-active*) [ -n "$SVC_DOWN" ] && exit 3 ;; esac\nexit 0\n',
     "sudo": 'cat > /dev/null\n',
     "git": 'printf "abc123\\trefs/heads/port/rdna3-decode\\n"\n',
     "curl": 'while [ $# -gt 0 ]; do [ "$1" = -o ] && out=$2; shift; done; cp "$H/fake-src.tgz" "$out"\n',
@@ -203,7 +223,8 @@ class Box:
         sp.write_text(self.script_text(name, transform), newline="\n")
         e = dict(os.environ)
         e.update({"H": self.h, "HWIN": self.tmp.as_posix(), "PYREAL": sys.executable, "REPO_TOOLS": HERE.as_posix(),
-                  "PATH": str(self.tmp / "stub") + os.pathsep + e["PATH"], "STUB_REPLAY": "worse"})
+                  "PATH": str(self.tmp / "stub") + os.pathsep + e["PATH"], "STUB_REPLAY": "worse",
+                  "SIGCMD": self.h + "/stub/sigcmd"})
         e.update(env or {})
         return subprocess.Popen([SH, sp.as_posix()], env=e, cwd=self.tmp, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
 
@@ -839,7 +860,9 @@ def prepare_bu(box, aa_done=True):
     (pkg / "engine").mkdir(parents=True)
     (pkg / "engine" / "CMakeLists.txt").write_text("project(x)\n")
     for rel, body in (("tools/pancake/abtest.py", "# stub\n"), ("tools/pancake/flag_diag.py", "# stub\n"),
-                      ("tools/pancake/flag_diag.sh", FLAG_DIAG_STUB), ("tools/pancake/build_updated.sh", BUILD_STUB)):
+                      ("tools/pancake/flag_diag.sh", FLAG_DIAG_STUB), ("tools/pancake/build_updated.sh", BUILD_STUB),
+                      ("tools/pancake/pcie_link.py", "# stub\n"), ("tools/pancake/host_tune.sh", "#!/bin/sh\necho \"host_tune $*\"\n"),
+                      ("tools/pancake/host_tune_ab.sh", "#!/bin/sh\necho \"ab $*\"\n"), ("tools/pancake/os_tune.sh", "#!/bin/sh\necho \"os_tune $*\"\n")):
         (pkg / rel).parent.mkdir(parents=True, exist_ok=True)
         (pkg / rel).write_text(body, newline="\n")
     root = HERE.parents[1]
@@ -868,10 +891,11 @@ def test_bench_updated_waits_for_chain_aa_then_runs_the_ordered_flow(tmp_path):
     assert_start_end_pairs(lines)
     assert_service_discipline(box)
     for must in ("SYNC harness: origin port/rdna3-decode abc123", "BUILD_END plain upstream exit=0", "BUILD_END updated-strata exit=0",
-                 "START diag plain", "START diag updated", "START short-edit", "START long", "SUMMARY spec220 exit=0, spec221 exit=0"):
+                 "START diag plain", "START diag updated", "START 220-screen", "START 220-confirm", "START 221-screen", "START 221-confirm",
+                 "TUNEUP pcie_link", "TUNEUP host_tune --check", "TUNEUP host_tune_ab plan", "TUNEUP os_tune check", "SUMMARY spec220 exit=0, spec221 exit=0"):
         assert must in text, must
     order = ["chain AA is done", "service stopped", "SYNC harness", "BUILD_END plain upstream", "BUILD_END updated-strata", "START diag plain",
-             "START diag updated", "START short-edit", "START long", "SUMMARY"]
+             "START diag updated", "START 220-screen", "START 220-confirm", "START 221-screen", "SUMMARY"]
     pos = [text.index(k) for k in order]
     assert pos == sorted(pos), order
     calls = box.calls()
@@ -879,8 +903,14 @@ def test_bench_updated_waits_for_chain_aa_then_runs_the_ordered_flow(tmp_path):
     assert cm and all((box.h + "/mnt/benchus") in c for c in cm), cm        # nothing is built on /
     assert "-DCMAKE_HIP_ARCHITECTURES=gfx1100" in cm[0] and "STRATA_BUILD_TESTS" not in cm[0]   # the plain build: only the documented flags
     ab = [c for c in calls if c.startswith("PY") and "abtest.py" in c]
-    assert len(ab) == 2 and all("--reps 5" in c and "--no-early-stop" in c and "--tier confirm" in c for c in ab), ab
-    assert "220-updated-vs-upstream-short.json" in ab[0] and "221-updated-vs-upstream-long.json" in ab[1]
+    assert len(ab) == 4, ab                                                   # 220 screen, 220 confirm, 221 screen, 221 confirm
+    assert "220-updated-vs-upstream-short.json" in ab[0] and "--tier screen" in ab[0] and "--drift-check" in ab[0]
+    assert "220-confirm.json" in ab[1] and "--tier confirm" in ab[1] and "--reps 3" in ab[1] and "--block 3" in ab[1] and "--no-early-stop" in ab[1]
+    assert "221-screen.json" in ab[2] and "--tier screen" in ab[2] and "--drift-check" not in ab[2]
+    assert "221-confirm.json" in ab[3] and "--reps 2" in ab[3]
+    assert '"drift_check": false' in (box.tmp / "auto-runs" / "winbenchus" / "work" / "221-screen.json").read_text()
+    assert any("-j8" in c for c in calls if c.startswith("cmake --build"))
+    assert (box.tmp / "auto-runs" / "winbenchus" / "tuneup" / "pcie_link.txt").exists()
     assert "generated text vs base" in text                                  # the text-identity result reaches the log
     assert (box.tmp / "auto-runs" / "winbenchus" / "tuned-flags-recommended.json").exists()
     assert (box.tmp / "mnt" / "benchus" / "build-up" / "strata").exists() and (box.tmp / "mnt" / "benchus" / "build-us" / "strata").exists()
@@ -898,7 +928,7 @@ def test_bench_updated_failed_plain_build_restores_the_old_binary_and_stops(tmp_
     assert any(l.startswith("ERROR plain upstream build exit=1") for l in lines)
     assert "previous strata-up restored" in text
     assert (old / "strata").read_text() == "#!/bin/sh\n# previous\n"
-    assert lines[-1] == "WINBENCHUS_DONE" and lines[-3].startswith("WINBENCHUS_ABORTED")
+    assert lines[-1] == "WINBENCHUS_DONE" and any(l.startswith("WINBENCHUS_ABORTED") for l in lines[-4:])
     for never in ("BUILD updated-strata", "START diag", "START short-edit"):
         assert never not in text, never
     assert_service_discipline(box)
@@ -944,7 +974,8 @@ def test_bench_updated_name_is_invisible_to_every_busy_pattern_and_sees_the_othe
     for name in ("win-chainV.sh", "xtail-chainX.sh", "ytail-chainY.sh", "ztail-chainZ.sh", AA):
         assert busy_result(box, name, ["sh ./bench-updatedAA.sh"]) == "IDLE", name
     assert busy_result(box, BU, ["sh ./bench-updatedAA.sh"]) == "IDLE"
-    for other in ("sh ./redo-chainAA.sh", "sh ./win-chainT.sh", "python3 tools/pancake/abtest.py x", "cmake --build x", "strata --serve"):
+    assert busy_result(box, BU, ["4242 sh ./redo-chainAA.sh"]) == "IDLE"           # a (frozen) AA shell is not a job for busy(); aa_live() judges its state
+    for other in ("sh ./win-chainT.sh", "python3 tools/pancake/abtest.py x", "cmake --build x", "strata --serve"):
         assert busy_result(box, BU, [other]) == "BUSY", other
 
 
@@ -983,6 +1014,12 @@ def prepare_bd(box, markers=True):
     tree = box.tmp / "srcdir" / "pancake-strata-abc"
     for rel in ("tools/pancake/box_chains", "tools/pancake", "bench/specs", "rdna3/configs"):
         (tree / rel).mkdir(parents=True, exist_ok=True)
+    for rel, body in (("tools/pancake/pcie_link.py", "# stub\n"), ("tools/pancake/host_tune.sh", "#!/bin/sh\necho host_tune\n"),
+                      ("tools/pancake/host_tune_ab.sh", "#!/bin/sh\necho ab\n"), ("tools/pancake/os_tune.sh", "#!/bin/sh\necho os\n"),
+                      ("rdna3/tuned_flags.py", "import os\ndef detect_hardware():\n    return {'gfx': 'gfx1100'}\n"
+                       "def write_recommended(hw, v, d):\n    os.makedirs(d, exist_ok=True)\n    open(d + '/gfx1100.json', 'w').write('{}')\n    return d + '/gfx1100.json'\n")):
+        (tree / rel).parent.mkdir(parents=True, exist_ok=True)
+        (tree / rel).write_text(body, newline="\n")
     (tree / "tools/pancake/build_updated_rdna3.sh").write_text(
         "#!/bin/sh\ncmake -S $1 -B $2\ncmake --build $2 -j8 --target strata verify_ecap_test sampler_parity elementwise_parity\n", newline="\n")
     (tree / "tools/pancake/abtest.py").write_text("# stub\n")
@@ -1013,14 +1050,22 @@ def test_bd_waits_for_both_markers_then_runs_in_the_ordered_flow(tmp_path):
     assert_service_discipline(box)
     for must in ("SYNC nicejunjie/Strata-rdna3 8b01b0c8512d388552e8601b3aff6753d05286e0", "SYNC rocktboy1982/pancake-strata updated-strata-rdna3",
                  "SYNC rocktboy1982/pancake-strata port/rdna3-decode", "BUILD_END plain exit=0", "BUILD_END updated exit=0", "ENGINE plain", "ENGINE updated",
-                 "END ctest exit=0", "CONFIG written", "START diag-updated", "START diag-plain", "START 250-screen", "START 250-confirm", "START 251-screen"):
+                 "END ctest exit=0", "CONFIG written", "START diag-updated", "START 250-screen", "START 250-confirm", "START 251-screen", "START 251-confirm",
+                 "TUNEUP pcie_link", "TUNEUP os_tune check", "wrote"):
         assert must in text, must
-    order = ["BUILD_END plain exit=0", "BUILD_END updated exit=0", "START ctest", "CONFIG written", "START diag-updated", "START diag-plain",
-             "START 250-screen", "START 250-confirm", "START 251-screen"]
+    order = ["BUILD_END plain exit=0", "BUILD_END updated exit=0", "START ctest", "CONFIG written", "TUNEUP pcie_link", "START diag-updated",
+             "START 250-screen", "START 250-confirm", "START 251-screen", "SUMMARY"]
     pos = [text.index(k) for k in order]
     assert pos == sorted(pos), order
     calls = box.calls()
-    assert any("--tier confirm" in c and "--block 3" in c and "--reps 5" in c for c in calls if c.startswith("PY")), "5-rep blocked confirm"
+    assert any("--tier confirm" in c and "--block 3" in c and "--reps 3" in c and "250-confirm.json" in c for c in calls if c.startswith("PY")), "3-rep blocked confirm"
+    assert any("--tier screen" in c and "--drift-check" in c and "250.json" in c for c in calls if c.startswith("PY"))
+    work = box.tmp / "auto-runs" / "benchRD"
+    assert json.loads((work / "250-confirm.json").read_text())["cases"] == ["short", "edit"]          # the confirm judges the decode cases only
+    assert json.loads((work / "251.json").read_text())["cases"] == ["short", "long32k"]
+    assert (box.tmp / "auto-runs" / "benchRD-diag-updated" / "verdicts.json").exists() and (box.tmp / "auto-runs" / "benchRD-tuneup" / "pcie_link.txt").exists()
+    assert (box.tmp / "auto-runs" / "benchRD-recommended" / "gfx1100.json").exists()
+    assert not any("diag-plain" in c for c in calls)
     assert any(c.startswith("cmake") and "benchRD/build-plain" in c for c in calls)
     spec = (box.tmp / "auto-runs" / "benchRD" / "250.json").read_text()
     assert "@PLAIN@" not in spec and "@UPDATED@" not in spec and "build-plain/strata" in spec and "build-updated/strata" in spec
@@ -1042,7 +1087,7 @@ def test_bd_failed_build_restores_the_binary_logs_error_and_stops(tmp_path):
     text = "\n".join(lines)
     assert "BUILD_END plain exit=1" in text and "BUILD FAILED: the previous" in text
     assert any(l.startswith("ERROR BUILD plain FAILED") for l in lines)
-    assert lines[-1] == "WINBENCHRD_DONE" and lines[-3].startswith("WINBENCHRD_ABORTED") and lines[-2].startswith("service started")
+    assert lines[-1] == "WINBENCHRD_DONE" and any(l.startswith("WINBENCHRD_ABORTED") for l in lines[-4:]) and any(l.startswith("service started") for l in lines[-3:])
     assert (bp / "strata").read_text() == before
     for never in ("BUILD_END updated", "START ctest", "START diag", "START 250", "CONFIG written"):
         assert never not in text, never
@@ -1076,7 +1121,8 @@ def test_bd_name_is_invisible_to_every_busy_pattern_and_sees_the_others(tmp_path
     for name in ("win-chainV.sh", "xtail-chainX.sh", "ytail-chainY.sh", "ztail-chainZ.sh", AA):
         assert busy_result(box, name, ["sh ./bench-updatedRD.sh"]) == "IDLE", name
     assert busy_result(box, BD, ["sh ./bench-updatedRD.sh"]) == "IDLE"
-    for other in ("sh ./win-chainT.sh", "sh ./xtail-chainX.sh", "sh ./redo-chainAA.sh", "/bin/sh ./after7.sh", "python3 tools/pancake/abtest.py x",
+    assert busy_result(box, BD, ["4242 sh ./redo-chainAA.sh"]) == "IDLE"
+    for other in ("sh ./win-chainT.sh", "sh ./xtail-chainX.sh", "/bin/sh ./after7.sh", "python3 tools/pancake/abtest.py x",
                   "cmake --build x"):
         assert busy_result(box, BD, [other]) == "BUSY", other
 
@@ -1122,3 +1168,226 @@ def test_bd_spec_and_conf(tmp_path):
     rec = HERE.parent.parent / "rdna3" / "recommended-flags" / "gfx1100.json"
     if rec.exists():       # on the updated-strata-rdna3 branch: the spec's updated arm is exactly the shipped file
         assert spec["arms"]["updated"]["env"] == json.loads(rec.read_text())["env"]
+
+
+# ------------------------------------------------------------------------------------------------ bench-sched.sh and the short plan (owner order 2026-11-19)
+SCHED = "bench-sched.sh"
+FAKE_CHAIN = ('#!/bin/sh\n'
+              'echo "{name} env: BENCH_SCHED=$BENCH_SCHED BENCH_PREIDLED=$BENCH_PREIDLED KEEP=$BENCH_KEEP_SERVICE_DOWN stat=$(cat "$H/stat.4242" 2>/dev/null)" >> "$H/chains.log"\n'
+              'echo "START $(date +%T)" >> "{log}"\n'
+              '[ "$FAKE_FAIL" = "{name}" ] && exit 3\n'
+              'echo "{marker}" >> "{log}"\n')
+
+
+def prepare_sched(box, aa=("4242 sh ./redo-chainAA.sh",), busy=()):
+    (box.tmp / "ps.txt").write_text("\n".join(list(aa) + ["1 /sbin/init", "77 sh ./bench-sched.sh"]) + "\n")
+    (box.tmp / "procs.txt").write_text("\n".join(busy) + ("\n" if busy else ""))
+    for pid in {l.split()[0] for l in aa}:
+        (box.tmp / f"stat.{pid}").write_text("S\n")
+    for name, log, marker in (("us", "bench-updatedAA.log", "WINBENCHUS_DONE"), ("rd", "bench-updatedRD.log", "WINBENCHRD_DONE")):
+        (box.S / f"fake-{name}.sh").write_text(FAKE_CHAIN.format(name=name, log=(box.S / log).as_posix(), marker=marker), newline="\n")
+
+
+def sched_env(**kw):
+    return {"BENCH_US": "./fake-us.sh", "BENCH_RD": "./fake-rd.sh", **kw}
+
+
+def chains_log(box):
+    p = box.tmp / "chains.log"
+    return p.read_text().splitlines() if p.exists() else []
+
+
+def test_sched_freezes_aa_waits_for_the_running_step_runs_both_chains_then_resumes(tmp_path):
+    box = Box(tmp_path)
+    prepare_sched(box, busy=("5001 python3 tools/pancake/abtest.py x --tier screen",))   # the step of AA that runs now
+    p = box.start(SCHED, env=sched_env())
+    for _ in range(100):
+        if any(c.startswith("SIG -STOP") for c in box.calls()):
+            break
+        time.sleep(0.1)
+    time.sleep(0.5)
+    assert "SIG -STOP 4242" in box.calls()
+    assert p.poll() is None and not chains_log(box), "no chain starts while the AA step is still measuring"
+    assert (box.tmp / "stat.4242").read_text().strip() == "T"
+    (box.tmp / "procs.txt").write_text("")                                      # the abtest ends
+    box.finish(p)
+    lines = box.log("bench-sched.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "BENCHSCHED_DONE" and "ERROR" not in text, lines
+    order = ["AA_PAUSED pid 4242", "IDLE the box is idle", "START US", "END US exit=0", "START RD", "END RD exit=0", "AA_RESUMED pid 4242"]
+    pos = [text.index(k) for k in order]
+    assert pos == sorted(pos), order
+    sig = [c for c in box.calls() if c.startswith("SIG")]
+    assert sig == ["SIG -STOP 4242", "SIG -CONT 4242"], sig                      # only the AA shell, only those two signals
+    assert chains_log(box) == ["us env: BENCH_SCHED=1 BENCH_PREIDLED=1 KEEP=1 stat=T", "rd env: BENCH_SCHED=1 BENCH_PREIDLED=1 KEEP=1 stat=T"]   # AA frozen during both
+    assert (box.tmp / "stat.4242").read_text().strip() == "S"
+    assert not any(c.startswith("SYSTEMCTL") and ("start" in c or "stop" in c) for c in box.calls())     # the scheduler never touches the service
+
+
+def test_sched_a_chain_without_marker_is_an_error_the_next_chain_and_the_resume_still_happen(tmp_path):
+    box = Box(tmp_path)
+    prepare_sched(box)
+    box.finish(box.start(SCHED, env=sched_env(FAKE_FAIL="us")))
+    lines = box.log("bench-sched.log")
+    text = "\n".join(lines)
+    assert "ERROR US ended without its marker WINBENCHUS_DONE (exit 3)" in text and "END RD exit=0" in text
+    assert [c for c in box.calls() if c.startswith("SIG")] == ["SIG -STOP 4242", "SIG -CONT 4242"] and lines[-1] == "BENCHSCHED_DONE"
+    assert "ERROR RD" not in text
+
+
+def test_sched_aborting_chain_marker_counts_as_done(tmp_path):
+    box = Box(tmp_path)
+    prepare_sched(box)
+    (box.S / "fake-us.sh").write_text("#!/bin/sh\necho 'ERROR boom' >> " + (box.S / "bench-updatedAA.log").as_posix()
+                                      + "\necho 'WINBENCHUS_ABORTED: boom' >> " + (box.S / "bench-updatedAA.log").as_posix()
+                                      + "\necho WINBENCHUS_DONE >> " + (box.S / "bench-updatedAA.log").as_posix() + "\nexit 1\n", newline="\n")
+    box.finish(box.start(SCHED, env=sched_env()))
+    text = "\n".join(box.log("bench-sched.log"))
+    assert "END US exit=1 last-log-line=WINBENCHUS_DONE" in text and "ended without its marker" not in text and "END RD exit=0" in text
+    assert "SIG -CONT 4242" in box.calls()
+
+
+def test_sched_only_the_exact_aa_cmdline_is_stopped(tmp_path):
+    box = Box(tmp_path)
+    prepare_sched(box, aa=("4242 sh ./redo-chainAA.sh --other", "4343 /bin/sh ./redo-chainAA.sh", "4444 vim redo-chainAA.sh"))
+    box.finish(box.start(SCHED, env=sched_env()))
+    text = "\n".join(box.log("bench-sched.log"))
+    assert not [c for c in box.calls() if c.startswith("SIG")], box.calls()
+    assert "AA shell not running" in text and "END US exit=0" in text and "END RD exit=0" in text
+
+
+def test_sched_with_two_aa_shells_stops_nothing_and_runs_nothing(tmp_path):
+    box = Box(tmp_path)
+    prepare_sched(box, aa=("4242 sh ./redo-chainAA.sh", "4343 sh ./redo-chainAA.sh"))
+    box.finish(box.start(SCHED, env=sched_env()))
+    text = "\n".join(box.log("bench-sched.log"))
+    assert "ERROR 2 AA shells" in text and not chains_log(box) and not [c for c in box.calls() if c.startswith("SIG")]
+
+
+def test_sched_does_not_continue_a_pid_that_is_not_the_aa_shell_any_more(tmp_path):
+    box = Box(tmp_path)
+    prepare_sched(box)
+    (box.S / "fake-us.sh").write_text("#!/bin/sh\necho '4242 sleep 5' > " + (box.tmp / "ps.txt").as_posix() + "\necho WINBENCHUS_DONE >> "
+                                      + (box.S / "bench-updatedAA.log").as_posix() + "\n", newline="\n")      # pid 4242 reused by another program
+    box.finish(box.start(SCHED, env=sched_env()))
+    text = "\n".join(box.log("bench-sched.log"))
+    assert "nothing to resume" in text and "SIG -CONT" not in "\n".join(box.calls())
+
+
+@pytest.mark.skipif(os.name == "nt", reason="needs POSIX signals")
+def test_sched_resumes_aa_when_it_is_terminated(tmp_path):
+    box = Box(tmp_path)
+    prepare_sched(box, busy=("5001 python3 tools/pancake/abtest.py x",))          # stays busy: the scheduler sits in its idle wait
+    p = box.start(SCHED, env=sched_env())
+    for _ in range(100):
+        if "SIG -STOP 4242" in box.calls():
+            break
+        time.sleep(0.1)
+    p.terminate()
+    box.finish(p, timeout=30)
+    assert box.calls()[-1] == "SIG -CONT 4242" and "signal received" in "\n".join(box.log("bench-sched.log"))
+
+
+def test_sched_name_is_invisible_to_every_busy_pattern_and_aa_resumes_with_a_working_idle_check(tmp_path):
+    box = Box(tmp_path)
+    for bad in ("win-chain", "redo-chain", "tail-chain", "auto-chain", "after7"):
+        assert bad not in SCHED
+    mine = ["77 sh ./bench-sched.sh", "78 sh ./bench-updatedAA.sh", "79 sh ./bench-updatedRD.sh"]
+    for name in ("win-chainT.sh", "win-chainV.sh", "xtail-chainX.sh", "ytail-chainY.sh", "ztail-chainZ.sh", AA, BU, BD, SCHED):
+        assert busy_result(box, name, mine) == "IDLE", name
+    for other in ("python3 tools/pancake/abtest.py x", "cmake --build x", "strata --serve", "sh ./win-chainT.sh"):      # AA's busy() still sees real jobs
+        assert busy_result(box, AA, mine + [other]) == "BUSY", other
+    # the scheduler's own busy(): the same job patterns, never the frozen AA shell
+    assert busy_result(box, SCHED, ["4242 sh ./redo-chainAA.sh"]) == "IDLE"
+    assert busy_result(box, SCHED, ["4242 sh ./redo-chainAA.sh", "5001 python3 tools/pancake/abtest.py x"]) == "BUSY"
+
+
+@pytest.mark.parametrize("name", [BU, BD])
+def test_bench_chains_treat_a_frozen_aa_shell_as_idle_and_a_live_one_as_busy(tmp_path, name):
+    box = Box(tmp_path)
+    t = box.script_text(name)
+    fns = "\n".join(l for l in t.splitlines() if l.startswith(("busy()", "aa_live()", "bz()")))
+    (box.tmp / "procs.txt").write_text("4242 sh ./redo-chainAA.sh\n")
+    (box.tmp / "ps.txt").write_text("4242 sh ./redo-chainAA.sh\n")
+
+    def run(stat):
+        (box.tmp / "stat.4242").write_text(stat + "\n")
+        r = subprocess.run([SH, "-c", fns + "\nif bz; then echo BUSY; else echo IDLE; fi"], capture_output=True, text=True,
+                           env={**os.environ, "H": box.h, "PATH": str(box.tmp / "stub") + os.pathsep + os.environ["PATH"]})
+        return r.stdout.strip()
+    assert run("T") == "IDLE" and run("S") == "BUSY" and run("Ssl") == "BUSY" and run("Tl") == "IDLE"
+
+
+def test_bench_us_under_the_scheduler_does_not_wait_for_aa_keeps_the_service_down_and_skips_the_long_idle(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box, aa_done=False)
+    box.finish(box.start(BU, env={"BENCH_SCHED": "1", "BENCH_PREIDLED": "1", "BENCH_KEEP_SERVICE_DOWN": "1", "SVC_DOWN": "1"}))
+    lines = box.log("bench-updatedAA.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHUS_DONE" and "ERROR" not in text, lines[-6:]
+    assert "service already stopped" in text and "service stays down" in text
+    cl = [c for c in box.calls() if c.startswith("SYSTEMCTL")]
+    assert not any(" start " in c or " stop " in c for c in cl), cl                  # AA's busy() would see the service engine: it stays down
+    assert not any(c.startswith("SS ") for c in box.calls()), "no client wait when the service is down"
+    sleeps = [c for c in box.calls() if c.startswith("pgrep")]
+    assert sleeps                                                                    # quick idle polls ran
+
+
+def test_bench_rd_under_the_scheduler_does_not_wait_for_the_markers_and_keeps_the_service_down(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box, markers=False)
+    box.finish(box.start(BD, env={"BENCH_SCHED": "1", "BENCH_PREIDLED": "1", "BENCH_KEEP_SERVICE_DOWN": "1", "SVC_DOWN": "1"}))
+    lines = box.log("bench-updatedRD.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHRD_DONE" and "ERROR" not in text, lines[-6:]
+    assert "service stays down" in text and not any(" start " in c or " stop " in c for c in box.calls() if c.startswith("SYSTEMCTL"))
+
+
+def test_bench_aborts_under_the_scheduler_also_leave_the_service_down(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box, aa_done=False)
+    box.finish(box.start(BU, env={"BENCH_SCHED": "1", "BENCH_PREIDLED": "1", "BENCH_KEEP_SERVICE_DOWN": "1", "SVC_DOWN": "1", "BU_FAIL": "1"}))
+    lines = box.log("bench-updatedAA.log")
+    assert any(l.startswith("ERROR updated-strata build") for l in lines) and lines[-1] == "WINBENCHUS_DONE"
+    assert not any(" start " in c for c in box.calls() if c.startswith("SYSTEMCTL")) and any("service stays down" in l for l in lines)
+
+
+def test_bench_us_no_confirm_for_an_arm_without_a_screen_benefit(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box)
+    box.finish(box.start(BU, env={"STUB_GAIN": "100"}))
+    lines = box.log("bench-updatedAA.log")
+    text = "\n".join(lines)
+    ab = [c for c in box.calls() if c.startswith("PY") and "abtest.py" in c]
+    assert len(ab) == 2 and all("--tier screen" in c for c in ab), ab
+    assert "220: no arm with a benefit in the screen: no confirm" in text and "221: no arm with a benefit in the screen: no confirm" in text
+    assert lines[-1] == "WINBENCHUS_DONE" and "ERROR" not in text
+
+
+def test_bench_us_budget_over_skips_the_optional_confirms(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box)
+    box.finish(box.start(BU, env={"BENCH_BUDGET_S": "100"}))
+    lines = box.log("bench-updatedAA.log")
+    text = "\n".join(lines)
+    ab = [c for c in box.calls() if c.startswith("PY") and "abtest.py" in c]
+    assert len(ab) == 2 and "SKIP 220 confirm: only" in text and "221 confirm not run: only" in text
+    assert lines[-1] == "WINBENCHUS_DONE" and "SUMMARY spec220 exit=0, spec221 exit=0" in text
+
+
+def test_bench_rd_no_confirm_without_benefit_and_budget_skips(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    box.finish(box.start(BD, env={"STUB_GAIN": "100"}))
+    text = "\n".join(box.log("bench-updatedRD.log"))
+    ab = [c for c in box.calls() if c.startswith("PY") and "abtest.py" in c and "--out" in c and "benchRD-2" in c]
+    assert len(ab) == 2 and "250: no arm with a benefit in the screen: no confirm" in text, ab
+
+
+def test_bench_rd_budget_over_skips_the_optional_confirms(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    box.finish(box.start(BD, env={"BENCH_BUDGET_S": "100"}))
+    text = chr(10).join(box.log("bench-updatedRD.log"))
+    ab = [c for c in box.calls() if c.startswith("PY") and "abtest.py" in c and "benchRD-2" in c]
+    assert len(ab) == 2 and "SKIP 250 confirm: only" in text and "251 confirm not run: only" in text, ab
