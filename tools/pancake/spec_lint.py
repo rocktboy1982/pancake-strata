@@ -54,7 +54,9 @@ CLI_DIRS = [ROOT / "src" / "program", ROOT / "serve"]
 
 def git_ls() -> list[str]:
     """Files containing sources for the grep. This is the second source of truth."""
-    out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "src", "include", "serve"],
+    # --cached --others: a tree synced with tar over an older checkout (the Linux box) has new files that the old index does not list;
+    # without --others every env key defined only in a new file (serve/tool_idle.py) was reported as PHANTOM-ENV (spec_lint exit=1 in every chain header).
+    out = subprocess.run(["git", "-C", str(ROOT), "ls-files", "--cached", "--others", "--exclude-standard", "src", "include", "serve"],
                          capture_output=True, text=True)
     if out.returncode != 0:
         return []

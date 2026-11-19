@@ -123,9 +123,10 @@ SH_STUBS = {
               'echo " 1/2 Test  #1: qsa_qmajor_parity ......   Passed    1.0 sec"\n'
               'echo " 2/2 Test  #2: hip_decode_attn_wmma_parity .....   Passed    1.0 sec"\n'
               'echo "100% tests passed, 0 tests failed out of 2"\n'),
-    "hipcc": 'while [ $# -gt 0 ]; do [ "$1" = -o ] && out=$2; shift; done; : > "$out"; chmod +x "$out"\n',
+    "hipcc": 'while [ $# -gt 0 ]; do [ "$1" = -o ] && out=$2; shift; done; printf "#!/bin/sh\nexit 0\n" > "$out"; chmod +x "$out"\n',
     "cmake": ('echo "cmake $*" >> "$H/calls.log"\n'
               'b=; t=; while [ $# -gt 0 ]; do case $1 in --build) b=$2;; -B) b=$2;; --target) t=$2;; esac; shift; done\n'
+              '[ "$CMAKE_FAIL" = 1 ] && [ "$t" = strata ] && { rm -f "$b/strata"; exit 1; }\n'  # a failed link removes the binary (T-965 / T-968)
               '[ -n "$b" ] && mkdir -p "$b" && [ -n "$t" ] && [ ! -e "$b/$t" ] && { : > "$b/$t"; chmod +x "$b/$t"; }\nexit 0\n'),
 }
 
@@ -697,3 +698,122 @@ def test_chain_y_skips_the_engine_steps_when_the_synced_tree_lacks_the_code(tmp_
     text = "\n".join(box.log("ytail-chainY.log"))
     assert "BUILD SKIPPED: the synced tree has no tier_victim.hpp" in text and "START 214-screen" not in text
     assert box.log("ytail-chainY.log")[-1] == "WINCHAINY_DONE"
+
+
+# ------------------------------------------------------------------------------------------------ redo chain AA
+AA = "redo-chainAA.sh"
+SOAK60 = '{\n "reps": 60,\n "arms": {"base": {}, "base-again": {}}\n}\n'
+
+
+def prepare_aa(box, markers=True):
+    (box.tmp / "auto-runs").mkdir(exist_ok=True)
+    (box.tmp / "auto-runs" / "after7.log").write_text("AFTER7_DONE\n" if markers else "QUEUED\n")
+    for log, m in (("win-chainV.log", "WINCHAINV_DONE"), ("xtail-chainX.log", "WINCHAINX_DONE"), ("ytail-chainY.log", "WINCHAINY_DONE"),
+                   ("ztail-chainZ.log", "WINCHAINZ_DONE")):
+        (box.S / log).write_text(m + "\n" if markers else "START\n")
+    (box.R / "tests" / "core").mkdir(parents=True, exist_ok=True)
+    (box.R / "tests" / "core" / "vmm_test.cpp").write_text("// ZERO_BACK diag\n")
+    (box.R / "tools" / "pancake" / "vmm_probe.cpp").write_text("int main(){}\n")
+    (box.R / "bench" / "specs" / "167-race-soak.json").write_text(SOAK60)
+    (box.tmp / "clients").write_text("0\n0\n0\n")
+    il = box.S / "build-win-il"
+    il.mkdir()
+    for t in ("strata", "mmvq_il_parity"):
+        (il / t).write_text("#!/bin/sh\nexit 0\n", newline="\n")
+    d = box.tmp / "auto-runs" / "after7"
+    d.mkdir()
+    for n, arms in (("85-il-plain-diag", ["base", "il-build", "il-plain"]), ("88-idle-copy-diag", ["base", "adapt-idle-copy"]),
+                    ("88-rerun", ["base", "idle-1m", "skip-w02"])):
+        (d / f"{n}.json").write_text(json.dumps({"arms": {a: {"env": {"X": a}} for a in arms}, "lossy": True}))
+
+
+def test_redo_aa_waits_for_all_five_markers_then_runs_in_the_ordered_flow(tmp_path):
+    box = Box(tmp_path)
+    prepare_aa(box, markers=False)
+    p = box.start(AA)
+    time.sleep(1.5)
+    assert p.poll() is None and len(box.log("redo-chainAA.log")) == 1
+    for log, m in (("win-chainV.log", "WINCHAINV_DONE"), ("xtail-chainX.log", "WINCHAINX_DONE"), ("ytail-chainY.log", "WINCHAINY_DONE")):
+        append(box, log, m)
+        time.sleep(0.8)
+        assert p.poll() is None and len(box.log("redo-chainAA.log")) == 1, "must wait for every earlier chain"
+    (box.tmp / "auto-runs" / "after7.log").open("a").write("AFTER7_DONE\n")
+    time.sleep(0.8)
+    assert p.poll() is None and len(box.log("redo-chainAA.log")) == 1
+    assert not any(c.startswith("SYSTEMCTL") for c in box.calls())
+    append(box, "ztail-chainZ.log", "WINCHAINZ_DONE")
+    box.finish(p)
+    lines = box.log("redo-chainAA.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINCHAINAA_DONE", lines[-8:]
+    assert "ERROR" not in text and "ABORTED" not in text
+    assert_start_end_pairs(lines)
+    assert_service_discipline(box)
+    for must in ("SYNC exit=0", "HEADER spec_lint exit=", "BUILD backup of the previous build-win/strata", "BUILD_END build-win exit=0",
+                 "ENGINE=1 (build-win/strata present: yes)", "BUILD_END build-win-il exit=0", "END vmm_test_zero exit=0", "END vmm_probe exit=0",
+                 "START record real4", "START record real5", "START replay real4-main", "START replay real5-slots5000", "START replay real1-chain16a",
+                 "COPY small outputs", "START 85-il-plain-diag", "START 88-idle-copy-diag", "START 88-rerun-screen", "CONFIRM", "START 88-rerun-confirm",
+                 "START act_f16", "START ablate_default", "START 194-screen", "START 196-plain", "START 196-rotated", "START 212-screen", "START 167-soak",
+                 "167 soak spec:"):
+        assert must in text, must
+    assert "pcie_link_json" not in text                     # the duplicate run was dropped
+    assert "START 85-il-plain-diag-confirm" not in text and "START 88-idle-copy-diag-confirm" not in text    # diagnostics: screen only
+    order = ["BUILD_END build-win exit=0", "START vmm_test_zero", "START vmm_probe", "START record real4", "START replay real1-chain16a",
+             "START 85-il-plain-diag", "START 88-idle-copy-diag", "START 88-rerun-screen", "START act_f16", "START ablate_default",
+             "START 194-screen", "START 196-plain", "START 212-screen", "START 167-soak"]
+    pos = [text.index(k) for k in order]
+    assert pos == sorted(pos), order
+    assert any(l.startswith("PY") and "167-soak40.json" in l for l in box.calls()), "the shortened soak copy is used"
+    assert '"reps": 60' in (box.R / "bench" / "specs" / "167-race-soak.json").read_text()      # the repo spec is untouched
+    assert '"reps": 40' in (box.tmp / "auto-runs" / "chainAA" / "167-soak40.json").read_text()
+
+
+def test_redo_aa_failed_build_restores_the_binary_logs_error_and_stops(tmp_path):
+    box = Box(tmp_path)
+    prepare_aa(box)
+    (box.S / "build-win" / "strata").write_text("#!/bin/sh\n# the previous working binary\n", newline="\n")
+    before = (box.S / "build-win" / "strata").read_text()
+    box.finish(box.start(AA, env={"CMAKE_FAIL": "1"}))
+    lines = box.log("redo-chainAA.log")
+    text = "\n".join(lines)
+    assert "BUILD_END build-win exit=1" in text
+    assert "BUILD FAILED: the previous build-win/strata was restored" in text
+    assert any(l.startswith("ERROR BUILD FAILED") for l in lines)
+    assert lines[-1] == "WINCHAINAA_DONE" and lines[-3].startswith("WINCHAINAA_ABORTED") and lines[-2].startswith("service started")
+    assert (box.S / "build-win" / "strata").read_text() == before         # the failed link removed it; the chain put the copy back
+    for never in ("START record", "START vmm_test_zero", "START 85-", "START 88-", "START act_f16", "START 167-soak", "ENGINE="):
+        assert never not in text, never
+    assert_service_discipline(box)
+
+
+def test_redo_aa_stops_when_the_source_download_fails(tmp_path):
+    box = Box(tmp_path)
+    prepare_aa(box)
+    (box.tmp / "fake-src.tgz").unlink()
+    box.finish(box.start(AA))
+    lines = box.log("redo-chainAA.log")
+    assert any(l.startswith("ERROR SYNC download failed") for l in lines) and lines[-1] == "WINCHAINAA_DONE"
+    assert "BUILD" not in "\n".join(lines)
+    assert_service_discipline(box)
+
+
+def test_redo_aa_skips_85_without_the_il_build_but_runs_the_rest(tmp_path):
+    box = Box(tmp_path)
+    prepare_aa(box)
+    shutil.rmtree(box.S / "build-win-il")
+    box.finish(box.start(AA))
+    lines = box.log("redo-chainAA.log")
+    text = "\n".join(lines)
+    assert "WARN" in text and "SKIP 85-il-plain-diag" in text and "START 88-idle-copy-diag" in text and "START 167-soak" in text
+    assert lines[-1] == "WINCHAINAA_DONE"
+
+
+def test_redo_aa_name_is_invisible_to_every_busy_pattern_and_sees_the_others(tmp_path):
+    box = Box(tmp_path)
+    assert "win-chain" not in AA
+    for name in ("win-chainV.sh", "xtail-chainX.sh", "ytail-chainY.sh", "ztail-chainZ.sh"):
+        assert busy_result(box, name, ["sh ./redo-chainAA.sh"]) == "IDLE", name
+    assert busy_result(box, AA, ["sh ./redo-chainAA.sh"]) == "IDLE"
+    for other in ("sh ./win-chainT.sh", "sh ./xtail-chainX.sh", "sh ./ytail-chainY.sh", "/bin/sh ./after7.sh", "python3 tools/pancake/abtest.py x",
+                  "cmake --build x"):
+        assert busy_result(box, AA, [other]) == "BUSY", other

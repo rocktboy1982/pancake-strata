@@ -176,3 +176,24 @@ if __name__ == "__main__":
         if name.startswith("test_"):
             fn()
             print("ok", name)
+
+
+def test_git_ls_lists_untracked_files_of_a_tar_synced_tree(tmp_path):
+    """The Linux box gets new files by `tar xmf` over an old checkout: they are untracked there, and an env key defined only in one of them
+    (serve/tool_idle.py) was reported as PHANTOM-ENV, so spec_lint exit=1 in every chain header.  git_ls must list them (--others)."""
+    import shutil
+    import subprocess
+    if not shutil.which("git"):
+        return
+    (tmp_path / "serve").mkdir()
+    (tmp_path / "serve" / "old.py").write_text("x = 1\n")
+    subprocess.run(["git", "-C", str(tmp_path), "init", "-q"], check=True)
+    subprocess.run(["git", "-C", str(tmp_path), "add", "serve/old.py"], check=True)
+    (tmp_path / "serve" / "new.py").write_text('K = "STRATA_ONLY_IN_NEW_FILE"\n')
+    saved = S.ROOT
+    S.ROOT = tmp_path
+    try:
+        names = sorted(Path(p).name for p in S.git_ls())
+    finally:
+        S.ROOT = saved
+    assert names == ["new.py", "old.py"]
