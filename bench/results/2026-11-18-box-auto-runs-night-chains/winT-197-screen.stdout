@@ -1,0 +1,50 @@
+case longdec10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+case longdec32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 base                 short 118.0 short 109.3 edit 169.3 edit 192.9 longdec10k 84.5/1648p 10364t longdec32k 99.6/2047p 31452t  foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1975/1249 MHz 65C 175W gtt 25M cpu 3757MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 split-84             short 121.3 short 112.3 edit 167.1 edit 187.6 longdec10k 91.4/1650p 10364t longdec32k 106.6/2047p 31452t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2020/1249 MHz 65C 181W gtt 25M cpu 3664MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 split-168            short 120.4 short 111.8 edit 167.9 edit 191.9 longdec10k 83.1/1650p 10364t longdec32k 98.2/2047p 31452t  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 1922/1249 MHz 65C 173W gtt 25M cpu 3796MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 split-336            short 116.1 short 115.8 edit 174.3 edit 191.5 longdec10k 89.7/1650p 10364t longdec32k 95.8/2046p 31452t  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2000/1249 MHz 65C 180W gtt 25M cpu 3845MHz 66C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    113.7 +-  55.3  (n=2)
+                              drafts accepted 0.72
+  short  split-84                116.8 +-  57.2  (n=2)   vs base:  +2.8% +-  1.7%  -> better
+                              drafts accepted 0.72
+  short  split-168               116.1 +-  54.7  (n=2)   vs base:  +2.2% +-  0.6%  -> better
+                              drafts accepted 0.72
+  short  split-336               115.9 +-   1.9  (n=2)   vs base:  +2.0% +- 47.0%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    181.1 +- 150.0  (n=2)
+                              drafts accepted 0.90
+  edit   split-84                177.3 +- 130.3  (n=2)   vs base:  -2.1% +- 10.9%  -> no difference
+                              drafts accepted 0.90
+  edit   split-168               179.9 +- 152.5  (n=2)   vs base:  -0.7% +-  1.4%  -> no difference
+                              drafts accepted 0.90
+  edit   split-336               182.9 +- 109.3  (n=2)   vs base:  +1.0% +- 22.5%  -> no difference
+                              drafts accepted 0.90
+  longdec10k base                     84.5 +-   nan  (n=1)
+  longdec10k split-84                 91.4 +-   nan  (n=1)   vs base:  +8.2% +-  nan%  -> no difference
+  longdec10k split-168                83.1 +-   nan  (n=1)   vs base:  -1.7% +-  nan%  -> no difference
+  longdec10k split-336                89.7 +-   nan  (n=1)   vs base:  +6.2% +-  nan%  -> no difference
+  longdec32k base                     99.6 +-   nan  (n=1)
+  longdec32k split-84                106.6 +-   nan  (n=1)   vs base:  +7.0% +-  nan%  -> no difference
+  longdec32k split-168                98.2 +-   nan  (n=1)   vs base:  -1.4% +-  nan%  -> no difference
+  longdec32k split-336                95.8 +-   nan  (n=1)   vs base:  -3.8% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  split-84             identical on every case -> exact
+  split-168            identical on every case -> exact
+  split-336            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  split-84             short +2.8%  edit -2.1%  longdec10k +8.2%  longdec32k +7.0%  -> PROMOTE to confirm
+  split-168            short +2.2%  edit -0.7%  longdec10k -1.7%  longdec32k -1.4%  -> PROMOTE to confirm
+  split-336            short +2.0%  edit +1.0%  longdec10k +6.2%  longdec32k -3.8%  -> drop

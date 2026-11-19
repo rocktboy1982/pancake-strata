@@ -1,0 +1,46 @@
+rep 0 base                 short 118.5 short 109.1 edit 165.8 edit 193.3  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('dbus-daemon', 1)]  gpu 2055/1249 MHz 58C 163W gtt 21M cpu 4131MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 whole-kv             short 109.3 short 102.8 edit 166.9 edit 183.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 2053/1249 MHz 59C 166W gtt 21M cpu 4207MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 kvgrow-whole         short 111.6 short 115.0 edit 167.5 edit 190.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 2061/1249 MHz 59C 163W gtt 21M cpu 4103MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 kvgrow-whole-init8k  short 111.1 short 112.3 edit 159.4 edit 175.5  foreign CPU 1% [('claude', 1), ('localsearch-3', 1)]  gpu 2061/1249 MHz 59C 164W gtt 21M cpu 4140MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 kvgrow-whole-zeroback short 121.0 short 116.5 edit 161.2 edit 192.9  foreign CPU 2% [('claude', 1), ('dbus-daemon', 1), ('localsearch-3', 1)]  gpu 2041/1249 MHz 59C 176W gtt 21M cpu 4068MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 base-late            short 118.5 short 109.1 edit 171.6 edit 193.3  foreign CPU 2% [('udisksd', 2), ('localsearch-3', 1), ('claude', 1)]  gpu 2056/1249 MHz 59C 164W gtt 21M cpu 4208MHz 53C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    113.8 +-  59.7  (n=2)
+                              drafts accepted 0.72
+  short  whole-kv                106.0 +-  41.3  (n=2)   vs base:  -6.8% +- 16.2%  -> no difference
+                              drafts accepted 0.68
+  short  kvgrow-whole            113.3 +-  21.6  (n=2)   vs base:  -0.4% +- 71.5%  -> no difference
+                              drafts accepted 0.70
+  short  kvgrow-whole-init8k     111.7 +-   7.6  (n=2)   vs base:  -1.8% +- 59.2%  -> no difference
+                              drafts accepted 0.68
+  short  kvgrow-whole-zeroback    118.8 +-  28.6  (n=2)   vs base:  +4.3% +- 27.4%  -> no difference
+                              drafts accepted 0.73
+  short  base-late               113.8 +-  59.7  (n=2)   vs base:  +0.0% +-  0.0%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    179.6 +- 174.8  (n=2)
+                              drafts accepted 0.90
+  edit   whole-kv                174.9 +- 102.3  (n=2)   vs base:  -2.6% +- 40.3%  -> no difference
+                              drafts accepted 0.88
+  edit   kvgrow-whole            178.8 +- 143.0  (n=2)   vs base:  -0.4% +- 17.7%  -> no difference
+                              drafts accepted 0.90
+  edit   kvgrow-whole-init8k     167.4 +- 102.3  (n=2)   vs base:  -6.7% +- 40.3%  -> no difference
+                              drafts accepted 0.90
+  edit   kvgrow-whole-zeroback    177.1 +- 201.5  (n=2)   vs base:  -1.4% +- 14.9%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               182.4 +- 137.9  (n=2)   vs base:  +1.6% +- 20.5%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  whole-kv             DIFFERENT text -> lossy or placement-dependent: quality gate
+  kvgrow-whole         DIFFERENT text -> lossy or placement-dependent: quality gate
+  kvgrow-whole-init8k  DIFFERENT text -> lossy or placement-dependent: quality gate
+  kvgrow-whole-zeroback DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.0%  edit +1.6%
+  whole-kv             short -6.8%  edit -3.3%  -> drop
+  kvgrow-whole         short -0.4%  edit -1.2%  -> drop
+  kvgrow-whole-init8k  short -1.8%  edit -7.5%  -> drop
+  kvgrow-whole-zeroback short +4.3%  edit -2.2%  -> PROMOTE to confirm

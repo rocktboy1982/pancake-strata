@@ -1,0 +1,39 @@
+capped: tier=arena keep_gib=12 big_free_gib=37
+loading the model (the first start takes a minute or two) ...
+[strata] starting the engine: reading the model's weights ...
+[strata] engine priority: nice +5 (this PC has built-in Radeon graphics that usually draw the desktop; STRATA_ENGINE_NICE=0 turns it off)
+[strata] still starting (20 s) - please wait ...
+ready: http://127.0.0.1:8080/v1  (OpenAI: /v1/chat/completions, Anthropic: /v1/messages, context 131072 tokens)
+       open http://127.0.0.1:8080/ in a browser to chat; close this window to stop the model
+[strata] answering: 37 of max 512 tokens, 75.0 tok/s, 1 s
+[strata] answering: 104 of max 512 tokens, 69.5 tok/s, 2 s
+[strata] answering: 168 of max 512 tokens, 67.1 tok/s, 3 s
+[strata] answering: 232 of max 512 tokens, 66.0 tok/s, 4 s
+[strata] answering: 292 of max 512 tokens, 64.5 tok/s, 5 s
+[strata] answering: 357 of max 512 tokens, 64.5 tok/s, 6 s
+[strata] answering: 415 of max 512 tokens, 63.2 tok/s, 7 s
+[strata] answering: 472 of max 512 tokens, 62.3 tok/s, 8 s
+[strata] done: 512 tokens in 9 s (60.9 tok/s) (length, cancel=False)
+[strata] reading the prompt: 2,048 of 2,893 tokens, 2 s so far
+[strata] reading the prompt: 2,893 of 2,893 tokens, 3 s so far
+[strata] done: 32 tokens in 4 s (63.5 tok/s) (length, cancel=False)
+[strata] reading the prompt: 2,048 of 31,410 tokens, 2 s so far
+[strata] reading the prompt: 4,096 of 31,410 tokens, 3 s so far
+[strata] reading the prompt: 6,144 of 31,410 tokens, 5 s so far
+[strata] reading the prompt: 8,192 of 31,410 tokens, 6 s so far
+[strata] reading the prompt: 10,240 of 31,410 tokens, 8 s so far
+[strata] reading the prompt: 12,288 of 31,410 tokens, 9 s so far
+[strata] reading the prompt: 14,336 of 31,410 tokens, 11 s so far
+[strata] reading the prompt: 16,384 of 31,410 tokens, 12 s so far
+[strata] reading the prompt: 18,432 of 31,410 tokens, 14 s so far
+[strata] reading the prompt: 20,480 of 31,410 tokens, 16 s so far
+[strata] reading the prompt: 22,528 of 31,410 tokens, 18 s so far
+[strata] reading the prompt: 24,576 of 31,410 tokens, 20 s so far
+[strata] reading the prompt: 26,624 of 31,410 tokens, 22 s so far
+[strata] reading the prompt: 28,672 of 31,410 tokens, 24 s so far
+[strata] reading the prompt: 30,720 of 31,410 tokens, 26 s so far
+[strata] reading the prompt: 31,410 of 31,410 tokens, 27 s so far
+[strata] done: 32 tokens in 28 s (42.3 tok/s) (length, cancel=False)
+
+[strata] stopping (Ctrl+C again to end the engine at once) ...
+[strata] stopped

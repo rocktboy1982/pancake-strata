@@ -1,0 +1,150 @@
+{
+ "label": "2026-11-09 16:15:06 - 2026-11-09 16:31:04 (window 2026-11-09T16:13/2026-11-09T16:43), from /home/dan/clone-of-d/src/Strata/pancake-turns.jsonl",
+ "arms": [
+  "sidx-4mib",
+  "base"
+ ],
+ "reps": 1,
+ "runs": {
+  "sidx-4mib": [
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 146.23,
+     "prompt_s_agent": 80.53,
+     "prompt_s_side": 65.7,
+     "turn_s": 374.8,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 47.24,
+     "parked": 13,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 41
+     },
+     "evictions": 2,
+     "run_s": 395.1,
+     "peak_rss_gib": 39.68,
+     "min_avail_gib": 14.95
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 5.382051282051282,
+    "noise_top": [
+     [
+      "kcompactd0",
+      14
+     ],
+     [
+      "kworker/11:1-events_freezable",
+      3
+     ],
+     [
+      "kworker/0:2+events_freezable",
+      2
+     ]
+    ],
+    "reclaim": 1.15,
+    "gpu": {
+     "sclk": 1969,
+     "mclk": 1249,
+     "t_junc_max": 79,
+     "t_mem_max": 88,
+     "watt": 173,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 121,
+     "vram_mib_max": 19992,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3925,
+     "tctl_max": 68,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 37.5,
+    "clean": false,
+    "rep": 0,
+    "arm": "sidx-4mib",
+    "attempt": 1
+   }
+  ],
+  "base": [
+   {
+    "totals": {
+     "requests": 75,
+     "errors": 0,
+     "prompt_s": 141.36,
+     "prompt_s_agent": 78.8,
+     "prompt_s_side": 62.56,
+     "turn_s": 348.4,
+     "cold_rereads": 0,
+     "cold_reread_s": 0.0,
+     "first_cold": 2,
+     "first_cold_s": 47.34,
+     "parked": 9,
+     "restored": 7,
+     "skip_park": {
+      "N tokens, below the N minimum; parked=N": 41
+     },
+     "evictions": 1,
+     "run_s": 367.5,
+     "peak_rss_gib": 39.6,
+     "min_avail_gib": 15.02
+    },
+    "budget": "set by flag (no auto line)",
+    "noise": 5.112947658402203,
+    "noise_top": [
+     [
+      "kcompactd0",
+      13
+     ],
+     [
+      "kworker/0:2-events",
+      8
+     ],
+     [
+      "kworker/12:0-mm_percpu_wq",
+      3
+     ]
+    ],
+    "reclaim": 1.0,
+    "gpu": {
+     "sclk": 1987,
+     "mclk": 1249,
+     "t_junc_max": 78,
+     "t_mem_max": 88,
+     "watt": 174,
+     "link": [
+      "16.0 GT/s PCIe"
+     ],
+     "n": 116,
+     "vram_mib_max": 19984,
+     "gtt_mib_max": 25,
+     "cpu_mhz": 3964,
+     "tctl_max": 67,
+     "igpu_busy": 0,
+     "igpu_vcn": 0,
+     "fclk_min": 1600
+    },
+    "big_free_gib": 37.5,
+    "clean": true,
+    "rep": 0,
+    "arm": "base",
+    "attempt": 1
+   }
+  ]
+ },
+ "recorded": {
+  "prompt_s": 303.0,
+  "prompt_s_agent": 245.7,
+  "prompt_s_side": 57.3,
+  "turn_s": 701.4,
+  "cold_rereads": 7,
+  "cold_reread_s": 162.7,
+  "first_cold": 2,
+  "first_cold_s": 56.4
+ }
+}

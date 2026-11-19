@@ -1,0 +1,39 @@
+rep 0 base                 short 120.8 short 112.1 edit 168.4 edit 192.9  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('rcu_preempt', 0)]  gpu 1968/1249 MHz 59C 151W gtt 21M cpu 4015MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 defer                short 106.8 short 110.4 edit 147.6 edit 170.2  foreign CPU 2% [('claude', 1), ('systemd-journal', 1), ('localsearch-3', 1)]  gpu 2054/1249 MHz 60C 161W gtt 21M cpu 4098MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 defer-warm32-d1      short 108.9 short 109.7 edit 149.1 edit 151.4  foreign CPU 2% [('claude', 1), ('kworker/u65:14-KFD IH', 1), ('dbus-daemon', 0)]  gpu 2064/1249 MHz 59C 156W gtt 21M cpu 3917MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 defer-warm32-d2      short 104.1 short 110.6 edit 133.2 edit 151.6  foreign CPU 4% [('claude', 12), ('ptyxis', 1), ('gnome-shell', 1)]  gpu 2061/1249 MHz 58C 157W gtt 21M cpu 3872MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 defer-warm64-d2      short 105.9 short 109.5 edit 144.5 edit 162.0  foreign CPU 2% [('localsearch-3', 1), ('claude', 1), ('systemd-oomd', 0)]  gpu 2062/1249 MHz 58C 157W gtt 21M cpu 4058MHz 53C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.4 +-  55.3  (n=2)
+                              drafts accepted 0.72
+  short  defer                   108.6 +-  22.9  (n=2)   vs base:  -6.7% +- 67.1%  -> no difference
+                              drafts accepted 0.70
+  short  defer-warm32-d1         109.3 +-   5.1  (n=2)   vs base:  -6.1% +- 51.8%  -> no difference
+                              drafts accepted 0.72
+  short  defer-warm32-d2         107.3 +-  41.3  (n=2)   vs base:  -7.8% +- 83.0%  -> no difference
+                              drafts accepted 0.71
+  short  defer-warm64-d2         107.7 +-  22.9  (n=2)   vs base:  -7.5% +- 67.1%  -> no difference
+                              drafts accepted 0.69
+  edit   base                    180.7 +- 155.7  (n=2)
+                              drafts accepted 0.90
+  edit   defer                   158.9 +- 143.6  (n=2)   vs base: -12.0% +-  6.7%  -> worse
+                              drafts accepted 0.89
+  edit   defer-warm32-d1         150.2 +-  14.6  (n=2)   vs base: -16.8% +- 78.1%  -> no difference
+                              drafts accepted 0.90
+  edit   defer-warm32-d2         142.4 +- 116.9  (n=2)   vs base: -21.2% +- 21.5%  -> no difference
+                              drafts accepted 0.91
+  edit   defer-warm64-d2         153.2 +- 111.2  (n=2)   vs base: -15.2% +- 24.6%  -> no difference
+                              drafts accepted 0.93
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  defer                DIFFERENT text -> lossy or placement-dependent: quality gate
+  defer-warm32-d1      DIFFERENT text -> lossy or placement-dependent: quality gate
+  defer-warm32-d2      DIFFERENT text -> lossy or placement-dependent: quality gate
+  defer-warm64-d2      DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  defer                short -6.7%  edit -12.0%  -> drop
+  defer-warm32-d1      short -6.1%  edit -16.8%  -> drop
+  defer-warm32-d2      short -7.8%  edit -21.2%  -> drop
+  defer-warm64-d2      short -7.5%  edit -15.2%  -> drop

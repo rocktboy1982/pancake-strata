@@ -1,0 +1,22 @@
+rep 0 base                 pep8 202.2 pep8 217.9 edit 188.5 edit 191.9 short 97.3 short 109.2  foreign CPU 4% [('claude', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2046/1249 MHz 59C 172W gtt 21M cpu 4029MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 nl-normalize         pep8 202.0 pep8 216.4 edit 186.9 edit 191.5 short 97.5 short 109.4  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2043/1249 MHz 59C 170W gtt 21M cpu 4094MHz 55C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  pep8   base                    210.1 +-  99.8  (n=2)
+                              drafts accepted 0.97
+  pep8   nl-normalize            209.2 +-  91.5  (n=2)   vs base:  -0.4% +-  3.9%  -> no difference
+                              drafts accepted 0.97
+  edit   base                    190.2 +-  21.6  (n=2)
+                              drafts accepted 0.91
+  edit   nl-normalize            189.2 +-  29.2  (n=2)   vs base:  -0.5% +-  4.0%  -> no difference
+                              drafts accepted 0.91
+  short  base                    103.2 +-  75.6  (n=2)
+                              drafts accepted 0.68
+  short  nl-normalize            103.5 +-  75.6  (n=2)   vs base:  +0.2% +-  0.0%  -> better
+                              drafts accepted 0.68
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  nl-normalize         identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  nl-normalize         pep8 -0.4%  edit -0.5%  short +0.2%  -> PROMOTE to confirm

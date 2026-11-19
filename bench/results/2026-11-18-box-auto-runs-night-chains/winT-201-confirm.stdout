@@ -1,0 +1,21 @@
+rep 0 base                 short 111.4 edit 175.9 short 104.8 edit 169.5 short 105.7 edit 177.7  foreign CPU 2% [('udisksd', 3), ('localsearch-3', 1), ('kworker/u65:15-KFD IH', 1)]  gpu 2051/1249 MHz 59C 167W gtt 21M cpu 4106MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 warm64               short 111.7 edit 177.0 short 98.7 edit 179.1 short 103.7 edit 182.4  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('kworker/u65:6-KFD IH', 1)]  gpu 2048/1249 MHz 60C 166W gtt 21M cpu 4151MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 1 warm64               short 103.4 edit 175.6 short 107.5 edit 176.7 short 114.0 edit 176.3  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 2027/1249 MHz 60C 162W gtt 21M cpu 4098MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 1 base                 short 111.3 edit 175.3 short 105.1 edit 170.0 short 101.8 edit 179.0  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('python', 0)]  gpu 2050/1249 MHz 61C 167W gtt 21M cpu 4099MHz 56C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 0 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 0 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    106.7 +-   5.6  (n=6)
+                              drafts accepted 0.71
+  short  warm64                  106.5 +-   8.2  (n=6)   vs base:  -0.2% +-  9.7%  -> no difference
+                              drafts accepted 0.71
+  edit   base                    174.6 +-   5.7  (n=6)
+                              drafts accepted 0.88
+  edit   warm64                  177.8 +-   3.6  (n=6)   vs base:  +1.9% +-  3.8%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  warm64               DIFFERENT text -> lossy or placement-dependent: quality gate

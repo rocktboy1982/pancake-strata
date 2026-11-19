@@ -1,0 +1,25 @@
+rep 0 base                 short 121.2 short 112.5 edit 167.8 edit 192.4  foreign CPU 2% [('claude', 2), ('kworker/u65:16-KFD IH', 1), ('localsearch-3', 0)]  gpu 2054/1249 MHz 60C 164W gtt 21M cpu 4218MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 lanecell             short 110.0 short 107.9 edit 104.6 edit 75.9  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 2065/1249 MHz 58C 140W gtt 21M cpu 3854MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 lanecell-w12         short 94.5 short 108.1 edit 97.5 edit 131.7  foreign CPU 2% [('rcu_preempt', 0), ('evolution-alarm', 0), ('localsearch-3', 0)]  gpu 2071/1249 MHz 57C 140W gtt 21M cpu 4166MHz 54C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.8 +-  55.3  (n=2)
+                              drafts accepted 0.72
+  short  lanecell                109.0 +-  13.3  (n=2)   vs base:  -6.8% +- 35.9%  -> no difference
+                              drafts accepted 0.70
+  short  lanecell-w12            101.3 +-  86.4  (n=2)   vs base: -13.3% +- 121.3%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    180.1 +- 156.3  (n=2)
+                              drafts accepted 0.90
+  edit   lanecell                 90.2 +- 182.4  (n=2)   vs base: -49.9% +- 188.1%  -> no difference
+                              drafts accepted 0.93
+  edit   lanecell-w12            114.6 +- 217.3  (n=2)   vs base: -36.4% +- 33.9%  -> worse
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  lanecell             DIFFERENT text -> lossy or placement-dependent: quality gate
+  lanecell-w12         DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  lanecell             short -6.8%  edit -49.9%  -> drop
+  lanecell-w12         short -13.3%  edit -36.4%  -> drop

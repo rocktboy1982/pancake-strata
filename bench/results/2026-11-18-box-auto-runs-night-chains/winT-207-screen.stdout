@@ -1,0 +1,18 @@
+rep 0 base                 short 117.6 short 83.0 edit 81.8 edit 99.7  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2062/1249 MHz 58C 151W gtt 21M cpu 4127MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 vram-elastic         short 91.6 short 75.7 edit 120.2 edit 130.6  foreign CPU 9% [('claude', 12), ('pipewire', 2), ('gnome-shell', 2)]  gpu 2052/1249 MHz 57C 155W gtt 21M cpu 4019MHz 54C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    100.3 +- 219.9  (n=2)
+                              drafts accepted 0.71
+  short  vram-elastic             83.7 +- 101.0  (n=2)   vs base: -16.6% +- 118.5%  -> no difference
+                              drafts accepted 0.72
+  edit   base                     90.8 +- 113.8  (n=2)
+                              drafts accepted 0.94
+  edit   vram-elastic            125.4 +-  66.1  (n=2)   vs base: +38.2% +- 52.5%  -> no difference
+                              drafts accepted 0.92
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  vram-elastic         DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  vram-elastic         short -16.6%  edit +38.2%  -> drop

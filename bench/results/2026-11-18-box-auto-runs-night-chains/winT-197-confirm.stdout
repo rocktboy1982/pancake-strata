@@ -1,0 +1,108 @@
+case longdec10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+case longdec32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 base                 short 110.3 edit 172.1 longdec10k 91.5/2371p 10365t longdec32k 98.2/2728p 31453t short 92.9 edit 166.7 longdec10k 95.7/2371p 10365t longdec32k 99.5/2736p 31453t short 96.4 edit 170.4 longdec10k 94.2/2371p 10365t longdec32k 99.2/2735p 31453t  foreign CPU 7% [('kcompactd0', 17), ('kworker/1:2-mm_percpu_wq', 4), ('kworker/10:3-events', 2)]  gpu 2022/1249 MHz 66C 178W gtt 25M cpu 3598MHz 67C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 split-84             short 105.5 edit 125.7 longdec10k 87.5/2373p 10366t longdec32k 59.6/2732p 31454t short 71.3 edit 132.2 longdec10k 82.0/2377p 10366t longdec32k 91.7/2653p 31454t short 83.5 edit 163.6 longdec10k 75.2/2374p 10366t longdec32k 84.1/2662p 31454t  foreign CPU 7% [('kcompactd0', 15), ('kworker/8:0-events', 9), ('kworker/14:1-events', 4)]  gpu 2017/1249 MHz 69C 170W gtt 25M cpu 3541MHz 68C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 split-168            short 103.2 edit 175.5 longdec10k 85.8/2374p 10366t longdec32k 97.9/2731p 31454t short 101.3 edit 145.3 longdec10k 72.8/2372p 10366t longdec32k 84.8/2737p 31454t short 100.6 edit 124.2 longdec10k 62.9/2371p 10366t longdec32k 82.3/2733p 31454t  foreign CPU 6% [('kcompactd0', 16), ('kworker/0:2-events', 12), ('kworker/3:0-events', 3)]  gpu 2039/1249 MHz 68C 182W gtt 25M cpu 3628MHz 67C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 split-336            short 103.0 edit 109.8 longdec10k 93.6/2367p 10366t longdec32k 80.9/2728p 31454t short 104.8 edit 117.2 longdec10k 95.8/2367p 10366t longdec32k 85.9/2734p 31454t short 103.8 edit 114.4 longdec10k 89.9/2369p 10366t longdec32k 97.2/2661p 31454t  foreign CPU 7% [('kcompactd0', 16), ('kworker/0:3-mm_percpu_wq', 8), ('kworker/0:0-events', 4)]  gpu 2030/1249 MHz 68C 179W gtt 25M cpu 3688MHz 68C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 split-336            short 98.4 edit 178.5 longdec10k 68.8/2370p 10366t longdec32k 63.5/2727p 31454t short 84.4 edit 174.9 longdec10k 92.6/2350p 10366t longdec32k 82.5/2735p 31454t short 106.0 edit 135.9 longdec10k 92.6/2363p 10366t longdec32k 74.1/2737p 31454t  foreign CPU 7% [('kcompactd0', 30), ('kworker/0:0-events', 6), ('kworker/14:1-events', 4)]  gpu 2037/1249 MHz 67C 177W gtt 25M cpu 3565MHz 67C igpu 0%/vcn 0% fclk 1600
+rep 0 split-336: slow start (more than 8.75% below the arm's other starts): run again
+rep 1 split-336: slow start (more than 8.75% below the arm's other starts): run again
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 split-336            short 102.2 edit 116.0 longdec10k 92.4/2370p 10366t longdec32k 91.1/2727p 31454t short 97.6 edit 142.0 longdec10k 91.8/1931p 10366t longdec32k 92.0/2735p 31454t short 70.0 edit 123.6 longdec10k 82.4/2372p 10366t longdec32k 68.3/2735p 31454t  foreign CPU 9% [('kcompactd0', 17), ('claude', 14), ('ptyxis', 3)]  gpu 2029/1249 MHz 69C 171W gtt 25M cpu 3680MHz 67C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 split-336            short 91.0 edit 97.7 longdec10k 95.1/2369p 10366t longdec32k 86.3/2731p 31454t short 102.8 edit 118.4 longdec10k 98.3/2369p 10366t longdec32k 81.4/2734p 31454t short 107.7 edit 116.3 longdec10k 97.8/2372p 10366t longdec32k 85.7/2737p 31454t  foreign CPU 7% [('kcompactd0', 17), ('kworker/14:0-mm_percpu_wq', 8), ('kworker/14:1-events', 7)]  gpu 2032/1249 MHz 68C 181W gtt 25M cpu 3625MHz 68C igpu 0%/vcn 0% fclk 1600
+rep 0 split-336: slow start (more than 8.75% below the arm's other starts): run again
+rep 1 split-336: slow start (more than 8.75% below the arm's other starts): run again
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 split-336            short 101.9 edit 166.9 longdec10k 98.6/2372p 10366t longdec32k 101.3/2728p 31454t short 95.3 edit 168.1 longdec10k 100.8/2372p 10366t longdec32k 98.7/2736p 31454t short 98.0 edit 173.8 longdec10k 86.8/2374p 10366t longdec32k 110.3/2737p 31454t  foreign CPU 6% [('kcompactd0', 24), ('pipewire', 1), ('kworker/13:1-events_freezable', 1)]  gpu 2007/1249 MHz 68C 184W gtt 25M cpu 3567MHz 68C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 split-336            short 102.1 edit 173.1 longdec10k 93.7/2373p 10366t longdec32k 92.9/2727p 31454t short 105.4 edit 170.6 longdec10k 94.0/2373p 10366t longdec32k 98.8/2736p 31454t short 101.6 edit 178.7 longdec10k 101.3/2372p 10366t longdec32k 109.9/2737p 31454t  foreign CPU 6% [('kcompactd0', 15), ('kworker/0:1-events', 5), ('kworker/11:2-events', 3)]  gpu 2034/1249 MHz 70C 187W gtt 25M cpu 3653MHz 67C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 split-168            short 102.0 edit 177.0 longdec10k 95.8/2374p 10366t longdec32k 101.2/2730p 31454t short 95.4 edit 169.0 longdec10k 87.9/2374p 10366t longdec32k 102.7/2735p 31454t short 96.9 edit 177.5 longdec10k 97.6/2370p 10366t longdec32k 98.5/2737p 31454t  foreign CPU 7% [('kcompactd0', 31), ('kworker/8:0-events', 13), ('kworker/10:2-mm_percpu_wq', 5)]  gpu 2014/1249 MHz 70C 186W gtt 25M cpu 3681MHz 67C igpu 0%/vcn 0% fclk 1600
+rep 0 split-168: slow start (more than 8.75% below the arm's other starts): run again
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 split-168            short 99.4 edit 169.6 longdec10k 100.1/2371p 10366t longdec32k 84.4/2675p 31454t short 103.0 edit 175.7 longdec10k 101.2/2375p 10366t longdec32k 88.9/2738p 31454t short 107.9 edit 169.1 longdec10k 99.0/2372p 10366t longdec32k 97.0/2737p 31454t  foreign CPU 6% [('kcompactd0', 20), ('pipewire', 1), ('claude', 1)]  gpu 2029/1249 MHz 70C 185W gtt 25M cpu 3604MHz 66C igpu 0%/vcn 0% fclk 1600
+rep 0 split-168: slow start (more than 8.75% below the arm's other starts): run again
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 split-168            short 99.9 edit 151.8 longdec10k 90.5/1933p 10366t longdec32k 74.5/2730p 31454t short 73.2 edit 133.0 longdec10k 68.9/2375p 10366t longdec32k 55.2/2645p 31454t short 75.0 edit 177.9 longdec10k 66.5/2373p 10366t longdec32k 98.9/2658p 31454t  foreign CPU 7% [('kcompactd0', 19), ('kworker/3:0-events', 13), ('kworker/11:0-mm_percpu_wq', 3)]  gpu 1995/1249 MHz 71C 172W gtt 25M cpu 3504MHz 67C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 split-84             short 94.0 edit 129.5 longdec10k 91.6/2373p 10366t longdec32k 50.9/2528p 31455t short 100.7 edit 129.7 longdec10k 79.5/2375p 10367t longdec32k 67.6/2634p 31455t short 82.9 edit 159.3 longdec10k 91.7/2373p 10367t longdec32k 91.9/2654p 31455t  foreign CPU 6% [('kcompactd0', 17), ('kworker/0:0-events', 7), ('kworker/13:0-inode_switch_wbs', 2)]  gpu 2005/1249 MHz 69C 175W gtt 25M cpu 3621MHz 67C igpu 0%/vcn 0% fclk 1600
+rep 1 split-84: slow start (more than 8.75% below the arm's other starts): run again
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 split-84             short 105.1 edit 170.8 longdec10k 89.5/2370p 10367t longdec32k 96.4/2728p 31455t short 96.8 edit 165.1 longdec10k 87.1/2370p 10367t longdec32k 95.3/2733p 31455t short 101.0 edit 169.7 longdec10k 92.2/2375p 10367t longdec32k 95.4/2736p 31455t  foreign CPU 6% [('kcompactd0', 19), ('kworker/9:1-events', 2), ('pipewire', 1)]  gpu 2034/1249 MHz 68C 180W gtt 25M cpu 3635MHz 68C igpu 0%/vcn 0% fclk 1600
+rep 0 split-84: slow start (more than 8.75% below the arm's other starts): run again
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 split-84             short 109.9 edit 164.5 longdec10k 90.7/2373p 10367t longdec32k 80.3/2727p 31455t short 107.7 edit 163.5 longdec10k 96.0/2374p 10367t longdec32k 83.9/2737p 31455t short 105.8 edit 163.1 longdec10k 91.0/2374p 10367t longdec32k 87.8/2738p 31455t  foreign CPU 6% [('kcompactd0', 17), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2034/1249 MHz 69C 185W gtt 25M cpu 3743MHz 67C igpu 0%/vcn 0% fclk 1600
+rep 0 split-84: slow start (more than 8.75% below the arm's other starts): run again
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 split-84             short 106.8 edit 170.9 longdec10k 95.5/2152p 10367t longdec32k 94.0/2730p 31455t short 102.6 edit 162.5 longdec10k 76.8/2373p 10367t longdec32k 97.1/2735p 31455t short 106.1 edit 171.7 longdec10k 80.5/2375p 10367t longdec32k 92.4/2737p 31455t  foreign CPU 6% [('kcompactd0', 20), ('kworker/11:0-events_freezable', 2), ('kworker/12:3-events_freezable', 1)]  gpu 2021/1249 MHz 70C 182W gtt 25M cpu 3671MHz 67C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 base                 short 101.7 edit 165.6 longdec10k 97.0/2372p 10367t longdec32k 100.1/2729p 31455t short 94.4 edit 177.2 longdec10k 94.2/2373p 10367t longdec32k 102.9/2736p 31455t short 94.0 edit 176.0 longdec10k 99.1/2372p 10367t longdec32k 107.4/2737p 31455t  foreign CPU 6% [('kcompactd0', 19), ('kworker/13:1-events', 2), ('pipewire', 1)]  gpu 2029/1249 MHz 70C 190W gtt 25M cpu 3654MHz 67C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 10 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 1 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  split-84             rep 0 attempt 0 slow start (means): short 86.8, edit 140.5, longdec10k 81.6, longdec32k 78.5
+  split-84             rep 0 attempt 1 slow start (means): short 107.8, edit 163.7, longdec10k 92.6, longdec32k 84.0
+  split-168            rep 0 attempt 0 slow start (means): short 101.7, edit 148.3, longdec10k 73.8, longdec32k 88.3
+  split-168            rep 0 attempt 1 slow start (means): short 103.4, edit 171.5, longdec10k 100.1, longdec32k 90.1
+  split-168            rep 0 attempt 2 slow start (means): short 82.7, edit 154.2, longdec10k 75.3, longdec32k 76.2
+  split-336            rep 0 attempt 0 slow start (means): short 103.9, edit 113.8, longdec10k 93.1, longdec32k 88.0
+  split-336            rep 0 attempt 1 slow start (means): short 89.9, edit 127.2, longdec10k 88.9, longdec32k 83.8
+  split-336            rep 1 attempt 0 slow start (means): short 96.3, edit 163.1, longdec10k 84.7, longdec32k 73.4
+  split-336            rep 1 attempt 1 slow start (means): short 100.5, edit 110.8, longdec10k 97.1, longdec32k 84.5
+  split-84             rep 1 attempt 0 slow start (means): short 92.5, edit 139.5, longdec10k 87.6, longdec32k 70.1
+  base                 rep 0 attempt 0 pass 1: short 110.3 outside [85.3, 105.5], edit 172.1, longdec10k 91.5, longdec32k 98.2
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                     95.9 +-   6.0  (n=5)
+                              drafts accepted 0.70
+  short  split-84                103.1 +-   5.5  (n=6)   vs base:  +6.7% +-  6.1%  -> better
+                              drafts accepted 0.70
+  short  split-168                98.1 +-  11.8  (n=3)   vs base:  +1.5% +-  4.8%  -> no difference
+                              drafts accepted 0.70
+  short  split-336               100.7 +-   5.1  (n=6)   vs base:  +4.8% +-  8.1%  -> no difference
+                              drafts accepted 0.70
+  edit   base                    171.2 +-   9.0  (n=5)
+                              drafts accepted 0.89
+  edit   split-84                168.5 +-   5.4  (n=6)   vs base:  -1.9% +-  6.7%  -> no difference
+                              drafts accepted 0.90
+  edit   split-168               174.5 +-  16.3  (n=3)   vs base:  +0.9% +- 19.6%  -> no difference
+                              drafts accepted 0.90
+  edit   split-336               171.9 +-   6.2  (n=6)   vs base:  +1.0% +-  5.2%  -> no difference
+                              drafts accepted 0.90
+  longdec10k base                     96.0 +-   3.6  (n=5)
+  longdec10k split-84                 86.9 +-  10.3  (n=6)   vs base: -11.3% +-  9.5%  -> worse
+  longdec10k split-168                93.8 +-  17.7  (n=3)   vs base:  -3.1% +- 10.2%  -> no difference
+  longdec10k split-336                95.9 +-   8.0  (n=6)   vs base:  -0.7% +-  8.6%  -> no difference
+  longdec32k base                    101.8 +-   5.9  (n=5)
+  longdec32k split-84                 95.1 +-   2.4  (n=6)   vs base:  -6.4% +-  6.3%  -> worse
+  longdec32k split-168               100.8 +-   7.3  (n=3)   vs base:  -2.6% +- 18.3%  -> no difference
+  longdec32k split-336               102.0 +-   9.9  (n=6)   vs base:  +0.3% +- 11.9%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  split-84             DIFFERENT text -> lossy or placement-dependent: quality gate
+  split-168            DIFFERENT text -> lossy or placement-dependent: quality gate
+  split-336            DIFFERENT text -> lossy or placement-dependent: quality gate

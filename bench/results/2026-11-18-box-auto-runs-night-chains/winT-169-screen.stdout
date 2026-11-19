@@ -1,0 +1,65 @@
+case longdec10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 base                 edit 169.8 edit 189.3 longdec10k 91.0/1648p 10366t short 105.1 short 116.0  foreign CPU 2% [('claude', 2), ('localsearch-3', 1), ('khugepaged', 0)]  gpu 1920/1249 MHz 59C 156W gtt 25M cpu 3919MHz 58C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 chain3               edit 161.4 edit 182.2 longdec10k 87.8/1649p 10366t short 108.8 short 112.3  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('kworker/u65:16-KFD IH', 1)]  gpu 1955/1249 MHz 59C 155W gtt 25M cpu 3881MHz 58C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 chain3-copylane      edit 158.2 edit 185.6 longdec10k 93.5/1648p 10366t short 107.0 short 115.0  foreign CPU 5% [('kcompactd0', 20), ('kworker/0:0-events', 6), ('kworker/14:3-events', 3)]  gpu 2054/1249 MHz 60C 161W gtt 25M cpu 4039MHz 58C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 chain3-copylane      edit 157.1 edit 184.9 longdec10k 89.0/1650p 10366t short 110.1 short 117.0  foreign CPU 5% [('kcompactd0', 19), ('kworker/0:1-events', 7), ('kworker/12:0-mm_percpu_wq', 2)]  gpu 1983/1249 MHz 60C 158W gtt 25M cpu 3874MHz 58C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 chain3-copylane      edit 156.5 edit 185.1 longdec10k 86.8/1649p 10366t short 104.3 short 111.5  foreign CPU 6% [('kcompactd0', 15), ('kworker/0:0-events', 4), ('kworker/1:1-mm_percpu_wq', 3)]  gpu 1975/1249 MHz 60C 157W gtt 25M cpu 3858MHz 58C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 chain3-copylane: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 chain7-copylane      edit 160.3 edit 185.3 longdec10k 95.1/1648p 10366t short 95.3 short 112.8  foreign CPU 8% [('kcompactd0', 19), ('kworker/0:3-events', 8), ('kworker/9:1-events', 2)]  gpu 1954/1249 MHz 60C 154W gtt 25M cpu 3895MHz 58C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 chain7-copylane      edit 158.3 edit 186.2 longdec10k 91.0/1649p 10366t short 109.6 short 111.0  foreign CPU 5% [('kcompactd0', 19), ('kworker/0:1-events', 8), ('kworker/9:2-events', 2)]  gpu 1963/1249 MHz 61C 155W gtt 25M cpu 3967MHz 58C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 chain7-copylane      edit 157.0 edit 185.1 longdec10k 87.8/1650p 10366t short 93.3 short 110.1  foreign CPU 6% [('kcompactd0', 19), ('kworker/0:3-events', 5), ('kworker/12:0-mm_percpu_wq', 3)]  gpu 2056/1249 MHz 61C 162W gtt 25M cpu 3851MHz 58C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 chain7-copylane: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 chain7-copylane-min8 edit 120.7 edit 102.0 longdec10k 82.5/1227p 10366t short 95.6 short 110.5  foreign CPU 6% [('kcompactd0', 35), ('kworker/0:3-events', 5), ('kworker/0:1-events', 3)]  gpu 1941/1249 MHz 59C 161W gtt 25M cpu 3794MHz 58C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 chain7-copylane-min8 edit 128.1 edit 120.9 longdec10k 82.6/1216p 10367t short 91.4 short 88.5  foreign CPU 4% [('kcompactd0', 19), ('kworker/0:3+events_freezable', 4), ('kworker/0:1-events', 3)]  gpu 2066/1249 MHz 59C 147W gtt 25M cpu 3668MHz 58C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+rep 0 chain7-copylane-min8 edit 161.3 edit 179.4 longdec10k 83.3/1229p 10367t short 99.1 short 88.7  foreign CPU 5% [('kcompactd0', 20), ('kworker/0:1-events', 7), ('kworker/11:1-mm_percpu_wq', 3)]  gpu 2053/1249 MHz 58C 154W gtt 25M cpu 3809MHz 58C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 chain7-copylane-min8: every attempt noisy, keeping the quietest (4% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  edit   base                    179.6 +- 123.9  (n=2)
+                              drafts accepted 0.90
+  edit   chain3                  171.8 +- 132.2  (n=2)   vs base:  -4.3% +-  4.6%  -> no difference
+                              drafts accepted 0.91
+  edit   chain3-copylane         171.0 +- 176.7  (n=2)   vs base:  -4.8% +- 29.4%  -> no difference
+                              drafts accepted 0.91
+  edit   chain7-copylane         172.2 +- 177.3  (n=2)   vs base:  -4.1% +- 29.7%  -> no difference
+                              drafts accepted 0.91
+  edit   chain7-copylane-min8    124.5 +-  45.8  (n=2)   vs base: -30.7% +- 94.5%  -> no difference
+                              drafts accepted 0.88
+  longdec10k base                     91.0 +-   nan  (n=1)
+  longdec10k chain3                   87.8 +-   nan  (n=1)   vs base:  -3.5% +-  nan%  -> no difference
+  longdec10k chain3-copylane          89.0 +-   nan  (n=1)   vs base:  -2.2% +-  nan%  -> no difference
+  longdec10k chain7-copylane          91.0 +-   nan  (n=1)   vs base:  +0.0% +-  nan%  -> no difference
+  longdec10k chain7-copylane-min8     82.6 +-   nan  (n=1)   vs base:  -9.2% +-  nan%  -> no difference
+  short  base                    110.5 +-  69.3  (n=2)
+                              drafts accepted 0.68
+  short  chain3                  110.5 +-  22.2  (n=2)   vs base:  +0.0% +- 42.5%  -> no difference
+                              drafts accepted 0.72
+  short  chain3-copylane         113.5 +-  43.8  (n=2)   vs base:  +2.7% +- 23.0%  -> no difference
+                              drafts accepted 0.74
+  short  chain7-copylane         110.3 +-   8.9  (n=2)   vs base:  -0.2% +- 54.6%  -> no difference
+                              drafts accepted 0.72
+  short  chain7-copylane-min8     90.0 +-  18.4  (n=2)   vs base: -18.6% +- 79.3%  -> no difference
+                              drafts accepted 0.68
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  chain3               DIFFERENT text -> lossy or placement-dependent: quality gate
+  chain3-copylane      DIFFERENT text -> lossy or placement-dependent: quality gate
+  chain7-copylane      DIFFERENT text -> lossy or placement-dependent: quality gate
+  chain7-copylane-min8 DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  chain3               edit -4.3%  longdec10k -3.5%  short +0.0%  -> drop
+  chain3-copylane      edit -4.8%  longdec10k -2.2%  short +2.7%  -> drop
+  chain7-copylane      edit -4.1%  longdec10k +0.0%  short -0.2%  -> drop
+  chain7-copylane-min8 edit -30.7%  longdec10k -9.2%  short -18.6%  -> drop

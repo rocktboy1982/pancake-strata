@@ -1,0 +1,57 @@
+case longdec32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base                 edit 169.2 edit 187.5 longdec32k 83.2/1789p 31453t longdec64k 90.7/2734p 65241t  foreign CPU 7% [('kcompactd0', 18), ('kworker/0:0-events_freezable', 11), ('kworker/9:0-events_freezable', 2)]  gpu 2031/1249 MHz 68C 199W gtt 25M cpu 3672MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 wmma                 edit 174.2 edit 198.0 longdec32k 87.6/1788p 31453t longdec64k 93.8/2759p 65241t  foreign CPU 5% [('kcompactd0', 16), ('kworker/11:0-events', 7), ('kworker/8:1-events', 2)]  gpu 1988/1249 MHz 68C 192W gtt 25M cpu 3529MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 wmma-rows2           edit 173.7 edit 196.3 longdec32k 89.3/1788p 31453t longdec64k 89.1/2756p 65241t  foreign CPU 5% [('kcompactd0', 16), ('kworker/12:0-events', 6), ('kworker/0:2-events', 3)]  gpu 1957/1249 MHz 67C 196W gtt 25M cpu 3449MHz 67C igpu 0%/vcn 0% fclk 1600
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 wmma-rows4           edit 172.9 edit 196.6 longdec32k 86.9/1788p 31453t longdec64k 96.9/2746p 65241t  foreign CPU 5% [('kcompactd0', 17), ('kworker/11:0-events_freezable', 4), ('kworker/9:0-events', 4)]  gpu 2029/1249 MHz 68C 207W gtt 25M cpu 3425MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 wmma-rows8           edit 172.8 edit 196.2 longdec32k 87.6/1787p 31453t longdec64k 93.6/2725p 65242t  foreign CPU 6% [('kcompactd0', 16), ('kworker/0:2-events', 7), ('pipewire', 1)]  gpu 1960/1249 MHz 68C 197W gtt 25M cpu 3404MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 wmma-rows8           edit 172.4 edit 195.1 longdec32k 81.9/1085p 31454t longdec64k 89.1/2620p 65242t  foreign CPU 6% [('kcompactd0', 15), ('kworker/12:0-events_freezable', 5), ('kworker/9:0+events_freezable', 3)]  gpu 1898/1249 MHz 67C 177W gtt 25M cpu 3448MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 wmma-rows8           edit 96.8 edit 128.0 longdec32k 78.8/1162p 31454t longdec64k 87.1/2426p 65242t  foreign CPU 5% [('kcompactd0', 12), ('kworker/10:1+events_freezable', 5), ('kworker/8:1-mm_percpu_wq', 2)]  gpu 1932/1249 MHz 65C 183W gtt 25M cpu 3455MHz 66C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  edit   base                    178.3 +- 116.3  (n=2)
+                              drafts accepted 0.90
+  edit   wmma                    186.1 +- 151.2  (n=2)   vs base:  +4.3% +- 19.6%  -> no difference
+                              drafts accepted 0.91
+  edit   wmma-rows2              185.0 +- 143.6  (n=2)   vs base:  +3.7% +- 15.3%  -> no difference
+                              drafts accepted 0.91
+  edit   wmma-rows4              184.8 +- 150.6  (n=2)   vs base:  +3.6% +- 19.2%  -> no difference
+                              drafts accepted 0.91
+  edit   wmma-rows8              112.4 +- 198.3  (n=2)   vs base: -37.0% +- 46.0%  -> no difference
+                              drafts accepted 0.96
+  longdec32k base                     83.2 +-   nan  (n=1)
+  longdec32k wmma                     87.6 +-   nan  (n=1)   vs base:  +5.3% +-  nan%  -> no difference
+  longdec32k wmma-rows2               89.3 +-   nan  (n=1)   vs base:  +7.3% +-  nan%  -> no difference
+  longdec32k wmma-rows4               86.9 +-   nan  (n=1)   vs base:  +4.4% +-  nan%  -> no difference
+  longdec32k wmma-rows8               78.8 +-   nan  (n=1)   vs base:  -5.3% +-  nan%  -> no difference
+  longdec64k base                     90.7 +-   nan  (n=1)
+  longdec64k wmma                     93.8 +-   nan  (n=1)   vs base:  +3.4% +-  nan%  -> no difference
+  longdec64k wmma-rows2               89.1 +-   nan  (n=1)   vs base:  -1.8% +-  nan%  -> no difference
+  longdec64k wmma-rows4               96.9 +-   nan  (n=1)   vs base:  +6.8% +-  nan%  -> no difference
+  longdec64k wmma-rows8               87.1 +-   nan  (n=1)   vs base:  -4.0% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  wmma                 DIFFERENT text -> lossy or placement-dependent: quality gate
+  wmma-rows2           DIFFERENT text -> lossy or placement-dependent: quality gate
+  wmma-rows4           DIFFERENT text -> lossy or placement-dependent: quality gate
+  wmma-rows8           DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  wmma                 edit +4.3%  longdec32k +5.3%  longdec64k +3.4%  -> PROMOTE to confirm
+  wmma-rows2           edit +3.7%  longdec32k +7.3%  longdec64k -1.8%  -> PROMOTE to confirm
+  wmma-rows4           edit +3.6%  longdec32k +4.4%  longdec64k +6.8%  -> PROMOTE to confirm
+  wmma-rows8           edit -37.0%  longdec32k -5.3%  longdec64k -4.0%  -> drop

@@ -1,0 +1,39 @@
+case longdec10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+case longdec32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 base                 short 121.0 short 112.8 edit 171.8 edit 193.1 longdec10k 93.3/1652p 10362t longdec32k 108.3/2050p 31450t  foreign CPU 4% [('claude', 1), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2000/1249 MHz 71C 179W gtt 25M cpu 3662MHz 67C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 vwin2                short 120.0 short 108.4 edit 168.1 edit 191.4 longdec10k 81.0/1652p 10362t longdec32k 98.8/2051p 31450t  foreign CPU 4% [('pipewire', 2), ('gnome-remote-de', 1), ('dbus-daemon', 1)]  gpu 2035/1249 MHz 69C 183W gtt 25M cpu 3839MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 vwin4                short 118.3 short 109.8 edit 164.2 edit 187.0 longdec10k 85.9/1651p 10362t longdec32k 96.3/2047p 31450t  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2020/1249 MHz 67C 177W gtt 25M cpu 3847MHz 67C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.9 +-  52.1  (n=2)
+                              drafts accepted 0.72
+  short  vwin2                   114.2 +-  73.7  (n=2)   vs base:  -2.3% +- 18.5%  -> no difference
+                              drafts accepted 0.72
+  short  vwin4                   114.0 +-  54.0  (n=2)   vs base:  -2.4% +-  1.6%  -> worse
+                              drafts accepted 0.72
+  edit   base                    182.4 +- 135.4  (n=2)
+                              drafts accepted 0.90
+  edit   vwin2                   179.8 +- 148.1  (n=2)   vs base:  -1.5% +-  7.0%  -> no difference
+                              drafts accepted 0.90
+  edit   vwin4                   175.6 +- 144.9  (n=2)   vs base:  -3.8% +-  5.2%  -> no difference
+                              drafts accepted 0.90
+  longdec10k base                     93.3 +-   nan  (n=1)
+  longdec10k vwin2                    81.0 +-   nan  (n=1)   vs base: -13.2% +-  nan%  -> no difference
+  longdec10k vwin4                    85.9 +-   nan  (n=1)   vs base:  -7.9% +-  nan%  -> no difference
+  longdec32k base                    108.3 +-   nan  (n=1)
+  longdec32k vwin2                    98.8 +-   nan  (n=1)   vs base:  -8.8% +-  nan%  -> no difference
+  longdec32k vwin4                    96.3 +-   nan  (n=1)   vs base: -11.1% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  vwin2                identical on every case -> exact
+  vwin4                identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  vwin2                short -2.3%  edit -1.5%  longdec10k -13.2%  longdec32k -8.8%  -> drop
+  vwin4                short -2.4%  edit -3.8%  longdec10k -7.9%  longdec32k -11.1%  -> drop

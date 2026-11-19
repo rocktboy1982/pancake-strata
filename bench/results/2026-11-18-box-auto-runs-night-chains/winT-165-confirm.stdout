@@ -1,0 +1,42 @@
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 short 86.1 edit 112.3 long3k 69.7/1321p 2936t short 100.0 edit 177.1 long3k 90.4/1324p 2936t short 86.2 edit 183.6 long3k 97.3/1073p 2936t  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('kworker/u65:6-KFD IH', 1)]  gpu 2049/1249 MHz 59C 151W gtt 21M cpu 3792MHz 55C igpu 0%/vcn 0% fclk 1600
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 kvgrow-whole-zeroback short 96.1 edit 113.4 long3k 92.5/1323p 2936t short 87.3 edit 94.0 long3k 92.4/1333p 2936t short 108.6 edit 121.4 long3k 94.0/1329p 2936t  foreign CPU 6% [('kcompactd0', 31), ('kworker/12:0-events_freezable', 2), ('kworker/9:1-events_freezable', 2)]  gpu 2029/1249 MHz 59C 152W gtt 21M cpu 4098MHz 57C igpu 0%/vcn 0% fclk 1600
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 kvgrow-whole-zeroback short 106.6 edit 182.7 long3k 88.2/1327p 2937t short 89.2 edit 180.9 long3k 95.3/1344p 2937t short 109.2 edit 180.8 long3k 93.0/1343p 2937t  foreign CPU 7% [('kcompactd0', 15), ('pipewire', 1), ('kworker/0:2-events_freezable', 1)]  gpu 2005/1249 MHz 60C 157W gtt 21M cpu 3978MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 0 kvgrow-whole-zeroback: slow start (more than 8.75% below the arm's other starts): run again
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 kvgrow-whole-zeroback short 85.3 edit 173.5 long3k 102.9/1344p 2937t short 104.1 edit 183.8 long3k 97.7/1339p 2937t short 83.3 edit 95.1 long3k 88.6/1338p 2937t  foreign CPU 9% [('kcompactd0', 22), ('kworker/0:0+events_freezable', 6), ('kworker/0:2-events', 3)]  gpu 2034/1249 MHz 59C 158W gtt 21M cpu 3935MHz 56C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 0 kvgrow-whole-zeroback: slow start (more than 8.75% below the arm's other starts): run again
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 kvgrow-whole-zeroback short 100.9 edit 171.7 long3k 105.0/1345p 2937t short 104.1 edit 104.0 long3k 97.4/1328p 2937t short 90.0 edit 122.0 long3k 93.4/1011p 2937t  foreign CPU 7% [('kcompactd0', 34), ('kworker/8:2-events', 2), ('pipewire', 1)]  gpu 1953/1249 MHz 59C 155W gtt 21M cpu 4002MHz 56C igpu 0%/vcn 0% fclk 1600
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 1 base                 short 107.0 edit 179.5 long3k 109.2/1328p 2937t short 109.8 edit 172.8 long3k 103.4/1319p 2937t short 104.4 edit 175.8 long3k 96.3/1321p 2937t  foreign CPU 4% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2047/1249 MHz 60C 168W gtt 21M cpu 4019MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 0 base: slow start (more than 8.75% below the arm's other starts): run again
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+rep 0 base                 short 109.4 edit 180.1 long3k 103.0/1330p 2937t short 105.2 edit 174.0 long3k 98.6/1321p 2937t short 105.4 edit 180.5 long3k 98.1/1320p 2937t  foreign CPU 4% [('claude', 2), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2043/1249 MHz 61C 165W gtt 21M cpu 3976MHz 56C igpu 0%/vcn 0% fclk 1600
+
+outlier rule robust: 4 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 1 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  base                 rep 0 attempt 0 slow start (means): short 90.8, edit 157.7, long3k 1239.3
+  kvgrow-whole-zeroback rep 0 attempt 0 slow start (means): short 97.3, edit 109.6, long3k 1328.3
+  kvgrow-whole-zeroback rep 0 attempt 1 slow start (means): short 90.9, edit 150.8, long3k 1340.0
+  kvgrow-whole-zeroback rep 0 attempt 2 slow start (means): short 98.3, edit 132.6, long3k 1228.1
+  kvgrow-whole-zeroback rep 1 attempt 0 pass 2: short 89.2 outside [93.1, 120.1], edit 180.9, long3k 1343.6
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    106.9 +-   3.3  (n=6)
+                              drafts accepted 0.70
+  short  kvgrow-whole-zeroback    107.9 +-  22.8  (n=2)   vs base:  +2.1% +- 42.6%  -> no difference
+                              drafts accepted 0.73
+  edit   base                    177.1 +-   4.8  (n=6)
+                              drafts accepted 0.90
+  edit   kvgrow-whole-zeroback    181.8 +-  16.6  (n=2)   vs base:  +2.3% +-  8.9%  -> no difference
+                              drafts accepted 0.90
+  long3k base                   1323.3 +-   6.4  (n=6)
+  long3k kvgrow-whole-zeroback   1335.1 +- 140.2  (n=2)   vs base:  +0.8% +- 15.0%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  kvgrow-whole-zeroback DIFFERENT text -> lossy or placement-dependent: quality gate

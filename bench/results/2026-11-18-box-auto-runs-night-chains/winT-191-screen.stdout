@@ -1,0 +1,18 @@
+rep 0 park-vram            short 121.3 short 112.5 edit 169.1 edit 190.4  foreign CPU 5% [('claude', 8), ('pipewire', 1), ('dbus-daemon', 1)]  gpu 2043/1249 MHz 58C 174W gtt 21M cpu 4160MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 park-vram-settle     short 120.6 short 112.7 edit 169.4 edit 193.2  foreign CPU 5% [('claude', 6), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 1950/1249 MHz 58C 152W gtt 21M cpu 4032MHz 54C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  park-vram               116.9 +-  55.9  (n=2)
+                              drafts accepted 0.72
+  short  park-vram-settle        116.7 +-  50.2  (n=2)   vs park-vram:  -0.2% +-  4.9%  -> no difference
+                              drafts accepted 0.72
+  edit   park-vram               179.8 +- 135.4  (n=2)
+                              drafts accepted 0.89
+  edit   park-vram-settle        181.3 +- 151.2  (n=2)   vs park-vram:  +0.9% +-  8.8%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  park-vram-settle     DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  park-vram-settle     short -0.2%  edit +0.9%  -> PROMOTE to confirm
