@@ -10,7 +10,7 @@
 #                                                                   the recommended-flags file (default ~/.strata/tuned-flags.json) that
 #                                                                   every normal start reads (terminal/strata_control/tuned_flags.py);
 #                                                                   only exact >= 2 % or lossy >= 3 % with a passing quality gate enter it
-# Time: one engine start (1-3 minutes) per flag plus two starts of the default: about 3 minutes per flag, 15 minutes at the default
+# Time: one engine start (1-3 minutes) per flag plus two starts of the default: about 2.5 minutes per flag, 15 minutes at the default
 # budget.  The A/B harness is tools/pancake/abtest.py of a port/rdna3-decode checkout (FLAG_DIAG_ABTEST=path when this tree has none).
 set -u
 HERE=$(cd "$(dirname "$0")" && pwd)
