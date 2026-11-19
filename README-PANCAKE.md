@@ -319,3 +319,39 @@ rocktboy1982's, ledger T-079..T-081, T-372, T-679, T-712.
   `STRATA_VERIFY_MAX_T` 16 and 8) of every touched engine file, and `window_limits_test`, `draft_policy_test`, `prefill_plan_test` built and run on a PC (pass). The HIP
   build and every run happen on the box.
 - Licence: Strata-rdna3 is MIT; every ported piece is MIT-compatible (our own code, or MIT sources credited above); AGPL sources were read for ideas only.
+
+## 7. Status page (`/status`, `/pancake`)
+
+Open `http://127.0.0.1:<port>/status` in a browser (port 8080 with `rdna3/run.py`), or `/pancake`. The chat page's header and the API
+monitor link to it. `GET /status.json` returns the same data as JSON. `/status` without `Accept: text/html` (or `?html=1`) is still the old
+API answer. The page is read-only: GET only, no file from outside the tree, no new hardware probe. The server draws the page, so it reads
+with JavaScript off; with JavaScript it updates every 2 s. With an API key set, the values need the key (the page asks for it).
+
+What it shows:
+
+* Project: branch and head commit of the checkout (read from `.git`), engine version and build (`engine/BUILD.json`), the `rdna3/run.py`
+  setup, model, context, run config, uptime.
+* Hardware: gfx architecture, ROCm version, VRAM, PCIe link, CPU, RAM, VMM, hipBLASLt. It uses `rdna3/tuned_flags.py`'s own detection
+  (rocm_agent_enumerator / rocminfo, sysfs, `/proc`; no privileges), read once in the background.
+* Tuned flags: the `rdna3/recommended-flags/<gfx>.json` that matches this machine, as `rdna3/run.py` exports it. Each flag shows its value
+  in the file, its state in the running engine (applied, in effect as the setup's own default too, yours from the environment, a different
+  value, or not applied after `--no-tuned-flags` or a start without `run.py`), the setup's default, and the file's own verdict, gain and
+  note. `STRATA_TUNED_FLAGS=0` shows "off".
+* Your settings: the `STRATA_` / `HIP_` / `HSA_` variables of the environment (they win over the file).
+* Flag diagnostics: the verdicts of `tools/pancake/flag_diag.py`, when `$STRATA_FLAG_DIAG_VERDICTS` (or `~/.strata/flag-diag/verdicts.json`)
+  names a verdicts file.
+* Speed and caches: decode and prompt tok/s (now, run average, last request), prefix reuse, expert cache hit rate (last request, mean),
+  PCIe share, drafts accepted, the conversation cache from the engine's log, every INFO fact the engine reported (expert slots,
+  windows, ...), and the live GPU and RAM readings.
+
+A value that is not known prints as an em dash. Code: `serve/status_page.py`, `serve/web/status.html`, `serve/web/status.js`. Tests:
+`serve/test_status_page.py` (mock engine, no GPU). Credits: ours (pancake-strata `214c8cd31`, `19ffe37ab`, extended for this branch).
+
+Two more web changes of the pancake line are ported with it, by hand onto this tree's newer `app.js`:
+
+* `/?q=` fills in the question and focuses the box, and nothing is sent until you press Send (pancake-strata `faf3db296`). Before, the
+  page sent it on load, so any web page could make the model answer with the API key and MCP tools saved in the browser. Test:
+  `serve/test_web_start_question.py`.
+* When the server is idle, the speed cards (the Monitor tab and the API monitor page) show the run's token-weighted average instead of the
+  last request's speed (pancake-strata `6acd50efe`, from the MIT community patch keinebenutzer/STRATA-average-patch). Test:
+  `serve/test_speed_average.py`.

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Strata Status</title>
+<link rel="icon" href="/web/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/web/tokens.css">
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:var(--st-bg);color:var(--st-ink);font:15px/1.5 var(--st-font)}
+button,input{font:inherit}
+button{cursor:pointer;color:inherit;background:var(--st-surface-2);border:1px solid var(--st-line);border-radius:9px;padding:8px 13px}
+button:hover{border-color:var(--st-accent)}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:2px solid var(--st-focus);outline-offset:3px}
+[hidden]{display:none!important}
+a{color:var(--st-ink-soft);text-decoration:none;border-bottom:1px solid var(--st-line)}
+a:hover{color:var(--st-ink);border-bottom-color:var(--st-accent)}
+header{min-height:70px;padding:8px 32px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;border-bottom:1px solid var(--st-line);background:var(--st-surface)}
+.brand{font-size:23px;font-weight:700;letter-spacing:-.5px}
+.brand span{font-size:13px;font-weight:400;margin-left:14px;color:var(--st-ink-muted)}
+.nav{display:flex;gap:18px;font-size:14px}
+.controls{display:flex;gap:8px;flex-wrap:wrap}
+.primary{background:var(--st-accent);color:var(--st-accent-ink);border-color:transparent}
+main{max-width:1200px;margin:auto;padding:28px 32px}
+h1{margin:0;font-size:29px;letter-spacing:-.7px}
+h2{font-size:17px;margin:0}
+.sub,.small{color:var(--st-ink-muted)}
+.sub{margin:4px 0 20px}
+.small{font-size:13px}
+.notice{margin:16px 0;padding:10px 14px;background:var(--st-warn-tint);color:var(--st-warn-text);border-radius:9px}
+.panel{border:1px solid var(--st-line);border-radius:14px;background:var(--st-surface);overflow:hidden;margin-bottom:20px}
+.panel-bar{padding:13px 20px;border-bottom:1px solid var(--st-line);display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:8px 20px;border-bottom:1px solid var(--st-line-soft);vertical-align:top;overflow-wrap:anywhere}
+thead th{font-size:12px;font-weight:500;color:var(--st-ink-muted);text-transform:uppercase;letter-spacing:.8px}
+table.kv thead{display:none}
+table.kv th[scope=row]{font-weight:400;color:var(--st-ink-muted);width:34%}
+table.kv td{font-variant-numeric:tabular-nums}
+tbody tr:last-child td,tbody tr:last-child th{border-bottom:0}
+.empty{color:var(--st-ink-muted)}
+#auth{margin:16px 0;padding:14px 18px;border:1px solid var(--st-line);border-radius:13px;background:var(--st-surface)}
+#auth input{display:block;margin:8px 0;width:100%;max-width:340px;color:inherit;border:1px solid var(--st-line);background:var(--st-bg);padding:7px 10px;border-radius:8px}
+footer{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:6px 2px 24px;color:var(--st-ink-muted);font-size:13px}
+@media(max-width:700px){main{padding:20px 14px}header{padding:8px 16px}.brand span{display:none}th,td{padding:7px 12px}table.kv th[scope=row]{width:45%}}
+</style>
+<script>
+  // the theme before the first paint: the saved choice, else the system's
+  try {
+    document.documentElement.dataset.theme = localStorage.getItem("strata.theme") ||
+      (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  } catch (e) {}
+</script>
+<script defer src="/web/status.js"></script>
+</head>
+<body>
+<header>
+  <div class="brand">Strata <span>Status</span></div>
+  <nav class="nav" aria-label="Pages"><a href="/">Chat</a><a href="/api-monitor">API Monitor</a><a href="/status.json">JSON</a></nav>
+  <div class="controls" id="controls" hidden>
+    <button id="pause" type="button" aria-label="Pause live updates">Pause</button>
+    <button id="refresh" type="button" class="primary">Refresh now</button>
+    <button id="key" type="button">API key</button>
+    <button id="theme" type="button" aria-label="Switch color theme">Light / dark</button>
+  </div>
+</header>
+<main>
+<h1>Status</h1>
+<p class="sub">This project's state on this machine: the build, the hardware, the tuned flags, and the live speed counters. Read-only.</p>
+<noscript><p class="notice">JavaScript is off: these are the values when the page was loaded. Reload the page to update them.</p></noscript>
+<div id="error" class="notice" role="status" aria-live="polite" hidden></div>
+<form id="auth" hidden>
+  <label for="api-key">API key</label>
+  <input id="api-key" type="password" autocomplete="off" placeholder="Only needed if the server has a key">
+  <button class="primary">Connect</button>
+</form>
+<div id="sections">
+<!--status-sections-->
+</div>
+<footer><span>Numbers and settings only: no prompt or answer text is shown.</span><span id="updated">Values from page load</span></footer>
+</main>
+</body>
+</html>
