@@ -12,11 +12,16 @@
 
 namespace strata::kernels {
 
+// Greedy: `greedy`, a temperature <= 0, NaN, or below this floor.  A NaN used to fall through `t <= 0` into a uniform draw over the
+// top-k list (`t > 0 ? 1 / t : 0` made inv_t = 0): measured by sampler_parity, 4 of 4 picks were wrong.  Tiny positive values
+// (1e-30, 1e-5) already gave the argmax in that test; the floor only keeps 1 / t away from overflow at denormal scale.
+constexpr float kSamplerMinTemperature = 1e-4f;
+
 struct SamplerParams {
     int top_k = 20;              // sampled path: 1..64 as given; 0 (off) or more than 64 keep the widest list, 64
     float top_p = 0.95f;         // 1.0 disables the filter
     float min_p = 0.0f;          // 0 disables; keeps tokens with p >= min_p * p_max (a prefix of the top_k list)
-    float temperature = 1.0f;    // <= 0 means greedy
+    float temperature = 1.0f;    // <= 0, NaN, or below kSamplerMinTemperature means greedy
     int min_keep = 1;            // top_p keeps at least this many
     int penalty_last_n = 0;      // 0 disables; the window over `history` to count occurrences in
     float penalty_repeat = 1.0f;
