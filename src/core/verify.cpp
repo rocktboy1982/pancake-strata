@@ -4,6 +4,7 @@
 #include "strata/core/sm120_series.hpp"
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/core/verify.hpp"
+#include "strata/core/verify_ecap.hpp"
 #include "strata/core/pin_budget.hpp"
 #if !defined(STRATA_USE_HIP) && !defined(STRATA_HIP_GFX906)
 #include "strata/core/host_graph_launch.hpp"
@@ -1161,9 +1162,29 @@ bool Verifier::init(const WeightTable& wt, const ModelGeometry& g, SessionState&
         }
         split_ = false;   // one token group: the exchanges are in window order on both cards
     }
+    {   // MOD_PLAN F5 STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): host side only
+        const char* v = std::getenv("STRATA_VERIFY_ECAP");
+        const int c = strata::core::verify_ecap_parse(v);
+        ecap_ = -1;
+        if (c == -2)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%s is not a count in 0..63: off\n", v);
+        else if (c >= (int) ss.k)   // a row names k experts: a cap of k or more never drops one
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d: a token routes %d experts, so nothing is ever "
+                                 "capped: off\n", c, (int) ss.k);
+        else if (c >= 0 && remote_opt_ != nullptr)
+            std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d is not taken with --remote-expert-opt (its rows are "
+                                 "claimed outside the window's plan): off\n", c);
+        else
+            ecap_ = c;
+    }
     std::fprintf(stderr, "strata verify: window up to %d tokens, %.1f MiB of device buffers%s\n", max_t,
                  (double) count.used / 1048576.0,
                  all_resident_ ? " (100% VRAM resident: zero-doorbell graph)" : "");
+    if (ecap_ >= 0)
+        std::fprintf(stderr, "strata verify: STRATA_VERIFY_ECAP=%d (changes the output; MOD_PLAN F5): in a decode window each "
+                             "draft row (rows 1..T-1, never row 0) reads at most %d CPU expert(s) that row 0 and the rows "
+                             "before it do not read anyway, by routing rank; the rest add zero.  Not in a prompt read, a "
+                             "first window, a batch or pipelined window\n", ecap_, ecap_);
     return true;
 }
 
@@ -3231,6 +3252,21 @@ bool Verifier::prelaunch(int T, const int32_t* tokens, int64_t pos0, std::string
 
 bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool, void* user, int32_t* out,
                    std::string& err) {
+    // MOD_PLAN F5 STRATA_VERIFY_ECAP: set_ecap_window is this run's borrow, cleared here on every path (a later stage
+    // clears its own in its run).  Never a prompt read (head sampling off: every row is committed) or a one-token window.
+    // STRATA_VERIFY_ECAP_MIN_ROWS=N (default 2: every window of two rows or more): the cap acts only in windows of N rows
+    // or more.  A gate at 9 keeps the short windows exact (spec 56: ECAP=0 gains on edit, not on short).
+    static const int ecap_min_rows = [] {
+        const char* v = std::getenv("STRATA_VERIFY_ECAP_MIN_ROWS");
+        const int n = v != nullptr ? std::atoi(v) : 2;
+        return n < 2 ? 2 : n;
+    }();
+    const bool ecap_win = ecap_next_ && ecap_ >= 0 && T >= ecap_min_rows && head_sampling_;
+    ecap_next_ = false;
+    struct EcapReset {   // the plan sink is shared with the batch and pipelined windows: leave it off on every exit
+        GpuPlanSink& s;
+        ~EcapReset() { s.ecap = -1; s.ecap_first = 1; }
+    } ecap_reset{sink_};
     if (tp_) {
         if (tp_peer_ == nullptr || tpl_.rank != 0) { err = "verify: run() drives a tensor-parallel pair from rank 0"; return false; }
         return run_tp(T, tokens, pos0, pool, user, out, err);
@@ -3238,6 +3274,7 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
 #if defined(STRATA_GPU_METAL)
     (void) pool;
     (void) user;
+    (void) ecap_win;   // (the Metal window has no host expert pool)
     return strata::metal_engine::window_run(metal_, T, tokens, pos0, head_sampling_, out, err);
 #endif
     using namespace strata::kernels;
@@ -3426,6 +3463,9 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         set_plan_slot(grp);
         const int tb = gtb[grp], n = gte[grp] - gtb[grp];
         progress_at("verify window: the CPU experts of layer", l);
+        // MOD_PLAN F5 STRATA_VERIFY_ECAP: this group's draft rows; the window's row 0 (committed) leads the group at tb 0
+        sink_.ecap = ecap_win ? ecap_ : -1;
+        sink_.ecap_first = tb == 0 ? 1 : 0;
         if (remote_opt_) remote_opt_->begin(h_w_ + (size_t) tb * ss.k, tb, n);
         if (pool != nullptr)
             pool(user, h_x_ + (size_t) tb * g.n_embd, h_ids_ + (size_t) tb * ss.k, n, ss.k,

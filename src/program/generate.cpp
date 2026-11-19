@@ -16588,6 +16588,8 @@ int main(int argc, char** argv) {
                 // a suffix window and the lookup chain's tail are point masses and keep the exact-match rule
                 // (never on a first window: a merged one holds prompt tokens, not drafts)
                 if (use_mtp && mtp.prob() && !from_sfx && !first_window && T_mtp > 1) dv.set_spec_q(mtp.spec_q(), T_mtp - 1);
+                // STRATA_VERIFY_ECAP (opt-in, changes the output): rows 1..T-1 are drafts unless this is a first window
+                if (ver.ecap() >= 0) dv.set_ecap_window(!first_window && T >= 2);
                 if (!dv.run(T, window.data(), p, win_pool_fn, dv_pool_user, outv.data(), err) || drive.d.failed) {
                     std::printf("ERR %s\n", drive.d.failed && drive.d.fail ? drive.d.fail : err.c_str());
                     return 1;
@@ -17083,6 +17085,9 @@ int main(int argc, char** argv) {
             if (drive.d.tail_experts > 0)   // STRATA_ROUTE_TAIL_SKIP, cumulative
                 std::fprintf(stderr, "strata serve: route tail skip: %lld missed experts skipped (%lld entries) since the "
                                      "start\n", (long long) drive.d.tail_experts, (long long) drive.d.tail_skipped);
+            if (drive.d.ecap_experts > 0)   // STRATA_VERIFY_ECAP, cumulative
+                std::fprintf(stderr, "strata serve: STRATA_VERIFY_ECAP: %lld draft-only CPU experts skipped (%lld entries) "
+                                     "since the start\n", (long long) drive.d.ecap_experts, (long long) drive.d.ecap_entries);
             // the resident RAM mode, cumulative: experts read from experts.bin since the copy was made (what the plain
             // mmap mode reads through the OS file cache, from the SSD when the RAM could not keep it)
             if (src.complement_ready())
@@ -18178,6 +18183,7 @@ int main(int argc, char** argv) {
             if (adapt_nowait()) apply_pending(false);
                 else if (pending.empty() || ++pending_age >= adapt_lag()) apply_pending(true);
             if (use_mtp && mtp.prob() && !from_sfx && T_mtp > 1 && o.spec_corrupt <= 0) ver.set_spec_q(mtp.spec_q(), T_mtp - 1);
+            if (ver.ecap() >= 0) ver.set_ecap_window(!first_window && T >= 2);   // STRATA_VERIFY_ECAP (opt-in)
             if (!ver.run(T, window.data(), p, &drive_pool_multi, &drive, outv.data(), err)) {
                 // The graph of a window size is captured the first time it is used, and the draft source took VRAM: when the capture runs
                 // out of memory the window gets one row narrower (the widths below it are already captured) instead of the run failing.
