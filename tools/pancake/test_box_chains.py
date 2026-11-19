@@ -1261,8 +1261,21 @@ def prepare_bd(box, markers=True):
         (tree / rel).write_text(body, newline="\n")
     (tree / "tools/pancake/build_updated_rdna3.sh").write_text(
         "#!/bin/sh\ncmake -S $1 -B $2\ncmake --build $2 -j8 --target strata verify_ecap_test sampler_parity elementwise_parity\n", newline="\n")
-    (tree / "tools/pancake/abtest.py").write_text("# stub\n")
+    (tree / "tools/pancake/abtest.py").write_text("# stub: PY = os.environ.get(\"ABTEST_PYTHON\") or ...\n")
     (tree / "tools/pancake/flag_diag.py").write_text("# stub\n")
+    (tree / "serve").mkdir(parents=True, exist_ok=True)
+    (tree / "serve/__init__.py").write_text("")
+    (tree / "serve/server.py").write_text("# stub\n")
+    # the box's existing venv interpreter (Strata-win/.venv/bin/python): logs every call with the ABTEST_PYTHON it hands on, answers the
+    # serve.server import check from the cwd's tree (HARNESS_NO_DEPS=1: a venv without the server's deps), and runs the python stub otherwise
+    hp = box.R / ".venv" / "bin" / "python"
+    hp.parent.mkdir(parents=True, exist_ok=True)
+    hp.write_text('#!/bin/sh\necho "HARNESS ABTEST_PYTHON=$ABTEST_PYTHON $*" >> "$H/calls.log"\n'
+                  'case "$*" in *"import serve.server"*)\n'
+                  '  [ "$HARNESS_NO_DEPS" = 1 ] && { echo "ModuleNotFoundError: No module named \'jinja2\'" >&2; exit 1; }\n'
+                  '  [ -f serve/server.py ] || { echo "ModuleNotFoundError: No module named \'serve\'" >&2; exit 1; }; exit 0 ;;\nesac\n'
+                  'exec "$PYREAL" "$H/stub/pystub.py" "$@"\n', newline="\n")
+    hp.chmod(0o755)
     shutil.copy(CHAINS / "bench_updatedRD_conf.py", tree / "tools/pancake/box_chains/")
     shutil.copy(HERE.parent.parent / "bench" / "specs" / "250-rdna3-updated-vs-plain.json", tree / "bench/specs/")
     shutil.copy(HERE.parent.parent / "bench" / "specs" / "251-rdna3-hipblaslt-and-profile.json", tree / "bench/specs/")
@@ -1508,6 +1521,76 @@ def test_bd_smoke_failure_stops_before_the_updated_build_with_the_engine_error(t
         assert never not in text, never
     assert_start_end_pairs(lines)
     assert_service_discipline(box)
+
+
+def test_bd_harness_runs_with_the_box_venv_python_and_hands_it_to_the_server(tmp_path):
+    """Third RD attempt (2026-11-19): the plain smoke died with "env: '/mnt/pancake/benchRD/src-pancake/.venv/bin/python': No such file or directory":
+    abtest.py starts the server with <its tree>/.venv/bin/python and the downloaded harness tree has none.  Now abtest / flag_diag run with the box's
+    Strata-win venv python and ABTEST_PYTHON points the server at it; the import check runs right after the sync, before any config or build."""
+    box = Box(tmp_path)
+    prepare_bd(box)
+    box.finish(box.start(BD))
+    lines = box.log("bench-updatedRD.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHRD_DONE" and "ERROR" not in text, lines[-6:]
+    hpy = box.h + "/clone-of-d/src/Strata-win/.venv/bin/python"
+    calls = box.calls()
+    harness = [c for c in calls if c.startswith("HARNESS ")]
+    assert harness and all(c.startswith("HARNESS ABTEST_PYTHON=" + hpy + " ") for c in harness), harness[:3]
+    ab_py = [c for c in calls if c.startswith("PY tools/pancake/abtest.py ")]
+    ab_h = [c for c in harness if " tools/pancake/abtest.py " in c]
+    assert len(ab_h) == len(ab_py) >= 6, (ab_h, ab_py)          # 2 smokes, 250 screen + confirm, 251 screen + confirm: every one through the venv python
+    assert any("flag_diag.py run" in c for c in harness), "the diagnostic (and through sys.executable its abtest) runs with the venv python"
+    assert any("import serve.server" in c for c in harness)
+    order = ["PREREQ ok", "SYNC rocktboy1982/pancake-strata port/rdna3-decode", "PREREQ harness ok", "CONFIG written", "BUILD plain"]
+    pos = [text.index(k) for k in order]
+    assert pos == sorted(pos), order
+    assert not (box.tmp / "mnt" / "benchRD" / "src-pancake" / ".venv").exists(), "nothing is created in the downloaded tree"
+
+
+def test_bd_prereq_stops_in_seconds_when_the_harness_venv_is_missing(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    (box.R / ".venv" / "bin" / "python").unlink()
+    box.finish(box.start(BD))
+    lines = box.log("bench-updatedRD.log")
+    err = [l for l in lines if l.startswith("ERROR PREREQ missing files:")]
+    assert err and "Strata-win/.venv/bin/python" in err[0], lines
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHRD_DONE" and "SYNC nicejunjie" not in text and "BUILD" not in text and "START smoke" not in text
+
+
+def test_bd_prereq_harness_stops_before_any_build_when_the_venv_cannot_import_the_server(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    box.finish(box.start(BD, env={"HARNESS_NO_DEPS": "1"}))
+    lines = box.log("bench-updatedRD.log")
+    err = [l for l in lines if l.startswith("ERROR PREREQ harness:")]
+    assert err and "cannot import serve.server" in err[0] and "jinja2" in err[0], lines
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHRD_DONE" and "CONFIG written" not in text and "BUILD" not in text and "START smoke" not in text
+
+
+def test_bd_prereq_harness_stops_when_the_synced_abtest_ignores_abtest_python(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    tree = box.tmp / "srcdir" / "pancake-strata-abc"
+    (tree / "tools/pancake/abtest.py").write_text("# old harness: PY = ROOT/.venv/bin/python only\n")
+    subprocess.run(["tar", "czf", (box.tmp / "fake-src.tgz").as_posix(), "-C", (box.tmp / "srcdir").as_posix(), "pancake-strata-abc"], check=True)
+    box.finish(box.start(BD))
+    lines = box.log("bench-updatedRD.log")
+    assert any(l.startswith("ERROR PREREQ harness:") and "does not read ABTEST_PYTHON" in l for l in lines), lines
+    assert "BUILD" not in "\n".join(lines) and lines[-1] == "WINBENCHRD_DONE"
+
+
+def test_abtest_server_python_follows_abtest_python():
+    code = ("import os, sys; os.sysconf = getattr(os, 'sysconf', lambda n: 100); sys.path.insert(0, sys.argv[1]); import abtest; print(abtest.PY)")
+    for env, want in (({"ABTEST_PYTHON": "/opt/venv/bin/python"}, "/opt/venv/bin/python"), ({}, str(HERE.parents[1] / ".venv/bin/python"))):
+        e = {k: v for k, v in os.environ.items() if k != "ABTEST_PYTHON"}
+        e.update(env)
+        r = subprocess.run([sys.executable, "-c", code, str(HERE)], capture_output=True, text=True, env=e, timeout=60)
+        assert r.returncode == 0, r.stderr[-800:]
+        assert r.stdout.strip().splitlines()[-1] == want
 
 
 def test_bd_smoke_of_the_updated_build_stops_before_ctest(tmp_path):
