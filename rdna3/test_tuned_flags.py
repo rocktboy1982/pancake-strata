@@ -53,8 +53,13 @@ class T(unittest.TestCase):
         rec, path = tf.load_recommended(HW)
         self.assertIsNotNone(rec)
         self.assertEqual(rec["env"]["STRATA_POOL_FUSE_PHASES"], "1")
-        self.assertEqual(rec["env"]["STRATA_PF_F16"], "1")
-        self.assertNotIn("STRATA_VERIFY_ECAP", rec["env"])   # its measured gate (9-row windows) cannot open on this tree (windows <= 8 rows)
+        self.assertNotIn("STRATA_PF_F16", rec["env"])   # owner rule: Strata-rdna3's own PF_F16=2 stays; the pancake value is a spec arm
+        self.assertEqual(rec["env"]["STRATA_VERIFY_ECAP"], "0")          # the pancake daily preset's gated ECAP (16-row windows now)
+        self.assertEqual(rec["env"]["STRATA_VERIFY_ECAP_MIN_ROWS"], "9")
+        self.assertEqual(rec["args"]["--lookup-max-t"], "12")
+        self.assertIn("STRATA_PF_F16", rec["theirs_kept"])
+        for k in rec["env"]:   # every exported key is either backed by a verdict or listed as a preset entry
+            self.assertTrue(k in rec["preset"] or any(k in (e.get("env") or {}) for e in rec["verdicts"].values()), k)
 
     def test_shipped_flags_are_all_backed_by_a_gain_verdict(self):
         rec, _ = tf.load_recommended(HW)
@@ -70,7 +75,8 @@ class T(unittest.TestCase):
         msgs = []
         ch = tf.apply_startup(cfg, env={"STRATA_POOL_FUSE_PHASES": "0"}, hw=HW, say=msgs.append)
         self.assertNotIn("STRATA_POOL_FUSE_PHASES", cfg["env"])      # the user's variable is theirs, the file stays out
-        self.assertEqual(cfg["env"]["STRATA_PF_F16"], "1")          # the file beats the setup's own value
+        self.assertEqual(cfg["env"]["STRATA_PF_F16"], "2")          # the setup's own value stays (the file does not carry PF_F16)
+        self.assertEqual(cfg["env"]["STRATA_VERIFY_ECAP"], "0")      # the file's additions are set
         self.assertEqual(cfg["env"]["GPU_MAX_HW_QUEUES"], "6")
         self.assertTrue(ch and len(msgs) == 1 and "tuned flags from" in msgs[0])
 

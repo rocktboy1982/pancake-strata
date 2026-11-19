@@ -5,7 +5,7 @@
 #
 #   tools/pancake/build_updated_rdna3.sh SRC BUILD_DIR [--print-flags] [--configure-only] [--target T]...   (default target: strata)
 #   BACKEND=cuda  tools/pancake/build_updated_rdna3.sh SRC BUILD_DIR    CUDA stays buildable: STRATA_ENABLE_CUDA=ON, CMAKE_CUDA_ARCHITECTURES (default 75)
-#   Environment: ROCM (default /opt/rocm/core-10.0), GGML_DIR (offline llama.cpp checkout), JOBS (default 8), MARCH_NATIVE=1, LTO=1, EXTRA_HIP_FLAGS, EXTRA_CXX_FLAGS
+#   Environment: WINDOW_MAX_T (default 16), ROCM (default /opt/rocm/core-10.0), GGML_DIR (offline llama.cpp checkout), JOBS (default 8), MARCH_NATIVE=1, LTO=1, EXTRA_HIP_FLAGS, EXTRA_CXX_FLAGS
 #
 # Flags and why
 #   CMAKE_BUILD_TYPE=Release            -O3 -DNDEBUG for host code (CMake's Release); the HIP device code is -O3 too.  Same as the plain build, stated.
@@ -28,6 +28,10 @@
 #                                       an unused-variable warning).
 #   STRATA_ROCWMMA_INCLUDE_DIR          passed when rocWMMA headers are found ($ROCM/include/rocwmma or ROCWMMA_INCLUDE): optional gfx1100 QSA selection kernels.
 #   STRATA_GGML_DIR                     the pinned llama.cpp checkout the box already has (no network during a chain).
+#   STRATA_WINDOW_MAX_T=16              verify windows of up to 16 rows (ported: upstream 9d3c8c366 + 03627326d; "auto" is 16 for HIP too, stated explicitly):
+#                                       --lookup-max-t 12 runs its 9..12-row windows as one group and STRATA_VERIFY_ECAP_MIN_ROWS=9 can open (pancake
+#                                       T-126/T-127, T-588); the pancake daily build is the same (STRATA_WINDOW_MAX_T=auto, HIP => 16).  The plain
+#                                       Strata-rdna3 build has no such option (its windows are 8 rows).  Windows of up to 8 rows run the same kernels.
 #   STRATA_WERROR=OFF, STRATA_BUILD_TESTS=ON   warnings do not stop a measured build; the ctests (verify_ecap_test, sampler_parity, ...) exist for the diagnostics.
 set -u
 SRC=${1:-}; BUILD=${2:-}
@@ -52,7 +56,7 @@ JOBS=${JOBS:-8}
 CXXF="-O3 -DNDEBUG -mtune=native ${EXTRA_CXX_FLAGS:-}"
 [ "${MARCH_NATIVE:-0}" = 1 ] && CXXF="$CXXF -march=native"
 set -- -S "$SRC" -B "$BUILD" -G Ninja -DCMAKE_BUILD_TYPE=Release "-DCMAKE_CXX_FLAGS_RELEASE=$CXXF" -DSTRATA_WERROR=OFF -DSTRATA_BUILD_TESTS=ON \
-       -DSTRATA_NATIVE_EXPERTS=ON -DSTRATA_PREFILL_MMQ=ON -DSTRATA_MMQ_KQUANTS=ON -DSTRATA_MMQ_TQ_OVERLAY=ON
+       -DSTRATA_NATIVE_EXPERTS=ON -DSTRATA_PREFILL_MMQ=ON -DSTRATA_MMQ_KQUANTS=ON -DSTRATA_MMQ_TQ_OVERLAY=ON -DSTRATA_WINDOW_MAX_T=${WINDOW_MAX_T:-16}
 [ -d "$GGML_DIR" ] && set -- "$@" "-DSTRATA_GGML_DIR=$GGML_DIR"
 [ -n "$NINJA" ] && set -- "$@" "-DCMAKE_MAKE_PROGRAM=$NINJA"
 [ "${LTO:-0}" = 1 ] && set -- "$@" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON

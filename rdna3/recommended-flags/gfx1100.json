@@ -7,24 +7,81 @@
  },
  "env": {
   "STRATA_POOL_FUSE_PHASES": "1",
-  "STRATA_PF_F16": "1"
+  "STRATA_VERIFY_ECAP": "0",
+  "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+  "STRATA_PIN_BY_NEED": "1",
+  "STRATA_EXPDEC": "1",
+  "STRATA_EXPDEC_DOWN": "1",
+  "STRATA_EXCHANGE_ROTATE": "1",
+  "STRATA_KV_PREFETCH": "1",
+  "STRATA_PROMPT_ATTN_IMMA": "1",
+  "STRATA_ATTN_DAILY": "1",
+  "STRATA_PF_GROUP_SCRATCH": "1",
+  "STRATA_PF_HC_REGION": "1",
+  "STRATA_PREFILL_EQUAL_TAIL": "1"
  },
- "args": {},
+ "args": {
+  "--grammar": "on",
+  "--lookup-max-t": "12",
+  "--pool-affinity": "measure",
+  "--conversation-cache-min-tokens": "8192"
+ },
  "verdicts": {
   "STRATA_POOL_FUSE_PHASES": {
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1"
+   },
    "verdict": "GAIN",
    "exact": true,
    "gain_pct": 2.5,
-   "note": "T-224: edit +2.5% +-1.7, output identical; measured on the pancake base, to be re-measured on this branch"
+   "note": "T-224: edit +2.5% +-1.7, output identical; measured on the pancake base, TO BE MEASURED on this branch"
   },
-  "STRATA_PF_F16=1": {
+  "STRATA_VERIFY_ECAP=0,MIN_ROWS=9": {
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9"
+   },
    "verdict": "GAIN",
    "exact": false,
    "gate_pass": true,
-   "gain_pct": 15.1,
-   "note": "T-820 prompt +15.1/+16.7/+17.3% at 14K/32K/64K, T-828 rate and event rules PASS (near-tie column FAIL: information)"
+   "gain_pct": 41.7,
+   "note": "T-588 edit +41.7% +-5.6 over no ECAP, short +2.8%; T-589 token forcing PASS, T-591 tool-call gate PASS (grammar guard ported); needs the 9..16-row windows of the 16-row build + --lookup-max-t 12 (ported); TO BE MEASURED here"
+  },
+  "--lookup-max-t 12": {
+   "args": {
+    "--lookup-max-t": "12"
+   },
+   "verdict": "GAIN",
+   "exact": false,
+   "gate_pass": true,
+   "gain_pct": 8.8,
+   "note": "T-126/T-127: edit +8.8% +-6.8, quality PASS, on the pancake base (16-row HIP build); TO BE MEASURED here"
   }
  },
- "source": "shipped default: the adopted flags ported from the pancake fork (updated-strata-rdna3); regenerate with tools/pancake/flag_diag.sh --write-recommended after the box benchmark",
- "note": "STRATA_VERIFY_ECAP is not shipped: its measured gain (T-588) is cap 0 from 9-row windows, and this tree's windows are at most 8 rows (kVerifyMaxT), so the gate would never open; spec 250 arm updated-ecap6 measures cap 0 from 6 rows on this tree, flag_diag.sh re-checks it, and it enters this file only with a measured GAIN"
+ "preset": {
+  "STRATA_PIN_BY_NEED": "pancake daily preset; same switch in this tree (generate.cpp), not measured here",
+  "STRATA_EXPDEC": "pancake daily preset (T-037); same switch in this tree (iq_kernels.cu)",
+  "STRATA_EXPDEC_DOWN": "pancake daily preset, short +1.7% +-0.5 (T-040, under this file's 2% bar); same switch here",
+  "STRATA_EXCHANGE_ROTATE": "pancake daily preset; same switch here (expert_source.cpp, pool.cpp)",
+  "STRATA_KV_PREFETCH": "Speedy opt-in in the pancake preset (no HIP A/B recorded); same switch here (prefill.cpp)",
+  "STRATA_PROMPT_ATTN_IMMA": "pancake preset; same switch here; the int8 tensor-core kernel is a CUDA sm_80+ path, inert on HIP as far as read",
+  "STRATA_ATTN_DAILY": "pancake preset; same switch here; daily_attn() returns false in a HIP build (inert on gfx1100), kept for parity with the preset",
+  "STRATA_PF_GROUP_SCRATCH": "ported (upstream fbf6e1c75, PR 4039); Speedy opt-in, no HIP A/B recorded; ignored with a line unless every layer takes MMQ",
+  "STRATA_PF_HC_REGION": "ported (upstream 3cc47f029, PR 4039); Speedy opt-in, no HIP A/B recorded",
+  "STRATA_PREFILL_EQUAL_TAIL": "ported (pancake 7639dbf76, T-679 TTFT data on the pancake base)",
+  "--grammar on": "ported engine part (pancake T-315 / T-591): grammar-constrained decoding inside speculative decoding for requests that carry a grammar",
+  "--pool-affinity measure": "pancake preset; same option here (generate.cpp)",
+  "--conversation-cache-min-tokens 8192": "pancake preset (T-183 with --conversation-cache-mib 2048); this tree's setup keeps its own --conversation-cache-mib 8192"
+ },
+ "theirs_kept": {
+  "STRATA_PF_F16": "2 kept (ours 1, T-820): spec 250 arm updated+pf16-1 decides",
+  "STRATA_HIPBLASLT_TUNING": "the setup's gfx1100-hipblaslt-100200.txt kept (ours 100401, T-096): spec 251 arm hipblaslt-100401 decides",
+  "--expert-profile": "data/expert-profile.bin kept (ours data/expert-profile-pancake.bin, T-194): spec 251 arm profile-pancake decides",
+  "--conversation-cache-mib": "8192 kept (ours 2048)",
+  "--max-context": "262144 kept (ours 131072)",
+  "--mtp-draft-vocab": "rdna3/draft_vocab_zh60k.bin kept (ours data/draft_vocab_en.bin)",
+  "sampling": "temperature 0.6 kept (ours 0.1)"
+ },
+ "source": "the pancake daily preset (configs/pancake/flashnext-iq2_xs-fast-hip.json) on top of Strata-rdna3's own setup and engine defaults: every setting Strata-rdna3 does not have, with the pancake value; where both have one, Strata-rdna3's value stays (theirs_kept) and the pancake value is a spec arm (bench/specs/250, 251). Owner order 2026-11-19. Regenerate with tools/pancake/flag_diag.sh --write-recommended after the box benchmark.",
+ "note": "verdicts: the entries with a measured gain at or over this file's bar (on the pancake base, TO BE MEASURED on this branch); preset: the rest of the pancake daily preset, enabled as the preset has them, not separately measured. Needs the 16-row build (tools/pancake/build_updated_rdna3.sh: -DSTRATA_WINDOW_MAX_T=16) for --lookup-max-t 12 and the ECAP gate."
 }

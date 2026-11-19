@@ -3,39 +3,106 @@
  "base": "@CONFIG_PLAIN@",
  "lossy": true,
  "prefill": true,
- "cases": ["short", "edit", "long32k"],
+ "cases": [
+  "short",
+  "edit",
+  "long32k"
+ ],
  "reps": 1,
  "arms": {
   "updated": {
    "exe": "@UPDATED@/strata",
    "env": {
     "STRATA_POOL_FUSE_PHASES": "1",
-    "STRATA_PF_F16": "1"
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
    }
   },
   "hipblaslt-100401": {
    "exe": "@UPDATED@/strata",
    "env": {
     "STRATA_POOL_FUSE_PHASES": "1",
-    "STRATA_PF_F16": "1",
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
     "STRATA_HIPBLASLT_TUNING": "@UPDATED_SRC@/tools/hip/gfx1100-hipblaslt-100401.txt"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
    }
   },
   "profile-pancake": {
    "exe": "@UPDATED@/strata",
    "env": {
     "STRATA_POOL_FUSE_PHASES": "1",
-    "STRATA_PF_F16": "1"
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1"
    },
    "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192",
     "--expert-profile": "@UPDATED_SRC@/data/expert-profile-pancake.bin"
    }
   }
  },
  "predict": [
-  {"arm": "hipblaslt-100401", "case": "long32k", "lo": -2.0, "hi": 10.0, "why": "T-096 measured the 100401 table against no table (+38% provisional); against the 100200 table this tree ships nothing is measured"},
-  {"arm": "profile-pancake", "case": "short", "lo": -3.0, "hi": 8.0, "why": "T-194: +6.7% decode on an RTX 3060 against another shipped profile; model- and workload-specific, never measured on a 7900 XT"}
+  {
+   "arm": "hipblaslt-100401",
+   "case": "long32k",
+   "lo": -2.0,
+   "hi": 10.0,
+   "why": "T-096 measured the 100401 table against no table (+38% provisional); against the 100200 table Strata-rdna3's setup ships nothing is measured"
+  },
+  {
+   "arm": "profile-pancake",
+   "case": "short",
+   "lo": -3.0,
+   "hi": 8.0,
+   "why": "T-194: +6.7% decode on an RTX 3060 against another shipped profile; model- and workload-specific, never measured on a 7900 XT"
+  }
  ],
- "stop": ["an arm whose server dies before ready twice: stop the spec and read the engine log"],
- "note": "Second spec of the RDNA3 benchmark (screen only, then a confirm only for an arm that earns it): the base arm is the updated build with the shipped flags (its table is the 100200 one of Strata-rdna3's setup config, its profile is Strata-rdna3's data/expert-profile.bin); hipblaslt-100401 swaps the tuning table (tools/hip/gfx1100-hipblaslt-100401.txt, T-096), profile-pancake swaps in the learned expert profile of the pancake line (data/expert-profile-pancake.bin, T-194): specific to Qwen3.8-Flash-Next IQ2_XS, measured on another GPU. Neither enters rdna3/recommended-flags until a measured GAIN. Driven by tools/pancake/box_chains/bench-updatedRD.sh, which fills @CONFIG_PLAIN@, @UPDATED@ and @UPDATED_SRC@. NOT MEASURED."
+ "stop": [
+  "an arm whose server dies before ready twice: stop the spec and read the engine log"
+ ],
+ "note": "Second spec of the RDNA3 benchmark: the two remaining settings where the pancake preset and Strata-rdna3 differ (owner rule 2026-11-19: Strata-rdna3's value stays in the updated arm, the pancake value is an arm). updated = the full pancake preset on Strata-rdna3 (as spec 250's updated arm: Strata-rdna3's table gfx1100-hipblaslt-100200.txt and its data/expert-profile.bin); hipblaslt-100401 swaps in the pancake table (tools/hip/gfx1100-hipblaslt-100401.txt, T-096); profile-pancake swaps in the learned profile (data/expert-profile-pancake.bin, T-194, specific to Qwen3.8-Flash-Next IQ2_XS). Driven by tools/pancake/box_chains/bench-updatedRD.sh (fills @CONFIG_PLAIN@, @UPDATED@, @UPDATED_SRC@). NOT MEASURED."
 }
