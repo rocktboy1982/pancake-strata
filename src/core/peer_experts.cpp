@@ -16,7 +16,14 @@
 #include <cstdlib>
 #include <stdexcept>
 #if defined(STRATA_USE_HIP) && defined(__linux__)
+// no RCCL symbol is used in this file; the header is optional (ROCm 10.0 ships librccl.so without headers: pancake benchmark, 2026-11-19)
+#if defined(__has_include)
+#if __has_include(<rccl/rccl.h>)
 #include <rccl/rccl.h>
+#endif
+#else
+#include <rccl/rccl.h>
+#endif
 #include <dlfcn.h>
 #endif
 #include <vector>

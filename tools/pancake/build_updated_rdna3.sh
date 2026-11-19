@@ -70,4 +70,4 @@ if [ $PRINT = 1 ]; then echo "$CM $*"; exit 0; fi
 "$CM" "$@" || { echo "ERROR: configure failed (exit $?)" >&2; exit 1; }
 [ $CONFIGURE_ONLY = 1 ] && exit 0
 # shellcheck disable=SC2086
-nice -n 10 "$CM" --build "$BUILD" -j"$JOBS" --target $TARGETS || { echo "ERROR: build failed (exit $?)" >&2; exit 1; }
+nice -n 10 "$CM" --build "$BUILD" -j"$JOBS" --target $TARGETS -- -k 0 || { echo "ERROR: build failed (exit $?)" >&2; exit 1; }

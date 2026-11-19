@@ -19,11 +19,16 @@
 # with `tar xmf` semantics (mtimes reset, else ninja keeps stale objects); builds go OUTSIDE / to /mnt/pancake/benchRD and stop when it has < 2 GB free; a failed
 # configure / build / missing binary logs ERROR, puts the previous binary back (cp over, nothing removed), and STOPS the chain (never a silent skip); the DONE
 # marker is the last line: WINBENCHRD_DONE (also after an abort).
-# Order: 0 wait | 1 stop service, sync three trees | 2 build plain, build updated | 3 parity ctests | 4 TUNE-UP (<= 30 min): flag_diag.py hardware, pcie_link.py, host_tune.sh
+# Order: 0 wait | 1 stop service, PREREQ, sync three trees | 2 configs + spec, build plain + smoke, build updated + smoke | 3 parity ctests | 4 TUNE-UP (<= 30 min): flag_diag.py hardware, pcie_link.py, host_tune.sh
 #        --check, host_tune_ab.sh plan, os_tune.sh (check; no sudo, nothing applied), flag diagnostics of the updated build (POOL_FUSE_PHASES exact + ctest parity, VERIFY_ECAP
 #        lossy + ctest, PF_F16, RDNA_MMVQ_WAVE exact, KV_HOST_DMA exact; 20 min; the plain build's diagnostics are dropped: its two flags are the updated build's own and are
 #        judged by spec 250; HIPBLASLT_TUNING and EXPERT_PROFILE are dropped from the diagnostics: spec 251 measures exactly those two) | 5 spec 250 screen, decide, confirm |
 #        6 spec 251 screen | 7 recommended-flags file from the verdicts | 8 summary (service stays down under the scheduler).
+# 2026-11-19 PM (first scheduled run aborted at the plain build after 3 minutes, nothing measured): src/core/peer_experts.cpp of Strata-rdna3 (and of updated-strata-rdna3) has
+# `#include <rccl/rccl.h>` under STRATA_USE_HIP on Linux but uses no RCCL symbol; this box's ROCm 10.0 has librccl.so and NO rccl headers.  Now: PREREQ makes an EMPTY stub
+# $PM/rccl-stub/rccl/rccl.h when the ROCm tree has none and the two builds see it through CPLUS_INCLUDE_PATH (no source and no CMake flag of the plain tree changed; the updated
+# tree also guards the include with __has_include); ninja runs with -k 0 so ONE build shows every error; a PREBUILD SMOKE (engine start + one short request of the arm exactly
+# as spec 250 runs it, <= 15 min) follows each build, so a broken build or launch ends the chain with the engine's error line instead of after hours.
 # Verdicts: /home/dan/auto-runs/benchRD-diag-updated/ (verdicts.json, abtest.stdout), benchRD-tuneup/, benchRD-recommended/, benchRD-250-*.jsonl / .stdout.
 # Estimate (minutes, box idle): sync 5, builds 2 x 5-10, ctests 3, tune-up 5 + diagnostics 20, 250 screen 30, 250 confirm 25, 251 screen 15 => about 115 min, worst case 125 (target <= 120).
 S=/home/dan/clone-of-d/src; R=$S/Strata-win; L=$S/bench-updatedRD.log; O=/home/dan/auto-runs; T=$O/benchRD; PM=/mnt/pancake/benchRD
@@ -32,7 +37,9 @@ PLAIN_SRC=$PM/src-plain; UPD_SRC=$PM/src-updated; TOOLS=$PM/src-pancake
 BP=$PM/build-plain; BU=$PM/build-updated; ROCM=/opt/rocm/core-10.0
 DEC=$S/chainT-decide.py; T0=$(date +%s); BUDGET=${BENCH_BUDGET_S:-7200}
 RD_SHA=${RD_SHA:-8b01b0c8512d388552e8601b3aff6753d05286e0}
-export PATH=$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
+NINJA=$S/Strata/.venv/bin/ninja; DATA=/home/dan/clone-of-d/Strata-data; GGML_DIR=/home/dan/clone-of-d/build-int/_deps/strata_llamacpp-src; RCCL_INC=
+# $ROCM/bin first: flag_diag.py reads `rocminfo` through PATH (2026-11-19 13:33: "no AMD graphics card could be read" because it was not on PATH)
+export PATH=$ROCM/bin:$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
 mkdir -p $T $PM $PM/bak
 echo "START $(date +%F_%T)" >> $L
 busy() { pgrep -f "[c]make --build|[n]inja|[c]lang|[c]c1plus|[c]test|[a]btest.py|[t]ask_gate.py|[r]eplay_turns.py|[q]uality_gate.py|[n]ight_queue.py|[s]erve/server.py|[s]trata --serve|[c]onv_trace.py|[a]uto-chain|[a]uto-post|[i]q_avx2_parity|[t]tft_bench.py|[w]in-chain[A-Za-z0-9]*\.sh|[x-z]tail-chain[A-Z]\.sh|[a]fter7" >/dev/null 2>&1; }
@@ -51,6 +58,41 @@ abort() {  # abort MESSAGE: ERROR line + marker, service back, STOP
   say "ERROR $*"; say "WINBENCHRD_ABORTED: $*"
   service_back; say "/ free $(freekb /) KB, /mnt/pancake free $(freekb /mnt/pancake) KB"
   echo WINBENCHRD_DONE >> $L; exit 1
+}
+errline() {  # errline STDOUT_FILE WORKDIR: the first error-looking line of the stdout and the last one of the engine logs / narration of the failed starts (the cause is there)
+  pat='error|fatal|abort|died|failed|needs|cannot|exception|terminate|no such|not found|unrecognized|unknown'
+  a=$(grep -i -m1 -E "$pat" "$1" 2>/dev/null | cut -c1-240); [ -n "$a" ] || a=$(grep -m1 . "$1" 2>/dev/null | cut -c1-240)
+  e=; for f in "$2"/*.engine.log "$2"/*.out; do [ -f "$f" ] || continue; e=$(grep -i -E "$pat" "$f" 2>/dev/null | tail -n 1 | cut -c1-240); [ -n "$e" ] && break; done
+  echo "first error line of the stdout: [$a]; engine log: [$e]"
+}
+prereq() {  # build and launch prerequisites: one ERROR naming every missing file, before anything is downloaded or built; makes the empty rccl stub when ROCm has no rccl header
+  miss=
+  for f in $ROCM/bin/rocminfo $ROCM/bin/hipcc $ROCM/lib/llvm/bin/clang++ $CM $NINJA $ROCM/include/hip/hip_runtime.h $GGML_DIR $S/Strata/pancake-flashnext-iq2_xs-fast-hip.json \
+           $DATA/packs/iq2_xs/tokenizer $DATA/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf \
+           $DATA/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf $DATA/mtp/rt; do
+    [ -e "$f" ] || miss="$miss $f"
+  done
+  [ -z "$miss" ] || abort "PREREQ missing files:$miss"
+  command -v rocminfo >/dev/null 2>&1 || abort "PREREQ rocminfo is not on PATH ($PATH): flag_diag could not read the card"
+  rocminfo 2>/dev/null | grep -q -E "Name: +gfx" || abort "PREREQ rocminfo lists no gfx device (HIP_VISIBLE_DEVICES=$HIP_VISIBLE_DEVICES)"
+  if [ -f $ROCM/include/rccl/rccl.h ]; then say "PREREQ rccl/rccl.h found in ROCm: no stub"
+  else
+    mkdir -p $PM/rccl-stub/rccl && echo "/* empty stub: src/core/peer_experts.cpp only includes this header and uses no RCCL symbol; ROCm 10.0 here ships librccl.so without headers */" > $PM/rccl-stub/rccl/rccl.h \
+      || abort "PREREQ cannot write the rccl stub in $PM/rccl-stub"
+    RCCL_INC=$PM/rccl-stub; say "PREREQ rccl/rccl.h is not in $ROCM/include: an empty stub header dir $RCCL_INC is put on CPLUS_INCLUDE_PATH for both builds (nothing else of the plain build changed)"
+  fi
+  say "PREREQ ok: ROCm tools, compiler, cmake, ninja, llama.cpp checkout, model + pack + mtp files, rocminfo sees a gfx device $(date +%T)"
+}
+smoke() {  # smoke NAME SPEC ARM: PREBUILD SMOKE of one arm exactly as the spec runs it: one engine start + one short request (abtest, confirm tier, 1 rep), limit 900 s
+  nm=$1; sp=$2; arm=$3; sd=$O/benchRD-smoke-$nm; mkdir -p $sd
+  python3 -c 'import json,sys; sp=json.load(open(sys.argv[1])); json.dump({"base": sp["base"], "arms": {"smoke": sp["arms"][sys.argv[2]]}, "cases": ["short"], "reps": 1, "lossy": True, "prefill": False}, open(sys.argv[3], "w"), indent=1)' \
+    $sp $arm $sd/spec.json || abort "smoke $nm: the smoke spec could not be made from $sp (arm $arm)"
+  rm -f $sd/smoke.jsonl
+  say "START smoke $nm $(date +%F_%T) (engine start + one short request, limit 900 s)"
+  ( cd $TOOLS && timeout 900 python3 tools/pancake/abtest.py $sd/spec.json --tier confirm --reps 1 --retries 0 --no-early-stop --out $sd/smoke.jsonl ) > $sd/smoke.stdout 2>&1; rc=$?
+  say "END smoke $nm exit=$rc $(date +%T)"
+  grep -q '"decode_tps"' $sd/smoke.jsonl 2>/dev/null || abort "smoke $nm FAILED exit=$rc (log $sd/smoke.stdout): $(errline $sd/smoke.stdout $sd/smoke)"
+  say "SMOKE $nm ok: $(grep -o -m1 '"decode_tps": [0-9.]*' $sd/smoke.jsonl | head -n 1) tok/s on one short request"
 }
 fetch() {  # fetch REPO REF DEST: codeload tarball of a GitHub repo at a ref (a branch name is resolved to its commit first), unpacked with mtimes reset
   repo=$1; ref=$2; dest=$3
@@ -86,6 +128,7 @@ ab() {  # ab SPEC PREFIX flags...: abtest from the pancake tools tree, one engin
   say "START $pfx $(date +%F_%T)"
   ( cd $TOOLS && python3 tools/pancake/abtest.py $sp "$@" --out $O/benchRD-$pfx.jsonl ) > $O/benchRD-$pfx.stdout 2>&1; rc=$?
   say "END $pfx exit=$rc $(date +%T)"
+  [ $rc -eq 0 ] || say "ERROR $pfx exit=$rc: $(errline $O/benchRD-$pfx.stdout $O/benchRD-$pfx)"
   return $rc
 }
 
@@ -102,6 +145,7 @@ echo 1 | sudo -n tee /proc/sys/vm/compact_memory >/dev/null
 wait_idle
 say "SYNC start $(date +%T) df / = $(freekb /) KB, /mnt/pancake = $(freekb /mnt/pancake) KB"
 [ "$(freekb /mnt/pancake)" -ge 2097152 ] || abort "SYNC: /mnt/pancake has < 2 GB free"
+prereq
 fetch nicejunjie/Strata-rdna3 $RD_SHA $PLAIN_SRC
 fetch rocktboy1982/pancake-strata updated-strata-rdna3 $UPD_SRC
 fetch rocktboy1982/pancake-strata port/rdna3-decode $TOOLS
@@ -110,25 +154,28 @@ fetch rocktboy1982/pancake-strata port/rdna3-decode $TOOLS
 SPEC=$TOOLS/bench/specs/250-rdna3-updated-vs-plain.json
 [ -f $SPEC ] || abort "SYNC: $SPEC is missing"
 
-# ------------------------------------------------------------------ 1. builds
-NINJA=$S/Strata/.venv/bin/ninja
+# ------------------------------------------------------------------ 1. the two server configs and the spec (made first: the prebuild smokes use them), then the builds, a smoke after each
+python3 $UPD_SRC/tools/pancake/box_chains/bench_updatedRD_conf.py $S/Strata/pancake-flashnext-iq2_xs-fast-hip.json $PLAIN_SRC $UPD_SRC $BP $BU \
+    $T/config-plain.json $T/config-updated.json >> $L 2>&1 || abort "CONFIG: bench_updatedRD_conf.py failed"
+say "CONFIG written: $T/config-plain.json $T/config-updated.json"
+
+sed "s#@PLAIN@#$BP#; s#@UPDATED@#$BU#; s#@CONFIG_PLAIN@#$T/config-plain.json#" $SPEC > $T/250.json
 wait_idle
-build plain $BP sh -c "HIP_PLATFORM=amd ROCM_PATH=$ROCM HIP_PATH=$ROCM $CM -S $PLAIN_SRC -B $BP -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTRATA_ENABLE_HIP=ON \
+# the plain tree is built as its README says (Manual build) plus what this box needs: ROCm / ninja / the offline llama.cpp checkout, and the empty rccl stub on CPLUS_INCLUDE_PATH
+# (RCCL_INC is empty when ROCm has the header); ninja -k 0 keeps going after a failure so that the log shows every error
+build plain $BP sh -c "${RCCL_INC:+export CPLUS_INCLUDE_PATH=$RCCL_INC; }HIP_PLATFORM=amd ROCM_PATH=$ROCM HIP_PATH=$ROCM $CM -S $PLAIN_SRC -B $BP -G Ninja -DCMAKE_BUILD_TYPE=Release -DSTRATA_ENABLE_HIP=ON \
   -DSTRATA_ENABLE_CUDA=OFF -DSTRATA_PREFILL_MMQ=ON -DSTRATA_MMQ_KQUANTS=ON -DCMAKE_HIP_ARCHITECTURES=gfx1100 -DCMAKE_HIP_COMPILER=$ROCM/lib/llvm/bin/clang++ \
-  -DCMAKE_PREFIX_PATH=$ROCM -DSTRATA_GGML_DIR=/home/dan/clone-of-d/build-int/_deps/strata_llamacpp-src -DCMAKE_MAKE_PROGRAM=$NINJA && \
-  nice -n 10 $CM --build $BP -j8 --target strata"
-build updated $BU sh $UPD_SRC/tools/pancake/build_updated_rdna3.sh $UPD_SRC $BU --target strata --target verify_ecap_test --target sampler_parity --target elementwise_parity
+  -DCMAKE_PREFIX_PATH=$ROCM -DSTRATA_GGML_DIR=$GGML_DIR -DCMAKE_MAKE_PROGRAM=$NINJA && \
+  nice -n 10 $CM --build $BP -j8 --target strata -- -k 0"
+smoke plain $T/250.json plain
+build updated $BU env ${RCCL_INC:+CPLUS_INCLUDE_PATH=$RCCL_INC} sh $UPD_SRC/tools/pancake/build_updated_rdna3.sh $UPD_SRC $BU --target strata --target verify_ecap_test --target sampler_parity --target elementwise_parity
+smoke updated $T/250.json updated
 
 # ------------------------------------------------------------------ 2. parity ctests of the updated build (a failure is reported, it does not hide the benchmark)
 wait_idle; say "START ctest $(date +%T)"
 ctest --test-dir $BU -R "verify_ecap_test|sampler_parity|elementwise_parity" --output-on-failure > $T/ctest.out 2>&1; rc=$?
 say "END ctest exit=$rc $(date +%T)"
 if [ $rc -ne 0 ]; then say "ERROR ctest of the updated build exit=$rc (see $T/ctest.out); the benchmark goes on"; tail -n 15 $T/ctest.out >> $L; fi
-
-# ------------------------------------------------------------------ 3. the two server configs (the box's filled-in preset, args and env made to fit Strata-rdna3)
-python3 $UPD_SRC/tools/pancake/box_chains/bench_updatedRD_conf.py $S/Strata/pancake-flashnext-iq2_xs-fast-hip.json $PLAIN_SRC $UPD_SRC $BP $BU \
-    $T/config-plain.json $T/config-updated.json >> $L 2>&1 || abort "CONFIG: bench_updatedRD_conf.py failed"
-say "CONFIG written: $T/config-plain.json $T/config-updated.json"
 
 # ------------------------------------------------------------------ 4. TUNE-UP (<= 30 min, read-only): hardware, PCIe link, host tuning checks, flag diagnostics of the updated build
 tuneup_checks() {  # sysfs / proc reads only: no sudo, no sysctl write, nothing applied (`os_tune.sh` without argument is its check; `host_tune_ab.sh plan` prints the order)
@@ -146,7 +193,7 @@ diag() {  # diag NAME CONFIG FLAGS [CTEST_DIR]: one abtest screen of the base an
       ${ct:+--ctest $ct} ) > $O/benchRD-diag-$nm.stdout 2>&1; rc=$?
   say "END diag-$nm exit=$rc $(date +%T)"
   cut -c1-200 $O/benchRD-diag-$nm.stdout >> $L
-  [ -f $O/benchRD-diag-$nm/verdicts.json ] || say "ERROR diag-$nm wrote no verdicts.json (the benchmark goes on)"
+  [ -f $O/benchRD-diag-$nm/verdicts.json ] || say "ERROR diag-$nm wrote no verdicts.json: $(grep -m1 . $O/benchRD-diag-$nm.stdout 2>/dev/null | cut -c1-240) (log $O/benchRD-diag-$nm.stdout; the benchmark goes on)"
   return $rc
 }
 tuneup_checks
@@ -162,7 +209,6 @@ decide() {  # decide NAME SPEC [CASES_JSON]: 0 and ${T}/NAME-confirm.json when a
   python3 -c 'import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["cases"]=json.loads(sys.argv[2]); d["drift_check"]=False; json.dump(d,open(p,"w"),indent=1)' $T/$1-confirm.json "${3:-[\"short\",\"edit\"]}"
   return 0
 }
-sed "s#@PLAIN@#$BP#; s#@UPDATED@#$BU#; s#@CONFIG_PLAIN@#$T/config-plain.json#" $SPEC > $T/250.json
 wait_idle
 ab $T/250.json 250-screen --tier screen --drift-check; rc1=$?
 grep -E "vs base|identical|DIFFERENT" $O/benchRD-250-screen.stdout | cut -c1-200 >> $L
