@@ -69,6 +69,16 @@ if name == "abtest.py":
     spec = json.load(open(args[1]))
     arms = list(spec["arms"])
     out = opt("--out")
+    die = [d for d in os.environ.get("STUB_DIE", "").split(",") if d]
+    if any(d in joined for d in die):      # the real abtest: "server died before ready", the cause only in the engine log of the attempt
+        wd = out.rsplit(".", 1)[0]; os.makedirs(wd, exist_ok=True)
+        open(wd + "/" + arms[0] + "-r0-a0.engine.log", "w").write("[strata] engine started: x --serve\nstrata generate: memory guard: ok\n"
+            "strata generate: /p/iq2_xs is a native (IQ) pack: it needs --native SHARD1, --spec T (T >= 2) and --prefill CHUNK\n")
+        print("rep 0 " + arms[0] + ": FAILED (server died before ready)")
+        print("ABORT: the server died twice before ready (fix the machine first)")
+        sys.exit(2)
+    if out:
+        open(out, "a").write(json.dumps({"arm": arms[0], "rows": [{"case": "short", "decode_tps": 12.5, "prompt_tps": 100.0}]}) + "\n")
     print("abtest stub", joined)
     for case in ("c1", "c2"):
         for i, arm in enumerate(arms):
@@ -186,6 +196,13 @@ class Box:
         for t in ["strata", "vmm_test"] + PROBES:
             (B / t).write_text("#!/bin/sh\nexit 0\n", newline="\n")
         (H / "mnt").mkdir()
+        for rel in ("rocm/bin/rocminfo", "rocm/bin/hipcc", "rocm/lib/llvm/bin/clang++", "rocm/include/hip/hip_runtime.h",
+                    "clone-of-d/src/Strata/.venv/bin/ninja", "clone-of-d/Strata-data/packs/iq2_xs/tokenizer",
+                    "clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf",
+                    "clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf",
+                    "clone-of-d/Strata-data/mtp/rt", "clone-of-d/build-int/_deps/strata_llamacpp-src/x"):
+            (H / rel).parent.mkdir(parents=True, exist_ok=True)
+            (H / rel).write_text('#!/bin/sh\n[ "$ROCMINFO_EMPTY" = 1 ] || echo "  Name:                    gfx1100"\n' if rel.endswith("rocminfo") else "#!/bin/sh\nexit 0\n", newline="\n")
         (H / "clone-of-d" / "models" / "qwen36-UD-Q4_K_XL").mkdir(parents=True)
         (H / "clone-of-d" / "models" / "qwen36-UD-Q4_K_XL" / "Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf").write_text("x")
         (H / "auto-runs" / "win16-conv").mkdir(parents=True)
@@ -844,7 +861,8 @@ def test_redo_aa_name_is_invisible_to_every_busy_pattern_and_sees_the_others(tmp
 BU = "bench-updatedAA.sh"
 FLAG_DIAG_STUB = r'''#!/bin/sh
 case "$1" in
-  run) mkdir -p "$3"; echo "{\"verdicts\": []}" > "$3/verdicts.json"; echo "GAIN STRATA_RDNA_Q6K"; echo "15.0 minutes; verdicts in $3/verdicts.json" ;;
+  run) [ "$FD_EMPTY" = 1 ] && { echo "flag_diag: no AMD graphics card could be read (rocminfo / sysfs)"; exit 1; }
+       mkdir -p "$3"; echo "{\"verdicts\": []}" > "$3/verdicts.json"; echo "GAIN STRATA_RDNA_Q6K"; echo "15.0 minutes; verdicts in $3/verdicts.json" ;;
   hw) echo "{\"gfx\": \"gfx1100\"}" ;;
   --write-recommended) echo "{\"schema\": \"strata.tuned-flags/1\", \"profiles\": []}" > "$3"; echo "wrote $3" ;;
 esac
@@ -892,9 +910,11 @@ def test_bench_updated_waits_for_chain_aa_then_runs_the_ordered_flow(tmp_path):
     assert_service_discipline(box)
     for must in ("SYNC harness: origin port/rdna3-decode abc123", "BUILD_END plain upstream exit=0", "BUILD_END updated-strata exit=0",
                  "START diag plain", "START diag updated", "START 220-screen", "START 220-confirm", "START 221-screen", "START 221-confirm",
-                 "TUNEUP pcie_link", "TUNEUP host_tune --check", "TUNEUP host_tune_ab plan", "TUNEUP os_tune check", "SUMMARY spec220 exit=0, spec221 exit=0"):
+                 "TUNEUP pcie_link", "TUNEUP host_tune --check", "TUNEUP host_tune_ab plan", "TUNEUP os_tune check", "SUMMARY spec220 exit=0, spec221 exit=0",
+                 "PREREQ ok", "START smoke plain", "SMOKE plain ok", "START smoke updated", "SMOKE updated ok"):
         assert must in text, must
-    order = ["chain AA is done", "service stopped", "SYNC harness", "BUILD_END plain upstream", "BUILD_END updated-strata", "START diag plain",
+    order = ["chain AA is done", "service stopped", "PREREQ ok", "SYNC harness", "BUILD_END plain upstream", "START smoke plain", "SMOKE plain ok",
+             "BUILD updated-strata", "BUILD_END updated-strata", "START smoke updated", "SMOKE updated ok", "START diag plain",
              "START diag updated", "START 220-screen", "START 220-confirm", "START 221-screen", "SUMMARY"]
     pos = [text.index(k) for k in order]
     assert pos == sorted(pos), order
@@ -902,7 +922,12 @@ def test_bench_updated_waits_for_chain_aa_then_runs_the_ordered_flow(tmp_path):
     cm = [c for c in calls if c.startswith("cmake") and "-S" in c]
     assert cm and all((box.h + "/mnt/benchus") in c for c in cm), cm        # nothing is built on /
     assert "-DCMAKE_HIP_ARCHITECTURES=gfx1100" in cm[0] and "STRATA_BUILD_TESTS" not in cm[0]   # the plain build: only the documented flags
-    ab = [c for c in calls if c.startswith("PY") and "abtest.py" in c]
+    smokes = [c for c in calls if c.startswith("PY") and "abtest.py" in c and "smoke-" in c]
+    assert len(smokes) == 2 and all("--tier confirm" in c and "--reps 1" in c and "--retries 0" in c for c in smokes), smokes   # the prebuild smokes: one start, one request
+    sp = json.loads((box.tmp / "auto-runs" / "winbenchus" / "smoke-updated" / "spec.json").read_text())
+    assert sp["cases"] == ["short"] and sp["reps"] == 1 and list(sp["arms"]) == ["smoke"] and "STRATA_GR_RDNA" in sp["arms"]["smoke"]["env"]   # the benchmark's own updated arm
+    assert json.loads((box.tmp / "auto-runs" / "winbenchus" / "smoke-plain" / "spec.json").read_text())["arms"]["smoke"]["exe"].endswith("build-up/strata")
+    ab = [c for c in calls if c.startswith("PY") and "abtest.py" in c and "smoke-" not in c]
     assert len(ab) == 4, ab                                                   # 220 screen, 220 confirm, 221 screen, 221 confirm
     assert "220-updated-vs-upstream-short.json" in ab[0] and "--tier screen" in ab[0] and "--drift-check" in ab[0]
     assert "220-confirm.json" in ab[1] and "--tier confirm" in ab[1] and "--reps 3" in ab[1] and "--block 3" in ab[1] and "--no-early-stop" in ab[1]
@@ -968,6 +993,88 @@ def test_bench_updated_stops_when_a_download_fails(tmp_path):
     assert_service_discipline(box)
 
 
+def test_bench_updated_prereq_names_every_missing_file_before_anything_is_downloaded(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box)
+    (box.tmp / "clone-of-d" / "Strata-data" / "mtp" / "rt").unlink()
+    (box.tmp / "rocm" / "bin" / "rocminfo").unlink()
+    box.finish(box.start(BU))
+    lines = box.log("bench-updatedAA.log")
+    err = [l for l in lines if l.startswith("ERROR PREREQ missing files:")]
+    assert err and "mtp/rt" in err[0] and "rocm/bin/rocminfo" in err[0], lines
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHUS_DONE" and "SYNC" not in text and "BUILD" not in text, text
+    assert_service_discipline(box)
+
+
+def test_bench_updated_prereq_stops_when_rocminfo_sees_no_gpu(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box)
+    box.finish(box.start(BU, env={"ROCMINFO_EMPTY": "1"}))
+    lines = box.log("bench-updatedAA.log")
+    assert any(l.startswith("ERROR PREREQ rocminfo lists no gfx device") for l in lines), lines
+    assert lines[-1] == "WINBENCHUS_DONE" and "BUILD" not in "\n".join(lines)
+
+
+def test_bench_updated_puts_rocm_bin_first_on_path(tmp_path):
+    """The 13:33 failure: flag_diag.py runs `rocminfo` through PATH and the chain's PATH had no ROCm bin."""
+    text = (CHAINS / BU).read_text()
+    assert "export PATH=$ROCM/bin:" in text
+    assert "export PATH=$ROCM/bin:" in (CHAINS / BD).read_text()
+
+
+def test_bench_updated_smoke_failure_stops_within_the_prebuild_phase_with_the_engine_error(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box)
+    box.finish(box.start(BU, env={"STUB_DIE": "smoke-plain"}))
+    lines = box.log("bench-updatedAA.log")
+    text = "\n".join(lines)
+    err = [l for l in lines if l.startswith("ERROR smoke plain FAILED exit=2")]
+    assert err, lines
+    assert "server died before ready" in err[0] and "it needs --native SHARD1, --spec T (T >= 2) and --prefill CHUNK" in err[0], err[0]   # stdout line + the engine's own line
+    assert lines[-1] == "WINBENCHUS_DONE" and any(l.startswith("WINBENCHUS_ABORTED") for l in lines[-4:])
+    for never in ("BUILD updated-strata", "START diag", "START 220", "START 221", "SMOKE plain ok"):
+        assert never not in text, never
+    assert_start_end_pairs(lines)
+    assert_service_discipline(box)
+
+
+def test_bench_updated_smoke_of_the_updated_build_stops_before_diagnostics(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box)
+    box.finish(box.start(BU, env={"STUB_DIE": "smoke-updated"}))
+    lines = box.log("bench-updatedAA.log")
+    text = "\n".join(lines)
+    assert "SMOKE plain ok" in text and any(l.startswith("ERROR smoke updated FAILED") for l in lines), lines
+    for never in ("START diag", "START 220", "BUILD sizes"):
+        assert never not in text, never
+    assert lines[-1] == "WINBENCHUS_DONE"
+
+
+def test_bench_updated_empty_verdicts_is_an_error_with_the_underlying_message(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box)
+    box.finish(box.start(BU, env={"FD_EMPTY": "1"}))
+    lines = box.log("bench-updatedAA.log")
+    err = [l for l in lines if l.startswith("ERROR diag plain wrote no verdicts.json")]
+    assert err and "flag_diag: no AMD graphics card could be read" in err[0], lines
+    assert any(l.startswith("ERROR diag updated wrote no verdicts.json") for l in lines)
+    assert lines[-1] == "WINBENCHUS_DONE" and "START 220-screen" in "\n".join(lines)     # the diagnostics are a cheap first step: the benchmark goes on
+
+
+def test_bench_updated_screen_exit_2_logs_the_first_error_lines(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box)
+    box.finish(box.start(BU, env={"STUB_DIE": "220-updated-vs-upstream-short.json"}))
+    lines = box.log("bench-updatedAA.log")
+    err = [l for l in lines if l.startswith("ERROR 220-screen exit=2:")]
+    assert err, lines
+    assert "first error line of the stdout: [rep 0 plain-upstream: FAILED (server died before ready)]" in err[0], err[0]
+    assert "it needs --native SHARD1" in err[0], err[0]                 # the engine log of the failed start says why
+    assert any(l.startswith("ERROR spec 220 screen exit=2") for l in lines)
+    assert "START 221-screen" in "\n".join(lines) and lines[-1] == "WINBENCHUS_DONE"
+
+
 def test_bench_updated_name_is_invisible_to_every_busy_pattern_and_sees_the_others(tmp_path):
     box = Box(tmp_path)
     assert "win-chain" not in BU
@@ -993,11 +1100,15 @@ def test_updated_vs_upstream_specs_match_the_preset():
         base = {plain["args"][i]: plain["args"][i + 1] for i in range(0, len(plain["args"]), 2)}
         assert arm["args"] == {k: v for k, v in got.items() if k not in base}
     assert plain["env"] == {}
+    pa = plain["args"]
+    flags = {pa[i]: pa[i + 1] for i in range(0, len(pa), 2)}
+    # v0.2.16: "a native (IQ) pack needs --native SHARD1, --spec T (T >= 2) and --prefill CHUNK" (generate.cpp): without them the engine exits at once
+    assert int(flags["--spec"]) >= 2 and flags["--prefill"] and flags["--native"].endswith(".gguf")
 
 
 # ------------------------------------------------------------------------------------------------ bench-updatedRD.sh
 BD = "bench-updatedRD.sh"
-CMAKE_ALL_TARGETS = ('echo "cmake $*" >> "$H/calls.log"\n'
+CMAKE_ALL_TARGETS = ('echo "cmake $*" >> "$H/calls.log"; echo "CPI $CPLUS_INCLUDE_PATH" >> "$H/calls.log"\n'
                      'b=; mode=; bm=; ts=; while [ $# -gt 0 ]; do case $1 in --build) b=$2; bm=1;; -B) b=$2;; --target) mode=t;; '
                      '-*) ;; *) [ "$mode" = t ] && ts="$ts $1";; esac; shift; done\n'
                      '[ "$CMAKE_FAIL" = 1 ] && case "$ts" in *strata*) rm -f "$b/strata"; exit 1;; esac\n'
@@ -1053,7 +1164,8 @@ def test_bd_waits_for_both_markers_then_runs_in_the_ordered_flow(tmp_path):
                  "END ctest exit=0", "CONFIG written", "START diag-updated", "START 250-screen", "START 250-confirm", "START 251-screen", "START 251-confirm",
                  "TUNEUP pcie_link", "TUNEUP os_tune check", "wrote"):
         assert must in text, must
-    order = ["BUILD_END plain exit=0", "BUILD_END updated exit=0", "START ctest", "CONFIG written", "TUNEUP pcie_link", "START diag-updated",
+    order = ["PREREQ ok", "CONFIG written", "BUILD plain", "BUILD_END plain exit=0", "START smoke plain", "SMOKE plain ok", "BUILD updated", "BUILD_END updated exit=0",
+             "START smoke updated", "SMOKE updated ok", "START ctest", "TUNEUP pcie_link", "START diag-updated",
              "START 250-screen", "START 250-confirm", "START 251-screen", "SUMMARY"]
     pos = [text.index(k) for k in order]
     assert pos == sorted(pos), order
@@ -1067,6 +1179,13 @@ def test_bd_waits_for_both_markers_then_runs_in_the_ordered_flow(tmp_path):
     assert (box.tmp / "auto-runs" / "benchRD-recommended" / "gfx1100.json").exists()
     assert not any("diag-plain" in c for c in calls)
     assert any(c.startswith("cmake") and "benchRD/build-plain" in c for c in calls)
+    stub = box.h + "/mnt/benchRD/rccl-stub"
+    assert (box.tmp / "mnt" / "benchRD" / "rccl-stub" / "rccl" / "rccl.h").exists() and "PREREQ rccl/rccl.h is not in" in text
+    cpi = [c for c in calls if c.startswith("CPI ")]
+    assert cpi and all(c == "CPI " + stub for c in cpi), cpi            # every cmake of both builds saw the stub dir (the plain tree's source and CMake flags are untouched)
+    assert any("--" in c and c.endswith("-k 0") for c in calls if c.startswith("cmake --build")), "ninja -k 0: one build shows every error"
+    smk = [c for c in calls if c.startswith("PY") and "abtest.py" in c and "benchRD-smoke-" in c]
+    assert len(smk) == 2 and all("--reps 1" in c and "--retries 0" in c for c in smk), smk
     spec = (box.tmp / "auto-runs" / "benchRD" / "250.json").read_text()
     assert "@PLAIN@" not in spec and "@UPDATED@" not in spec and "build-plain/strata" in spec and "build-updated/strata" in spec
     assert str(box.tmp / "mnt") in spec or "/mnt/" in spec, "arms point at /mnt/pancake builds"
@@ -1089,7 +1208,7 @@ def test_bd_failed_build_restores_the_binary_logs_error_and_stops(tmp_path):
     assert any(l.startswith("ERROR BUILD plain FAILED") for l in lines)
     assert lines[-1] == "WINBENCHRD_DONE" and any(l.startswith("WINBENCHRD_ABORTED") for l in lines[-4:]) and any(l.startswith("service started") for l in lines[-3:])
     assert (bp / "strata").read_text() == before
-    for never in ("BUILD_END updated", "START ctest", "START diag", "START 250", "CONFIG written"):
+    for never in ("BUILD_END updated", "START ctest", "START diag", "START 250", "START smoke"):
         assert never not in text, never
     assert_service_discipline(box)
 
@@ -1113,6 +1232,81 @@ def test_bd_stops_with_error_when_a_download_fails(tmp_path):
     assert any(l.startswith("ERROR SYNC: download of") for l in lines) and lines[-1] == "WINBENCHRD_DONE"
     assert "BUILD" not in "\n".join(lines)
     assert_service_discipline(box)
+
+
+def test_bd_prereq_names_every_missing_file_before_anything_is_downloaded(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    (box.tmp / "clone-of-d" / "build-int" / "_deps" / "strata_llamacpp-src" / "x").unlink()
+    (box.tmp / "clone-of-d" / "build-int" / "_deps" / "strata_llamacpp-src").rmdir()
+    (box.tmp / "clone-of-d" / "Strata-data" / "packs" / "iq2_xs" / "tokenizer").unlink()
+    box.finish(box.start(BD))
+    lines = box.log("bench-updatedRD.log")
+    err = [l for l in lines if l.startswith("ERROR PREREQ missing files:")]
+    assert err and "strata_llamacpp-src" in err[0] and "iq2_xs/tokenizer" in err[0], lines
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHRD_DONE" and "SYNC nicejunjie" not in text and "BUILD" not in text
+    assert_service_discipline(box)
+
+
+def test_bd_no_rccl_stub_when_rocm_has_the_header(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    (box.tmp / "rocm" / "include" / "rccl").mkdir(parents=True)
+    (box.tmp / "rocm" / "include" / "rccl" / "rccl.h").write_text("/* real */\n")
+    box.finish(box.start(BD))
+    lines = box.log("bench-updatedRD.log")
+    assert "PREREQ rccl/rccl.h found in ROCm: no stub" in lines and lines[-1] == "WINBENCHRD_DONE" and "ERROR" not in "\n".join(lines)
+    assert not (box.tmp / "mnt" / "benchRD" / "rccl-stub").exists()
+    assert all(c == "CPI " for c in box.calls() if c.startswith("CPI ")), "CPLUS_INCLUDE_PATH stays empty when the header exists"
+
+
+def test_bd_smoke_failure_stops_before_the_updated_build_with_the_engine_error(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    box.finish(box.start(BD, env={"STUB_DIE": "benchRD-smoke-plain"}))
+    lines = box.log("bench-updatedRD.log")
+    text = "\n".join(lines)
+    err = [l for l in lines if l.startswith("ERROR smoke plain FAILED exit=2")]
+    assert err and "server died before ready" in err[0] and "it needs --native SHARD1" in err[0], lines
+    assert lines[-1] == "WINBENCHRD_DONE" and any(l.startswith("WINBENCHRD_ABORTED") for l in lines[-4:])
+    for never in ("BUILD updated", "START ctest", "START diag", "START 250", "SMOKE plain ok"):
+        assert never not in text, never
+    assert_start_end_pairs(lines)
+    assert_service_discipline(box)
+
+
+def test_bd_smoke_of_the_updated_build_stops_before_ctest(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    box.finish(box.start(BD, env={"STUB_DIE": "benchRD-smoke-updated"}))
+    lines = box.log("bench-updatedRD.log")
+    text = "\n".join(lines)
+    assert "SMOKE plain ok" in text and any(l.startswith("ERROR smoke updated FAILED") for l in lines)
+    for never in ("START ctest", "START diag", "START 250"):
+        assert never not in text, never
+    assert lines[-1] == "WINBENCHRD_DONE"
+
+
+def test_bd_empty_verdicts_and_screen_exit_2_log_the_underlying_message(tmp_path):
+    box = Box(tmp_path)
+    prepare_bd(box)
+    box.finish(box.start(BD, env={"STUB_DIE": "benchRD/250.json"}))
+    lines = box.log("bench-updatedRD.log")
+    err = [l for l in lines if l.startswith("ERROR 250-screen exit=2:")]
+    assert err and "first error line of the stdout: [rep 0 plain: FAILED (server died before ready)]" in err[0] and "it needs --native SHARD1" in err[0], lines
+    assert any(l.startswith("ERROR spec 250 screen exit=2") for l in lines) and lines[-1] == "WINBENCHRD_DONE"
+
+
+def test_peer_experts_rccl_include_is_optional_when_the_file_has_it():
+    """Strata-rdna3's peer_experts.cpp includes <rccl/rccl.h> without using it; this box's ROCm has no rccl headers (the plain build failed on it)."""
+    f = HERE.parents[1] / "src" / "core" / "peer_experts.cpp"
+    if not f.exists():
+        pytest.skip("no src/core/peer_experts.cpp in this branch")
+    txt = f.read_text()
+    if "#include <rccl/rccl.h>" in txt:
+        assert "__has_include(<rccl/rccl.h>)" in txt
+    assert not re.search(r"\b(nccl|rccl)[A-Z]\w*\(", txt), "the include is optional only while no RCCL function is called"
 
 
 def test_bd_name_is_invisible_to_every_busy_pattern_and_sees_the_others(tmp_path):
@@ -1358,7 +1552,7 @@ def test_bench_us_no_confirm_for_an_arm_without_a_screen_benefit(tmp_path):
     box.finish(box.start(BU, env={"STUB_GAIN": "100"}))
     lines = box.log("bench-updatedAA.log")
     text = "\n".join(lines)
-    ab = [c for c in box.calls() if c.startswith("PY") and "abtest.py" in c]
+    ab = [c for c in box.calls() if c.startswith("PY") and "abtest.py" in c and "smoke-" not in c]
     assert len(ab) == 2 and all("--tier screen" in c for c in ab), ab
     assert "220: no arm with a benefit in the screen: no confirm" in text and "221: no arm with a benefit in the screen: no confirm" in text
     assert lines[-1] == "WINBENCHUS_DONE" and "ERROR" not in text
@@ -1370,7 +1564,7 @@ def test_bench_us_budget_over_skips_the_optional_confirms(tmp_path):
     box.finish(box.start(BU, env={"BENCH_BUDGET_S": "100"}))
     lines = box.log("bench-updatedAA.log")
     text = "\n".join(lines)
-    ab = [c for c in box.calls() if c.startswith("PY") and "abtest.py" in c]
+    ab = [c for c in box.calls() if c.startswith("PY") and "abtest.py" in c and "smoke-" not in c]
     assert len(ab) == 2 and "SKIP 220 confirm: only" in text and "221 confirm not run: only" in text
     assert lines[-1] == "WINBENCHUS_DONE" and "SUMMARY spec220 exit=0, spec221 exit=0" in text
 

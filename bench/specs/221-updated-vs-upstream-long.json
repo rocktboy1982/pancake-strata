@@ -18,12 +18,6 @@
    "exe": "/mnt/pancake/benchus/build-us/strata",
    "args": {
     "--expert-profile": "<REPO>/data/expert-profile-pancake.bin",
-    "--expert-cache": "auto",
-    "--prefill": "auto",
-    "--spec": "4",
-    "--spec-min-p": "0.5",
-    "--kv": "int8",
-    "--kv-resident": "32768",
     "--adapt-swaps": "32",
     "--pool-affinity": "measure",
     "--pcie-frac": "0",
