@@ -227,6 +227,8 @@ miss.
 
 **THIRD RD ATTEMPT FAILED, FIXED (2026-11-19 16:11-16:15, T-981):** the plain Strata-rdna3 build now passes (the rccl stub works), but the plain prebuild smoke failed: abtest.py starts the server with the python of its own tree's .venv, and the downloaded harness tree on /mnt/pancake has none. abtest.py now takes the server python from ABTEST_PYTHON; the RD chain runs the harness with the box's existing Strata-win venv python and checks right after the sync (before any build) that it imports the server. Nothing was measured. RD re-run with `bench-updatedRD.v5.sh` (scheduler RD only, AA stays frozen) after the diag-only US rerun.
 
+**FIRST EXACT RUN FAILED, FIXED (2026-11-19 16:41-16:45, T-982):** the exact chain's US steps (spec 222 screen, US quality gate, spec 223 screen) all failed in seconds with the same missing-.venv cause as T-981 (its downloaded harness has no .venv); its RD part was skipped because the RD updated build did not exist yet. bench-exact.sh now runs abtest and quality_gate with the Strata-win venv python (ABTEST_PYTHON) and checks the import right after the harness sync. Nothing was measured. Re-run with `bench-exact.v2.sh` after the RD re-run.
+
 1. **DONE: chain 6** (`WINCHAIN6_DONE` 2026-11-16 20:44, pancake.service started again) `/home/dan/clone-of-d/src/win-chain6.sh` (started 2026-11-16 10:51; log
    `/home/dan/clone-of-d/src/win-chain6.log`, results `/home/dan/auto-runs/win6-<spec>.jsonl`; waits 3 idle minutes before every
    step, starts pancake.service at the end, then writes `WINCHAIN6_DONE`). Done: builds and ctest cpu 175/175, gpu 154/154 (T-603);

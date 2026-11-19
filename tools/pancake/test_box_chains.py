@@ -1948,9 +1948,19 @@ def prepare_be(box, us=True, rd=True, follow=False):
                 "bench/specs/252-rdna3-updated-exact.json", "configs/pancake/flashnext-iq2_xs-plain-upstream.json"):
         (pkg / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(root / rel, pkg / rel)
-    for rel in ("tools/pancake/abtest.py", "tools/pancake/quality_gate.py", "tools/force_check.py", "bench/quality/set-v2.json"):
+    for rel in ("tools/pancake/abtest.py", "tools/pancake/quality_gate.py", "tools/force_check.py", "bench/quality/set-v2.json", "serve/__init__.py",
+                "serve/server.py"):
         (pkg / rel).parent.mkdir(parents=True, exist_ok=True)
-        (pkg / rel).write_text("# stub\n")
+        (pkg / rel).write_text("# stub: PY = os.environ.get(\"ABTEST_PYTHON\") or ...\n" if rel.endswith("abtest.py") else "# stub\n")
+    # the box's existing venv python (Strata-win/.venv/bin/python, T-982): logs each call with the ABTEST_PYTHON it hands on, answers the serve.server
+    # import check from the cwd's tree (HARNESS_NO_DEPS=1: a venv without the server's deps), then behaves as the python3 stub of this chain
+    hp = box.R / ".venv" / "bin" / "python"
+    hp.parent.mkdir(parents=True, exist_ok=True)
+    hp.write_text('#!/bin/sh\necho "HARNESS ABTEST_PYTHON=$ABTEST_PYTHON $*" >> "$H/calls.log"\n'
+                  'case "$*" in *"import serve.server"*)\n'
+                  '  [ "$HARNESS_NO_DEPS" = 1 ] && { echo "ModuleNotFoundError: No module named \'jinja2\'" >&2; exit 1; }\n'
+                  '  [ -f serve/server.py ] || { echo "ModuleNotFoundError: No module named \'serve\'" >&2; exit 1; }; exit 0 ;;\nesac\n' + BE_PY, newline="\n")
+    hp.chmod(0o755)
     (box.tmp / "fake-src.tgz").unlink()
     subprocess.run(["tar", "czf", (box.tmp / "fake-src.tgz").as_posix(), "-C", (box.tmp / "be-src").as_posix(), "x"], check=True)
     exe = "#!/bin/sh\nexit 0\n"
@@ -2010,6 +2020,43 @@ def test_bench_exact_full_flow_order_gate_invocation_and_markers(tmp_path):
     assert sum(1 for c in box.calls() if c.startswith("SETSID")) == 5                     # every long step in its own session
     assert not any(c.startswith("SIG") or c.startswith("REAP") for c in box.calls())     # AA is never signalled, nothing to reap
     assert not any(c.startswith("SYSTEMCTL") and (" start " in c or " stop " in c) for c in box.calls())   # the service stays down
+
+
+def test_bench_exact_harness_runs_with_the_box_venv_python_and_hands_it_to_the_server(tmp_path):
+    """First exact run (2026-11-19 16:42, T-982): every step died in seconds with "env: '/mnt/pancake/benchexact/harness/.venv/bin/python': No such file or
+    directory" (the downloaded harness has no .venv).  Now abtest / quality_gate run with Strata-win's venv python and ABTEST_PYTHON points the server at it."""
+    box = Box(tmp_path)
+    prepare_be(box)
+    box.finish(box.start(BE, env=be_env()))
+    lines = box.log("bench-exact.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHEXACT_DONE" and "ERROR" not in text, text
+    hpy = box.h + "/clone-of-d/src/Strata-win/.venv/bin/python"
+    harness = [c for c in box.calls() if c.startswith("HARNESS ")]
+    assert harness and all(c.startswith("HARNESS ABTEST_PYTHON=" + hpy + " ") for c in harness), harness[:3]
+    assert sum(" tools/pancake/abtest.py " in c for c in harness) == len(be_calls(box, "abtest.py")) == 4
+    assert sum(" tools/pancake/quality_gate.py " in c for c in harness) == len(be_calls(box, "quality_gate.py")) == 1
+    assert any("import serve.server" in c for c in harness)
+    pos = [text.index(k) for k in ("SYNC harness:", "PREREQ harness ok", "START 222-screen")]
+    assert pos == sorted(pos)
+    assert not (box.tmp / "mnt" / "benchexact" / "harness" / ".venv").exists()
+
+
+def test_bench_exact_missing_venv_stops_in_prereq_and_a_venv_without_deps_before_any_step(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box)
+    (box.R / ".venv" / "bin" / "python").unlink()
+    box.finish(box.start(BE, env=be_env()))
+    lines = box.log("bench-exact.log")
+    assert any(l.startswith("ERROR PREREQ missing files") and "Strata-win/.venv/bin/python" in l for l in lines), lines
+    assert "SYNC harness" not in "\n".join(lines) and "START 222" not in "\n".join(lines) and lines[-1] == "WINBENCHEXACT_DONE"
+    (tmp_path / "b2").mkdir()
+    box2 = Box(tmp_path / "b2")
+    prepare_be(box2)
+    box2.finish(box2.start(BE, env=be_env(HARNESS_NO_DEPS="1")))
+    l2 = box2.log("bench-exact.log")
+    assert any(l.startswith("ERROR PREREQ harness:") and "cannot import serve.server" in l and "jinja2" in l for l in l2), l2
+    assert "START 222" not in "\n".join(l2) and "START gate" not in "\n".join(l2) and l2[-1] == "WINBENCHEXACT_DONE"
 
 
 def test_bench_exact_rd_gate_runs_when_both_trees_read_strata_follow(tmp_path):
