@@ -27,7 +27,7 @@ tables are marked TO BE MEASURED until the box run exists. The ledger rows (`T-n
 | host tuning scripts (reversible, `--check` is read only) | `tools/pancake/host_tune.sh --list / --check / --apply / --revert`; `os_tune.sh`; `pcie_link.py` | `tools/pancake/host_tune.sh`, `host_tune_ab.sh`, `os_tune.sh`, `pcie_link.py` and their tests |
 | optimised build for gfx1100 | `tools/pancake/build_updated_rdna3.sh SRC BUILD_DIR [--print-flags]` | `tools/pancake/build_updated_rdna3.sh` |
 | benchmark of plain against updated on the box | `tools/pancake/box_chains/bench-updatedRD.sh` and spec `bench/specs/250-rdna3-updated-vs-plain.json` | `tools/pancake/box_chains/` |
-| four engine changes (section 2) | environment switches, default off | see section 2 |
+| engine changes (section 2): pool phases, ECAP, grammar, two fixes, F16 value; optional table and profile | environment switches and `--grammar on`, default off | see section 2 |
 
 How the tuned flags work. `rdna3/tuned_flags.py` detects the GPU (`rocm_agent_enumerator`, ROCm version, VRAM from sysfs), finds the most specific file
 `rdna3/recommended-flags/<gfx>[-rocm<M.m>].json` whose key matches, and puts its `env` and `args` into the server config before the engine starts. Order of
@@ -64,7 +64,7 @@ Measured on the pancake base (6 clean runs per arm): cap 0 from 9-row windows, e
 `bench/results/2026-11-16-taskgate-ecap`). An ungated cap 0 was rejected by the same gate (+0.95 points, T-271).
 Two limits stated plainly. First, the gain was measured on windows of 9 or more rows (prompt-lookup windows of the pancake line); this tree's windows are at most
 8 rows, so the 9-row gate never opens here. It is therefore not in the shipped flags file; spec 250 has an arm with a 6-row gate (the pancake base measured
-+36.2% +-17.8 for it, T-588) and the diagnostics decide. Second, the tool-call gate ran with the pancake line's grammar guard, which this tree does not have.
++36.2% +-17.8 for it, T-588) and the diagnostics decide. Second, the tool-call gate ran with the grammar guard on (section 2.5); this tree has it now, but `--grammar` is off by default, so enable both together (`--grammar on` and the ECAP variables) if tool calls matter.
 
 ### 2.3 Two fixes
 `sampler.cu` (T-573): a NaN temperature fell through the `t <= 0` test into a uniform draw over the top-k list; `sampler_parity` measured 4 of 4 picks wrong. One
@@ -81,25 +81,48 @@ token-forcing gate PASS on rate and event rules (mismatch 1.700% against 1.637% 
 `bench/results/2026-11-17-chainQ/winQ-163.stdout`), while the stricter near-tie column failed (98.3% top-1 agreement; reported as information). It enters through
 the recommended-flags file, not through the code.
 
-### 2.5 Considered and not ported
-Prompt-lookup windows of 12 rows (`--lookup-max-t 12`, T-126 and T-127, edit +8.8% +-6.8) need the window machinery of upstream Strata that this tree lacks;
-the grammar server feature; log-only counters; the Speedy opt-ins `PF_GROUP_SCRATCH` and `PF_HC_REGION` (no HIP measurement); `PREFILL_EQUAL_TAIL` (under 2%); the
-hipBLASLt 100401 table (measured only against no table, T-096; this tree ships 100200); the learned expert profile (measured on another GPU, model-specific
-data); the BF16 router kernels for 7 and 8 columns (micro-benchmark only). Everything the pancake line dropped or never measured stays out. The first candidates
-of a second round are the 12-row lookup windows and the 100401 table.
+### 2.5 Grammar-constrained decoding, `--grammar on` (default off)
+What: a request's `grammar` key (a GBNF tool-call or JSON-schema grammar) is enforced on the sampled tokens inside speculative decoding. After each verify window the first kept
+pick the grammar refuses is drawn again under the grammar's mask (`Verifier::resample_row`) and the window ends there; a merged window checks its output row only. The vocabulary is
+read from the pack's tokenizer files at start. On the serve side, tool calls and JSON response formats of `/v1/chat/completions`, `/v1/responses` and `/v1/messages` carry the grammar
+when the engine runs `--grammar on` (or the request says `strict: true`). `Guard::enforcing()` tells the verifier a tool call or JSON reply is in progress, so ECAP does not cap the draft
+rows there. With `--grammar off` (the default) nothing is read, drawn or printed. Enable: `--grammar on`.
+Files: `include/strata/program/grammar/{grammar,guard,schema}.hpp`, `src/program/grammar/{grammar,guard,schema}.cpp`, `json_value.hpp` (CPU only, library `strata_grammar`),
+`src/program/generate.cpp`, `src/core/verify.cpp` and `.hpp`, `serve/grammar.py`, `serve/server.py`. Tests: `tests/program/grammar_test.cpp`, `grammar_schema_test.cpp`,
+`grammar_guard_test.cpp` (CPU; built and passed on a PC), `serve/test_grammar.py`, `serve/test_grammar_routes.py` (7 pass).
+Measured on the pancake line (T-315; no raw archive, the ledger row is the record): RTX 3060, Flash-Next IQ2_XS: strict json_schema (enum and required, off-topic prompts too) and a tool call with an
+enum argument all valid; 0.3 to 0.8 ms of grammar code per request, 35 to 110 us per 50 to 130 ms window (0.1 to 0.2%). With ECAP the tool-call task gate passed with the guard on: 99.4% success,
+tool-call validity 100% (T-591). It is a correctness feature, not a speed one; it was not measured on this tree.
+
+### 2.6 hipBLASLt tuning table 100401 (optional; not in the shipped flags)
+This tree already ships `tools/hip/gfx1100-hipblaslt-100401.txt` (byte-identical to the pancake line's table) and the `STRATA_HIPBLASLT_TUNING` switch, and its setup configs use the 100200
+table. The pancake line measured the 100401 table only against no table: prompt 1,345 to 1,850 to 1,920 tok/s, +38%, provisional on a noisy machine, no raw file kept (T-096). Against
+the 100200 table nothing is measured, so it is a diagnostic candidate: `flag_diag.sh` compares the two (base arm keeps 100200) and spec 251 has the arm `hipblaslt-100401`. It enters
+`rdna3/recommended-flags/` only with a measured GAIN.
+
+### 2.7 Learned expert profile (optional; not in the shipped flags)
+`--expert-profile` already exists here. `data/expert-profile-pancake.bin` (196,632 bytes, the same `STRP` format as `data/expert-profile.bin`) is the profile the pancake line learned for
+Qwen3.8-Flash-Next IQ2_XS: it is specific to that model and to the pancake line's workload, and T-194 measured it on an RTX 3060, not on a 7900 XT (+6.7% decode against another shipped
+profile, 2 runs of short and edit, every run faster). Use: `--expert-profile data/expert-profile-pancake.bin`. `flag_diag.sh` (candidate `EXPERT_PROFILE`) and spec 251 (arm `profile-pancake`)
+compare it with `data/expert-profile.bin`. A recommended argument replaces the setup config's value, so a measured GAIN can ship through the flags file.
+
+### 2.8 Considered and not ported
+Prompt-lookup windows of 12 rows (`--lookup-max-t 12`, T-126 and T-127, edit +8.8% +-6.8) need the window machinery of upstream Strata that this tree lacks; log-only counters; the Speedy
+opt-ins `PF_GROUP_SCRATCH` and `PF_HC_REGION` (no HIP measurement); `PREFILL_EQUAL_TAIL` (under 2%); the BF16 router kernels for 7 and 8 columns (micro-benchmark only). Everything the
+pancake line dropped or never measured stays out. The first candidate of a round after this one is the 12-row lookup windows.
 
 ## 3. Diagnostic tests and how to reproduce
 Host checks run for this branch (no GPU needed): `python -m pytest rdna3/test_tuned_flags.py tools/pancake/test_flag_diag.py tools/pancake/test_host_tune.py
 tools/pancake/test_pcie_link.py` (fake hardware, fake verdicts, fake sysfs); `verify_ecap_test` (CTest, CPU). The HIP engine files compile only on a Linux
 ROCm host (they include POSIX headers): `tools/pancake/build_updated_rdna3.sh SRC BUILD --target strata` builds them, `ctest --test-dir BUILD -R
 "verify_ecap_test|sampler_parity|elementwise_parity"` runs the parity tests. On the target machine: `tools/pancake/flag_diag.sh run --config <server config>
---flags POOL_FUSE_PHASES,VERIFY_ECAP,PF_F16,HIPBLASLT_TUNING` (a few minutes per flag; it starts engines only through the A/B harness). Results of a diagnostic
+--flags POOL_FUSE_PHASES,VERIFY_ECAP,PF_F16,HIPBLASLT_TUNING,EXPERT_PROFILE` (a few minutes per flag; it starts engines only through the A/B harness). Results of a diagnostic
 run on the box: TO BE MEASURED.
 
 ## 4. Benchmark: plain Strata-rdna3 against this branch (TO BE MEASURED)
 Plan: `tools/pancake/box_chains/bench-updatedRD.sh` builds plain Strata-rdna3 `8b01b0c85` with its documented flags and this branch with
-`build_updated_rdna3.sh`, runs the parity tests, the flag diagnostics, and spec 250 (screen, then 5 repeats in blocks of 3, one engine at a time, text compared with
-the plain arm). Workloads: short chat and code edit (decode tok/s), cold prompts of 10,000 / 32,000 / 64,000 / 100,000 tokens (prompt tok/s). Estimated time about 6 hours.
+`build_updated_rdna3.sh`, runs the parity tests, the flag diagnostics, spec 250 (screen, then 5 repeats in blocks of 3, one engine at a time, text compared with
+the plain arm) and spec 251 (screen only: the 100401 table and the learned profile against the updated build's own). Workloads: short chat and code edit (decode tok/s), cold prompts of 10,000 / 32,000 / 64,000 / 100,000 tokens (prompt tok/s). Estimated time about 6.7 hours (worst case 8.0).
 
 | case | plain | updated | change | text identical |
 |---|---|---|---|---|
@@ -119,13 +142,14 @@ Outside sources (ideas or code), from the pancake README section 9 and LEADS.md:
 - **Niko1221 and the Strata contributors** (MIT, copyright holders of the shared base).
 - **jmnargi**, Strata-V100 (MIT), commits `24894e676b`, `7c5041c358`, `376355453f` (upstream PR #3545): the verify-window expert cap that `STRATA_VERIFY_ECAP` adapts, and
   the measurement of how a too-tight cap breaks tool calls. The per-draft-row form that counts only CPU-resident experts is the pancake adaptation.
+- **jesdga95**, basalt (MIT), commits `d64768699`, `02e1006fe`, `c7813a6c3`, `011e13d72`: the grammar path (window guard, masked redraw, `--grammar` and the request key); the GBNF engine and the schema builder in it are llama.cpp's (MIT). Adapted and extended on the pancake line.
 - **bramvanoploo**, strata-performance-setup (MIT): the list of host settings behind `host_tune.sh`; no code copied.
 - **caminus** (jdominick05, AGPL-3.0-or-later): ideas only, none copied; the note that the PCIe link stays awake behind `pcie_link.py`, which is our own code.
 
 Original work of pancake-strata (rocktboy1982), with the record that supports it. Git history of the pancake line: first commit `346709879`, 2026-11-07 17:10 +0200,
 author rocktboy1982; `STRATA_POOL_FUSE_PHASES` `35c512984` (2026-11-09) and its fix `50c6464cd` (2026-11-09), both rocktboy1982, ledger T-224; the ECAP adaptation `2d44d31ec`
 (2026-11-10, rocktboy1982), ledger T-588, T-589, T-591; the two fixes `5735ae7ac` and `bcfe5ba08` (2026-11-15, rocktboy1982), ledger T-573, T-576; `host_tune.sh`
-`cf6726c20` (2026-11-16) and `os_tune.sh` `9ff4bdc4c` (2026-11-10), rocktboy1982; `pcie_link.py` `3d8d516a9` (2026-11-18, local account `iancu`, the same owner). The
+`cf6726c20` (2026-11-16) and `os_tune.sh` `9ff4bdc4c` (2026-11-10), rocktboy1982; `pcie_link.py` `3d8d516a9` (2026-11-18, local account `iancu`, the same owner). The grammar port is `3d3eef53e` (2026-11-08) with the serve routes `bcbdeb5d2` (2026-11-09), rocktboy1982, ledger T-315; the learned profile is `3638b8cee` (2026-11-08, rocktboy1982), T-194. The
 sources of the diagnostics, the tuned-flags startup, the build script and the benchmark chain are new in this branch (pancake-strata, rocktboy1982, original work). The
 commits of this branch carry the trailer `Co-Authored-By: Claude Sonnet 5.5`.
 
@@ -134,6 +158,7 @@ commits of this branch carry the trailer `Co-Authored-By: Claude Sonnet 5.5`.
   (NaN temperature, multi-token gate), which do not change normal runs. `--no-tuned-flags` (or `STRATA_TUNED_FLAGS=0`) restores the setup's plain behaviour in the startup script.
 - The shipped flags (`STRATA_POOL_FUSE_PHASES=1`, `STRATA_PF_F16=1`) were measured on the pancake base, not on this tree; `STRATA_PF_F16=1` is lossy (gate passed, near-tie
   column failed). Regenerate the file from section 4 before relying on it. `flag_diag.sh` reports a flag UNSUPPORTED on hardware that lacks what it needs (WMMA, VMM, hipBLASLt).
-- `STRATA_VERIFY_ECAP` is lossy and was measured with a grammar guard this tree lacks; it is not enabled by the startup script.
-- What was compiled locally: `verify_ecap_test` (MSVC), `pool.cpp` syntax, `sampler.cu` and `elementwise.cu` for sm_75. The HIP engine files were not compiled before the box build.
+- `STRATA_VERIFY_ECAP` is lossy and was measured with the grammar guard on; it is not enabled by the startup script. `--grammar on` is off by default and was measured for validity on another GPU, not for speed here.
+- The learned profile is specific to Qwen3.8-Flash-Next IQ2_XS and was measured on another GPU; the 100401 table was measured only against no table. Neither is in the shipped flags file.
+- What was compiled locally: `verify_ecap_test` and the three grammar tests (MSVC), `pool.cpp` syntax, `sampler.cu` and `elementwise.cu` for sm_75. The HIP engine files were not compiled before the box build.
 - Licence: Strata-rdna3 is MIT; every ported piece is MIT-compatible (our own code, or MIT sources credited above); AGPL sources were read for ideas only.
