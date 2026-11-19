@@ -26,6 +26,8 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
+import signal
 import statistics
 import subprocess
 import sys
@@ -34,6 +36,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE))   # diag_group
 ROOT = HERE.parents[1]
 sys.path.insert(0, str(ROOT / "terminal"))
 from strata_control import tuned_flags  # noqa: E402
@@ -189,12 +192,30 @@ def classify(c: dict[str, Any], arms: dict[str, dict[str, Any]]) -> dict[str, An
     return v
 
 
+class Stopped(Exception):
+    """The diagnostic got TERM (the chain's time limit): the arm running now is stopped, the rest is UNTESTED-TIMEOUT."""
+
+
+def _row(c: dict[str, Any], verdict: str, reason: str) -> dict[str, Any]:
+    return {"name": c["name"], "kind": c["kind"], "value": c["value"], "exact": c["exact"], "ledger": c["ledger"],
+            "metric": c["metric"], "verdict": verdict, "reason": reason}
+
+
 def run(config: str, out: Path, only: list[str] | None, budget_min: float, harness: Path,
-        runner: Callable[[list[str], Path], int] | None = None, hw: dict[str, Any] | None = None) -> dict[str, Any]:
+        runner: Callable[[list[str], Path, float], tuple] | None = None, hw: dict[str, Any] | None = None,
+        flag_timeout: float = 240.0) -> dict[str, Any]:
+    """Since 2026-11-19 (the chain's diag plain ran 18 min for 2 flags, then its timeout left abtest / server / engine running):
+    ONE abtest.py screen per arm (base once, then each flag), case `short` only, no retries, quiet wait <= 30 s, each arm in its
+    own process group with a hard limit (`flag_timeout` s; past it the group is stopped and the flag is UNTESTED-TIMEOUT:
+    tools/pancake/diag_group.py).  OUT/verdicts.json is rewritten after every arm ("complete": false until the end), so a chain
+    that stops the diagnostic still has the verdicts so far.  The parity check (text identical to the base) is judged only for
+    flags claimed exact.  `budget_min` bounds the worst case: base + kept flags, each at most `flag_timeout`.
+    runner(cmd, log_path, timeout_s) -> (exit code or None, timed_out)."""
     hw = hw or detect()
     if hw is None:
         raise SystemExit("flag_diag: no AMD graphics card could be read (rocminfo / sysfs)")
     out.mkdir(parents=True, exist_ok=True)
+    runner = runner or _run_harness
     verdicts: list[dict[str, Any]] = []
     todo = []
     for c in CANDIDATES:
@@ -202,43 +223,80 @@ def run(config: str, out: Path, only: list[str] | None, budget_min: float, harne
             continue
         ok, why = supported(c, hw)
         if not ok:
-            verdicts.append({"name": c["name"], "kind": c["kind"], "value": c["value"], "exact": c["exact"],
-                             "ledger": c["ledger"], "metric": c["metric"], "verdict": "UNSUPPORTED", "reason": why})
+            verdicts.append(_row(c, "UNSUPPORTED", why))
         else:
             todo.append(c)
     t0 = time.time()
-    per_flag_min = 2.5   # one engine start (1-3 minutes, 2 on this box) and two short prompts
+    per_flag_min = flag_timeout / 60.0   # worst case per arm: one engine start and the short case, cut at flag_timeout
     keep, dropped = [], []
     for c in todo:
-        (keep if (len(keep) + 2) * per_flag_min <= budget_min else dropped).append(c)   # 2 starts of the default
+        (keep if (len(keep) + 2) * per_flag_min <= budget_min else dropped).append(c)   # + 1 start of the default
     for c in dropped:
-        verdicts.append({"name": c["name"], "kind": c["kind"], "value": c["value"], "exact": c["exact"], "ledger": c["ledger"],
-                         "metric": c["metric"], "verdict": "UNTESTED", "reason": f"budget of {budget_min:g} minutes ended"})
-    arms: dict[str, Any] = {}
-    if keep:
-        cases = ["short", "edit"] + (["long1k"] if any(c["metric"] == "prompt" for c in keep) else [])
-        spec_path, jsonl = out / "spec.json", out / "abtest.jsonl"
-        spec_path.write_text(json.dumps(make_spec(config, keep, cases), indent=1), encoding="utf-8")
-        cmd = [sys.executable, str(harness), str(spec_path), "--tier", "screen", "--out", str(jsonl)]
-        rc = (runner or _run_harness)(cmd, out)
-        text = jsonl.read_text(encoding="utf-8") if jsonl.exists() else ""
-        arms = parse_abtest(text)
-        if rc != 0 and not arms:
-            for c in keep:
-                verdicts.append({"name": c["name"], "kind": c["kind"], "value": c["value"], "exact": c["exact"],
-                                 "ledger": c["ledger"], "metric": c["metric"], "verdict": "UNTESTED",
-                                 "reason": f"the harness exited {rc} before any measurement"})
-        else:
-            verdicts += [classify(c, arms) for c in keep]
-    result = {"schema": "strata.flag-diag/1", "hardware": hw, "minutes": round((time.time() - t0) / 60, 1),
-              "config": config, "verdicts": verdicts}
-    (out / "verdicts.json").write_text(json.dumps(result, indent=1), encoding="utf-8")
-    return result
+        verdicts.append(_row(c, "UNTESTED", f"budget of {budget_min:g} minutes ended"))
+    slot = {c["name"]: len(verdicts) + i for i, c in enumerate(keep)}
+    verdicts += [_row(c, "UNTESTED", "pending: not measured yet") for c in keep]
+
+    def save(complete: bool) -> dict[str, Any]:
+        result = {"schema": "strata.flag-diag/1", "hardware": hw, "minutes": round((time.time() - t0) / 60, 1),
+                  "config": config, "complete": complete, "flag_timeout_s": flag_timeout, "verdicts": verdicts}
+        tmp = out / "verdicts.json.tmp"
+        tmp.write_text(json.dumps(result, indent=1), encoding="utf-8")
+        os.replace(tmp, out / "verdicts.json")
+        return result
+
+    full = make_spec(config, keep, ["short"])
+
+    def one(arm: str) -> tuple:
+        spec = dict(full, arms={arm: full["arms"][arm]}, prefill=False,
+                    note="flag_diag.py: one arm, one engine start, case short (quick screen)")
+        slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", arm)
+        sp, jl = out / f"spec-{slug}.json", out / f"abtest-{slug}.jsonl"
+        sp.write_text(json.dumps(spec, indent=1), encoding="utf-8")
+        if jl.exists():
+            jl.unlink()
+        cmd = [sys.executable, "-u", str(harness), str(sp), "--tier", "screen", "--retries", "0", "--max-wait", "30", "--out", str(jl)]
+        t1 = time.time()
+        rc, to = runner(cmd, out / f"abtest-{slug}.stdout", flag_timeout)
+        print(f"arm {arm:28} exit={rc}{' TIMEOUT' if to else ''} {time.time() - t1:.0f} s", flush=True)
+        return rc, to, parse_abtest(jl.read_text(encoding="utf-8") if jl.exists() else "")
+
+    save(False)
+    current: list[dict[str, Any]] = []
+    try:
+        if keep:
+            current = list(keep)
+            rc, to, arms = one("base")
+            if not (arms.get("base") or {}).get("ok"):
+                why = (f"no base result within {flag_timeout:g} s (engine start + short prompt)" if to else
+                       f"the harness exited {rc} before any measurement" + (" (another test or engine is running)" if rc == 3 else ""))
+                for c in keep:
+                    verdicts[slot[c["name"]]] = _row(c, "UNTESTED-TIMEOUT" if to else "UNTESTED", why)
+                return save(True)
+            for i, c in enumerate(keep):
+                current = keep[i:]
+                rc, to, got = one(c["name"])
+                if c["name"] not in got and to:
+                    verdicts[slot[c["name"]]] = _row(c, "UNTESTED-TIMEOUT", f"no result within {flag_timeout:g} s per flag (engine start + "
+                                                     "short prompt); its process group was stopped")
+                elif c["name"] not in got and rc == 3:
+                    verdicts[slot[c["name"]]] = _row(c, "UNTESTED", "the harness exited 3 (another test or engine is running)")
+                else:
+                    verdicts[slot[c["name"]]] = classify(c, {**arms, **got})
+                save(False)
+            current = []
+        return save(True)
+    except (Stopped, KeyboardInterrupt):
+        for c in current:
+            if verdicts[slot[c["name"]]]["verdict"] == "UNTESTED":
+                verdicts[slot[c["name"]]] = _row(c, "UNTESTED-TIMEOUT", "the diagnostic was stopped (its time limit) before this flag finished")
+        save(True)
+        raise
 
 
-def _run_harness(cmd: list[str], out: Path) -> int:
-    with open(out / "abtest.stdout", "w", encoding="utf-8") as fh:
-        return subprocess.run(cmd, stdout=fh, stderr=subprocess.STDOUT, stdin=subprocess.DEVNULL, cwd=str(ROOT)).returncode
+def _run_harness(cmd: list[str], log: Path, timeout_s: float) -> tuple:
+    import diag_group
+    rc, to, _ = diag_group.run(cmd, log, timeout_s, cwd=str(ROOT), say=lambda s: print(s, flush=True))
+    return rc, to
 
 
 # --------------------------------------------------------------------------- the recommended file
@@ -285,6 +343,8 @@ def main(argv: list[str] | None = None) -> int:
     r.add_argument("--only", default="")
     r.add_argument("--budget-min", type=float, default=15.0)
     r.add_argument("--harness", default=os.environ.get("FLAG_DIAG_ABTEST", str(HERE / "abtest.py")))
+    r.add_argument("--flag-timeout", type=float, default=float(os.environ.get("FLAG_DIAG_FLAG_TIMEOUT", "240")),
+                   help="seconds per arm (engine start + short case); past it the arm's process group is stopped: UNTESTED-TIMEOUT")
     w = sub.add_parser("write-recommended")
     w.add_argument("--verdicts", required=True)
     w.add_argument("--out", required=True)
@@ -299,7 +359,15 @@ def main(argv: list[str] | None = None) -> int:
         if not Path(a.harness).exists():
             print(f"flag_diag: the A/B harness {a.harness} is missing (set FLAG_DIAG_ABTEST or run from a port/rdna3-decode checkout)", file=sys.stderr)
             return 2
-        res = run(a.config, Path(a.out), [s for s in a.only.split(",") if s] or None, a.budget_min, Path(a.harness))
+        def on_term(*_):
+            raise Stopped()
+        signal.signal(signal.SIGTERM, on_term)
+        try:
+            res = run(a.config, Path(a.out), [s for s in a.only.split(",") if s] or None, a.budget_min, Path(a.harness),
+                      flag_timeout=a.flag_timeout)
+        except (Stopped, KeyboardInterrupt):
+            print(f"flag_diag: stopped; partial verdicts in {Path(a.out) / 'verdicts.json'}", flush=True)
+            return 124
         for v in res["verdicts"]:
             print(f"{v['verdict']:11} {v['name']:28} {v.get('gain_pct', ''):>6} {v.get('reason', '')}")
         print(f"{res['minutes']} minutes; verdicts in {Path(a.out) / 'verdicts.json'}")

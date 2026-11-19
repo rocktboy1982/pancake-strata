@@ -106,32 +106,118 @@ class Run(unittest.TestCase):
         hw = fd.detect(fake_root(), lambda cmd: ROCMINFO)
         out = Path(tempfile.mkdtemp())
 
-        def runner(cmd, outdir):
-            spec = json.loads(Path(cmd[2]).read_text())
-            self.assertEqual(spec["arms"]["base"], {})
-            recs = [row("base", "short", 100.0), row("base-again", "short", 100.4)]
-            for name in spec["arms"]:
-                if name.startswith("base"):
-                    continue
-                recs.append(row(name, "short", 110.0 if name == "STRATA_RDNA_Q6K" else 100.5))
-            (outdir / "abtest.jsonl").write_text(jsonl(*recs))
-            return 0
-
         res = fd.run("cfg.json", out, ["STRATA_RDNA_Q6K", "STRATA_HIPBLASLT_TUNING", "--adapt-every", "STRATA_PF_F16"],
-                     60.0, Path("abtest.py"), runner=runner, hw=hw)
+                     60.0, Path("abtest.py"), runner=self.runner({"base": 100.0, "STRATA_RDNA_Q6K": 110.0}), hw=hw)
         v = {x["name"]: x for x in res["verdicts"]}
         self.assertEqual(v["STRATA_RDNA_Q6K"]["verdict"], "GAIN")
         self.assertEqual(v["--adapt-every"]["verdict"], "NO-GAIN")
         self.assertEqual(v["STRATA_PF_F16"]["verdict"], "NO-GAIN")
         self.assertTrue((out / "verdicts.json").exists())
+        self.assertTrue(res["complete"])
+
+    def runner(self, dec, timeouts=(), refuse=(), seen=None, out=None):
+        """A fake abtest run of ONE arm: the spec has one arm, case short; writes that arm's jsonl."""
+        def run(cmd, log, timeout_s):
+            spec = json.loads(Path(cmd[cmd.index("--tier") - 1]).read_text())
+            self.assertEqual(len(spec["arms"]), 1)
+            self.assertEqual(spec["cases"], ["short"])
+            self.assertEqual(cmd[cmd.index("--retries") + 1], "0")
+            arm = next(iter(spec["arms"]))
+            if seen is not None:
+                seen.append((arm, timeout_s, json.loads((Path(log).parent / "verdicts.json").read_text())))
+            if arm in timeouts:
+                return None, True
+            if arm in refuse:
+                return 3, False
+            Path(cmd[cmd.index("--out") + 1]).write_text(jsonl(row(arm, "short", dec.get(arm, 100.5))))
+            return 0, False
+        return run
 
     def test_budget_and_unsupported(self):
         hw = fd.detect(fake_root(hipblaslt=False), lambda cmd: ROCMINFO)
         out = Path(tempfile.mkdtemp())
-        res = fd.run("cfg.json", out, None, 6.0, Path("abtest.py"), runner=lambda c, o: 1, hw=hw)
+        res = fd.run("cfg.json", out, None, 6.0, Path("abtest.py"), runner=lambda c, o, t: (1, False), hw=hw)
         v = {x["name"]: x for x in res["verdicts"]}
         self.assertEqual(v["STRATA_HIPBLASLT_TUNING"]["verdict"], "UNSUPPORTED")
         self.assertGreater(sum(1 for x in res["verdicts"] if x["verdict"] == "UNTESTED"), 0)
+
+    def test_per_flag_timeout_and_incremental_verdicts(self):
+        """2026-11-19: a flag that does not answer within the per-flag limit is UNTESTED-TIMEOUT and the next flags still run;
+        verdicts.json grows arm by arm (base once, one start per flag)."""
+        hw = fd.detect(fake_root(), lambda cmd: ROCMINFO)
+        out, seen = Path(tempfile.mkdtemp()), []
+        res = fd.run("cfg.json", out, ["STRATA_RDNA_Q6K", "STRATA_GR_RDNA", "STRATA_COMBINE_CPU"], 60.0, Path("abtest.py"),
+                     runner=self.runner({"base": 100.0, "STRATA_RDNA_Q6K": 103.0}, timeouts=("STRATA_GR_RDNA",), seen=seen),
+                     hw=hw, flag_timeout=240.0)
+        v = {x["name"]: x for x in res["verdicts"]}
+        self.assertEqual(v["STRATA_GR_RDNA"]["verdict"], "UNTESTED-TIMEOUT")
+        self.assertEqual(v["STRATA_RDNA_Q6K"]["verdict"], "GAIN")
+        self.assertEqual(v["STRATA_COMBINE_CPU"]["verdict"], "NO-GAIN")
+        self.assertEqual([a for a, _, _ in seen], ["base", "STRATA_RDNA_Q6K", "STRATA_GR_RDNA", "STRATA_COMBINE_CPU"])
+        self.assertTrue(all(t == 240.0 for _, t, _ in seen))
+        first = {x["name"]: x["verdict"] for x in seen[0][2]["verdicts"]}
+        self.assertEqual(first["STRATA_RDNA_Q6K"], "UNTESTED")
+        self.assertFalse(seen[0][2]["complete"])
+        third = {x["name"]: x["verdict"] for x in seen[3][2]["verdicts"]}
+        self.assertEqual((third["STRATA_RDNA_Q6K"], third["STRATA_GR_RDNA"]), ("GAIN", "UNTESTED-TIMEOUT"))
+
+    def test_base_timeout_and_busy_harness(self):
+        hw = fd.detect(fake_root(), lambda cmd: ROCMINFO)
+        res = fd.run("cfg.json", Path(tempfile.mkdtemp()), ["STRATA_RDNA_Q6K"], 60.0, Path("abtest.py"),
+                     runner=self.runner({}, timeouts=("base",)), hw=hw)
+        self.assertEqual(res["verdicts"][0]["verdict"], "UNTESTED-TIMEOUT")
+        res = fd.run("cfg.json", Path(tempfile.mkdtemp()), ["STRATA_RDNA_Q6K"], 60.0, Path("abtest.py"),
+                     runner=self.runner({}, refuse=("base",)), hw=hw)
+        self.assertEqual(res["verdicts"][0]["verdict"], "UNTESTED")
+        self.assertIn("exited 3", res["verdicts"][0]["reason"])
+
+    def test_stopped_keeps_partial_verdicts(self):
+        hw = fd.detect(fake_root(), lambda cmd: ROCMINFO)
+        out = Path(tempfile.mkdtemp())
+        inner = self.runner({"base": 100.0, "STRATA_RDNA_Q6K": 103.0})
+
+        def run(cmd, log, t):
+            if "spec-STRATA_GR_RDNA.json" in " ".join(cmd):
+                raise fd.Stopped()
+            return inner(cmd, log, t)
+        with self.assertRaises(fd.Stopped):
+            fd.run("cfg.json", out, ["STRATA_RDNA_Q6K", "STRATA_GR_RDNA", "STRATA_COMBINE_CPU"], 60.0, Path("abtest.py"), runner=run, hw=hw)
+        v = {x["name"]: x["verdict"] for x in json.loads((out / "verdicts.json").read_text())["verdicts"]}
+        self.assertEqual(v, {"STRATA_RDNA_Q6K": "GAIN", "STRATA_GR_RDNA": "UNTESTED-TIMEOUT", "STRATA_COMBINE_CPU": "UNTESTED-TIMEOUT"})
+
+    def test_budget_counts_the_per_flag_limit(self):
+        hw = fd.detect(fake_root(), lambda cmd: ROCMINFO)
+        res = fd.run("cfg.json", Path(tempfile.mkdtemp()), ["STRATA_RDNA_Q6K", "STRATA_GR_RDNA", "STRATA_COMBINE_CPU"], 12.0,
+                     Path("abtest.py"), runner=self.runner({"base": 100.0}), hw=hw, flag_timeout=240.0)
+        v = {x["name"]: x["verdict"] for x in res["verdicts"]}
+        self.assertEqual(sum(1 for x in v.values() if x == "UNTESTED"), 1)   # 12 min = base + 2 flags of 4 min
+
+    def test_diag_group_reap_kills_only_the_group_leftovers(self):
+        import diag_group
+        alive = {101: "python3 abtest.py", 102: "python3 serve/server.py --engine strata"}
+        killed, now = [], [0.0]
+
+        def kill(pid, sig):
+            killed.append(pid)
+            alive.pop(pid, None)
+
+        def sleep(s):
+            now[0] += s
+        out = diag_group.reap(77, wait=60, scan=lambda pg: sorted(alive.items()) if pg == 77 else [], kill=kill, sleep=sleep,
+                              clock=lambda: now[0])
+        self.assertEqual(killed, [101, 102])
+        self.assertEqual([p for p, _ in out], [101, 102])
+        self.assertEqual(diag_group.reap(78, scan=lambda pg: [], kill=kill, sleep=sleep, clock=lambda: now[0]), [])
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "process groups and /proc: Linux")
+    def test_diag_group_timeout_stops_the_whole_group(self):
+        import diag_group
+        import time as _t
+        t0 = _t.time()
+        rc, to, _ = diag_group.run(["sh", "-c", "sleep 300 & sleep 300"], Path(tempfile.mkdtemp()) / "log", 1, kill_after=2, orphan_wait=5)
+        self.assertTrue(to)
+        self.assertIsNone(rc)
+        self.assertLess(_t.time() - t0, 30)
 
 
 class Recommended(unittest.TestCase):
