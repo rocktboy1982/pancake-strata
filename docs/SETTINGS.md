@@ -1,6 +1,6 @@
 # Engine settings
 
-<!-- Generated from data/settings-register.json by tools/settings_register.py --docs. Do not edit by hand; change the register. -->
+<!-- Generated from terminal/data/settings-register.json by tools/settings_register.py --docs. Do not edit by hand; change the register. -->
 
 The engine reads its settings from environment variables whose names start with `STRATA_`. The Terminal and the app choose what
 your hardware needs, so most people never set one. This page lists the ones meant for people: switches that are off until you
@@ -10,7 +10,7 @@ debugging and are kept in `terminal/data/settings-register.json`.
 A number or a word is set like any environment variable, for example `STRATA_KVA=1`. In the Terminal, `strata launch --set NAME=value`
 puts it in the model's run configuration.
 
-## Switches you can turn on (268)
+## Switches you can turn on (269)
 
 Off unless you set them. The last column says where each one is described.
 
@@ -234,6 +234,7 @@ Off unless you set them. The last column says where each one is described.
 | `STRATA_RAM_ADAPT` | number | NVIDIA and AMD | [DETAILS.md](DETAILS.md), [release-notes-0.2.7.md](release-notes-0.2.7.md) |
 | `STRATA_RAM_KEEP_GIB` | number | NVIDIA and AMD | [DETAILS.md](DETAILS.md) |
 | `STRATA_RDNA2_SGEMM` | number | AMD | [AMD_HIP.md](AMD_HIP.md) |
+| `STRATA_RDNA_Q6K` | on / off | NVIDIA and AMD | - |
 | `STRATA_RESIDENT_HEADROOM_GIB` | number | NVIDIA and AMD, Intel Arc | [AMD_HIP.md](AMD_HIP.md), [DETAILS.md](DETAILS.md), [TROUBLESHOOTING.md](TROUBLESHOOTING.md) |
 | `STRATA_ROCBLAS_TUNING` | on / off | AMD | [AMD_HIP.md](AMD_HIP.md) |
 | `STRATA_ROCBLAS_VERBOSE` | text | AMD | [AMD_HIP.md](AMD_HIP.md) |

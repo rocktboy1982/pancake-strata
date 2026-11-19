@@ -34759,6 +34759,44 @@
    "retired_in": ""
   },
   {
+   "name": "STRATA_RDNA_Q6K",
+   "backends": [
+    "cuda-hip"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/kernels/cuda/rdna_mmvq.cu",
+     "line": 216,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "flag",
+   "default_state": "off",
+   "code_default": null,
+   "engine_sets": [
+    {
+     "file": "engine/src/kernels/rdna_mmvq_parity.cpp",
+     "line": 58
+    }
+   ],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": null,
+   "first_date": null,
+   "since": null,
+   "last_commit": null,
+   "last_date": null,
+   "status": "opt-in",
+   "owner": "kernels/hip-rdna",
+   "note": "gfx1100 multi-column Q4_K/Q5_K/IQ4_XS/Q6_K decode GEMV (rdna_mmvq.cu), 9-16 column verify windows; pancake T-079 microbench +50..+150% over native_mmvq; ported with T-009 (daily preset sets 1); bounded, not bitwise",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
    "name": "STRATA_READ_AHEAD",
    "backends": [
     "cuda-hip"
