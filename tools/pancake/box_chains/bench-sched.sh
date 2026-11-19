@@ -19,6 +19,7 @@
 # Environment: BENCH_US / BENCH_RD = the chain scripts (default ./bench-updatedAA.sh ./bench-updatedRD.sh), SIGCMD = the kill command (tests).
 # BENCH_EXTRA=<script> (a third slot, after US and RD): run that chain too, with the same three variables; its log is <script name without .sh>.log in this
 # directory and its marker is the line its own header names (bench-exact.sh: bench-exact.log, WINBENCHEXACT_DONE).  BENCH_ONLY=EXTRA runs the extra chain alone.
+# A versioned copy (bench-exact.v1.sh, bench-rdgate.v1.sh) keeps the log of its family (bench-exact.log / bench-rdgate.log, WINBENCHRDGATE_DONE).
 S=/home/dan/clone-of-d/src; L=$S/bench-sched.log
 US=${BENCH_US:-./bench-updatedAA.sh}; RD=${BENCH_RD:-./bench-updatedRD.sh}
 AA_CMD="sh ./redo-chainAA.sh"; AAPID=
@@ -52,7 +53,7 @@ else say "ERROR $# AA shells ($*): nothing stopped, nothing run"; echo BENCHSCHE
 # ------------------------------------------------------------------ b. wait for the box to be idle: the current AA step ends, then 3 clean polls
 q=0; n=0
 while [ $q -lt 2 ]; do
-  if busy || pgrep -f "[b]ench-(updated(AA|RD)|diagUS|exact)[.a-z0-9]*\.sh" >/dev/null 2>&1; then q=0; n=$((n+1)); [ $((n % 40)) -eq 1 ] && say "WAIT a measured job of the frozen step is still running $(date +%T)"; else q=$((q+1)); fi
+  if busy || pgrep -f "[b]ench-(updated(AA|RD)|diagUS|exact|rdgate)[.a-z0-9]*\.sh" >/dev/null 2>&1; then q=0; n=$((n+1)); [ $((n % 40)) -eq 1 ] && say "WAIT a measured job of the frozen step is still running $(date +%T)"; else q=$((q+1)); fi
   sleep 15
 done
 say "IDLE the box is idle $(date +%T)"
@@ -72,6 +73,7 @@ if [ -n "${BENCH_EXTRA:-}" ]; then
   case "${BENCH_ONLY:-}" in US|RD) ;; *)
     case "$(basename "$BENCH_EXTRA")" in
       bench-exact*.sh) run_chain EXTRA "$BENCH_EXTRA" $S/bench-exact.log WINBENCHEXACT_DONE ;;
+      bench-rdgate*.sh) run_chain EXTRA "$BENCH_EXTRA" $S/bench-rdgate.log WINBENCHRDGATE_DONE ;;
       *) xl=$S/$(basename "$BENCH_EXTRA" .sh).log; run_chain EXTRA "$BENCH_EXTRA" "$xl" "$(grep -o -m1 'WIN[A-Z]*_DONE' "$BENCH_EXTRA" 2>/dev/null)" ;;
     esac ;;
   esac

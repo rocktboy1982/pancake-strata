@@ -2207,3 +2207,220 @@ def test_sched_bench_extra_runs_the_third_chain_alone_or_after_both(tmp_path):
     box3.finish(box3.start(SCHED, env=sched_env(BENCH_ONLY="EXTRA")))
     t3 = "\n".join(box3.log("bench-sched.log"))
     assert "ERROR BENCH_ONLY=EXTRA without BENCH_EXTRA" in t3 and not chains_log(box3)
+
+
+# ------------------------------------------------------------------------------------------------ bench-rdgate.sh (RDNA3 task gate, updated vs plain)
+RG = "bench-rdgate.sh"
+# the box venv interpreter: logs VENVPY, fakes task_gate.py (dry run / gate, an orphan engine of its own session, a hang), the rest goes to the python stub
+RG_VENV = ('echo "VENVPY $*" >> "$H/calls.log"\n'
+           'case "$*" in\n'
+           '  *task_gate.py*--dry-run*) echo "dry run: ok (every checker passes its reference answer and fails its wrong one)"; exit ${TG_DRY_EXIT:-0} ;;\n'
+           '  *task_gate.py*)\n'
+           '    [ -n "$GATE_ORPHAN" ] && { echo "999994 @SID@ 999994" > "$H/ptree.txt"; echo "Thu Nov 19 18:00:00 2026" > "$H/lstart.999994"; /usr/bin/sleep 1; }\n'
+           '    [ -n "$GATE_HANG" ] && /usr/bin/sleep "$GATE_HANG"\n'
+           '    echo "updated   success 98.9% vs base -1.1 pts [-4.4, +2.2] PASS"; exit 0 ;;\n'
+           'esac\nexec "$PYREAL" "$H/stub/pystub.py" "$@"\n')
+RG_PLAIN = {"exe": "/x/build-plain/strata", "args": ["--port", "11437"], "env": {"STRATA_PF_F16": "2", "STRATA_A": "1", "STRATA_OLD": "1"}}
+RG_UPD = {"exe": "/x/build-updated/strata", "args": ["--port", "11437"], "env": {"STRATA_PF_F16": "1", "STRATA_A": "1", "STRATA_POOL_FUSE_PHASES": "1"}}
+
+
+def prepare_rg(box, builds=True, configs=True, diag=True, abtest_py="# reads ABTEST_PYTHON\n"):
+    for n, body in (("ps", BE_PS), ("reapcmd", BE_REAP),
+                    ("setsid", 'echo "SETSID $$ $*" >> "$H/calls.log"; echo $$ > "$H/sid.txt"; exec "$@"\n'),
+                    ("df", 'echo "Filesystem 1K-blocks Used Available Use% Mounted"\necho "x 1 1 ${DF_FREE:-99999999} 1% /"\n')):
+        (box.tmp / "stub" / n).write_text("#!/bin/sh\n" + body, newline="\n")
+    venv = box.R / ".venv" / "bin" / "python"
+    venv.parent.mkdir(parents=True, exist_ok=True)
+    venv.write_text("#!/bin/sh\n" + RG_VENV, newline="\n")
+    os.chmod(venv, 0o755)
+    pkg = box.tmp / "rg-src" / "x"
+    for rel, body in (("tools/pancake/task_gate.py", "# stub\n"), ("tools/pancake/abtest.py", abtest_py), ("tools/pancake/capped.sh", "#!/bin/sh\n"),
+                      ("serve/server.py", "# stub\n"), ("bench/tasks/default.json", "{}\n")):
+        (pkg / rel).parent.mkdir(parents=True, exist_ok=True)
+        (pkg / rel).write_text(body)
+    (box.tmp / "fake-src.tgz").unlink()
+    subprocess.run(["tar", "czf", (box.tmp / "fake-src.tgz").as_posix(), "-C", (box.tmp / "rg-src").as_posix(), "x"], check=True)
+    if builds:
+        for rel in ("build-plain/strata", "build-updated/strata"):
+            (box.tmp / "mnt" / "benchRD" / rel).parent.mkdir(parents=True, exist_ok=True)
+            (box.tmp / "mnt" / "benchRD" / rel).write_text("#!/bin/sh\nexit 0\n", newline="\n")
+    if diag:
+        for rel in ("flag_diag.py", "diag_group.py"):
+            f = box.tmp / "mnt" / "benchRD" / "src-updated" / "tools" / "pancake" / rel
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text("# stub\n")
+    if configs:
+        (box.tmp / "auto-runs" / "benchRD").mkdir(parents=True, exist_ok=True)
+        (box.tmp / "auto-runs" / "benchRD" / "config-plain.json").write_text(json.dumps(RG_PLAIN))
+        (box.tmp / "auto-runs" / "benchRD" / "config-updated.json").write_text(json.dumps(RG_UPD))
+
+
+def rg_gate_calls(box):
+    return [c for c in box.calls() if c.startswith("VENVPY") and "task_gate.py" in c]
+
+
+def test_bench_rdgate_full_flow_gate_with_the_venv_python_spec_and_marker(tmp_path):
+    box = Box(tmp_path)
+    prepare_rg(box)
+    box.finish(box.start(RG, env=be_env()))
+    lines = box.log("bench-rdgate.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHRDGATE_DONE" and "ERROR" not in text and "ABORTED" not in text, text
+    assert_start_end_pairs(lines)
+    order = ["started by the scheduler", "service already stopped", "PREREQ ok", "SYNC harness: origin port/rdna3-decode abc123", "PREREQ harness ok",
+             "SPEC ", "START dryrun", "END dryrun exit=0", "START ctest-updated", "END ctest-updated exit=0", "START ctest-plain", "END ctest-plain exit=0",
+             "NO-ENGINE check ok before diag", "START diag", "END diag exit=0", "NO-ENGINE check ok before gate", "START gate", "END gate exit=0", "PASS",
+             "SUMMARY dryrun exit=0, ctest updated=0 plain=0 , diag exit=0, gate exit=0", "service stays down"]
+    pos = [text.index(k) for k in order]
+    assert pos == sorted(pos), order
+    tg = rg_gate_calls(box)
+    assert len(tg) == 2 and "--dry-run" in tg[0] and "--dry-run" not in tg[1], tg
+    for c in tg:   # the standard settings, from the synced harness
+        assert "tools/pancake/task_gate.py" in c and "work/rdgate.json" in c and "--tasks bench/tasks/default.json" in c and "--reps 5" in c
+        assert "/auto-runs/benchrdgate/gate" in c
+    sess = [c for c in box.calls() if c.startswith("SETSID")]
+    assert len(sess) == 5, sess                                                          # dry run, 2 ctests, diag, gate: each in its own session
+    venv = "/clone-of-d/src/Strata-win/.venv/bin/python"
+    assert sum(1 for c in sess if venv + " tools/pancake/task_gate.py" in c) == 2, sess  # the gate runs with the box venv python
+    ct = [c for c in box.calls() if c.startswith("ctest ")]
+    assert len(ct) == 2 and "/mnt/benchRD/build-updated -R verify_ecap_test|sampler_parity|elementwise_parity" in ct[0] and "/mnt/benchRD/build-plain -R" in ct[1], ct
+    assert any("/stub/ctest --test-dir" in c for c in sess), "ctest by its full path"
+    fd = [c for c in sess if "flag_diag.py run" in c]
+    assert len(fd) == 1 and venv + " -u " in fd[0] and "/mnt/benchRD/src-updated/tools/pancake/flag_diag.py" in fd[0], fd
+    for k in ("auto-runs/benchRD/config-updated.json", "--flags POOL_FUSE_PHASES,VERIFY_ECAP,PF_F16,RDNA_MMVQ_WAVE,KV_HOST_DMA",
+              "/mnt/benchrdgate/harness/tools/pancake/abtest.py", "/auto-runs/benchrdgate/diag", "--ctest ", "/mnt/benchRD/build-updated"):
+        assert k in fd[0], k
+    assert (box.tmp / "auto-runs" / "benchrdgate" / "diag" / "verdicts.json").exists()
+    assert not [c for c in box.calls() if c.startswith("PY ") and "task_gate.py" in c], "no task_gate.py through the PATH python3"
+    sp = json.loads((box.tmp / "auto-runs" / "benchrdgate" / "work" / "rdgate.json").read_text())
+    assert sp["base"].endswith("auto-runs/benchRD/config-plain.json") and sp["tasks"] == "bench/tasks/default.json"
+    assert (sp["reps"], sp["temperature"], sp["margin"]) == (5, 0.2, 0.05) and list(sp["arms"]) == ["plain", "updated"]
+    assert list(sp["arms"]["plain"]) == ["exe"] and sp["arms"]["plain"]["exe"].endswith("/mnt/benchRD/build-plain/strata")
+    upd = sp["arms"]["updated"]
+    assert upd["exe"].endswith("/mnt/benchRD/build-updated/strata") and "config" not in upd
+    assert upd["env"] == {"STRATA_PF_F16": "1", "STRATA_POOL_FUSE_PHASES": "1", "STRATA_OLD": None}   # exactly what config-updated.json changes
+    assert not any(c.startswith("SIG") or c.startswith("REAP") for c in box.calls())     # AA is never signalled, nothing to reap
+    assert not any(c.startswith("SYSTEMCTL") and (" start " in c or " stop " in c) for c in box.calls())   # the service stays down
+
+
+def test_bench_rdgate_prereq_missing_builds_or_configs_aborts_before_any_download(tmp_path):
+    box = Box(tmp_path)
+    prepare_rg(box, builds=False)
+    (box.tmp / "auto-runs" / "benchRD" / "config-updated.json").unlink()
+    box.finish(box.start(RG, env=be_env()))
+    lines = box.log("bench-rdgate.log")
+    err = [l for l in lines if l.startswith("ERROR PREREQ missing")]
+    assert len(err) == 1 and all(k in err[0] for k in ("benchRD/build-plain/strata", "benchRD/build-updated/strata", "benchRD/config-updated.json")), lines
+    assert "config-plain.json" not in err[0]
+    assert any(l.startswith("WINBENCHRDGATE_ABORTED: PREREQ missing") for l in lines) and lines[-1] == "WINBENCHRDGATE_DONE"
+    assert not rg_gate_calls(box) and "SYNC" not in "\n".join(lines) and not any(c.startswith("SETSID") for c in box.calls())
+
+
+def test_bench_rdgate_harness_without_abtest_python_aborts_before_any_engine(tmp_path):
+    box = Box(tmp_path)
+    prepare_rg(box, abtest_py="PY = ROOT / '.venv/bin/python'\n")
+    box.finish(box.start(RG, env=be_env()))
+    lines = box.log("bench-rdgate.log")
+    assert any(l.startswith("ERROR PREREQ harness:") and "does not read ABTEST_PYTHON" in l for l in lines), lines
+    assert lines[-1] == "WINBENCHRDGATE_DONE" and not rg_gate_calls(box)
+
+
+def test_bench_rdgate_failed_dry_run_skips_the_gate_but_not_the_ctests_and_diag(tmp_path):
+    box = Box(tmp_path)
+    prepare_rg(box)
+    box.finish(box.start(RG, env=be_env(TG_DRY_EXIT="1")))
+    lines = box.log("bench-rdgate.log")
+    text = "\n".join(lines)
+    tg = rg_gate_calls(box)
+    assert len(tg) == 1 and "--dry-run" in tg[0], tg
+    assert "ERROR dryrun exit=1" in text and "SKIP gate: the dry run failed (exit 1)" in text and "END diag exit=0" in text and "END ctest-plain" in text
+    assert "SUMMARY dryrun exit=1" in text and "gate exit=-" in text and lines[-1] == "WINBENCHRDGATE_DONE"
+
+
+def test_bench_rdgate_running_engine_of_another_job_skips_diag_and_gate_and_is_never_killed(tmp_path):
+    box = Box(tmp_path)
+    prepare_rg(box)
+    (box.tmp / "procs.txt").write_text("5005 python3 -u /x/tools/pancake/flag_diag.py run --config y\n")   # not in busy(): only the no-engine check sees it
+    box.finish(box.start(RG, env=be_env()))
+    lines = box.log("bench-rdgate.log")
+    text = "\n".join(lines)
+    assert any(l.startswith("ERROR diag not started: an engine / server / harness is still running after 120 s: 5005") for l in lines), lines
+    assert any(l.startswith("ERROR gate not started:") for l in lines)
+    assert not [c for c in box.calls() if c.startswith("SETSID") and ("flag_diag.py run" in c or ("task_gate.py" in c and "--dry-run" not in c))]
+    assert not any(c.startswith(("REAP", "SIG")) for c in box.calls()) and "diag exit=skip, gate exit=skip" in text and lines[-1] == "WINBENCHRDGATE_DONE"
+
+
+def test_bench_rdgate_ctest_failure_and_missing_flag_diag_are_logged_and_the_gate_still_runs(tmp_path):
+    box = Box(tmp_path)
+    prepare_rg(box, diag=False)
+    (box.tmp / "stub" / "ctest").write_text('#!/bin/sh\necho "ctest $*" >> "$H/calls.log"\necho "Could not find executable /x/sampler_parity"\n'
+                                            'echo "0% tests passed, 3 tests failed out of 3"\nexit 8\n', newline="\n")
+    box.finish(box.start(RG, env=be_env()))
+    lines = box.log("bench-rdgate.log")
+    text = "\n".join(lines)
+    assert "END ctest-updated exit=8" in text and "END ctest-plain exit=8" in text and "ERROR ctest-plain exit=8" in text
+    assert any(l.startswith("ERROR diag SKIPPED: missing") and "src-updated/tools/pancake/flag_diag.py" in l for l in lines), lines
+    assert "END gate exit=0" in text and lines[-1] == "WINBENCHRDGATE_DONE"
+
+
+def test_bench_rdgate_engine_left_by_the_gate_is_reaped_no_orphan(tmp_path):
+    box = Box(tmp_path)
+    prepare_rg(box)
+    box.finish(box.start(RG, env=be_env(GATE_ORPHAN="1")))
+    lines = box.log("bench-rdgate.log")
+    text = "\n".join(lines)
+    reap = [l for l in lines if l.startswith("REAP gate: still running")]
+    assert len(reap) == 1 and "999994" in reap[0], lines
+    assert "REAP -TERM 999994" in box.calls() and not (box.tmp / "lstart.999994").exists()
+    assert text.index("REAP gate: still running") < text.index("END gate") and "ERROR REAP" not in text and lines[-1] == "WINBENCHRDGATE_DONE"
+
+
+def test_bench_rdgate_gate_over_its_limit_gets_term_and_the_marker_follows(tmp_path):
+    box = Box(tmp_path)
+    prepare_rg(box)
+    box.finish(box.start(RG, env=be_env(GATE_HANG="30", RDGATE_LIM_GATE="20")), timeout=180)
+    lines = box.log("bench-rdgate.log")
+    assert any(l.startswith("TIMEOUT gate after 20 s (limit 20 s") for l in lines), lines
+    assert any(c.startswith("REAP -TERM") for c in box.calls())
+    assert "END gate exit=124" in "\n".join(lines) and lines[-1] == "WINBENCHRDGATE_DONE"
+
+
+def test_bench_rdgate_budget_default_and_standalone_wait_for_the_rd_marker(tmp_path):
+    t = (CHAINS / RG).read_text()
+    m = re.search(r"BUDGET=\$\{BENCH_BUDGET_S:-(\d+)\}", t)
+    assert m and int(m.group(1)) == 5400
+    g = re.search(r"LIM_GATE=\$\{RDGATE_LIM_GATE:-(\d+)\}", t)
+    assert g and int(g.group(1)) < 5400
+    assert t.index("WINBENCHRDGATE_DONE") < t.index("WINBENCHRD_DONE"), "the scheduler takes the first WIN*_DONE of the script as its marker"
+    box = Box(tmp_path)
+    prepare_rg(box)
+    p = box.start(RG, env={"SVC_DOWN": "1", "REAPCMD": "reapcmd"})
+    time.sleep(1.5)
+    assert p.poll() is None and len(box.log("bench-rdgate.log")) == 1
+    append(box, "bench-updatedRD.log", "WINBENCHRD_DONE")
+    box.finish(p)
+    lines = box.log("bench-rdgate.log")
+    assert "the RD benchmark chain is done" in lines[1] and lines[-1] == "WINBENCHRDGATE_DONE", lines[:3]
+
+
+def test_bench_rdgate_name_is_invisible_to_every_busy_pattern_and_sees_the_benchmark_chains(tmp_path):
+    box = Box(tmp_path)
+    for bad in ("win-chain", "redo-chain", "tail-chain", "auto-chain", "after7"):
+        assert bad not in RG
+    for chain in ("win-chainT.sh", "redo-chainAA.sh", "bench-updatedAA.sh", "bench-updatedRD.sh", "bench-exact.sh", RG):
+        assert busy_result(box, chain, ["sh ./bench-rdgate.v1.sh"]) == "IDLE", chain
+    for other in ("sh ./bench-updatedRD.v3.sh", "sh ./bench-exact.v1.sh", "sh ./bench-diagUS.sh", "python3 tools/pancake/task_gate.py x"):
+        assert busy_result(box, RG, [other]) == "BUSY", other
+
+
+def test_sched_runs_bench_rdgate_as_extra_with_its_own_log_and_marker(tmp_path):
+    box = Box(tmp_path)
+    prepare_sched(box)
+    body = FAKE_CHAIN.format(name="rdgate", log=(box.S / "bench-rdgate.log").as_posix(), marker="WINBENCHRDGATE_DONE")
+    (box.S / "bench-rdgate.v1.sh").write_text(body, newline="\n")
+    box.finish(box.start(SCHED, env=sched_env(BENCH_ONLY="EXTRA", BENCH_EXTRA="./bench-rdgate.v1.sh", BENCH_NO_RESUME="1")))
+    text = "\n".join(box.log("bench-sched.log"))
+    assert chains_log(box) == ["rdgate env: BENCH_SCHED=1 BENCH_PREIDLED=1 KEEP=1 stat=T"], chains_log(box)
+    assert "END EXTRA exit=0 last-log-line=WINBENCHRDGATE_DONE" in text and "ERROR" not in text, text
+    idle = next(l for l in (CHAINS / SCHED).read_text().splitlines() if "if busy || pgrep" in l)
+    assert "rdgate" in idle and "exact" in idle
