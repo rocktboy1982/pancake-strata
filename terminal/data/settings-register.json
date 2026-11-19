@@ -46041,6 +46041,39 @@
    "retired_in": "0.2.16"
   },
   {
+   "name": "STRATA_WAIT_FUSE",
+   "backends": [
+    "cuda-hip"
+   ],
+   "reads": [
+    {
+     "file": "engine/src/core/verify.cpp",
+     "line": 1420,
+     "backend": "cuda-hip",
+     "fn": "getenv"
+    }
+   ],
+   "parse": "flag",
+   "default_state": "off",
+   "code_default": null,
+   "engine_sets": [],
+   "engine_defaults": [],
+   "launch_files": [],
+   "launch_sets": [],
+   "launch_reads": [],
+   "doc_mentions": [],
+   "first_commit": null,
+   "first_date": null,
+   "since": null,
+   "last_commit": null,
+   "last_date": null,
+   "status": "opt-in",
+   "owner": "kernels/hip-rdna",
+   "note": "with STRATA_COMBINE_CPU: the plan wait and copy in one launch, the CPU-share wait inside the fused combine (system-scope acquire in every wave); pancake T-009 (nicejunjie 297243a5e: 21.85 to 21.60 ms/window, byte-identical); T-077 (turning the fused wait off lost); the daily preset sets 1",
+   "retire_after": "",
+   "retired_in": ""
+  },
+  {
    "name": "STRATA_WARM_GRAPHS",
    "backends": [
     "sycl"
