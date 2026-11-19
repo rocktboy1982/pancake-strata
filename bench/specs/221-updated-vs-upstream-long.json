@@ -1,0 +1,82 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-plain-upstream.json",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "longdec10k",
+  "longdec32k",
+  "longdec64k",
+  "longdec100k"
+ ],
+ "reps": 5,
+ "arms": {
+  "plain-upstream": {
+   "exe": "/mnt/pancake/benchus/build-up/strata"
+  },
+  "updated": {
+   "exe": "/mnt/pancake/benchus/build-us/strata",
+   "args": {
+    "--expert-profile": "<REPO>/data/expert-profile-pancake.bin",
+    "--expert-cache": "auto",
+    "--prefill": "auto",
+    "--spec": "4",
+    "--spec-min-p": "0.5",
+    "--kv": "int8",
+    "--kv-resident": "32768",
+    "--adapt-swaps": "32",
+    "--pool-affinity": "measure",
+    "--pcie-frac": "0",
+    "--adapt-every": "1",
+    "--lookup-max-t": "12",
+    "--conversation-cache-mib": "2048",
+    "--conversation-cache-min-tokens": "8192"
+   },
+   "env": {
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_HC_Q8": "0",
+    "STRATA_PREFILL_CPU_SHARE": "0.6",
+    "STRATA_HIP_WMMA": "1",
+    "STRATA_SELECT_WMMA": "1",
+    "STRATA_SH_STREAM": "0",
+    "STRATA_PREFILL_AUTO_MAX": "32768",
+    "STRATA_QFUSE": "1",
+    "STRATA_VERIFY_QDEDUP": "1",
+    "STRATA_PF_FUSED": "1",
+    "STRATA_STAGER_RING": "64",
+    "STRATA_PREFILL_CPU_SHARE_MAX": "4096",
+    "GPU_MAX_HW_QUEUES": "6",
+    "STRATA_GDN_HEAD": "1",
+    "STRATA_GDN_CHUNKED": "1",
+    "STRATA_GDN_PP": "1",
+    "STRATA_GDN_CONVL2": "1",
+    "STRATA_GDN_NOY": "1",
+    "STRATA_PF_GEMM": "1",
+    "STRATA_PF_PAD": "1",
+    "STRATA_HC_UPMIX": "1",
+    "STRATA_PF_HCDOWN": "1",
+    "STRATA_FUSE_CONVAB": "1",
+    "STRATA_HEAD_MIX_MULTI": "1",
+    "STRATA_PA_FAST": "1",
+    "STRATA_PF_F16": "1",
+    "STRATA_PREFILL_RING": "192",
+    "STRATA_KV_HOST_DMA": "1",
+    "STRATA_ADAPT_OVERLAP": "1",
+    "STRATA_QSA_ROWS": "1",
+    "STRATA_HIPBLASLT_TUNING": "<REPO>/tools/hip/gfx1100-hipblaslt-100401.txt",
+    "STRATA_RDNA_Q6K": "1",
+    "STRATA_ENGINE_NICE": "0",
+    "STRATA_EXPDEC_DOWN": "1"
+   }
+  }
+ },
+ "note": "Same arms, long prompts: the standard long set 10K / 32K / 64K / 100K tokens, cold prompt, then a 256-token reply: prompt tok/s and decode tok/s of every case (longdec cases record both). One request per engine start, 5 reps. The plain upstream arm may not hold 100K tokens at its default KV format: a failed arm is recorded, not hidden."
+}

@@ -127,7 +127,7 @@ SH_STUBS = {
     "cmake": ('echo "cmake $*" >> "$H/calls.log"\n'
               'b=; t=; while [ $# -gt 0 ]; do case $1 in --build) b=$2;; -B) b=$2;; --target) t=$2;; esac; shift; done\n'
               '[ "$CMAKE_FAIL" = 1 ] && [ "$t" = strata ] && { rm -f "$b/strata"; exit 1; }\n'  # a failed link removes the binary (T-965 / T-968)
-              '[ -n "$b" ] && mkdir -p "$b" && [ -n "$t" ] && [ ! -e "$b/$t" ] && { : > "$b/$t"; chmod +x "$b/$t"; }\nexit 0\n'),
+              '[ -n "$b" ] && mkdir -p "$b" && [ -n "$t" ] && [ ! -e "$b/$t" ] && { printf "#!/bin/sh\\nexit 0\\n" > "$b/$t"; chmod +x "$b/$t"; }\nexit 0\n'),
 }
 
 
@@ -817,3 +817,146 @@ def test_redo_aa_name_is_invisible_to_every_busy_pattern_and_sees_the_others(tmp
     for other in ("sh ./win-chainT.sh", "sh ./xtail-chainX.sh", "sh ./ytail-chainY.sh", "/bin/sh ./after7.sh", "python3 tools/pancake/abtest.py x",
                   "cmake --build x"):
         assert busy_result(box, AA, [other]) == "BUSY", other
+
+
+# ------------------------------------------------------------------------------------------------ bench-updatedAA (updated-strata vs plain upstream)
+BU = "bench-updatedAA.sh"
+FLAG_DIAG_STUB = r'''#!/bin/sh
+case "$1" in
+  run) mkdir -p "$3"; echo "{\"verdicts\": []}" > "$3/verdicts.json"; echo "GAIN STRATA_RDNA_Q6K"; echo "15.0 minutes; verdicts in $3/verdicts.json" ;;
+  hw) echo "{\"gfx\": \"gfx1100\"}" ;;
+  --write-recommended) echo "{\"schema\": \"strata.tuned-flags/1\", \"profiles\": []}" > "$3"; echo "wrote $3" ;;
+esac
+exit 0
+'''
+BUILD_STUB = '#!/bin/sh\n[ "$BU_FAIL" = 1 ] && { echo "boom: error: undefined reference" >&2; exit 1; }\nmkdir -p "$2"; printf "#!/bin/sh\\nexit 0\\n" > "$2/strata"; chmod +x "$2/strata"; exit 0\n'
+
+
+def prepare_bu(box, aa_done=True):
+    (box.S / "redo-chainAA.log").write_text("START\nWINCHAINAA_DONE\n" if aa_done else "START\nrunning\n")
+    (box.tmp / "clients").write_text("0\n0\n0\n")
+    pkg = box.tmp / "bu-src" / "x"
+    (pkg / "engine").mkdir(parents=True)
+    (pkg / "engine" / "CMakeLists.txt").write_text("project(x)\n")
+    for rel, body in (("tools/pancake/abtest.py", "# stub\n"), ("tools/pancake/flag_diag.py", "# stub\n"),
+                      ("tools/pancake/flag_diag.sh", FLAG_DIAG_STUB), ("tools/pancake/build_updated.sh", BUILD_STUB)):
+        (pkg / rel).parent.mkdir(parents=True, exist_ok=True)
+        (pkg / rel).write_text(body, newline="\n")
+    root = HERE.parents[1]
+    for rel in ("bench/specs/220-updated-vs-upstream-short.json", "bench/specs/221-updated-vs-upstream-long.json",
+                "configs/pancake/flashnext-iq2_xs-plain-upstream.json", "configs/pancake/flashnext-iq2_xs-updated-hip.json"):
+        (pkg / rel).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy(root / rel, pkg / rel)
+    (box.tmp / "fake-src.tgz").unlink()
+    subprocess.run(["tar", "czf", (box.tmp / "fake-src.tgz").as_posix(), "-C", (box.tmp / "bu-src").as_posix(), "x"], check=True)
+    (box.tmp / "stub" / "df").write_text('#!/bin/sh\necho "Filesystem 1K-blocks Used Available Use% Mounted"\necho "x 1 1 ${DF_FREE:-99999999} 1% /"\n', newline="\n")
+
+
+def test_bench_updated_waits_for_chain_aa_then_runs_the_ordered_flow(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box, aa_done=False)
+    p = box.start(BU)
+    time.sleep(1.5)
+    assert p.poll() is None and len(box.log("bench-updatedAA.log")) == 1
+    assert not any(c.startswith("SYSTEMCTL") for c in box.calls())
+    append(box, "redo-chainAA.log", "WINCHAINAA_DONE")
+    box.finish(p)
+    lines = box.log("bench-updatedAA.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHUS_DONE", lines[-8:]
+    assert "ERROR" not in text and "ABORTED" not in text, text
+    assert_start_end_pairs(lines)
+    assert_service_discipline(box)
+    for must in ("SYNC harness: origin port/rdna3-decode abc123", "BUILD_END plain upstream exit=0", "BUILD_END updated-strata exit=0",
+                 "START diag plain", "START diag updated", "START short-edit", "START long", "SUMMARY spec220 exit=0, spec221 exit=0"):
+        assert must in text, must
+    order = ["chain AA is done", "service stopped", "SYNC harness", "BUILD_END plain upstream", "BUILD_END updated-strata", "START diag plain",
+             "START diag updated", "START short-edit", "START long", "SUMMARY"]
+    pos = [text.index(k) for k in order]
+    assert pos == sorted(pos), order
+    calls = box.calls()
+    cm = [c for c in calls if c.startswith("cmake") and "-S" in c]
+    assert cm and all((box.h + "/mnt/benchus") in c for c in cm), cm        # nothing is built on /
+    assert "-DCMAKE_HIP_ARCHITECTURES=gfx1100" in cm[0] and "STRATA_BUILD_TESTS" not in cm[0]   # the plain build: only the documented flags
+    ab = [c for c in calls if c.startswith("PY") and "abtest.py" in c]
+    assert len(ab) == 2 and all("--reps 5" in c and "--no-early-stop" in c and "--tier confirm" in c for c in ab), ab
+    assert "220-updated-vs-upstream-short.json" in ab[0] and "221-updated-vs-upstream-long.json" in ab[1]
+    assert "generated text vs base" in text                                  # the text-identity result reaches the log
+    assert (box.tmp / "auto-runs" / "winbenchus" / "tuned-flags-recommended.json").exists()
+    assert (box.tmp / "mnt" / "benchus" / "build-up" / "strata").exists() and (box.tmp / "mnt" / "benchus" / "build-us" / "strata").exists()
+
+
+def test_bench_updated_failed_plain_build_restores_the_old_binary_and_stops(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box)
+    old = box.tmp / "mnt" / "benchus" / "build-up"
+    old.mkdir(parents=True)
+    (old / "strata").write_text("#!/bin/sh\n# previous\n", newline="\n")
+    box.finish(box.start(BU, env={"CMAKE_FAIL": "1"}))
+    lines = box.log("bench-updatedAA.log")
+    text = "\n".join(lines)
+    assert any(l.startswith("ERROR plain upstream build exit=1") for l in lines)
+    assert "previous strata-up restored" in text
+    assert (old / "strata").read_text() == "#!/bin/sh\n# previous\n"
+    assert lines[-1] == "WINBENCHUS_DONE" and lines[-3].startswith("WINBENCHUS_ABORTED")
+    for never in ("BUILD updated-strata", "START diag", "START short-edit"):
+        assert never not in text, never
+    assert_service_discipline(box)
+
+
+def test_bench_updated_failed_updated_build_stops_before_any_measurement(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box)
+    box.finish(box.start(BU, env={"BU_FAIL": "1"}))
+    lines = box.log("bench-updatedAA.log")
+    text = "\n".join(lines)
+    assert any(l.startswith("ERROR updated-strata build exit=1") for l in lines)
+    assert "BUILD_END plain upstream exit=0" in text and lines[-1] == "WINBENCHUS_DONE"
+    for never in ("START diag", "START short-edit", "START long"):
+        assert never not in text, never
+    assert_service_discipline(box)
+
+
+def test_bench_updated_stops_with_error_when_the_data_disk_is_nearly_full(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box)
+    box.finish(box.start(BU, env={"DF_FREE": "1000"}))
+    lines = box.log("bench-updatedAA.log")
+    assert any((l.startswith("ERROR START: ") and "has 1000 KB free" in l) for l in lines)
+    assert lines[-1] == "WINBENCHUS_DONE" and "BUILD" not in "\n".join(lines)
+
+
+def test_bench_updated_stops_when_a_download_fails(tmp_path):
+    box = Box(tmp_path)
+    prepare_bu(box)
+    (box.tmp / "stub" / "curl").write_text("#!/bin/sh\nexit 22\n", newline="\n")
+    box.finish(box.start(BU))
+    lines = box.log("bench-updatedAA.log")
+    assert any(l.startswith("ERROR SYNC harness download failed") for l in lines) and lines[-1] == "WINBENCHUS_DONE"
+    assert_service_discipline(box)
+
+
+def test_bench_updated_name_is_invisible_to_every_busy_pattern_and_sees_the_others(tmp_path):
+    box = Box(tmp_path)
+    assert "win-chain" not in BU
+    for name in ("win-chainV.sh", "xtail-chainX.sh", "ytail-chainY.sh", "ztail-chainZ.sh", AA):
+        assert busy_result(box, name, ["sh ./bench-updatedAA.sh"]) == "IDLE", name
+    assert busy_result(box, BU, ["sh ./bench-updatedAA.sh"]) == "IDLE"
+    for other in ("sh ./redo-chainAA.sh", "sh ./win-chainT.sh", "python3 tools/pancake/abtest.py x", "cmake --build x", "strata --serve"):
+        assert busy_result(box, BU, [other]) == "BUSY", other
+
+
+def test_updated_vs_upstream_specs_match_the_preset():
+    root = HERE.parents[1]
+    plain = json.loads((root / "configs/pancake/flashnext-iq2_xs-plain-upstream.json").read_text())
+    preset = json.loads((root / "configs/pancake/flashnext-iq2_xs-updated-hip.json").read_text())
+    for n in ("220-updated-vs-upstream-short", "221-updated-vs-upstream-long"):
+        spec = json.loads((root / f"bench/specs/{n}.json").read_text())
+        arm = spec["arms"]["updated"]
+        assert spec["arms"]["plain-upstream"]["exe"] != arm["exe"] and list(spec["arms"])[0] == "plain-upstream"
+        assert arm["env"] == preset["env"]
+        pa = preset["args"]
+        got = {pa[i]: pa[i + 1] for i in range(0, len(pa), 2)}
+        base = {plain["args"][i]: plain["args"][i + 1] for i in range(0, len(plain["args"]), 2)}
+        assert arm["args"] == {k: v for k, v in got.items() if k not in base}
+    assert plain["env"] == {}
