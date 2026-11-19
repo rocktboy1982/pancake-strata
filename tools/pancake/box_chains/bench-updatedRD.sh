@@ -41,6 +41,13 @@ BP=$PM/build-plain; BU=$PM/build-updated; ROCM=/opt/rocm/core-10.0
 DEC=$S/chainT-decide.py; T0=$(date +%s); BUDGET=${BENCH_BUDGET_S:-7200}
 RD_SHA=${RD_SHA:-8b01b0c8512d388552e8601b3aff6753d05286e0}
 NINJA=$S/Strata/.venv/bin/ninja; DATA=/home/dan/clone-of-d/Strata-data; GGML_DIR=/home/dan/clone-of-d/build-int/_deps/strata_llamacpp-src; RCCL_INC=
+# 2026-11-19 (third RD attempt, TEST_LEDGER.md T-981: plain build ok, then the plain smoke: "server died before ready; engine log: env: '/mnt/pancake/benchRD/src-pancake/.venv/bin/python':
+# No such file or directory"): abtest.py starts serve/server.py with <its own tree>/.venv/bin/python, and the downloaded harness tree $TOOLS has no .venv (the US chain
+# runs the harness from Strata-win, which has one).  Now the harness (abtest, flag_diag and through ABTEST_PYTHON the server abtest starts) runs with the box's existing
+# venv interpreter HPY (nothing is created under Strata-win or in the downloaded trees); PREREQ checks HPY, and right after the sync HPY must import serve.server from
+# $TOOLS and $TOOLS' abtest.py must honour ABTEST_PYTHON, so this fails in seconds instead of after the plain build.
+HPY=${BENCH_HARNESS_PY:-$R/.venv/bin/python}
+export ABTEST_PYTHON=$HPY
 # $ROCM/bin first: flag_diag.py reads `rocminfo` through PATH (2026-11-19 13:33: "no AMD graphics card could be read" because it was not on PATH)
 export PATH=$ROCM/bin:$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
 mkdir -p $T $PM $PM/bak
@@ -106,10 +113,11 @@ prereq() {  # build and launch prerequisites: one ERROR naming every missing fil
   miss=
   for f in $ROCM/bin/rocminfo $ROCM/bin/hipcc $ROCM/lib/llvm/bin/clang++ $CM $NINJA $ROCM/include/hip/hip_runtime.h $GGML_DIR $S/Strata/pancake-flashnext-iq2_xs-fast-hip.json \
            $DATA/packs/iq2_xs/tokenizer $DATA/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf \
-           $DATA/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf $DATA/mtp/rt; do
+           $DATA/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf $DATA/mtp/rt $HPY; do
     [ -e "$f" ] || miss="$miss $f"
   done
   [ -z "$miss" ] || abort "PREREQ missing files:$miss"
+  "$HPY" -c 'import sys' >/dev/null 2>&1 || abort "PREREQ the harness python $HPY does not run"
   command -v rocminfo >/dev/null 2>&1 || abort "PREREQ rocminfo is not on PATH ($PATH): flag_diag could not read the card"
   rocminfo 2>/dev/null | grep -q -E "Name: +gfx" || abort "PREREQ rocminfo lists no gfx device (HIP_VISIBLE_DEVICES=$HIP_VISIBLE_DEVICES)"
   if [ -f $ROCM/include/rccl/rccl.h ]; then say "PREREQ rccl/rccl.h found in ROCm: no stub"
@@ -117,7 +125,12 @@ prereq() {  # build and launch prerequisites: one ERROR naming every missing fil
     { mkdir -p $PM/rccl-stub/rccl && rccl_stub > $PM/rccl-stub/rccl/rccl.h; } || abort "PREREQ cannot write the rccl stub in $PM/rccl-stub"
     RCCL_INC=$PM/rccl-stub; say "PREREQ rccl/rccl.h is not in $ROCM/include: a stub header with the RCCL declarations src/core/peer_transport.inc uses (resolved with dlopen/dlsym at run time, no -lrccl) in $RCCL_INC is put on CPLUS_INCLUDE_PATH for both builds (nothing else of the plain build changed)"
   fi
-  say "PREREQ ok: ROCm tools, compiler, cmake, ninja, llama.cpp checkout, model + pack + mtp files, rocminfo sees a gfx device $(date +%T)"
+  say "PREREQ ok: ROCm tools, compiler, cmake, ninja, llama.cpp checkout, model + pack + mtp files, harness python $HPY, rocminfo sees a gfx device $(date +%T)"
+}
+prereq_harness() {  # right after the sync, before any config or build: the harness python imports the server of the downloaded tree (no .pyc written) and that tree's abtest.py takes ABTEST_PYTHON
+  grep -q ABTEST_PYTHON $TOOLS/tools/pancake/abtest.py || abort "PREREQ harness: $TOOLS/tools/pancake/abtest.py does not read ABTEST_PYTHON: its server would start with $TOOLS/.venv/bin/python, which does not exist"
+  e=$(cd $TOOLS && PYTHONDONTWRITEBYTECODE=1 "$HPY" -B -c 'import serve.server' 2>&1) || abort "PREREQ harness: $HPY cannot import serve.server from $TOOLS: $(echo "$e" | tail -n 1 | cut -c1-240)"
+  say "PREREQ harness ok: $HPY imports serve.server from $TOOLS; abtest starts the server with ABTEST_PYTHON=$HPY $(date +%T)"
 }
 smoke() {  # smoke NAME SPEC ARM: PREBUILD SMOKE of one arm exactly as the spec runs it: one engine start + one short request (abtest, confirm tier, 1 rep), limit 900 s
   nm=$1; sp=$2; arm=$3; sd=$O/benchRD-smoke-$nm; mkdir -p $sd
@@ -125,7 +138,7 @@ smoke() {  # smoke NAME SPEC ARM: PREBUILD SMOKE of one arm exactly as the spec 
     $sp $arm $sd/spec.json || abort "smoke $nm: the smoke spec could not be made from $sp (arm $arm)"
   rm -f $sd/smoke.jsonl
   say "START smoke $nm $(date +%F_%T) (engine start + one short request, limit 900 s)"
-  ( cd $TOOLS && timeout 900 python3 tools/pancake/abtest.py $sd/spec.json --tier confirm --reps 1 --retries 0 --no-early-stop --out $sd/smoke.jsonl ) > $sd/smoke.stdout 2>&1; rc=$?
+  ( cd $TOOLS && timeout 900 "$HPY" tools/pancake/abtest.py $sd/spec.json --tier confirm --reps 1 --retries 0 --no-early-stop --out $sd/smoke.jsonl ) > $sd/smoke.stdout 2>&1; rc=$?
   say "END smoke $nm exit=$rc $(date +%T)"
   grep -q '"decode_tps"' $sd/smoke.jsonl 2>/dev/null || abort "smoke $nm FAILED exit=$rc (log $sd/smoke.stdout): $(errline $sd/smoke.stdout $sd/smoke)"
   say "SMOKE $nm ok: $(grep -o -m1 '"decode_tps": [0-9.]*' $sd/smoke.jsonl | head -n 1) tok/s on one short request"
@@ -162,7 +175,7 @@ ab() {  # ab SPEC PREFIX flags...: abtest from the pancake tools tree, one engin
   sp=$1; pfx=$2; shift 2
   [ "$(freekb /)" -ge 307200 ] || abort "AB $pfx: / has < 300 MB free"
   say "START $pfx $(date +%F_%T)"
-  ( cd $TOOLS && python3 tools/pancake/abtest.py $sp "$@" --out $O/benchRD-$pfx.jsonl ) > $O/benchRD-$pfx.stdout 2>&1; rc=$?
+  ( cd $TOOLS && "$HPY" tools/pancake/abtest.py $sp "$@" --out $O/benchRD-$pfx.jsonl ) > $O/benchRD-$pfx.stdout 2>&1; rc=$?
   say "END $pfx exit=$rc $(date +%T)"
   [ $rc -eq 0 ] || say "ERROR $pfx exit=$rc: $(errline $O/benchRD-$pfx.stdout $O/benchRD-$pfx)"
   return $rc
@@ -189,6 +202,7 @@ fetch rocktboy1982/pancake-strata port/rdna3-decode $TOOLS
 [ -f $TOOLS/tools/pancake/abtest.py ] || abort "SYNC: the pancake tools tree has no tools/pancake/abtest.py"
 SPEC=$TOOLS/bench/specs/250-rdna3-updated-vs-plain.json
 [ -f $SPEC ] || abort "SYNC: $SPEC is missing"
+prereq_harness
 
 # ------------------------------------------------------------------ 1. the two server configs and the spec (made first: the prebuild smokes use them), then the builds, a smoke after each
 python3 $UPD_SRC/tools/pancake/box_chains/bench_updatedRD_conf.py $S/Strata/pancake-flashnext-iq2_xs-fast-hip.json $PLAIN_SRC $UPD_SRC $BP $BU \
@@ -247,7 +261,7 @@ diag() {  # diag NAME CONFIG FLAGS [CTEST_DIR]: one abtest screen per arm (base 
   nm=$1; cf=$2; fl=$3; ct=${4:-}
   nf=$(echo "$fl" | tr ',' '\n' | grep -c .); lim=$(( (nf + 1) * (FLAG_TIMEOUT + 90) + ${ct:+$CTEST_TIMEOUT} + 180 ))
   say "START diag-$nm $(date +%F_%T) (limit $lim s: $nf flags x $FLAG_TIMEOUT s per arm + base + margin)"
-  ( cd $TOOLS && run_diag_group $lim $O/benchRD-diag-$nm.stdout python3 -u $UPD_SRC/tools/pancake/flag_diag.py run --config $cf --flags $fl \
+  ( cd $TOOLS && run_diag_group $lim $O/benchRD-diag-$nm.stdout "$HPY" -u $UPD_SRC/tools/pancake/flag_diag.py run --config $cf --flags $fl \
       --abtest $TOOLS/tools/pancake/abtest.py --out $O/benchRD-diag-$nm --flag-timeout $FLAG_TIMEOUT --ctest-timeout $CTEST_TIMEOUT ${ct:+--ctest $ct} ); rc=$?
   say "END diag-$nm exit=$rc $(date +%T)"
   cut -c1-200 $O/benchRD-diag-$nm.stdout >> $L
