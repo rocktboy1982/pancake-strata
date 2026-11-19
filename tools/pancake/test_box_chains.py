@@ -911,6 +911,8 @@ def test_bench_updated_failed_updated_build_stops_before_any_measurement(tmp_pat
     lines = box.log("bench-updatedAA.log")
     text = "\n".join(lines)
     assert any(l.startswith("ERROR updated-strata build exit=1") for l in lines)
+    assert any(l.startswith("BUILD ERROR LINES (updated-strata") for l in lines)   # the compiler's error lines reach the chain log
+    assert any("undefined reference" in l for l in lines)
     assert "BUILD_END plain upstream exit=0" in text and lines[-1] == "WINBENCHUS_DONE"
     for never in ("START diag", "START short-edit", "START long"):
         assert never not in text, never
