@@ -21,18 +21,26 @@ and writes DIR/hardware.json, DIR/verdicts.json and DIR/recommended-flags.json (
 GAIN flags that are exact, or lossy with a passing quality gate; the gate verdicts recorded in the pancake ledger are listed in
 CANDIDATES["gate"], any other lossy flag needs --gate-pass).  `--write-recommended` copies that into rdna3/recommended-flags/, where
 rdna3/run.py reads it (rdna3/tuned_flags.py).  The measurements are screens: confirm a GAIN (5 reps) before relying on it.
+Since 2026-11-19 (the US chain's diagnostic ran 18 min for 2 flags and left its abtest / server / engine running after the chain's
+timeout): `run` starts ONE abtest.py screen per arm (base once, then each flag; case `short` only, no retries, quiet wait <= 30 s),
+each in its own process group with a hard limit (--flag-timeout, default 240 s; past it: UNTESTED-TIMEOUT and the group is stopped,
+tools/pancake/diag_group.py), rewrites DIR/verdicts.json after every arm, runs the parity ctest only for flags claimed exact, and
+on TERM stops the running arm and marks the rest UNTESTED-TIMEOUT (exit 124).
 Tests: python -m pytest tools/pancake/test_flag_diag.py (fake hardware and fake abtest output)."""
 import argparse
 import copy
 import json
 import os
 import re
+import signal
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "rdna3"))
+sys.path.insert(0, str(Path(__file__).resolve().parent))   # diag_group
 import tuned_flags as tf  # noqa: E402
 
 # name: env / args the flag sets, exact (bitwise) or lossy, the hardware it needs (predicate names below), the ledger gate
@@ -187,16 +195,148 @@ def recommended(hw, verdicts):
     return tf.build_recommended(hw, verdicts)
 
 
+# ---------------------------------------------------------------------------------------------- rows -> verdict input
+def parse_rows(base_jsonl, arm_jsonl, arm):
+    """The parse_abtest structure for one arm from two abtest.py jsonl files (base run, arm run): per case the mean decode
+    (prompt for a long* case) tok/s, its delta % to base, and exact = the generated text hashes equal base's on every case."""
+    def load(text):
+        rows, texts = {}, {}
+        for ln in (text or "").splitlines():
+            ln = ln.strip()
+            if not ln.startswith("{"):
+                continue
+            try:
+                rec = json.loads(ln)
+            except ValueError:
+                continue
+            for r in rec.get("rows") or []:
+                key = "prompt_tps" if str(r.get("case", "")).startswith("long") else "decode_tps"
+                if r.get(key):
+                    rows.setdefault(r["case"], []).append(float(r[key]))
+            texts.update(rec.get("texts") or {})
+        return {c: sum(v) / len(v) for c, v in rows.items()}, texts
+    b, bt = load(base_jsonl)
+    a, at = load(arm_jsonl)
+    if not a:
+        return {}
+    cases = {}
+    for c, m in a.items():
+        d = (m / b[c] - 1.0) * 100.0 if b.get(c) else 0.0
+        cases[c] = {"mean": m, "delta": round(d, 2), "verdict": "better" if d > 0 else "worse" if d < 0 else "no difference"}
+    common = [c for c in at if c in bt]
+    return {arm: {"cases": cases, "exact": (all(at[c] == bt[c] for c in common) if common else None)}}
+
+
 # ---------------------------------------------------------------------------------------------- running
-def run_ctest(build_dir, flags, runner=subprocess.run):
+def run_ctest(build_dir, flags, runner=subprocess.run, timeout=600, out_dir=None):
+    """Parity ctests of the flags CLAIMED EXACT only (a lossy flag's text differs by design; its quality gate is the ledger's).
+    With out_dir: each ctest runs in its own process group with `timeout` (diag_group); a timeout counts as not run (None)."""
     out = {}
     for f in flags:
         rx = CANDIDATES[f].get("ctest")
-        if not rx or not build_dir:
+        if not rx or not build_dir or not CANDIDATES[f]["exact"]:
             continue
-        r = runner(["ctest", "--test-dir", str(build_dir), "-R", rx, "--output-on-failure"], capture_output=True, text=True, timeout=600)
-        out[f] = r.returncode == 0
+        cmd = ["ctest", "--test-dir", str(build_dir), "-R", rx, "--output-on-failure"]
+        if out_dir is not None:
+            import diag_group
+            rc, to, _ = diag_group.run(cmd, Path(out_dir) / ("ctest-%s.log" % f.lower()), timeout, say=lambda s: print(s, flush=True))
+            out[f] = None if to else rc == 0
+        else:
+            r = runner(cmd, capture_output=True, text=True, timeout=timeout)
+            out[f] = r.returncode == 0
     return out
+
+
+class Stopped(Exception):
+    """The diagnostic got TERM (the chain's time limit): the arm running now is stopped, the rest is UNTESTED-TIMEOUT."""
+
+
+def _arm_runner(cmd, log, timeout_s):
+    import diag_group
+    rc, to, _ = diag_group.run(cmd, log, timeout_s, say=lambda s: print(s, flush=True))
+    return rc, to
+
+
+def run_arms(cfg, flags, hw, out, abtest, flag_timeout=240.0, runner=None, ctest=None, ctest_timeout=300.0, gate_pass=(),
+             write=None):
+    """One abtest.py screen per arm (base first, then each flag), case `short` only, one start each, no retries, a hard
+    per-arm time limit (`flag_timeout`, in its own process group: diag_group).  After every arm DIR/verdicts.json is written
+    again, so a chain that stops the diagnostic still finds the verdicts so far.  Verdicts: as verdict_for, plus
+    UNTESTED-TIMEOUT (no result within flag_timeout, or the whole diagnostic was stopped) and UNTESTED (no base, or abtest refused)."""
+    runner = runner or _arm_runner
+    out = Path(out)
+    spec = make_spec(cfg, flags)
+    v = {f: dict(verdict_for(f, hw, {}, ""), verdict="UNTESTED", note="pending: not measured yet") if not unmet(f, hw)
+         else verdict_for(f, hw, {}, "") for f in flags}
+    runnable = [f for f in flags if not unmet(f, hw)]
+
+    def save(final=False):
+        doc = dict(v)
+        tmp = out / "verdicts.json.tmp"
+        tmp.write_text(json.dumps(doc, indent=1) + "\n")
+        os.replace(tmp, out / "verdicts.json")
+        if write:
+            write(doc, final)
+
+    def one(arm):
+        sub = dict(spec, arms={arm: spec["arms"][arm]}, cases=["short"], prefill=False, reps=1,
+                   note="flag_diag.py: one arm, one start, case short (screen)")
+        sp = out / ("spec-%s.json" % arm)
+        sp.write_text(json.dumps(sub, indent=1) + "\n")
+        jl = out / ("rows-%s.jsonl" % arm)
+        if jl.exists():
+            jl.unlink()
+        cmd = [sys.executable, "-u", str(abtest), str(sp), "--tier", "screen", "--retries", "0", "--max-wait", "30",
+               "--out", str(jl)]
+        t0 = time.time()
+        rc, to = runner(cmd, out / ("abtest-%s.stdout" % arm), flag_timeout)
+        print("arm %-20s exit=%s%s %.0f s" % (arm, rc, " TIMEOUT" if to else "", time.time() - t0), flush=True)
+        log = out / ("abtest-%s.stdout" % arm)
+        return rc, to, (jl.read_text() if jl.exists() else ""), (log.read_text(errors="replace") if log.exists() else "")
+
+    save()
+    current = None
+    try:
+        if not runnable:
+            return v
+        current = runnable
+        rc, to, base_rows, base_log = one("base")
+        if not parse_rows(base_rows, base_rows, "base"):
+            why = ("no base result within %g s (engine start + short prompt)" % flag_timeout if to else
+                   "abtest refused to start (another test or engine is running)" if rc == 3 else
+                   "the base arm gave no result rows (abtest exit %s)" % rc)
+            for f in runnable:
+                v[f].update(verdict="UNTESTED-TIMEOUT" if to else "UNTESTED", note=why)
+            save(True)
+            return v
+        for f in runnable:
+            current = runnable[runnable.index(f):]
+            arm = f.lower().replace("_", "-")
+            rc, to, rows, log = one(arm)
+            parsed = parse_rows(base_rows, rows, arm)
+            if not parsed and to:
+                v[f].update(verdict="UNTESTED-TIMEOUT", note="no result within %g s per flag (engine start + short prompt); its process group was stopped" % flag_timeout)
+            elif not parsed and rc == 3:
+                v[f].update(verdict="UNTESTED", note="abtest refused to start (another test or engine is running)")
+            else:
+                v[f] = verdict_for(f, hw, parsed, log or "x", None, gate_pass)
+            save()
+        current = None
+        if ctest:
+            ct = run_ctest(ctest, runnable, timeout=ctest_timeout, out_dir=out)
+            for f, ok in ct.items():
+                if ok is False:
+                    v[f].update(verdict="FAIL", note="a parity ctest of this flag failed")
+                elif ok is None:
+                    v[f]["note"] = (v[f].get("note", "") + " parity ctest: no result within %g s" % ctest_timeout).strip()
+        save(True)
+        return v
+    except (Stopped, KeyboardInterrupt):
+        for f in current or []:
+            if v[f]["verdict"] == "UNTESTED":
+                v[f].update(verdict="UNTESTED-TIMEOUT", note="the diagnostic was stopped (its time limit) before this flag finished")
+        save(True)
+        raise
 
 
 def main(argv=None):
@@ -212,6 +352,9 @@ def main(argv=None):
     ap.add_argument("--ctest", help="a build directory whose ctest parity tests are run per flag")
     ap.add_argument("--gate-pass", default="", help="lossy flags whose quality gate passed (besides CANDIDATES[...]['gate'])")
     ap.add_argument("--dry-run", action="store_true", help="write the spec and hardware, start nothing (verdict OK / UNSUPPORTED by hardware only)")
+    ap.add_argument("--flag-timeout", type=float, default=240.0,
+                    help="seconds per arm (one engine start + the short case); past it the arm's process group is stopped: UNTESTED-TIMEOUT")
+    ap.add_argument("--ctest-timeout", type=float, default=300.0, help="seconds per parity ctest (flags claimed exact only)")
     a = ap.parse_args(argv)
     out = Path(a.out)
     if a.list:
@@ -238,15 +381,19 @@ def main(argv=None):
     runnable = [f for f in flags if not unmet(f, hw)]
     spec = make_spec(a.config, runnable)
     (out / "spec.json").write_text(json.dumps(spec, indent=1) + "\n")
-    stdout = ""
-    if not a.dry_run and runnable:
-        r = subprocess.run([sys.executable, a.abtest, str(out / "spec.json"), "--tier", "screen", "--out", str(out / "rows.jsonl")],
-                           capture_output=True, text=True)
-        stdout = r.stdout + r.stderr
-        (out / "abtest.stdout").write_text(stdout)
-    ct = run_ctest(a.ctest, flags) if a.ctest and not a.dry_run else {}
-    v = verdicts_for(flags, hw, stdout, ct, [g.strip().upper() for g in a.gate_pass.split(",") if g.strip()])
-    (out / "verdicts.json").write_text(json.dumps(v, indent=1) + "\n")
+    gp = [g.strip().upper() for g in a.gate_pass.split(",") if g.strip()]
+    if a.dry_run:
+        v = verdicts_for(flags, hw, "", {}, gp)
+        (out / "verdicts.json").write_text(json.dumps(v, indent=1) + "\n")
+    else:
+        def on_term(*_):
+            raise Stopped()
+        signal.signal(signal.SIGTERM, on_term)
+        try:
+            v = run_arms(a.config, flags, hw, out, a.abtest, a.flag_timeout, ctest=a.ctest, ctest_timeout=a.ctest_timeout, gate_pass=gp)
+        except (Stopped, KeyboardInterrupt):
+            print("flag_diag: stopped; partial verdicts in %s" % (out / "verdicts.json"), flush=True)
+            return 124
     (out / "recommended-flags.json").write_text(json.dumps(recommended(hw, v), indent=1) + "\n")
     for f, e in v.items():
         print("%-18s %-12s %s" % (f, e["verdict"], e.get("note", "") or ("gain %.1f%%" % e["gain_pct"] if "gain_pct" in e else "")))

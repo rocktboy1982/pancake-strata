@@ -6,4 +6,4 @@
 #   tools/pancake/flag_diag.sh --write-recommended [--out DIR]     # DIR/verdicts.json -> rdna3/recommended-flags/<gfx>-rocm<M.m>.json
 HERE=$(cd "$(dirname "$0")" && pwd)
 PY=${PYTHON:-python3}
-exec "$PY" "$HERE/flag_diag.py" "$@"
+exec "$PY" -u "$HERE/flag_diag.py" "$@"

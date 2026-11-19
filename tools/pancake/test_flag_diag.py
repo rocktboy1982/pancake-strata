@@ -103,6 +103,113 @@ class T(unittest.TestCase):
             v = json.loads((Path(d) / "verdicts.json").read_text())
             self.assertTrue(all(e["verdict"] in ("OK", "UNSUPPORTED") for e in v.values()))
 
+    # ---- 2026-11-19: one arm per abtest run, per-arm time limit, incremental verdicts, group stop
+    def fake_runner(self, decode, timeouts=(), refuse=(), seen=None):
+        def runner(cmd, log, timeout_s):
+            spec = json.loads(Path(cmd[cmd.index("--tier") - 1]).read_text())
+            arm = next(iter(spec["arms"]))
+            self.assertEqual(spec["cases"], ["short"])
+            self.assertIn("--retries", cmd)
+            if seen is not None:
+                seen.append((arm, json.loads((Path(log).parent / "verdicts.json").read_text())))
+            Path(log).write_text("rep 0 %s ...\n" % arm)
+            if arm in timeouts:
+                return None, True
+            if arm in refuse:
+                return 3, False
+            jl = Path(cmd[cmd.index("--out") + 1])
+            jl.write_text(json.dumps({"arm": arm, "rows": [{"case": "short", "decode_tps": decode[arm]}, {"case": "short", "decode_tps": decode[arm]}],
+                                      "texts": {"short": "h-" + ("x" if arm == "verify-ecap" else "same")}}) + "\n")
+            return 0, False
+        return runner
+
+    def test_run_arms_per_flag_timeout_and_incremental(self):
+        seen = []
+        dec = {"base": 100.0, "pool-fuse-phases": 103.0, "verify-ecap": 104.0, "kv-host-dma": 100.2}
+        with tempfile.TemporaryDirectory() as d:
+            v = fd.run_arms("cfg.json", ["POOL_FUSE_PHASES", "VERIFY_ECAP", "PF_F16", "KV_HOST_DMA"], HW, Path(d), "abtest.py",
+                            runner=self.fake_runner(dec, timeouts=("pf-f16",), seen=seen))
+            on_disk = json.loads((Path(d) / "verdicts.json").read_text())
+        self.assertEqual(v["POOL_FUSE_PHASES"]["verdict"], "GAIN")
+        self.assertTrue(v["POOL_FUSE_PHASES"]["exact"])
+        self.assertEqual(v["VERIFY_ECAP"]["verdict"], "GAIN")   # lossy +4 % >= 3
+        self.assertFalse(v["VERIFY_ECAP"]["exact"])
+        self.assertEqual(v["PF_F16"]["verdict"], "UNTESTED-TIMEOUT")
+        self.assertEqual(v["KV_HOST_DMA"]["verdict"], "NO-GAIN")
+        self.assertEqual(on_disk["PF_F16"]["verdict"], "UNTESTED-TIMEOUT")
+        # base once, then one start per flag; the verdicts on disk grow arm by arm
+        self.assertEqual([a for a, _ in seen], ["base", "pool-fuse-phases", "verify-ecap", "pf-f16", "kv-host-dma"])
+        self.assertEqual(seen[0][1]["POOL_FUSE_PHASES"]["verdict"], "UNTESTED")
+        self.assertEqual(seen[2][1]["POOL_FUSE_PHASES"]["verdict"], "GAIN")
+        self.assertEqual(seen[4][1]["PF_F16"]["verdict"], "UNTESTED-TIMEOUT")
+
+    def test_run_arms_base_timeout_or_busy(self):
+        with tempfile.TemporaryDirectory() as d:
+            v = fd.run_arms("cfg.json", ["POOL_FUSE_PHASES"], HW, Path(d), "abtest.py", runner=self.fake_runner({}, timeouts=("base",)))
+            self.assertEqual(v["POOL_FUSE_PHASES"]["verdict"], "UNTESTED-TIMEOUT")
+            v = fd.run_arms("cfg.json", ["POOL_FUSE_PHASES"], HW, Path(d), "abtest.py", runner=self.fake_runner({}, refuse=("base",)))
+            self.assertEqual(v["POOL_FUSE_PHASES"]["verdict"], "UNTESTED")
+
+    def test_run_arms_stopped_keeps_partial_verdicts(self):
+        dec = {"base": 100.0, "pool-fuse-phases": 103.0}
+        inner = self.fake_runner(dec)
+
+        def runner(cmd, log, t):
+            if "spec-verify-ecap.json" in " ".join(cmd):
+                raise fd.Stopped()
+            return inner(cmd, log, t)
+        with tempfile.TemporaryDirectory() as d:
+            with self.assertRaises(fd.Stopped):
+                fd.run_arms("cfg.json", ["POOL_FUSE_PHASES", "VERIFY_ECAP", "KV_HOST_DMA"], HW, Path(d), "abtest.py", runner=runner)
+            v = json.loads((Path(d) / "verdicts.json").read_text())
+        self.assertEqual(v["POOL_FUSE_PHASES"]["verdict"], "GAIN")
+        self.assertEqual(v["VERIFY_ECAP"]["verdict"], "UNTESTED-TIMEOUT")
+        self.assertEqual(v["KV_HOST_DMA"]["verdict"], "UNTESTED-TIMEOUT")
+
+    def test_ctest_only_for_exact_flags(self):
+        calls = []
+
+        class R:
+            returncode = 0
+
+        def runner(cmd, **kw):
+            calls.append(cmd[cmd.index("-R") + 1])
+            return R()
+        ct = fd.run_ctest("/b", ["POOL_FUSE_PHASES", "VERIFY_ECAP"], runner=runner)
+        self.assertEqual(calls, ["pool"])
+        self.assertEqual(ct, {"POOL_FUSE_PHASES": True})
+
+    def test_diag_group_reap_kills_only_the_group_leftovers(self):
+        import diag_group
+        alive = {101: "python3 abtest.py", 102: "python3 serve/server.py --engine strata"}
+        killed, now = [], [0.0]
+
+        def scan(pg):
+            self.assertEqual(pg, 77)
+            return sorted(alive.items())
+
+        def kill(pid, sig):
+            killed.append(pid)
+            alive.pop(pid, None)
+
+        def sleep(s):
+            now[0] += s
+        out = diag_group.reap(77, wait=60, scan=scan, kill=kill, sleep=sleep, clock=lambda: now[0])
+        self.assertEqual(killed, [101, 102])
+        self.assertEqual([p for p, _ in out], [101, 102])
+        self.assertGreaterEqual(now[0], 60)
+        self.assertEqual(diag_group.reap(77, scan=lambda pg: [], kill=kill, sleep=sleep, clock=lambda: now[0]), [])
+
+    @unittest.skipUnless(sys.platform.startswith("linux"), "process groups and /proc: Linux")
+    def test_diag_group_timeout_stops_the_whole_group(self):
+        import diag_group
+        with tempfile.TemporaryDirectory() as d:
+            t0 = __import__("time").time()
+            rc, to, killed = diag_group.run(["sh", "-c", "sleep 300 & sleep 300"], Path(d) / "log", 1, kill_after=2, orphan_wait=5)
+            self.assertTrue(to)
+            self.assertIsNone(rc)
+            self.assertLess(__import__("time").time() - t0, 30)
+
     def test_shell_wrapper_syntax(self):
         sh = shutil.which("sh")
         if sh:
