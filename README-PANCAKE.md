@@ -258,15 +258,15 @@ changes (checked by stashing the edit); it was not investigated further.
 
 Plan (not yet run): `tools/pancake/box_chains/bench-updatedAA.sh`. It builds (a) the plain `v0.2.16` release with its own
 default flags (the documented HIP command of `docs/AMD_HIP.md`, nothing else) and (b) this branch with `build_updated.sh`, both on
-`/mnt/pancake`; runs `flag_diag.sh` on both builds; then the same workloads on both through `abtest.py --tier confirm --block 3
---warmup 1 --outlier robust --reclaim-max 3 --reps 5 --no-early-stop`, serialized, with no other job on the machine:
+`/mnt/pancake`; runs `flag_diag.sh` on both builds; then the same workloads on both through `abtest.py` (screen first, then `--tier confirm --block 3
+--warmup 1 --outlier robust --reclaim-max 3 --reps 3 --no-early-stop` for an arm that earned it), serialized, with no other job on the machine:
 
 * spec `220`: `short` and `edit` (code rewrite) decode tok/s; text identity against the plain release is printed per case;
 * spec `221`: cold prompts of 10K, 32K, 64K and 100K tokens followed by a 256-token reply: prompt tok/s and decode tok/s of every case.
 
 The plain arm gets the model arguments only (`--pack`, `--native`, `--ple-gguf`, `--mtp`, `--max-context 131072`); the updated arm
 gets the same plus the adopted preset (`configs/pancake/flashnext-iq2_xs-updated-hip.json`: the fork's daily fast-hip preset without
-`STRATA_AGENT_COUNTERS` (log only), `STRATA_PREFILL_EQUAL_TAIL` (a trial under the 2 % bar), `--grammar` and `--mtp-draft-vocab`). Estimated box time 5.5-7.5 hours.
+`STRATA_AGENT_COUNTERS` (log only), `STRATA_PREFILL_EQUAL_TAIL` (a trial under the 2 % bar), `--grammar` and `--mtp-draft-vocab`). Estimated box time about 2 hours (short plan: screen first, confirm 3 reps only for an arm with a screen benefit, tune-up included, budget 7200 s; `bench-sched.sh` runs it before the rest of the box queue).
 
 Results (RX 7900 XT 20 GB, Qwen3.8-Flash-Next IQ2_XS): **TO BE MEASURED**
 
