@@ -1,0 +1,196 @@
+START 2026-11-18_00:50:43
+START 2026-11-18_11:52:44
+START 2026-11-18_12:34:12
+START 2026-11-18_20:02:35
+chain S done 20:02:35
+service stopped (idle) 20:05:36
+SYNC start 20:08:37 df / = 7785704 KB, /mnt/pancake = 53372144 KB
+SYNC source: origin port/rdna3-decode 01a2dd3f7d2ddeca7c12ee16e64a1f6673187e7f (codeload)
+SYNC exit=0 (11374 entries) 20:08:59
+HEADER missing specs: none
+HEADER spec_lint exit=1 (6 lines, /home/dan/auto-runs/chainT/spec_lint.txt)
+HEADER gate dry-run 209-dq-fast-quality exit=0
+HEADER gate dry-run 210-route-budget-quality exit=0
+HEADER gate dry-run 168-quality-floor exit=0
+HEADER gate dry-run 193-wmma-rows-quality exit=0
+HEADER gate dry-run 195-prompt-lazy-quality exit=0
+HEADER replay dry-run 211 exit=0
+BUILD build-win strata strata_tests 20:09:31 (/ free 7785596 KB)
+BUILD_END build-win exit=0 20:13:43 (/ free 7785472 KB)
+BUILD_END target act_f16_probe exit=0
+BUILD_END target link_touch_probe exit=0
+BUILD_END target wmma_rate_probe exit=0
+BUILD_END target int4_wmma_probe exit=0
+BUILD_END target int4_moe_probe exit=0
+BUILD_END target attn_fold_probe exit=0
+BUILD_END target raw_buffer_probe exit=0
+BUILD_END target persist_tape_probe exit=0
+BUILD_END target persist_layer_parity exit=0
+BUILD_END target retained_replay_probe exit=0
+BUILD_END target expdec_bench exit=0
+BUILD_END vmm_probe exit=0
+disk after the builds: / free 7785456 KB
+START ctest new 20:14:50
+END ctest new exit=8 94% tests passed, 1 tests failed out of 18
+ 1/18 Test  #58: vmm_test ...............................***Failed    0.13 sec
+ 2/18 Test  #64: expert_cache_segmented_test ............***Skipped   0.05 sec
+	 58 - vmm_test (Failed)                                 gpu
+START ctest qsa_qmajor_parity 20:15:22
+END ctest qsa_qmajor_parity exit=0 100% tests passed, 0 tests failed out of 2
+parity gates: qsa_qmajor_parity=1 hip_decode_attn_wmma_parity=1
+START gate 209 2026-11-18_20:15:59
+END gate 209 exit=0 20:37:24
+dq-fast                  PASS
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    near-tie: top-1 agreement 98.363%, 154 differences, 145 near-ties (margin <= 0.75): FAIL
+START gate 168 2026-11-18_20:37:54
+END gate 168 exit=0 21:05:13
+floor-unfused            PASS
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    near-tie: top-1 agreement 98.417%, 149 differences, 136 near-ties (margin <= 0.75): FAIL
+f16-1                    PASS
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    near-tie: top-1 agreement 98.353%, 155 differences, 146 near-ties (margin <= 0.75): FAIL
+START gate 210 2026-11-18_21:05:43
+END gate 210 exit=0 21:44:50
+standin                  REJECT
+     "event_rule": "REJECT",
+     "verdict": "REJECT"
+    near-tie: top-1 agreement 92.019%, 751 differences, 388 near-ties (margin <= 0.75): FAIL
+route-budget-auto        REJECT
+     "event_rule": "REJECT",
+     "verdict": "REJECT"
+    near-tie: top-1 agreement 92.019%, 751 differences, 388 near-ties (margin <= 0.75): FAIL
+route-budget             REJECT
+     "event_rule": "REJECT",
+     "verdict": "REJECT"
+    near-tie: top-1 agreement 93.231%, 637 differences, 356 near-ties (margin <= 0.75): FAIL
+START replay 211 rep 1 (base,sidx-4mib,sidx-16mib) 2026-11-18_21:45:20
+END replay 211 rep 1 (base,sidx-4mib,sidx-16mib) exit=0 22:29:06
+rep 0 arm sidx-16mib (attempt 1)
+rep 0 sidx-16mib: prompt 165.3 s (agent 98.4), turn 358.5 s, cold re-reads 0 (0.0 s), min avail 14.92 GiB, peak RSS 39.75 GiB, foreign CPU 5%  NOISY
+  base                     0    143.9     81.6    62.3   338.0    0 (   0.0)   2 (47.9)      9/7            41         14.9          39.7   set by flag (no auto line)  NOISY
+  sidx-4mib                0    141.1     81.7    59.4   338.1    0 (   0.0)   2 (47.9)     11/7            41         15.0          39.7   set by flag (no auto line)  NOISY
+  sidx-16mib               0    165.3     98.4    66.8   358.5    0 (   0.0)   2 (59.3)     10/7            42         14.9          39.8   set by flag (no auto line)  NOISY
+verdict vs base (total prompt time; paired by rep, 95% interval when reps >= 2)
+  sidx-4mib                 -2.8 s ( -1.9%) prompt time, turn time +0.1 s, cold re-reads 0 vs 0  (one rep: deltas only)
+  sidx-16mib               +21.4 s (+14.9%) prompt time, turn time +20.5 s, cold re-reads 0 vs 0  (one rep: deltas only)
+  sidx-4mib: -1.9% prompt time -> PASS 2 (bar -1%)
+  sidx-16mib: +14.9% prompt time -> dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+PASS2 sidx-4mib
+START replay 211 rep 2 (sidx-4mib,base) 2026-11-18_22:29:36
+END replay 211 rep 2 (sidx-4mib,base) exit=0 22:59:06
+rep 0 arm base (attempt 0)
+rep 0 base: prompt 154.8 s (agent 85.0), turn 343.8 s, cold re-reads 0 (0.0 s), min avail 15.03 GiB, peak RSS 39.61 GiB, foreign CPU 5%  NOISY
+rep 0 arm base (attempt 1)
+rep 0 base: prompt 169.6 s (agent 97.1), turn 347.6 s, cold re-reads 0 (0.0 s), min avail 14.91 GiB, peak RSS 39.73 GiB, foreign CPU 7%  NOISY
+  sidx-4mib                0    141.0     77.7    63.2   405.1    0 (   0.0)   2 (47.6)     12/7            41         15.0          39.6   set by flag (no auto line)  NOISY
+  base                     0    169.6     97.1    72.5   347.6    0 (   0.0)   2 (58.4)      9/7            41         14.9          39.7   set by flag (no auto line)  NOISY
+verdict vs sidx-4mib (total prompt time; paired by rep, 95% interval when reps >= 2)
+  base                     +28.6 s (+20.3%) prompt time, turn time -57.5 s, cold re-reads 0 vs 0  (one rep: deltas only)
+START replay 211 rep 3 (sidx-4mib,base) 2026-11-18_22:59:36
+END replay 211 rep 3 (sidx-4mib,base) exit=0 23:29:49
+rep 0 arm base (attempt 0)
+rep 0 base: prompt 155.2 s (agent 79.8), turn 373.4 s, cold re-reads 0 (0.0 s), min avail 15.02 GiB, peak RSS 39.61 GiB, foreign CPU 5%  NOISY
+rep 0 arm base (attempt 1)
+rep 0 base: prompt 141.4 s (agent 78.8), turn 348.4 s, cold re-reads 0 (0.0 s), min avail 15.02 GiB, peak RSS 39.6 GiB, foreign CPU 5%
+  sidx-4mib                0    146.2     80.5    65.7   374.8    0 (   0.0)   2 (47.2)     13/7            41         14.9          39.7   set by flag (no auto line)  NOISY
+  base                     0    141.4     78.8    62.6   348.4    0 (   0.0)   2 (47.3)      9/7            41         15.0          39.6   set by flag (no auto line)
+verdict vs sidx-4mib (total prompt time; paired by rep, 95% interval when reps >= 2)
+  base                      -4.9 s ( -3.3%) prompt time, turn time -26.4 s, cold re-reads 0 vs 0  (one rep: deltas only)
+START 199-screen 2026-11-18_23:30:19
+END 199-screen exit=0 23:35:29
+  vwin2: short -2.3% edit -1.4%  -> no (bar 1%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  vwin4: short -2.5% edit -3.7%  -> no (bar 1%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+NONE no screen winner
+START 197-screen 2026-11-18_23:35:59
+END 197-screen exit=0 23:42:51
+  split-84: short +2.7% edit -2.1%  -> WIN (bar 1%), exact
+  split-168: short +2.1% edit -0.7%  -> WIN (bar 1%), exact
+  split-336: short +1.9% edit +1.0%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> WIN (bar 1.5%), quality gate due (lossy / text differs)
+CONFIRM /home/dan/clone-of-d/src/Strata-win/bench/specs/198-qsa-split-grid-confirm.json base,split-84,split-168,split-336
+START 197-confirm 2026-11-18_23:43:22
+END 197-confirm exit=0 00:45:20
+  short  split-84                103.1 +-   5.5  (n=6)   vs base:  +6.7% +-  6.1%  -> better
+  short  split-168                98.1 +-  11.8  (n=3)   vs base:  +1.5% +-  4.8%  -> no difference
+  short  split-336               100.7 +-   5.1  (n=6)   vs base:  +4.8% +-  8.1%  -> no difference
+  edit   split-84                168.5 +-   5.4  (n=6)   vs base:  -1.9% +-  6.7%  -> no difference
+  edit   split-168               174.5 +-  16.3  (n=3)   vs base:  +0.9% +- 19.6%  -> no difference
+  edit   split-336               171.9 +-   6.2  (n=6)   vs base:  +1.0% +-  5.2%  -> no difference
+  longdec10k split-84                 86.9 +-  10.3  (n=6)   vs base: -11.3% +-  9.5%  -> worse
+  longdec10k split-168                93.8 +-  17.7  (n=3)   vs base:  -3.1% +- 10.2%  -> no difference
+  longdec10k split-336                95.9 +-   8.0  (n=6)   vs base:  -0.7% +-  8.6%  -> no difference
+  longdec32k split-84                 95.1 +-   2.4  (n=6)   vs base:  -6.4% +-  6.3%  -> worse
+  longdec32k split-168               100.8 +-   7.3  (n=3)   vs base:  -2.6% +- 18.3%  -> no difference
+  longdec32k split-336               102.0 +-   9.9  (n=6)   vs base:  +0.3% +- 11.9%  -> no difference
+START 192-screen 2026-11-19_00:45:50
+END 192-screen exit=0 01:01:07
+  wmma-rows2: edit -0.6%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  wmma-rows4: edit -0.7%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  wmma-rows8: edit -39.6%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+NONE no screen winner
+START 164-screen 2026-11-19_01:01:37
+END 164-screen exit=0 01:07:30
+  lanecell-w12: short -7.1% edit +27.1%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+NONE no screen winner
+START 169-screen 2026-11-19_01:08:00
+END 169-screen exit=0 01:27:11
+  chain3: edit -4.3% short +0.0%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  chain3-copylane: edit -4.8% short +2.7%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  chain7-copylane: edit -4.1% short -0.2%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  chain7-copylane-min8: edit -30.7% short -18.6%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refu
+NONE no screen winner
+START 201-screen 2026-11-19_01:27:41
+END 201-screen exit=0 01:34:26
+  warm16: short -2.6% edit -16.4%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  warm32: short -25.5% edit -11.5%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  warm64: short +1.0% edit +1.6%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> WIN (bar 1.5%), quality gate due (lossy / text differs)
+CONFIRM /home/dan/clone-of-d/src/Strata-win/bench/specs/202-ic-warm-prior-confirm.json base,warm64
+PROOF warm: ok (3 logs, 'STRATA_IC_WARM_MB acted')
+START 201-confirm 2026-11-19_01:34:56
+END 201-confirm exit=0 01:41:20
+  short  warm64                  106.5 +-   8.2  (n=6)   vs base:  -0.2% +-  9.7%  -> no difference
+  edit   warm64                  177.8 +-   3.6  (n=6)   vs base:  +1.9% +-  3.8%  -> no difference
+START 203-screen 2026-11-19_01:41:50
+END 203-screen exit=0 01:48:22
+  defer-warm32-d1: short +0.6% edit -5.5%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  defer-warm32-d2: short -1.2% edit -10.4%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  defer-warm64-d2: short -0.8% edit -3.6%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+NONE no screen winner
+START 165-screen 2026-11-19_01:48:52
+END 165-screen exit=0 01:56:30
+PROOF kvgrow-whole: ok (3 logs, 'elastic K/V:')
+      1 strata generate: elastic K/V: 16384 of 131072 cells in VRAM (0.25 of 1.68 GiB); the expert cache (10828 slots) gives the K/V room below slot 1512 as the context grows
+      1 strata generate: elastic K/V: 16384 of 131072 cells in VRAM (0.25 of 1.68 GiB); the expert cache (10847 slots) gives the K/V room below slot 1530 as the context grows
+      1 strata generate: elastic K/V: 8192 of 131072 cells in VRAM (0.15 of 1.68 GiB); the expert cache (10923 slots) gives the K/V room below slot 1607 as the context grows
+  whole-kv: short -6.9% edit -3.4%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  kvgrow-whole: short -0.4% edit -1.2%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  kvgrow-whole-init8k: short -1.8% edit -7.5%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutat
+  kvgrow-whole-zeroback: short +4.4% edit -2.2%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> WIN (bar 1.5%), quality gate due (lossy / text differs)
+CONFIRM /home/dan/clone-of-d/src/Strata-win/bench/specs/166-kvgrow-whole-confirm.json base,kvgrow-whole-zeroback
+START 165-confirm 2026-11-19_01:57:00
+END 165-confirm exit=0 02:13:18
+  short  kvgrow-whole-zeroback    107.9 +-  22.8  (n=2)   vs base:  +2.1% +- 42.6%  -> no difference
+  edit   kvgrow-whole-zeroback    181.8 +-  16.6  (n=2)   vs base:  +2.3% +-  8.9%  -> no difference
+  long3k kvgrow-whole-zeroback   1335.1 +- 140.2  (n=2)   vs base:  +0.8% +- 15.0%  -> no difference
+PROOF kvgrow-whole: ok (4 logs, 'elastic K/V:')
+START 207-screen 2026-11-19_02:13:48
+END 207-screen exit=0 02:17:48
+  vram-elastic: short -16.6% edit +38.1%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+NONE no screen winner
+START 191-screen 2026-11-19_02:18:18
+END 191-screen exit=0 02:20:50
+  park-vram-settle: short -0.2% edit +0.8%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation
+NONE no screen winner
+START 170-screen 2026-11-19_02:21:20
+END 170-screen exit=0 02:24:10
+  nl-normalize: pep8 -0.4% edit -0.5% short +0.3%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+NONE no screen winner
+START 205-screen 2026-11-19_02:24:40
+END 205-screen exit=0 02:27:10
+NONE no screen winner
+service started 02:27:10; disk / free 7712160 KB
+WINCHAINT_DONE

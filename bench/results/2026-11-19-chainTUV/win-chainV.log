@@ -1,0 +1,53 @@
+START 2026-11-18_09:45:03
+START 2026-11-18_11:52:50
+chain U done 02:27:50
+service stopped (idle) 02:30:52
+SYNC start 02:33:53 df / = 7711864 KB, /mnt/pancake = 53270580 KB
+SYNC source: origin port/rdna3-decode 2e2d2cc6924cf8764d95760a6939a0721a3a2dbf (codeload)
+SYNC exit=0 (11705 entries) 02:34:13
+HEADER replay tool with --requests/--stwt and conv_trace --order present: 1
+HEADER disk_env_table exit=0
+HEADER pytest replay_fill_transition exit=1 /home/dan/clone-of-d/src/Strata-win/.venv/bin/python3: No module named pytest
+BUILD build-win strata 02:34:44 (/ free 7711832 KB)
+BUILD_END build-win exit=1 02:38:19 (/ free 7711628 KB)
+ld.lld: error: undefined symbol: strata::core::VmmRange::zero_disable(char const*)
+ld.lld: error: undefined symbol: strata::core::VmmRange::zero_check(long, long, long*, unsigned long*, int*)
+clang++: error: linker command failed with exit code 1 (use -v to see invocation)
+HEADER STRATA_WINDOW_TRACE_WEIGHTS strings in build-win/strata: 
+SKIP record: no engine build or no new tools in the tree
+SKIP replay real4-main: no trace or sidecar
+SKIP replay real4-every1: no trace or sidecar
+SKIP replay real4-slots5000: no trace or sidecar
+SKIP replay real5-main: no trace or sidecar
+SKIP replay real5-every1: no trace or sidecar
+SKIP replay real5-slots5000: no trace or sidecar
+START replay real1-chain16a 02:38:49
+END replay real1-chain16a exit=0 02:39:25
+746 windows, k=10, slots 10909, every 4, circular block bootstrap block=8 x 2000; trace weight column is all zeros (or unit); 'pm' is a position-weight PROXY (r=0.7), 'pmw' the real STRATA_ADAPT_PROB_MASS
+base                    0.8311   +0.00   +0.00   +0.00      20.78
+pm                      0.8229   -0.82   -1.28   -0.35      17.91
+ff:0.7                  0.8308   -0.03   -0.07   +0.01      20.77
+tr:2.0                  0.8386   +0.75   +0.30   +1.19      20.84
+ff:0.7+tr:2.0           0.8385   +0.75   +0.30   +1.19      20.83
+trb:2.0                 0.8378   +0.67   +0.26   +1.07      20.82
+base                    0.8004   +0.00   +0.00   +0.00      20.78
+pm                      0.7919   -0.85   -1.31   -0.38      17.91
+ff:0.7                  0.8002   -0.02   -0.05   +0.02      20.77
+tr:2.0                  0.8096   +0.92   +0.43   +1.40      20.84
+ff:0.7+tr:2.0           0.8096   +0.92   +0.44   +1.40      20.83
+trb:2.0                 0.8087   +0.83   +0.40   +1.27      20.82
+base                    0.7493   +0.00   +0.00   +0.00      20.78
+pm                      0.7567   +0.74   -0.82   +2.15      17.91
+ff:0.7                  0.7480   -0.13   -0.27   -0.02      20.77
+tr:2.0                  0.7504   +0.11   -1.34   +1.42      20.84
+ff:0.7+tr:2.0           0.7500   +0.07   -1.37   +1.37      20.83
+trb:2.0                 0.7483   -0.10   -1.52   +1.10      20.82
+base                    0.8502   +0.00   +0.00   +0.00      20.78
+pm                      0.8384   -1.18   -1.57   -0.79      17.91
+ff:0.7                  0.8502   -0.00   -0.04   +0.04      20.77
+tr:2.0                  0.8593   +0.90   +0.47   +1.34      20.84
+ff:0.7+tr:2.0           0.8593   +0.90   +0.48   +1.35      20.83
+trb:2.0                 0.8588   +0.85   +0.48   +1.24      20.82
+COPY small outputs to /home/dan/clone-of-d/src/Strata-win/bench/results/2026-11-18-chainV (4 files); big files stay: /home/dan/auto-runs/winV-conv/real4.trace real4.stwt real5.trace real5.stwt
+service started 02:39:26; disk / free 7711564 KB
+WINCHAINV_DONE

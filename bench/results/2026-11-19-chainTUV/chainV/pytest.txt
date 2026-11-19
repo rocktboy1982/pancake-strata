@@ -1,0 +1,1 @@
+/home/dan/clone-of-d/src/Strata-win/.venv/bin/python3: No module named pytest
