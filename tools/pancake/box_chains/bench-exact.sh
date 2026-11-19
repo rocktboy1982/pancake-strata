@@ -38,6 +38,12 @@ LIM_SCREEN=${EXACT_LIM_SCREEN:-1500}; LIM_GATE=${EXACT_LIM_GATE:-2700}; LIM_LONG
 # minimum budget left (s) for an optional step to start = its estimate above
 NEED_GATE=${EXACT_NEED_GATE:-1200}; NEED_LONG=${EXACT_NEED_LONG:-600}; NEED_RD=${EXACT_NEED_RD:-900}; NEED_CONFIRM=${EXACT_NEED_CONFIRM:-700}; NEED_RDGATE=${EXACT_NEED_RDGATE:-1500}
 export PATH=$ROCM/bin:$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
+# 2026-11-19 16:42 (first run, TEST_LEDGER.md T-982): 222-screen, gate-us and 223-screen all failed in seconds: "env: '/mnt/pancake/benchexact/harness/.venv/bin/python':
+# No such file or directory": abtest.py (and quality_gate.py through abtest.PY) starts serve/server.py with <its tree>/.venv/bin/python and the downloaded harness $HN has
+# no .venv.  Now the harness runs with the box's existing venv interpreter HPY and ABTEST_PYTHON hands it to the server (as bench-updatedRD.sh, T-981); nothing is created
+# under Strata-win or in $HN.  PREREQ checks HPY; right after the harness sync HPY must import serve.server from $HN and $HN's abtest.py must read ABTEST_PYTHON.
+HPY=${BENCH_HARNESS_PY:-$R/.venv/bin/python}
+export HPY ABTEST_PYTHON=$HPY
 mkdir -p $O $T $PM
 echo "START $(date +%F_%T) parts: $PARTS, budget $BUDGET s" >> $L
 say() { echo "$*" >> $L; }
@@ -120,7 +126,7 @@ ab() {  # ab NAME LIMIT SPEC flags...: one abtest run from the synced harness, i
   nm=$1; lim=$2; sp=$3; shift 3
   [ "$(freekb /)" -ge 307200 ] || { say "ERROR $nm: / has < 300 MB free: not run"; return 1; }
   say "START $nm $(date +%F_%T) (limit $lim s, budget left $(left) s)"
-  run_group $nm $lim $O/benchexact-$nm.stdout sh -c 'cd "$1" && shift && exec python3 tools/pancake/abtest.py "$@"' ab $HN $sp "$@" --out $O/benchexact-$nm.jsonl; rc=$?
+  run_group $nm $lim $O/benchexact-$nm.stdout sh -c 'cd "$1" && shift && exec "$HPY" tools/pancake/abtest.py "$@"' ab $HN $sp "$@" --out $O/benchexact-$nm.jsonl; rc=$?
   say "END $nm exit=$rc $(date +%T)"
   [ $rc -eq 0 ] || say "ERROR $nm exit=$rc: $(errline $O/benchexact-$nm.stdout $O/benchexact-$nm)"
   grep -E "vs .*(better|worse|no difference)|verdict|PROMOTE|drop|DRIFT|ORDER EFFECT" $O/benchexact-$nm.stdout | cut -c1-220 >> $L
@@ -130,7 +136,7 @@ ab() {  # ab NAME LIMIT SPEC flags...: one abtest run from the synced harness, i
 gate() {  # gate NAME SPEC: token-forcing quality gate of every arm against the first (scored twice), the T-828 settings
   nm=$1; sp=$2
   say "START $nm $(date +%F_%T) (quality_gate.py, set bench/quality/set-v2.json, --near-tie, limit $LIM_GATE s, budget left $(left) s)"
-  run_group $nm $LIM_GATE $O/benchexact-$nm.stdout sh -c 'cd "$1" && shift && exec python3 tools/pancake/quality_gate.py "$@"' qg $HN $sp \
+  run_group $nm $LIM_GATE $O/benchexact-$nm.stdout sh -c 'cd "$1" && shift && exec "$HPY" tools/pancake/quality_gate.py "$@"' qg $HN $sp \
     --out $O/$nm --set bench/quality/set-v2.json --near-tie; rc=$?
   say "END $nm exit=$rc $(date +%T)"
   [ $rc -eq 0 ] || say "ERROR $nm exit=$rc: $(errline $O/benchexact-$nm.stdout $O/$nm)"
@@ -163,8 +169,9 @@ wait_idle
 [ "$(freekb /mnt/pancake)" -ge 2097152 ] || abort "START: /mnt/pancake has $(freekb /mnt/pancake) KB free (< 2 GB); nothing was deleted"
 [ "$(freekb /)" -ge 307200 ] || abort "START: / has $(freekb /) KB free (< 300 MB)"
 miss=; for f in $DATA/packs/iq2_xs/tokenizer $DATA/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf \
-               $DATA/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf $DATA/mtp/rt $DEC; do [ -e "$f" ] || miss="$miss $f"; done
+               $DATA/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf $DATA/mtp/rt $DEC $HPY; do [ -e "$f" ] || miss="$miss $f"; done
 [ -z "$miss" ] || abort "PREREQ missing files (both parts need them):$miss"
+"$HPY" -c 'import sys' >/dev/null 2>&1 || abort "PREREQ the harness python $HPY does not run"
 US_OK=0; RD_OK=0
 if has_part US; then
   miss=; for f in $USB/build-up/strata $USB/build-us/strata $USB/src-up/terminal/data/expert-profile.bin; do [ -e "$f" ] || miss="$miss $f"; done
@@ -189,6 +196,9 @@ for need in tools/pancake/abtest.py tools/pancake/quality_gate.py tools/force_ch
             bench/specs/222-updated-exact-vs-upstream-short.json bench/specs/223-updated-exact-vs-upstream-long.json bench/specs/252-rdna3-updated-exact.json; do
   [ -f "$HN/$need" ] || abort "SYNC: $need is missing in the synced harness"
 done
+grep -q ABTEST_PYTHON $HN/tools/pancake/abtest.py || abort "PREREQ harness: $HN/tools/pancake/abtest.py does not read ABTEST_PYTHON: its server would start with $HN/.venv/bin/python, which does not exist"
+e=$(cd $HN && PYTHONDONTWRITEBYTECODE=1 "$HPY" -B -c 'import serve.server' 2>&1) || abort "PREREQ harness: $HPY cannot import serve.server from $HN: $(echo "$e" | tail -n 1 | cut -c1-240)"
+say "PREREQ harness ok: $HPY imports serve.server from $HN; abtest / quality_gate start the server with ABTEST_PYTHON=$HPY $(date +%T)"
 S222=bench/specs/222-updated-exact-vs-upstream-short.json; S223=bench/specs/223-updated-exact-vs-upstream-long.json
 if [ $RD_OK = 1 ]; then
   sed "s#@PLAIN@#$RDB/build-plain#; s#@UPDATED@#$RDB/build-updated#; s#@CONFIG_PLAIN@#$RDC#" $HN/bench/specs/252-rdna3-updated-exact.json > $T/252.json
