@@ -1,0 +1,57 @@
+{
+ "drift_check": true,
+ "base": "@CONFIG_PLAIN@",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "short",
+  "edit",
+  "long10k",
+  "long32k",
+  "long64k",
+  "long100k"
+ ],
+ "reps": 1,
+ "arms": {
+  "plain": {
+   "exe": "@PLAIN@/strata"
+  },
+  "updated": {
+   "exe": "@UPDATED@/strata",
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1",
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "updated-ecap6": {
+   "exe": "@UPDATED@/strata",
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1",
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "6",
+    "STRATA_PF_F16": "1"
+   }
+  }
+ },
+ "note": "Strata-rdna3 (plain, its own documented flags and setup env) against updated-strata-rdna3 (selective port of the adopted pancake enhancements, built by tools/pancake/build_updated_rdna3.sh, with the flags of rdna3/recommended-flags/gfx1100.json that the startup script exports). Workloads of the upstream benchmark: short and edit (decode tok/s), long 10000 / 32000 / 64000 / 100000 tokens (prompt tok/s, cold prompts). Text identical to base is reported per case (short, edit; the long cases carry a unique first line and are not compared). The updated arm carries the shipped file (POOL_FUSE_PHASES exact, PF_F16=1 lossy with a passing gate on the pancake base, T-828); updated-ecap6 adds STRATA_VERIFY_ECAP=0 from 6-row windows (lossy; gate T-589 PASS on the pancake base, T-591 with a grammar guard this tree lacks). Driven by tools/pancake/box_chains/bench-updatedRD.sh, which fills @CONFIG_PLAIN@, @PLAIN@ and @UPDATED@. NOT MEASURED.",
+ "predict": [
+  {
+   "arm": "updated-ecap6",
+   "case": "edit",
+   "lo": 0.0,
+   "hi": 40.0,
+   "why": "ECAP cap 0 from 6 rows: edit +36.2% +-17.8 on the pancake base (T-588); the 9-row gate of the daily preset cannot open here (windows are at most 8 rows)"
+  },
+  {
+   "arm": "updated",
+   "case": "long32k",
+   "lo": 5.0,
+   "hi": 20.0,
+   "why": "PF_F16=1: prompt +16.7% at 32K on the pancake base (T-820)"
+  }
+ ],
+ "stop": [
+  "an arm whose server dies before ready twice: stop the spec and read the engine log",
+  "a quality gate is due for every lossy arm before anything is adopted: tools/pancake/quality_gate.py"
+ ]
+}
