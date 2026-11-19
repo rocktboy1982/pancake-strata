@@ -27,6 +27,7 @@ sendsig() { ${SIGCMD:-kill} "$@"; }
 aa_pids() { ps -eo pid=,args= | awk '{ a = $0; sub(/^ *[0-9]+ +/, "", a); if (a == "sh ./redo-chainAA.sh") print $1 }'; }
 aa_args() { ps -o args= -p "$1" 2>/dev/null | sed 's/^ *//; s/ *$//'; }
 resume() {
+  if [ "${BENCH_NO_RESUME:-0}" = 1 ]; then say "AA stays frozen (BENCH_NO_RESUME=1: owner order, benchmarks only)"; return 0; fi
   [ -n "$AAPID" ] || return 0
   a=$(aa_args $AAPID)
   if [ "$a" = "$AA_CMD" ]; then sendsig -CONT $AAPID; say "AA_RESUMED pid $AAPID (state now $(ps -o stat= -p $AAPID 2>/dev/null)) $(date +%T)"
