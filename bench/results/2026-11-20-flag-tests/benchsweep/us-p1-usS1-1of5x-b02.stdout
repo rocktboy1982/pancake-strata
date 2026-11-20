@@ -4,3 +4,8 @@ rep 0 updated              short 109.9 short 103.4 edit 170.2 edit 171.8 longdec
 REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1581, pack load 1.2 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
   WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 110.6 short 103.7 edit 169.5 edit 169.1 longdec64k 74.6/1583p 65240t  foreign CPU 2% [('systemd', 1), ('dbus-daemon', 1), ('systemd-journal', 1)]  gpu 2040/1249 MHz 62C 192W gtt 25M cpu 3724MHz 65C igpu 0%/vcn 0% fclk 1600
+REGIME-STILL-SLOW updated: first start prefill 1581 / load 1.2 GiB/s (paused 15:34:12), second start prefill 1583 / load 1.25 GiB/s
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-SELECT_WMMA    short 79.1 short 103.4 edit 90.6 edit 149.9 longdec64k 81.6/1554p 65240t  foreign CPU 1% [('claude', 1), ('localsearch-3', 1), ('kworker/u65:14-KFD IH', 1)]  gpu 2044/1249 MHz 63C 184W gtt 25M cpu 3708MHz 67C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
