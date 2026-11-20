@@ -15,3 +15,66 @@ REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1504, pack load 0.49 GiB/
 rep 0 base-m1              short 110.7 short 103.7 edit 169.4 edit 169.2 longdec64k 73.6/1623p 65242t  foreign CPU 2% [('kcompactd0', 2), ('localsearch-3', 1), ('claude', 1)]  gpu 1955/1249 MHz 62C 182W gtt 25M cpu 3665MHz 64C igpu 0%/vcn 0% fclk 1600
 REGIME-STILL-SLOW base-m1: first start prefill 1504 / load 0.49 GiB/s (paused 20:28:38), second start prefill 1623 / load 1.24 GiB/s
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-GDN_CHUNKED_MIN short 100.3 short 98.3 edit 62.6 edit 103.7 longdec64k 61.8/1575p 65242t  foreign CPU 2% [('systemd', 1), ('dbus-daemon', 1), ('systemd-logind', 1)]  gpu 2056/1249 MHz 63C 168W gtt 25M cpu 3431MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-FUSE_HEAD_GR    short 103.8 short 83.4 edit 160.5 edit 170.5 longdec64k 79.7/1703p 65242t  foreign CPU 2% [('kcompactd0', 8), ('kworker/8:1-events', 1), ('kworker/14:2-mm_percpu_wq', 1)]  gpu 2015/1249 MHz 63C 180W gtt 25M cpu 3796MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 84.6 short 95.8 edit 125.4 edit 84.9 longdec64k 80.0/1538p 65242t  foreign CPU 3% [('kcompactd0', 11), ('kswapd0', 2), ('systemd', 0)]  gpu 2046/1249 MHz 64C 178W gtt 25M cpu 3452MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1538, pack load 0.5 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.4 short 102.7 edit 161.4 edit 183.5 longdec64k 76.4/2186p 65242t  foreign CPU 2% [('kcompactd0', 2), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 2046/1249 MHz 62C 185W gtt 25M cpu 3699MHz 65C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 1538 / load 0.5 GiB/s (paused 20:41:28), second start prefill 2186 / load 1.25 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 105.8 +-  37.5  (n=2)
+                              drafts accepted 0.70
+  short  plus-GROUPED_V1         105.3 +-  45.8  (n=2)   vs updated:  -0.5% +-  7.8%  -> no difference
+                              drafts accepted 0.71
+  short  plus-GDN_TC              87.4 +- 209.7  (n=2)   vs updated: -17.4% +- 233.5%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 107.2 +-  44.5  (n=2)   vs updated:  +1.3% +-  6.6%  -> no difference
+                              drafts accepted 0.71
+  short  plus-GDN_CHUNKED_MIN     99.3 +-  12.7  (n=2)   vs updated:  -6.2% +- 23.4%  -> no difference
+                              drafts accepted 0.68
+  short  plus-FUSE_HEAD_GR        93.6 +- 129.6  (n=2)   vs updated: -11.6% +- 87.1%  -> no difference
+                              drafts accepted 0.70
+  short  base-late               106.6 +-  48.9  (n=2)   vs updated:  +0.7% +- 10.8%  -> no difference
+                              drafts accepted 0.70
+  edit   updated                 172.6 +- 141.1  (n=2)
+                              drafts accepted 0.88
+  edit   plus-GROUPED_V1         166.6 +-  14.6  (n=2)   vs updated:  -3.5% +- 73.3%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-GDN_TC             129.0 +- 357.2  (n=2)   vs updated: -25.3% +- 288.7%  -> no difference
+                              drafts accepted 0.88
+  edit   base-m1                 169.3 +-   1.3  (n=2)   vs updated:  -1.9% +- 82.5%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-GDN_CHUNKED_MIN     83.2 +- 261.2  (n=2)   vs updated: -51.8% +- 69.6%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-FUSE_HEAD_GR       165.5 +-  63.5  (n=2)   vs updated:  -4.1% +- 44.9%  -> no difference
+                              drafts accepted 0.88
+  edit   base-late               172.4 +- 140.4  (n=2)   vs updated:  -0.1% +-  0.4%  -> no difference
+                              drafts accepted 0.88
+  longdec64k updated                  76.1 +-   nan  (n=1)
+  longdec64k plus-GROUPED_V1          61.1 +-   nan  (n=1)   vs updated: -19.7% +-  nan%  -> no difference
+  longdec64k plus-GDN_TC              78.7 +-   nan  (n=1)   vs updated:  +3.4% +-  nan%  -> no difference
+  longdec64k base-m1                  73.6 +-   nan  (n=1)   vs updated:  -3.3% +-  nan%  -> no difference
+  longdec64k plus-GDN_CHUNKED_MIN     61.8 +-   nan  (n=1)   vs updated: -18.8% +-  nan%  -> no difference
+  longdec64k plus-FUSE_HEAD_GR        79.7 +-   nan  (n=1)   vs updated:  +4.7% +-  nan%  -> no difference
+  longdec64k base-late                76.4 +-   nan  (n=1)   vs updated:  +0.4% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-GROUPED_V1      DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-GDN_TC          DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-GDN_CHUNKED_MIN DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-FUSE_HEAD_GR    DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.7%  edit -0.1%  longdec64k +0.4%
+  plus-GROUPED_V1      short -0.8%  edit -3.5%  longdec64k -19.9%  -> drop
+  plus-GDN_TC          short -17.7%  edit -25.2%  longdec64k +3.2%  -> drop
+  base-m1              short +0.9%  edit -1.9%  longdec64k -3.5%  -> drop
+  plus-GDN_CHUNKED_MIN short -6.5%  edit -51.8%  longdec64k -19.0%  -> drop
+  plus-FUSE_HEAD_GR    short -11.9%  edit -4.1%  longdec64k +4.5%  -> drop
