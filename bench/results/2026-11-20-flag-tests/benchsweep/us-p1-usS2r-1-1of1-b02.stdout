@@ -12,3 +12,8 @@ rep 0 base-m1              short 104.2 short 100.3 edit 163.0 edit 175.8 longdec
 rep 0 minus-QFUSE          short 108.2 short 101.5 edit 168.2 edit 170.6 longdec64k 76.5/1473p 65241t  foreign CPU 3% [('kcompactd0', 8), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 2043/1249 MHz 65C 195W gtt 25M cpu 3725MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-QFUSE: every attempt noisy, keeping the quietest (3% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-PF_GROUP_SCRATCH short 86.4 short 105.1 edit 116.3 edit 174.1 longdec64k 78.4/1461p 65241t  foreign CPU 4% [('kcompactd0', 11), ('kswapd0', 3), ('kworker/1:2-mm_percpu_wq', 1)]  gpu 2001/1249 MHz 63C 181W gtt 25M cpu 3736MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PF_GROUP_SCRATCH: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 81.8 short 109.0 edit 159.2 edit 176.2 longdec64k 80.2/2165p 65241t  foreign CPU 5% [('kcompactd0', 7), ('kswapd0', 4), ('claude', 1)]  gpu 2011/1249 MHz 63C 181W gtt 25M cpu 3645MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 2165, pack load 0.48 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
