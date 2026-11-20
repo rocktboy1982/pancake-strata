@@ -68,7 +68,7 @@ confirm() {  # confirm TAGPREFIX FIRST COUNT: the ranked flags [FIRST, FIRST+COU
 PRIOR=$O/us-triage.v2.json
 rescreen() {  # rescreen TAG "select args": the second 1-run test (the RESCREEN) of the selected flags, blocks of 8, <= 25 flags per slice; the two-run rule gives the verdicts
   tag=$1; shift
-  r=$(sw select --out $O/work/us-$tag.meta.json "$@" 2>> $L | tee -a $L | sed -n 's/^SELECT \([0-9][0-9]*\) .*//p')
+  r=$(sw select --out $O/work/us-$tag.meta.json "$@" 2>> $L | tee -a $L | sed -n 's/^SELECT \([0-9][0-9]*\) .*/\1/p')
   r=${r:-0}
   if [ "$r" -gt 0 ]; then
     nr=$(ceil $r 25)
@@ -76,7 +76,7 @@ rescreen() {  # rescreen TAG "select args": the second 1-run test (the RESCREEN)
   else say "RESCREEN $tag: no flag selected"; fi
 }
 rerun1() {  # rerun1 K: run 1 once more for the flags of screen slice K that stayed INCONCLUSIVE / UNTESTED (a drifted block); no prior: it is a run 1 (tag usS1-KofNx)
-  r=$(sw select --triage $PRIOR --verdict INCONCLUSIVE,UNTESTED --slice-prefix usS1-${1}of5 --out $O/work/us-rerun1-$1.meta.json 2>> $L | tee -a $L | sed -n 's/^SELECT \([0-9][0-9]*\) .*//p')
+  r=$(sw select --triage $PRIOR --verdict INCONCLUSIVE,UNTESTED --slice-prefix usS1-${1}of5 --out $O/work/us-rerun1-$1.meta.json 2>> $L | tee -a $L | sed -n 's/^SELECT \([0-9][0-9]*\) .*/\1/p')
   r=${r:-0}
   if [ "$r" -gt 0 ]; then screen 1/1 usS1-${1}of5x SWEEP_ONLY_META=$O/work/us-rerun1-$1.meta.json; else say "RERUN1 slice $1: nothing INCONCLUSIVE"; fi
 }

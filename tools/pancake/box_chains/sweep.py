@@ -1193,6 +1193,12 @@ def main(argv=None):
         extra = extra_items(a.extra, json.load(open(a.groups, encoding="utf-8")), registry, arm, a.src, a.plain) if a.extra else ()
         spec, meta = build_spec(a.branch, a.plain, arm, registry, a.src, a.slice, split=a.split, only=only,
                                 exclude=excl, tag=a.tag, block=a.block_size, extra=extra, source=a.source)
+        if a.only_meta:                                   # owner-forced rescreen flags (force-rescreen.py): their "forced" / "prior_evidence" fields go into the rows
+            sel = json.load(open(a.only_meta, encoding="utf-8")).get("flags", {})
+            for name, f in meta["flags"].items():
+                for k in ("forced", "prior_evidence"):
+                    if k in (sel.get(name) or {}):
+                        f[k] = sel[name][k]
         json.dump(spec, open(a.out, "w"), indent=1)
         json.dump(meta, open(a.out + ".meta.json", "w"), indent=1)
         n = len(meta["flags"])

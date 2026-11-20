@@ -3871,3 +3871,29 @@ def test_run_queue_us8_restarts_the_whole_queue_with_15s_idle_and_the_regime_pau
     sw = (CHAINS / SW).read_text()
     assert 'QIS=${SWEEP_QUICK_IDLE_S:-30}' in sw and "pq=$((QIS / 2))" in sw and "--regime-pause $RP" in sw and "REGIME" in sw
 
+
+def test_run_queues_have_no_control_character_in_the_select_count_sed_and_us9_forces_round_2(tmp_path):
+    for q in sorted(CHAINS.glob("run-queue-us*.sh")):                       # T-1006: us5..us8 carried a 0x01 byte instead of \1: the select count came out as a control character, every rescreen / rerun1 would have been skipped
+        assert b"" not in q.read_bytes(), q.name
+    t9 = (CHAINS / "run-queue-us9.sh").read_text()
+    pat = "s/^SELECT " + chr(92) + "([0-9][0-9]*" + chr(92) + ") .*/" + chr(92) + "1/p"
+    assert pat in t9 and "force-rescreen.py" in t9 and "SWEEP_FORCE_RESCREEN" in t9 and "cycle 1" in t9
+    assert "screen 1/5 usS1-1of5v; cycle 1" not in t9 and "for k in 2 3 4 5; do screen $k/5 usS1-${k}of5; cycle $k; done" in t9
+    assert subprocess.run([SH, "-n", str(CHAINS / "run-queue-us9.sh")]).returncode == 0
+    sed = subprocess.run([SH, "-c", "echo 'SELECT 7 flag(s) with verdict X: a' | sed -n '" + pat + "'"], capture_output=True, text=True).stdout.strip()
+    assert sed == "7"
+    # force-rescreen.py: the forced flags join the select file whatever their verdict, with the prior evidence
+    tri = {"flags": {"STRATA_KV_PREFETCH": {"flag": "STRATA_KV_PREFETCH", "arm": "minus-KV_PREFETCH", "slice": "usS1-1of5v", "verdict": "NO-GAIN-P1", "pass1": {"short": -1.0}},
+                     "STRATA_PIN_BY_NEED": {"flag": "STRATA_PIN_BY_NEED", "arm": "minus-PIN_BY_NEED", "slice": "usS1-1of5v", "verdict": "INCONCLUSIVE"},
+                     "OTHER": {"flag": "OTHER", "arm": "minus-OTHER", "slice": "usS1-2of5", "verdict": "PROMISING"}}}
+    sel = {"verdicts": ["HURTS", "PROMISING"], "flags": {"minus-A": {"flag": "A", "arm": "minus-A"}}}
+    (tmp_path / "tri.json").write_text(json.dumps(tri))
+    (tmp_path / "sel.json").write_text(json.dumps(sel))
+    out = subprocess.run([sys.executable, str(CHAINS / "force-rescreen.py"), "--select", str(tmp_path / "sel.json"), "--triage", str(tmp_path / "tri.json"),
+                          "--flags", "STRATA_KV_PREFETCH,STRATA_PIN_BY_NEED,STRATA_EXCHANGE_ROTATE", "--slice-prefix", "usS1-1of5"], capture_output=True, text=True).stdout
+    got = json.loads((tmp_path / "sel.json").read_text())["flags"]
+    assert set(got) == {"minus-A", "minus-KV_PREFETCH", "minus-PIN_BY_NEED"} and got["minus-KV_PREFETCH"]["forced"] is True and "old design, healthy starts only" in got["minus-KV_PREFETCH"]["prior_evidence"]
+    assert "FORCED 2 of 3" in out and "STRATA_EXCHANGE_ROTATE" in out and "SELECT 3 flag(s)" in out and "OTHER" not in out
+    # sweep.py spec copies "forced" / "prior_evidence" of the select file into the meta rows
+    assert 'k in ("forced", "prior_evidence")' in (CHAINS / "sweep.py").read_text()
+
