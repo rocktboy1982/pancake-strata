@@ -2,3 +2,12 @@ case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique 
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 warmup               short 96.9 short 95.6 edit 162.4 edit 174.3 longdec64k 83.6/1617p 65239t  foreign CPU 7% [('kcompactd0', 19), ('kworker/1:1-mm_percpu_wq', 4), ('kswapd0', 4)]  gpu 2032/1249 MHz 62C 193W gtt 25M cpu 3619MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 warmup: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 104.4 short 99.8 edit 163.3 edit 176.2 longdec64k 80.3/2179p 65239t  foreign CPU 6% [('kcompactd0', 16), ('localsearch-3', 1), ('migration/3', 0)]  gpu 1921/1249 MHz 63C 186W gtt 25M cpu 3535MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (6% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-ROUTE_TAIL_SKIP short 99.8 short 99.2 edit 163.2 edit 175.6 longdec64k 86.9/2167p 65239t  foreign CPU 8% [('kcompactd0', 15), ('kworker/8:0-mm_percpu_wq', 6), ('kswapd0', 3)]  gpu 2024/1249 MHz 63C 192W gtt 25M cpu 3611MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-ROUTE_TAIL_SKIP: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-EXCHANGE_ROTATE short 102.6 short 100.3 edit 165.8 edit 181.2 longdec64k 82.8/2166p 65239t  foreign CPU 6% [('kcompactd0', 13), ('kworker/9:0-events', 4), ('kworker/9:1-events', 4)]  gpu 1864/1249 MHz 64C 180W gtt 25M cpu 3592MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-EXCHANGE_ROTATE: every attempt noisy, keeping the quietest (6% foreign CPU)
