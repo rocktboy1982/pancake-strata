@@ -5,3 +5,9 @@ rep 0 updated              short 110.5 short 103.6 edit 168.8 edit 171.4 longdec
 rep 0 minus-VERIFY_QDEDUP  short 107.6 short 103.0 edit 168.5 edit 168.1 longdec64k 89.0/2186p 65241t  foreign CPU 6% [('snapd', 30), ('localsearch-3', 1), ('claude', 0)]  gpu 2044/1249 MHz 63C 188W gtt 25M cpu 3625MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-VERIFY_QDEDUP: every attempt noisy, keeping the quietest (6% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-QFUSE          short 104.1 short 103.0 edit 156.9 edit 169.4 longdec64k 80.8/2180p 65241t  foreign CPU 5% [('kcompactd0', 7), ('kswapd0', 3), ('kworker/13:2-events', 2)]  gpu 2046/1249 MHz 64C 187W gtt 25M cpu 3755MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-QFUSE: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 82.9 short 97.6 edit 139.4 edit 179.3 longdec64k 76.4/1494p 65241t  foreign CPU 3% [('kcompactd0', 6), ('kswapd0', 2), ('kworker/1:0-events', 1)]  gpu 2041/1249 MHz 64C 192W gtt 25M cpu 3461MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1494, pack load 0.95 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
