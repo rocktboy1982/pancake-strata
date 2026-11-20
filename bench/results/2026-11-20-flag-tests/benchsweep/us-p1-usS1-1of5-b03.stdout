@@ -20,3 +20,66 @@ rep 0 minus-GDN_HEAD: every attempt noisy, keeping the quietest (5% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-PF_GEMM        short 103.1 short 99.7 edit 166.7 edit 176.6 longdec64k 78.9/2076p 65242t  foreign CPU 7% [('kcompactd0', 15), ('kworker/12:2-events', 3), ('kswapd0', 3)]  gpu 1999/1249 MHz 65C 191W gtt 25M cpu 3504MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-PF_GEMM: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 90.3 short 99.6 edit 167.8 edit 136.5 longdec64k 61.7/1464p 65242t  foreign CPU 5% [('kcompactd0', 21), ('kworker/0:1-events', 3), ('kswapd0', 2)]  gpu 2029/1249 MHz 62C 181W gtt 25M cpu 3492MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late: every attempt noisy, keeping the quietest (5% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 102.0 +-  26.1  (n=2)
+                              drafts accepted 0.67
+  short  minus-GDN_NOY           104.5 +-  19.7  (n=2)   vs updated:  +2.6% +-  6.2%  -> no difference
+                              drafts accepted 0.70
+  short  minus-GDN_CHUNKED       101.1 +-   6.4  (n=2)   vs updated:  -0.8% +- 19.3%  -> no difference
+                              drafts accepted 0.67
+  short  minus-PREFILL_CPU_SHARE_MAX    102.0 +-  31.1  (n=2)   vs updated:  +0.0% +-  5.0%  -> no difference
+                              drafts accepted 0.67
+  short  minus-GDN_CONVL2        100.3 +-   3.2  (n=2)   vs updated:  -1.6% +- 22.4%  -> no difference
+                              drafts accepted 0.67
+  short  minus-GDN_HEAD          100.8 +-   9.5  (n=2)   vs updated:  -1.1% +- 16.2%  -> no difference
+                              drafts accepted 0.67
+  short  minus-PF_GEMM           101.4 +-  21.6  (n=2)   vs updated:  -0.5% +-  4.4%  -> no difference
+                              drafts accepted 0.67
+  short  base-late                94.9 +-  59.1  (n=2)   vs updated:  -6.9% +- 83.5%  -> no difference
+                              drafts accepted 0.67
+  edit   updated                 169.3 +-  82.6  (n=2)
+                              drafts accepted 0.89
+  edit   minus-GDN_NOY           172.3 +- 143.6  (n=2)   vs updated:  +1.8% +- 36.0%  -> no difference
+                              drafts accepted 0.88
+  edit   minus-GDN_CHUNKED       168.4 +-  74.4  (n=2)   vs updated:  -0.5% +-  4.9%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-PREFILL_CPU_SHARE_MAX    174.2 +-  94.1  (n=2)   vs updated:  +2.9% +-  6.8%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-GDN_CONVL2        162.3 +-  27.3  (n=2)   vs updated:  -4.1% +- 32.7%  -> no difference
+                              drafts accepted 0.86
+  edit   minus-GDN_HEAD          169.5 +-  78.8  (n=2)   vs updated:  +0.1% +-  2.3%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-PF_GEMM           171.6 +-  62.9  (n=2)   vs updated:  +1.4% +- 11.6%  -> no difference
+                              drafts accepted 0.88
+  edit   base-late               152.2 +- 198.9  (n=2)   vs updated: -10.1% +- 166.3%  -> no difference
+                              drafts accepted 0.87
+  longdec64k updated                  82.3 +-   nan  (n=1)
+  longdec64k minus-GDN_NOY            83.0 +-   nan  (n=1)   vs updated:  +0.9% +-  nan%  -> no difference
+  longdec64k minus-GDN_CHUNKED        84.4 +-   nan  (n=1)   vs updated:  +2.6% +-  nan%  -> no difference
+  longdec64k minus-PREFILL_CPU_SHARE_MAX     82.4 +-   nan  (n=1)   vs updated:  +0.1% +-  nan%  -> no difference
+  longdec64k minus-GDN_CONVL2         79.8 +-   nan  (n=1)   vs updated:  -3.0% +-  nan%  -> no difference
+  longdec64k minus-GDN_HEAD           78.6 +-   nan  (n=1)   vs updated:  -4.5% +-  nan%  -> no difference
+  longdec64k minus-PF_GEMM            78.9 +-   nan  (n=1)   vs updated:  -4.1% +-  nan%  -> no difference
+  longdec64k base-late                61.7 +-   nan  (n=1)   vs updated: -25.0% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-GDN_NOY        DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GDN_CHUNKED    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-PREFILL_CPU_SHARE_MAX DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GDN_CONVL2     DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GDN_HEAD       identical on every case -> exact
+  minus-PF_GEMM        DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -6.9%  edit -10.1%  longdec64k -25.0%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  minus-GDN_NOY        short +6.2%  edit +7.2%  longdec64k +15.3%  -> PROMOTE to confirm
+  minus-GDN_CHUNKED    short +2.7%  edit +4.8%  longdec64k +17.2%  -> PROMOTE to confirm
+  minus-PREFILL_CPU_SHARE_MAX short +3.6%  edit +8.4%  longdec64k +14.4%  -> PROMOTE to confirm
+  minus-GDN_CONVL2     short +1.9%  edit +1.0%  longdec64k +10.8%  -> PROMOTE to confirm
+  minus-GDN_HEAD       short +2.4%  edit +5.5%  longdec64k +9.2%  -> PROMOTE to confirm
+  minus-PF_GEMM        short +3.0%  edit +6.8%  longdec64k +9.6%  -> PROMOTE to confirm
