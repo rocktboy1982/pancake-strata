@@ -12,3 +12,11 @@ rep 0 minus-GDN_CHUNKED: every attempt noisy, keeping the quietest (7% foreign C
 rep 0 minus-PREFILL_CPU_SHARE_MAX short 104.4 short 99.5 edit 166.8 edit 181.6 longdec64k 82.4/2180p 65242t  foreign CPU 6% [('kcompactd0', 16), ('kworker/1:1-events', 2), ('kworker/11:2-mm_percpu_wq', 1)]  gpu 1901/1249 MHz 63C 183W gtt 25M cpu 3501MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-PREFILL_CPU_SHARE_MAX: every attempt noisy, keeping the quietest (6% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-GDN_CONVL2     short 100.6 short 100.1 edit 160.2 edit 164.5 longdec64k 79.8/2149p 65242t  foreign CPU 9% [('kcompactd0', 22), ('kworker/0:1-events_freezable', 4), ('kswapd0', 3)]  gpu 2035/1249 MHz 63C 182W gtt 25M cpu 3629MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GDN_CONVL2: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-GDN_HEAD       short 101.6 short 100.1 edit 163.3 edit 175.7 longdec64k 78.6/2180p 65242t  foreign CPU 5% [('kcompactd0', 12), ('kswapd0', 4), ('kworker/3:0-mm_percpu_wq', 1)]  gpu 2029/1249 MHz 64C 197W gtt 25M cpu 3720MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GDN_HEAD: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-PF_GEMM        short 103.1 short 99.7 edit 166.7 edit 176.6 longdec64k 78.9/2076p 65242t  foreign CPU 7% [('kcompactd0', 15), ('kworker/12:2-events', 3), ('kswapd0', 3)]  gpu 1999/1249 MHz 65C 191W gtt 25M cpu 3504MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PF_GEMM: every attempt noisy, keeping the quietest (7% foreign CPU)
