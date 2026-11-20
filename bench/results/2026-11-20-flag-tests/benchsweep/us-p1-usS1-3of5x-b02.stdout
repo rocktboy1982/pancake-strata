@@ -12,3 +12,10 @@ rep 0 base-m1              short 105.1 short 83.7 edit 120.8 edit 183.6 longdec6
 REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1621, pack load 0.5 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
   WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 110.4 short 103.6 edit 169.1 edit 171.6 longdec64k 85.7/2187p 65240t  foreign CPU 2% [('systemd', 1), ('claude', 1), ('systemd-journal', 0)]  gpu 1949/1249 MHz 62C 179W gtt 25M cpu 3733MHz 66C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-m1: first start prefill 1621 / load 0.5 GiB/s (paused 22:52:39), second start prefill 2187 / load 1.24 GiB/s
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-GR_Q8_PFS       short 110.3 short 103.8 edit 169.2 edit 168.8 longdec64k 82.8/2188p 65240t  foreign CPU 2% [('kcompactd0', 5), ('localsearch-3', 1), ('claude', 0)]  gpu 1996/1249 MHz 63C 183W gtt 25M cpu 3577MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-GR_Q32_G        short 109.0 short 103.1 edit 161.7 edit 183.5 longdec64k 82.8/2182p 65240t  foreign CPU 3% [('kcompactd0', 9), ('localsearch-3', 1), ('kworker/9:0-mm_percpu_wq', 1)]  gpu 1996/1249 MHz 65C 184W gtt 25M cpu 3595MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-GR_Q32_G: every attempt noisy, keeping the quietest (3% foreign CPU)
