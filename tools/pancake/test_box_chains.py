@@ -3814,3 +3814,60 @@ def test_run_queue_us7_uses_the_mid_base_sweep_script_and_keeps_the_us6_steps():
     for step in ("cycle 1", "gates", "final final FINAL_PREFIX=final FINAL_REPS=5", "rerun1()", "rescreen()"):
         assert step in t7 and step in t6
     assert subprocess.run([SH, "-n", str(CHAINS / "run-queue-us7.sh")]).returncode == 0
+
+
+def _abtest_mod():
+    spec = importlib.util.spec_from_file_location("abtest_t1006", HERE / "abtest.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_abtest_regime_of_reads_the_prefill_and_the_pack_load_rate_of_a_start(tmp_path):
+    ab = _abtest_mod()
+    out = tmp_path / "updated-r0-a0.out"
+    log = tmp_path / "updated-r0-a0.engine.log"
+    res = {"rows": [{"case": "short", "decode_tps": 100.0}, {"case": "longdec64k", "decode_tps": 80.0, "prompt_tps": 2170.0}]}
+    log.write_text("strata generate: loaded 33.02 GiB at 1.21 GiB/s\n")
+    assert ab.regime_of(res, str(out), 1800.0, 0.8) == (False, 2170, 1.21)
+    log.write_text("strata generate: loaded 33.02 GiB at 0.48 GiB/s\n")                          # cold pack read: the slow state, even with a fast prefill
+    assert ab.regime_of(res, str(out), 1800.0, 0.8)[0] is True
+    log.write_text("strata generate: loaded 33.02 GiB at 1.21 GiB/s\n")
+    res["rows"][1]["prompt_tps"] = 1500.0
+    assert ab.regime_of(res, str(out), 1800.0, 0.8) == (True, 1500, 1.21)
+    log.unlink()
+    assert ab.regime_of(res, str(out), 1800.0, 0.8)[2] is None                                    # no engine log: only the prefill decides
+
+
+def test_abtest_regime_pause_reads_the_pack_files_and_waits(tmp_path, monkeypatch):
+    ab = _abtest_mod()
+    (tmp_path / "pack").mkdir()
+    (tmp_path / "pack" / "a.bin").write_bytes(b"x" * 1000)
+    slept = []
+    monkeypatch.setattr(ab.time, "sleep", lambda s: slept.append(s))
+    ab.regime_pause(120.0, [str(tmp_path / "pack"), str(tmp_path / "missing-is-ignored.bin")])
+    assert len(slept) == 1 and 119.0 < slept[0] <= 120.0
+    text = (HERE / "abtest.py").read_text()
+    assert "REGIME-PAUSE" in text and "REGIME-RECOVERED" in text and "REGIME-STILL-SLOW" in text and "time.sleep(1)      # T-1006" in text
+
+
+def test_sweep_minus_arm_of_a_flag_whose_default_equals_the_preset_sets_the_opposite_and_an_inert_one_is_left_out():
+    mod, reg = sweep_mod(), sweep_registry()
+    arm = json.loads((SPECS / "220-updated-vs-upstream-short.json").read_text())["arms"]["updated"]
+    mod.INERT.clear()
+    mod.FLIPPED.clear()
+    items = mod.flags_of(arm, reg, reg["untested"]["us"], "/s", {"env": {}, "args": []})
+    names = {n: a for n, _, a in items}
+    assert names["minus-SH_STREAM"]["env"]["STRATA_SH_STREAM"] == "1" and arm["env"]["STRATA_SH_STREAM"] == "0"      # explicit opposite, the base keeps =0
+    assert "minus-pool-affinity" not in names and [f for f, _ in mod.INERT] == ["--pool-affinity"] and [f for f, _ in mod.FLIPPED] == ["STRATA_SH_STREAM"]
+    assert "STRATA_EXPDEC" not in names["minus-EXPDEC"]["env"]                                                       # default off on gfx1100: removing the key flips it
+
+
+def test_run_queue_us8_restarts_the_whole_queue_with_15s_idle_and_the_regime_pause():
+    t8 = (CHAINS / "run-queue-us8.sh").read_text()
+    assert "bench-sweep.v7.sh" in t8 and "SWEEP_QUICK_IDLE_S=15" in t8 and "SWEEP_REGIME_PAUSE=120" in t8 and "SWEEP_MID=2" in t8 and "SWEEP_BLOCK=4" in t8
+    assert "screen 1/5 usS1-1of5v; cycle 1" in t8 and "for k in 2 3 4 5; do screen $k/5 usS1-${k}of5; cycle $k; done" in t8 and "SWEEP_MAX_S:-20000" in t8
+    assert "slice 1 is already running" not in t8 and subprocess.run([SH, "-n", str(CHAINS / "run-queue-us8.sh")]).returncode == 0
+    sw = (CHAINS / SW).read_text()
+    assert 'QIS=${SWEEP_QUICK_IDLE_S:-30}' in sw and "pq=$((QIS / 2))" in sw and "--regime-pause $RP" in sw and "REGIME" in sw
+

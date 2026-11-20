@@ -549,6 +549,38 @@ def save_engine_log(log, s0, path):
     Path(path).write_text("".join(line + "\n" for line in lines[s0 if s0 <= len(lines) else 0:]))
 
 
+def regime_of(res, out_path, min_prefill, min_load):
+    """T-1006: (slow, cold 64K prefill tok/s or None, pack load GiB/s or None) of one start.  The usS1 screen switched, for 10-15 min at a time, between a FAST state
+    (cold 64K prompt 2150-2180 tok/s, engine log 'loaded 33.02 GiB at 1.2-1.4 GiB/s': the pack read came from the page cache) and a SLOW one (1470-1620 tok/s,
+    0.36-0.55 GiB/s: the pack read came from the SSD); 14 of 14 slow starts and none of the fast ones were below 0.8 GiB/s."""
+    pf = next((x.get("prompt_tps") for x in res.get("rows", []) if is_long(x["case"]) and x.get("prompt_tps")), None)
+    lr = None
+    try:
+        m = re.findall(r"loaded [0-9.]+ GiB at ([0-9.]+) GiB/s", Path(out_path).with_suffix(".engine.log").read_text(errors="replace"))
+        lr = float(m[-1]) if m else None
+    except OSError:
+        pass
+    slow = (pf is not None and pf < min_prefill) or (lr is not None and lr < min_load)
+    return slow, (round(pf) if pf else None), lr
+
+
+def regime_pause(seconds, paths):
+    """Idle `seconds`; meanwhile read `paths` once (sequential, read-only: the page cache gets the pack back).  Waits for the longer of the two."""
+    t0 = time.time()
+    for p in paths:
+        files = [Path(p)] if Path(p).is_file() else sorted(x for x in Path(p).rglob("*") if x.is_file())
+        for f in files:
+            try:
+                with open(f, "rb") as fh:
+                    while fh.read(8 << 20):
+                        pass
+            except OSError:
+                pass
+    left = seconds - (time.time() - t0)
+    if left > 0:
+        time.sleep(left)
+
+
 def start_server(cfg_path, log_out, port, ready_wait=900):
     """Starts the engine server for a config and waits for its "ready: http" line.  Returns (process, None), or
     (None, "server died before ready" / "server not ready ...") - the caller stops the servers."""
@@ -564,7 +596,7 @@ def start_server(cfg_path, log_out, port, ready_wait=900):
             return srv, None
         if srv.poll() is not None or "EngineDied" in txt:
             return None, "server died before ready"
-        time.sleep(3)
+        time.sleep(1)      # T-1006: was 3 s (about 1.5 s lost per start on average); the file is read again, nothing else waits
     return srv, None   # as before: not ready after ready_wait, carry on (the first request waits for it)
 
 
@@ -1034,6 +1066,15 @@ def main():
                          "arm against the mean of both base runs; prints the base drift.  A screen has one start per arm and the base "
                          "always ran first: in specs 83 and 93 (TEST_LEDGER.md T-606, T-622) the base ran 11-40%% below the same preset's "
                          "usual level and every arm looked like a gain.  Off: nothing changes")
+    ap.add_argument("--regime-pause", type=float, default=0.0,
+                    help="T-1006 (TEST_LEDGER.md): seconds of idle (the pack is read into the page cache meanwhile: --regime-preread) after a BASE start "
+                         "(warmup, updated, base-mN, base-late) that ran in the SLOW box state (cold 64K prompt < --regime-prefill-min tok/s, or the engine's "
+                         "pack load < --regime-load-min GiB/s: the page cache did not hold the pack); that base then runs once more before its neighbours "
+                         "are judged.  Logs REGIME-PAUSE / REGIME-RECOVERED / REGIME-STILL-SLOW with the numbers.  0: off")
+    ap.add_argument("--regime-prefill-min", type=float, default=1800.0)
+    ap.add_argument("--regime-load-min", type=float, default=0.8)
+    ap.add_argument("--regime-preread", action="append", default=[],
+                    help="a file or directory read once (sequentially, read-only) during the pause to bring it into the page cache")
     ap.add_argument("--rotate-prompts", action="store_true",
                     help="LEADS.md Part P L12: the edit / pep8 cases read a different file per round of starts (same length, same in every "
                          "arm of a round), so an adaptive lever (learned tier, lookahead, suffix index) is judged on text it has not "
@@ -1123,7 +1164,9 @@ def main():
             break
         begun.add(r)
         quietest = None   # least noisy attempt: kept when every attempt was noisy, so the base never ends with no runs
-        for attempt in range(next_attempt(r, arm), a.retries + 1):
+        regime_arm = bool(a.regime_pause) and (arm in (WARM_ARM, "updated", DRIFT_ARM) or arm.startswith("base-m"))
+        regime_first, regime_paused = None, None
+        for attempt in range(next_attempt(r, arm), a.retries + 1 + (1 if regime_arm else 0)):
             quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)
             cfg_path = str(work / f"{arm}.json")
             cfg = make_config(base, spec["arms"][arm], cfg_path)
@@ -1156,6 +1199,18 @@ def main():
                   f" fclk {g.get('fclk_min', 0)}") if g else ""
             print(f"rep {r} {arm:20s} {desc}  foreign CPU {res['noise']:.0f}% {res['noise_top']}{gd}"
                   f"{'' if clean else '  noisy by the proxies: kept (outlier rule)' if robust else '  NOISY -> repeat'}", flush=True)
+            if regime_arm:   # T-1006: a base start is repeated only for the SLOW box state (never for the noise proxies: they always call this box noisy)
+                slow, pf, lr = regime_of(res, str(work / f"{arm}-r{r}-a{attempt}.out"), a.regime_prefill_min, a.regime_load_min)
+                if regime_paused is None and slow:
+                    regime_first, regime_paused = (pf, lr), time.strftime("%H:%M:%S")
+                    print(f"REGIME-PAUSE {arm}: SLOW box state (cold 64K prefill {pf}, pack load {lr} GiB/s; limits {a.regime_prefill_min:g} tok/s / "
+                          f"{a.regime_load_min:g} GiB/s): idle {a.regime_pause:g} s with the pack read into the page cache, then this base runs again", flush=True)
+                    regime_pause(a.regime_pause, a.regime_preread)
+                    continue
+                if regime_paused is not None:
+                    print(f"{'REGIME-STILL-SLOW' if slow else 'REGIME-RECOVERED'} {arm}: first start prefill {regime_first[0]} / load {regime_first[1]} GiB/s "
+                          f"(paused {regime_paused}), second start prefill {pf} / load {lr} GiB/s", flush=True)
+                break
             if clean or robust:
                 break
             if quietest is None or res["noise"] < quietest["noise"]:

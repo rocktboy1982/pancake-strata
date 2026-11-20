@@ -127,6 +127,14 @@ def load_arm(path, name="updated"):
     return json.load(open(path, encoding="utf-8"))["arms"][name]
 
 
+INERT = []                                # T-1006: (flag, reason) of the registry switches left out because their minus arm would equal the base
+FLIPPED = []                              # T-1006: (flag, reason) of the minus arms that set the explicit opposite value (removing the key would leave the preset's value)
+
+
+INERT = []                                # T-1006: (flag, reason) of the registry switches left out because their minus arm would equal the base
+FLIPPED = []                              # T-1006: (flag, reason) of the minus arms that set the explicit opposite value (removing the key would leave the preset's value)
+
+
 def flags_of(arm, registry, untested, src, plain=None):
     """[(arm name, meta, arm)]: one arm per never-tested switch of the branch (registry "untested"): minus-X when the updated arm sets it (taken
     out, its group with it), plus-X otherwise (its value, @SRC@ = the branch tree).  Already-measured switches get no arm."""
@@ -139,9 +147,15 @@ def flags_of(arm, registry, untested, src, plain=None):
         on_e = [k for k in env if base_env.get(k) is not None]
         on_a = [k for k in args if base_args.get(k) is not None]
         nm = c["name"].replace("STRATA_", "").lstrip("-")
+        if (on_e or on_a) and c.get("inert"):
+            INERT.append((c["name"], c["inert"]))       # the minus arm would run the base's effective config: no arm (logged as INERT)
+            continue
         if on_e or on_a:
             keys = [x for k in on_e for x in groups.get(k, [k]) if x in base_env]
             a = {**arm, "env": {x: y for x, y in base_env.items() if x not in keys}, "args": {x: y for x, y in base_args.items() if x not in on_a}}
+            if c.get("minus_env"):                       # the engine default equals the preset value: set the explicit opposite instead of removing the key
+                a["env"].update({k: str(v) for k, v in c["minus_env"].items()})
+                FLIPPED.append((c["name"], "%s; arm sets %s" % (c.get("flip_why", ""), ",".join("%s=%s" % kv for kv in c["minus_env"].items()))))
             out.append(("minus-" + nm, {"flag": c["name"], "kind": "minus", "keys": keys + on_a, "exact": c.get("exact", True),
                                         "env": {x: base_env[x] for x in keys}, "args": {x: base_args[x] for x in on_a},
                                         "why": c.get("why", ""), "source": c.get("source", "")}, a))
@@ -1190,6 +1204,10 @@ def main(argv=None):
                  sum(f["kind"] == "plus" for f in meta["flags"].values()), pr.count(0), pr.count(1), pr.count(2), len(block_sizes(n, a.block_size)),
                  a.block_size, "/".join(map(str, block_sizes(n, a.block_size))), p1, rr, p2, p1 + rr + p2))
         print("ESTIMATE %d %d %d" % (p1, p2, rr))
+        for fl, why in FLIPPED:
+            print("FLIP %s: %s" % (fl, why))
+        for fl, why in INERT:
+            print("INERT %s: %s" % (fl, why))
     elif a.cmd == "blocks":
         spec = json.load(open(a.spec, encoding="utf-8"))
         for bid, sp, order in block_specs(spec, a.size, a.seed, a.warm, a.mid_base):

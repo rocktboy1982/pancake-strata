@@ -191,7 +191,9 @@ T-1003). These rules came out of that. Each flag is judged on its own numbers.
    a base from the other end of a block or run. Drift guard = 5% on the LAST request of each case between those two bases (a pair up to 8% passes only when both
    bases show the same box state: long-prompt prefill within 12%); an arm whose pair disagrees is INCONCLUSIVE (never DROP or KEEP) and runs again alone (queue
    `rerun1`), there is no whole-block re-run. The box switches between a fast and a slow state for 10-15 min at a time (prefill -30%, decode -5..-12%); nothing in the
-   harness can prevent it, so only the local base pair is trusted.
+   harness can prevent it, so only the local base pair is trusted. Cause (T-1006): the pack (33 GB) is evicted from the page cache (60 GB RAM, engine 39 GB), the slow
+   start reads it from the SSD at 0.45 GiB/s instead of 1.2 GiB/s. A base start in that state (engine log load rate < 0.8 GiB/s or cold 64K prefill < 1800 tok/s) is followed by a
+   120 s idle pause with the pack read into the cache and runs once more (REGIME-PAUSE in the log); an arm is never judged against a base from the other state.
 3. **Classify by per-case effect (gain of having the flag ON):** HIGH = any case >= +2% even if another case is
    negative (short -1% with long +10% is a big gain on a case); LOW = best case above 0% and below 2%: not retested this
    round, goes to the backlog file; NEGATIVE = every case <= 0%: an off-by-default flag is NO-GAIN and dropped, a preset

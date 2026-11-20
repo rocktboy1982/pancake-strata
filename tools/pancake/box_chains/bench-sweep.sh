@@ -127,6 +127,8 @@ USB=/mnt/pancake/benchus; RDB=/mnt/pancake/benchRD; RDC=/home/dan/auto-runs/benc
 DATA=/home/dan/clone-of-d/Strata-data; ROCM=/opt/rocm/core-10.0; REPO_URL=https://github.com/rocktboy1982/pancake-strata.git
 T0=$(date +%s); BUDGET=${BENCH_BUDGET_S:-9900}; POLL=5; MAXS=${SWEEP_MAX_S:-9000}; P2MAX=${SWEEP_PASS2_MAX:-6}
 BS=${SWEEP_BLOCK:-6}; DMAX=${SWEEP_DRIFT_MAX:-5}; SPLIT=${SWEEP_SPLIT:-priority}; SCREEN=${SWEEP_SCREEN_ONLY:-0}; WARM=${SWEEP_WARM:-each}   # SWEEP_WARM=first: ONE warm-up start per slice (owner 2026-11-20; rows of rdC-1 k01r / k02: a block that follows another one starts steady)
+QIS=${SWEEP_QUICK_IDLE_S:-30}   # owner 2026-11-20 ~12:30: SWEEP_QUICK_IDLE_S=15 = the quiet check before a block is two clean polls of 7 s (was 15 s each = 30 s)
+RP=${SWEEP_REGIME_PAUSE:-0}; RA=; [ "$RP" -gt 0 ] && { RA="--regime-pause $RP --regime-prefill-min ${SWEEP_REGIME_PREFILL:-1800} --regime-load-min ${SWEEP_REGIME_LOAD:-0.8}"; for d in ${SWEEP_REGIME_PREREAD:-}; do RA="$RA --regime-preread $d"; done; }   # T-1006: a base start in the SLOW box state is repeated after a pause (abtest.py regime_of)
 MID=${SWEEP_MID:-0}; RR=${SWEEP_RERUN:-1}   # T-1006 (drift fix): SWEEP_MID=K = a base start after every K arms, every arm judged against the 2 bases around it; SWEEP_RERUN=0 = no whole-block re-run (the arms whose bases disagree are INCONCLUSIVE and run again, alone, in the queue's rerun1 step)
 B=${SWEEP_BRANCH:-}; SL=${SWEEP_SLICE:-1/1}; SLN=${SWEEP_TAG:-$(echo "$SL" | tr / o | sed 's/o/of/')}; SEED=${SWEEP_SEED:-$SLN}
 export PATH=$ROCM/bin:$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
@@ -139,7 +141,7 @@ busy() { pgrep -f "[c]make --build|[n]inja|[c]lang|[c]c1plus|[c]test|[a]btest.py
 aa_live() { for p in $(pgrep -f "[r]edo-chainAA\.sh" 2>/dev/null); do case "$(ps -o stat= -p $p 2>/dev/null)" in T*) ;; *) return 0;; esac; done; return 1; }
 bz() { busy || aa_live; }
 QI=${BENCH_PREIDLED:-0}
-wait_idle() { if [ "$QI" = 1 ]; then q=0; while [ $q -lt 2 ]; do if bz; then q=0; sleep 15; else q=$((q+1)); sleep 15; fi; done; else q=0; while [ $q -lt 3 ]; do if bz; then q=0; sleep 60; else q=$((q+1)); sleep 60; fi; done; QI=1; fi; }
+wait_idle() { if [ "$QI" = 1 ]; then q=0; pq=$((QIS / 2)); while [ $q -lt 2 ]; do if bz; then q=0; sleep $pq; else q=$((q+1)); sleep $pq; fi; done; else q=0; while [ $q -lt 3 ]; do if bz; then q=0; sleep 60; else q=$((q+1)); sleep 60; fi; done; QI=1; fi; }
 elapsed() { echo $(( $(date +%s) - T0 )); }
 left() { echo $(( BUDGET - $(elapsed) )); }
 left_ok() { [ "$(left)" -ge "$1" ]; }
@@ -215,7 +217,7 @@ ab() {  # ab NAME LIMIT SPEC flags...: one abtest run from the synced harness, i
   run_group $nm $lim $O/$nm.stdout sh -c 'cd "$1" && shift && exec "$HPY" tools/pancake/abtest.py "$@"' ab $HN $sp "$@" --out $O/$nm.jsonl; rc=$?
   say "END $nm exit=$rc $(date +%T)"
   [ $rc -eq 0 ] || say "ERROR $nm exit=$rc: $(errline $O/$nm.stdout $O/$nm) (the triage uses the rows that were measured)"
-  grep -E "ORDER EFFECT|DRIFT" $O/$nm.stdout | cut -c1-220 >> $L
+  grep -E "ORDER EFFECT|DRIFT|REGIME" $O/$nm.stdout | cut -c1-220 >> $L
   return $rc
 }
 sw() { "$HPY" $HN/tools/pancake/box_chains/sweep.py "$@"; }
@@ -282,7 +284,7 @@ if [ $B = us ]; then sw spec --branch us --plain $HN/configs/pancake/flashnext-i
 else fx=; for k in ${SWEEP_RD_DROP-STRATA_POOL_FUSE_PHASES}; do fx="$fx --drop-env $k"; done
   for kv in ${SWEEP_RD_SET-STRATA_VERIFY_ECAP=0 STRATA_VERIFY_ECAP_MIN_ROWS=9}; do fx="$fx --set-env $kv"; done
   sw spec --branch rd --plain $RDC --updated-config $RDU $fx --src $SRC $sel --pass2-max $P2MAX --out $P1 > $T/$B-spec-$SLN.txt 2>&1 || abort "SPEC: sweep.py spec failed: $(tail -n 1 $T/$B-spec-$SLN.txt)"; fi
-grep -E '^(ARMFIX|SWEEP)' $T/$B-spec-$SLN.txt >> $L
+grep -E '^(ARMFIX|SWEEP|FLIP|INERT)' $T/$B-spec-$SLN.txt >> $L
 set -- $(grep '^ESTIMATE' $T/$B-spec-$SLN.txt); E1=${2:-0}; E2=${3:-0}; ER=${4:-0}
 [ "$E1" -gt 0 ] || abort "SPEC: no estimate from sweep.py (no flag arm in this slice?)"
 # pass 1 + its re-run + at least one paired confirm block must fit 2.5 h; pass 2 takes what is left of the 2.5 h, the rest is carried
@@ -302,7 +304,7 @@ nb=0; nclean=0; nrr=0; nbad=0; rc1=0
 for bid in $(awk '/^BLOCK /{print $2}' $T/$B-blocks-$SLN.txt); do
   nb=$((nb + 1)); est=$(awk -v b=$bid '$1 == "BLOCK" && $2 == b {print $3}' $T/$B-blocks-$SLN.txt); bsp=$T/$B-p1-$SLN-$bid.json
   wait_idle
-  ab $B-p1-$SLN-$bid $((est + 600)) $bsp --tier screen --drift-check --retries 0 || rc1=$?
+  ab $B-p1-$SLN-$bid $((est + 600)) $bsp --tier screen --drift-check --retries 0 $RA || rc1=$?
   d=$(sw drift --rows $O/$B-p1-$SLN-$bid.jsonl --max $DMAX); drc=$?
   say "DRIFT $bid (block $nb, base late vs early): $d"
   if [ "$MID" -gt 0 ]; then   # T-1006: the verdicts are per arm (the two bases around it); the block ends say nothing about the arms in between
@@ -313,7 +315,7 @@ for bid in $(awk '/^BLOCK /{print $2}' $T/$B-blocks-$SLN.txt); do
     if left_ok $((est + P2ONE)); then
       say "RERUN $bid: base drift above $DMAX % (or no base rows on both ends): the block runs once more"
       wait_idle
-      ab $B-p1-$SLN-${bid}r $((est + 600)) $bsp --tier screen --drift-check --retries 0 || rc1=$?
+      ab $B-p1-$SLN-${bid}r $((est + 600)) $bsp --tier screen --drift-check --retries 0 $RA || rc1=$?
       nrr=$((nrr + 1))
       d=$(sw drift --rows $O/$B-p1-$SLN-${bid}r.jsonl --max $DMAX); drc=$?
       say "DRIFT ${bid}r (re-run of block $nb): $d"
