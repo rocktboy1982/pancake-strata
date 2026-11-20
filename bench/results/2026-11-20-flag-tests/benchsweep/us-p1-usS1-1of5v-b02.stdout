@@ -1,0 +1,4 @@
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 110.8 short 103.8 edit 169.1 edit 168.3 longdec64k 78.2/1977p 65240t  foreign CPU 2% [('kcompactd0', 4), ('kworker/1:0-mm_percpu_wq', 1), ('rcu_preempt', 0)]  gpu 2047/1249 MHz 61C 183W gtt 25M cpu 3914MHz 64C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
