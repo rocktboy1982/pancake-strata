@@ -3897,3 +3897,28 @@ def test_run_queues_have_no_control_character_in_the_select_count_sed_and_us9_fo
     # sweep.py spec copies "forced" / "prior_evidence" of the select file into the meta rows
     assert 'k in ("forced", "prior_evidence")' in (CHAINS / "sweep.py").read_text()
 
+
+
+def test_run_queue_us10_slice_labels_have_no_slash_in_any_file_name_and_slice_2_steps_are_run(tmp_path):
+    """T-1006: us9's screen() overwrote the global k with '2/5'; cycle 2 then built work/us-rerun1-2/5.meta.json and skipped every step of slice 2.
+    Runs the real functions of run-queue-us10.sh with stubs for sw / env / say and checks every name they build."""
+    t = (CHAINS / "run-queue-us10.sh").read_text()
+    funcs = t[t.index("screen() {"):t.index("gates() {")]
+    pre = "\n".join([
+        "O=/tmp/o; L=/tmp/l; n=0; PRIOR=/tmp/o/us-triage.v2.json; SWEEP_FORCE_RESCREEN=; HPY=true; HN=/tmp/hn",
+        'say() { echo "SAY $*"; }',
+        "check() { :; }",
+        'env() { echo "ENV $*"; }',
+        ""])
+    swstub = 'sw() { echo "SW $*" >> "$LOGF"; case "$1" in select) echo "SELECT 2 flag(s) x";; esac; }\n'      # after funcs: the script defines its own sw
+    pre = "LOGF=" + (tmp_path / "sw.log").as_posix() + "\n" + pre
+    script = tmp_path / "q.sh"
+    script.write_text(pre + funcs + "\n" + swstub + "\nfor k in 2 3; do screen $k/5 usS1-${k}of5; cycle $k; done\n")
+    out = subprocess.run([SH, str(script)], capture_output=True, text=True).stdout + (tmp_path / "sw.log").read_text()
+    assert "us-rerun1-2.meta.json" in out and "us-usS2r-2.meta.json" in out and "us-usS2rr-2.meta.json" in out and "us-rerun1-3.meta.json" in out
+    bad = [x for x in re.findall(r"/tmp/o/[^ ]+", out) if "/" in x[len("/tmp/o/"):].replace("work/", "", 1)]
+    assert not bad, bad
+    assert "usS1-2of5x" in out and "SWEEP_SLICE=2/5" in out and "SWEEP_SLICE=1/1" in out
+    assert "sl_=$1" in funcs and "\n  k=$1" not in funcs
+    assert t.index("cycle 3\n") < t.index("cycle 2\n") < t.index("for k in 4 5; do screen $k/5 usS1-${k}of5; cycle $k; done")
+    assert subprocess.run([SH, "-n", str(CHAINS / "run-queue-us10.sh")]).returncode == 0 and b"\x01" not in (CHAINS / "run-queue-us10.sh").read_bytes()
