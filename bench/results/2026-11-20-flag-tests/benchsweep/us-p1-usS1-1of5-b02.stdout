@@ -3,3 +3,8 @@ case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique 
 rep 0 updated              short 110.0 short 103.4 edit 156.9 edit 170.5 longdec64k 86.8/2174p 65242t  foreign CPU 7% [('kcompactd0', 17), ('kworker/1:0-mm_percpu_wq', 5), ('kworker/0:1-mm_percpu_wq', 3)]  gpu 2046/1249 MHz 62C 185W gtt 25M cpu 3620MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 updated: every attempt noisy, keeping the quietest (7% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-STAGER_RING    short 100.5 short 100.0 edit 161.7 edit 175.8 longdec64k 76.2/2173p 65242t  foreign CPU 7% [('kcompactd0', 18), ('kworker/12:0-events', 1), ('kworker/11:0-events', 1)]  gpu 1923/1249 MHz 63C 184W gtt 25M cpu 3444MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-STAGER_RING: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-VERIFY_QDEDUP  short 93.5 short 82.2 edit 170.0 edit 176.9 longdec64k 79.6/1607p 65242t  foreign CPU 5% [('kcompactd0', 12), ('kswapd0', 3), ('kworker/0:1-events', 2)]  gpu 2010/1249 MHz 62C 176W gtt 25M cpu 3474MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-VERIFY_QDEDUP: every attempt noisy, keeping the quietest (5% foreign CPU)
