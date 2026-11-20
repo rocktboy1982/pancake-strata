@@ -24,3 +24,58 @@ rep 0 base-late            short 98.2 short 105.0 edit 102.7 edit 94.2 longdec64
 REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1569, pack load 0.53 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
   WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.7 short 103.4 edit 166.8 edit 169.7 longdec64k 78.9/2186p 65240t  foreign CPU 2% [('kcompactd0', 2), ('udisksd', 2), ('localsearch-3', 1)]  gpu 2044/1249 MHz 62C 185W gtt 25M cpu 3604MHz 65C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 1569 / load 0.53 GiB/s (paused 23:02:54), second start prefill 2186 / load 1.43 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 106.7 +-  38.8  (n=2)
+                              drafts accepted 0.71
+  short  plus-HC_Q8_ALL_STAGES    105.5 +-  32.4  (n=2)   vs updated:  -1.0% +-  6.0%  -> no difference
+                              drafts accepted 0.71
+  short  plus-HCD_EXACT           92.0 +-  64.8  (n=2)   vs updated: -13.7% +- 24.4%  -> no difference
+                              drafts accepted 0.68
+  short  base-m1                 107.0 +-  43.2  (n=2)   vs updated:  +0.3% +-  4.2%  -> no difference
+                              drafts accepted 0.71
+  short  plus-GR_Q8_PFS          107.0 +-  41.3  (n=2)   vs updated:  +0.4% +-  2.4%  -> no difference
+                              drafts accepted 0.71
+  short  plus-GR_Q32_G           106.0 +-  37.5  (n=2)   vs updated:  -0.6% +-  1.2%  -> no difference
+                              drafts accepted 0.70
+  short  base-late               101.6 +-  43.2  (n=2)   vs updated:  -4.7% +- 76.9%  -> no difference
+                              drafts accepted 0.69
+  edit   updated                 168.8 +-   4.4  (n=2)
+                              drafts accepted 0.90
+  edit   plus-HC_Q8_ALL_STAGES    169.1 +-   8.3  (n=2)   vs updated:  +0.1% +-  2.3%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-HCD_EXACT          103.8 +-  62.9  (n=2)   vs updated: -38.5% +- 39.9%  -> no difference
+                              drafts accepted 0.88
+  edit   base-m1                 170.3 +-  15.9  (n=2)   vs updated:  +0.9% +- 12.0%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-GR_Q8_PFS          169.0 +-   2.5  (n=2)   vs updated:  +0.1% +-  1.1%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-GR_Q32_G           172.6 +- 138.5  (n=2)   vs updated:  +2.2% +- 84.7%  -> no difference
+                              drafts accepted 0.88
+  edit   base-late                98.5 +-  54.0  (n=2)   vs updated: -41.7% +- 29.4%  -> worse
+                              drafts accepted 0.90
+  longdec64k updated                  82.5 +-   nan  (n=1)
+  longdec64k plus-HC_Q8_ALL_STAGES     80.6 +-   nan  (n=1)   vs updated:  -2.3% +-  nan%  -> no difference
+  longdec64k plus-HCD_EXACT           80.4 +-   nan  (n=1)   vs updated:  -2.5% +-  nan%  -> no difference
+  longdec64k base-m1                  85.7 +-   nan  (n=1)   vs updated:  +3.9% +-  nan%  -> no difference
+  longdec64k plus-GR_Q8_PFS           82.8 +-   nan  (n=1)   vs updated:  +0.4% +-  nan%  -> no difference
+  longdec64k plus-GR_Q32_G            82.8 +-   nan  (n=1)   vs updated:  +0.4% +-  nan%  -> no difference
+  longdec64k base-late                77.4 +-   nan  (n=1)   vs updated:  -6.2% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-HC_Q8_ALL_STAGES identical on every case -> exact
+  plus-HCD_EXACT       DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-GR_Q8_PFS       identical on every case -> exact
+  plus-GR_Q32_G        DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -4.7%  edit -41.7%  longdec64k -6.2%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-HC_Q8_ALL_STAGES short +1.4%  edit +26.5%  longdec64k +0.8%  -> PROMOTE to confirm
+  plus-HCD_EXACT       short -11.6%  edit -22.3%  longdec64k +0.6%  -> drop
+  base-m1              short +2.8%  edit +27.5%  longdec64k +7.2%  -> PROMOTE to confirm
+  plus-GR_Q8_PFS       short +2.8%  edit +26.4%  longdec64k +3.6%  -> PROMOTE to confirm
+  plus-GR_Q32_G        short +1.8%  edit +29.1%  longdec64k +3.6%  -> PROMOTE to confirm
