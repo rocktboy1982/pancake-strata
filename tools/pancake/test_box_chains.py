@@ -3851,6 +3851,90 @@ def test_abtest_regime_pause_reads_the_pack_files_and_waits(tmp_path, monkeypatc
     assert "REGIME-PAUSE" in text and "REGIME-RECOVERED" in text and "REGIME-STILL-SLOW" in text and "time.sleep(1)      # T-1006" in text
 
 
+def test_abtest_preread_paths_come_from_the_config_args_in_the_order_pack_native_ple(tmp_path):
+    ab = _abtest_mod()
+    pack = tmp_path / "pack"
+    (pack / "tokenizer").mkdir(parents=True)
+    (pack / "dense.bin").write_bytes(b"d" * 10)
+    (pack / "index.txt").write_bytes(b"i")
+    (pack / "tokenizer" / "t.json").write_bytes(b"t")
+    g1, g2 = tmp_path / "m-00001.gguf", tmp_path / "m-00002.gguf"
+    g1.write_bytes(b"1" * 20)
+    g2.write_bytes(b"2" * 30)
+    cfg = {"args": ["--ple-gguf", str(g2), "--expert-cache", "auto", "--native", str(g1), "--pack", str(pack), "--mtp", str(tmp_path / "missing")]}
+    assert [p.name for p in ab.preread_paths(cfg)] == ["dense.bin", "index.txt", "m-00001.gguf", "m-00002.gguf"]
+    assert ab.preread_paths({"args": ["--pack", str(tmp_path / "nope")]}) == [] and ab.preread_paths({}) == []
+
+
+def test_abtest_preread_files_reads_every_byte_logs_skips_cached_files_and_honours_budget_and_cap(tmp_path):
+    ab = _abtest_mod()
+    a, b, c = tmp_path / "a.bin", tmp_path / "b.bin", tmp_path / "c.bin"
+    a.write_bytes(b"a" * (3 * (16 << 20) + 5))
+    b.write_bytes(b"b" * 1000)
+    c.write_bytes(b"c" * 2000)
+    lines = []
+    done = ab.preread_files([a, b], cached=lambda p: 0.0, say=lines.append)
+    assert [(n, k) for n, k, _ in done] == [("a.bin", a.stat().st_size), ("b.bin", 1000)]
+    assert all(x.startswith("PREREAD ") for x in lines) and lines[0].split()[1] == "a.bin" and lines[1].split()[1] == "b.bin"
+    lines.clear()
+    done = ab.preread_files([a, b], cached=lambda p: 0.96 if p.name == "a.bin" else 0.2, say=lines.append)   # a is >= 95 % cached: not read
+    assert done[0] == ("a.bin", 0, 0.0) and done[1][1] == 1000 and "skipped" in lines[0] and "96%" in lines[0]
+    lines.clear()
+    done = ab.preread_files([b, c], budget=1500, cached=lambda p: 0.0, say=lines.append)   # c would take the planned total over the budget
+    assert [n for n, _, _ in done] == ["b.bin"] and "over" in lines[-1] and "c.bin" in lines[-1]
+    ticks = iter(range(0, 1000, 50))
+    lines.clear()
+    done = ab.preread_files([a, b], max_s=90.0, cached=lambda p: 0.0, say=lines.append, clock=lambda: next(ticks))   # the clock runs 50 s per call: the cap hits inside a
+    assert len(done) == 1 and "CAPPED" in lines[-1]
+    assert ab.preread_files([tmp_path / "gone.bin"], cached=lambda p: 0.0, say=lines.append) == []   # a missing file is ignored
+
+
+def test_abtest_cached_fraction_counts_pages_in_the_page_cache_and_never_fails(tmp_path):
+    ab = _abtest_mod()
+    f = tmp_path / "x.bin"
+    f.write_bytes(b"x" * (1 << 20))
+    with open(f, "rb") as fh:
+        fh.read()
+    fr = ab.cached_fraction(f)
+    assert fr is None or 0.0 <= fr <= 1.0                      # None on a host without mincore (Windows): the pre-read then reads
+    assert ab.cached_fraction(tmp_path / "gone.bin") is None
+
+
+def test_abtest_preread_is_off_unless_abtest_preread_is_set_and_reads_once_per_engine_start(tmp_path, monkeypatch):
+    ab = _abtest_mod()
+    f = tmp_path / "m.gguf"
+    f.write_bytes(b"m" * 4096)
+    cfg_path = tmp_path / "cfg.json"
+    cfg_path.write_text(json.dumps({"args": ["--native", str(f)]}))
+    calls = []
+    monkeypatch.setattr(ab, "preread_files", lambda paths, *a, **k: calls.append([Path(p).name for p in paths]) or [("m.gguf", 4096, 0.1)])
+    ab.PREREAD_STAMP.clear()
+    monkeypatch.delenv("ABTEST_PREREAD", raising=False)
+    assert ab.preread_for_config(str(cfg_path)) == [] and calls == []                       # default 0: nothing
+    monkeypatch.setenv("ABTEST_PREREAD", "0")
+    assert ab.preread_for_config(str(cfg_path)) == [] and calls == []
+    monkeypatch.setenv("ABTEST_PREREAD", "1")
+    assert ab.preread_for_config(json.loads(cfg_path.read_text())) and calls == [["m.gguf"]]   # the caller's read (before the quiet gate)
+    assert ab.preread_for_config(str(cfg_path), once=True) == [] and len(calls) == 1          # start_server: not again, no engine started between
+    ab.PREREAD_STAMP.clear()                                                                   # an engine started: the next start reads again
+    assert ab.preread_for_config(str(cfg_path), once=True) and len(calls) == 2
+    ab.PREREAD_STAMP.clear()
+    cfg_path.write_text("not json")
+    assert ab.preread_for_config(str(cfg_path)) == []                                         # a broken config never stops the test
+    text = (HERE / "abtest.py").read_text()
+    assert text.index("preread_for_config(cfg)") < text.index("quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)\n            ROT[1] = r") \
+        and "PREREAD_STAMP.clear()   # this engine evicts" in text
+
+
+def test_run_queue_us11_waits_for_the_slice3_rerun_exports_the_preread_and_keeps_the_order():
+    t = (CHAINS / "run-queue-us11.sh").read_text()
+    assert "export ABTEST_PREREAD=${ABTEST_PREREAD:-1}" in t and "run-queue-us11.log" in t and "us10.log" not in t.split("# ---- the interleaved steps")[0].split("\n", 6)[-1]
+    tail = t[t.index("# ---- us11"):]
+    assert tail.index("while pgrep") < tail.index("rescreen usS2r-3") < tail.index("rescreen usS2rr-3") < tail.index("cycle 2") < tail.index("for k in 4 5; do")
+    assert tail.count("final final") == 1 and "QUEUE_US11_DONE" in t and t.count("\nfinal final") == 1
+    assert subprocess.run([SH, "-n", str(CHAINS / "run-queue-us11.sh")]).returncode == 0 and b"\x01" not in (CHAINS / "run-queue-us11.sh").read_bytes()
+
+
 def test_sweep_minus_arm_of_a_flag_whose_default_equals_the_preset_sets_the_opposite_and_an_inert_one_is_left_out():
     mod, reg = sweep_mod(), sweep_registry()
     arm = json.loads((SPECS / "220-updated-vs-upstream-short.json").read_text())["arms"]["updated"]

@@ -196,6 +196,8 @@ T-1003). These rules came out of that. Each flag is judged on its own numbers.
    harness can prevent it, so only the local base pair is trusted. Cause (T-1006): the pack (33 GB) is evicted from the page cache (60 GB RAM, engine 39 GB), the slow
    start reads it from the SSD at 0.45 GiB/s instead of 1.2 GiB/s. A base start in that state (engine log load rate < 0.8 GiB/s or cold 64K prefill < 1800 tok/s) is followed by a
    120 s idle pause with the pack read into the cache and runs once more (REGIME-PAUSE in the log); an arm is never judged against a base from the other state.
+   Prevention (T-1006): `ABTEST_PREREAD=1` (set by the queue scripts, default 0) reads the model files of the config (`--pack` dir, `--native`, `--ple-gguf`) sequentially into the page cache
+   before EVERY engine start and before the quiet gate (`PREREAD` lines; skipped at >= 95% cached; 90 s cap); the pause stays the fallback.
 3. **Classify by per-case effect (gain of having the flag ON):** HIGH = any case >= +2% even if another case is
    negative (short -1% with long +10% is a big gain on a case); LOW = best case above 0% and below 2%: not retested this
    round, goes to the backlog file; NEGATIVE = every case <= 0%: an off-by-default flag is NO-GAIN and dropped, a preset
@@ -242,6 +244,9 @@ T-1003). These rules came out of that. Each flag is judged on its own numbers.
 - The AA chain (`redo-chainAA.sh`) is frozen with SIGSTOP by owner order: only benchmarks run; never resume it without
   the owner. A running job is stopped only on an owner order.
 - Always check processes (CPU, memory, load), not only the log, when reporting status.
+- The page cache cannot hold the model files (36.5 + 26.8 GiB gguf) beside a 40 GB engine: `ABTEST_PREREAD=1` (abtest.py, exported by `run-queue-us11.sh`) reads them sequentially before every
+  engine start (O_RDONLY, 16 MiB blocks, `PREREAD <file> <GiB> <seconds>` log line, 90 s cap, skipped at >= 95% cached); never read the files by hand beside a running benchmark; check cache state read-only
+  with `fincore`; no sudo, no drop_caches.
 
 ## Switches, presets and credits
 

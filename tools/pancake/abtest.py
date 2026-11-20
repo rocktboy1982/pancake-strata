@@ -581,14 +581,160 @@ def regime_pause(seconds, paths):
         time.sleep(left)
 
 
+PREREAD_BLOCK = 16 << 20          # T-1006: read block of the pre-read (16 MiB)
+PREREAD_AHEAD = 256 << 20         # posix_fadvise(WILLNEED) window kept ahead of the read position
+PREREAD_FILES = ("--pack", "--native", "--ple-gguf")   # the config args whose files the engine loads (a directory: its regular files)
+
+
+def preread_enabled():
+    """ABTEST_PREREAD=1 turns the pre-read on (the box's chains export 1; unset / 0 anywhere else: nothing changes)."""
+    return os.environ.get("ABTEST_PREREAD", "0").strip() not in ("", "0")
+
+
+def preread_paths(cfg):
+    """The model files the engine of this config loads, in the order of PREREAD_FILES, taken from the config's args: the --pack
+    directory's regular files (not the tokenizer subdirectory), the --native gguf, the --ple-gguf.  Missing paths are left out."""
+    args = cfg.get("args") or []
+    out = []
+    for flag in PREREAD_FILES:
+        for i, v in enumerate(args[:-1]):
+            if v != flag:
+                continue
+            p = Path(render_preset(str(args[i + 1])))
+            found = sorted(x for x in p.iterdir() if x.is_file()) if p.is_dir() else [p] if p.is_file() else []
+            out += [x for x in found if x not in out]
+    return out
+
+
+def cached_fraction(path):
+    """Fraction of the file's pages in the page cache (mincore of a read-only mapping: no page is touched or read).  None when it
+    cannot be told (no mincore, an error): the caller then reads."""
+    try:
+        import ctypes
+        import mmap as _mm
+        size = os.path.getsize(path)
+        if size == 0:
+            return 1.0
+        libc = ctypes.CDLL(None, use_errno=True)
+        libc.mmap.restype = ctypes.c_void_p
+        libc.mmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_long]
+        libc.mincore.argtypes = [ctypes.c_void_p, ctypes.c_size_t, ctypes.c_char_p]
+        libc.munmap.argtypes = [ctypes.c_void_p, ctypes.c_size_t]
+        fd = os.open(path, os.O_RDONLY)
+        try:
+            addr = libc.mmap(None, size, _mm.PROT_READ, _mm.MAP_SHARED, fd, 0)
+            if addr in (None, ctypes.c_void_p(-1).value):
+                return None
+            try:
+                page = os.sysconf("SC_PAGE_SIZE")
+                n = (size + page - 1) // page
+                vec = ctypes.create_string_buffer(n)
+                if libc.mincore(addr, size, vec) != 0:
+                    return None
+                return sum(b & 1 for b in vec.raw[:n]) / n
+            finally:
+                libc.munmap(addr, size)
+        finally:
+            os.close(fd)
+    except (OSError, ImportError, AttributeError, ValueError, TypeError):   # TypeError: no libc handle (Windows)
+        return None
+
+
+def preread_files(paths, max_s=90.0, budget=None, skip_at=0.95, cached=cached_fraction, say=None, clock=time.time):
+    """T-1006 proactive pre-read: reads every file of `paths` once, sequentially (O_RDONLY, 16 MiB blocks, posix_fadvise WILLNEED a window
+    ahead, data discarded) so the page cache holds the model when the engine starts and its load streams from RAM instead of faulting the
+    SSD (the SLOW box state: pack load 0.36-0.9 GiB/s vs 1.2-1.4).  A file already >= `skip_at` cached is skipped; the total time is
+    capped at `max_s`; a file that would take the planned total over `budget` bytes (what the page cache can hold) is skipped (reading it
+    would evict the files read before).  Prints `PREREAD <file> <GiB> <seconds> ...`.  Returns the list of (name, bytes_read, seconds)."""
+    say = say or (lambda m: print(m, flush=True))
+    t0, planned, done = clock(), 0, []
+    buf = bytearray(PREREAD_BLOCK)
+    for p in paths:
+        p = Path(p)
+        try:
+            size = p.stat().st_size
+        except OSError:
+            continue
+        frac = cached(p)
+        if frac is not None and frac >= skip_at:
+            say(f"PREREAD {p.name} 0.00 0.0 s: skipped, {frac * 100:.0f}% of {size / 2**30:.2f} GiB already cached")
+            done.append((p.name, 0, 0.0))
+            continue
+        if budget is not None and planned + size > budget:
+            say(f"PREREAD {p.name} 0.00 0.0 s: skipped, {size / 2**30:.2f} GiB would take the planned {(planned + size) / 2**30:.1f} GiB over "
+                f"the {budget / 2**30:.1f} GiB the page cache can hold")
+            continue
+        planned += size
+        t1, n, capped = clock(), 0, False
+        try:
+            fd = os.open(p, os.O_RDONLY)
+            try:
+                adv = getattr(os, "posix_fadvise", None)
+                if adv:
+                    adv(fd, 0, 0, os.POSIX_FADV_SEQUENTIAL)
+                ahead = 0
+                with os.fdopen(fd, "rb", buffering=0, closefd=False) as fh:
+                    while True:
+                        if adv and n + PREREAD_AHEAD > ahead:
+                            adv(fd, ahead, PREREAD_AHEAD, os.POSIX_FADV_WILLNEED)
+                            ahead += PREREAD_AHEAD
+                        got = fh.readinto(buf)
+                        if not got:
+                            break
+                        n += got
+                        if clock() - t0 > max_s:
+                            capped = True
+                            break
+            finally:
+                os.close(fd)
+        except OSError as e:
+            say(f"PREREAD {p.name} {n / 2**30:.2f} {clock() - t1:.1f} s: stopped ({type(e).__name__})")
+            done.append((p.name, n, clock() - t1))
+            continue
+        dt = clock() - t1
+        was = "?" if frac is None else f"{frac * 100:.0f}"
+        say(f"PREREAD {p.name} {n / 2**30:.2f} {dt:.1f} s ({n / 2**30 / max(dt, 1e-9):.2f} GiB/s; was {was}% cached)"
+            + (f": CAPPED at {max_s:g} s" if capped else ""))
+        done.append((p.name, n, dt))
+        if capped:
+            break
+    return done
+
+
+PREREAD_STAMP = {}   # paths -> time of the last pre-read that no engine start has followed yet (start_server clears it)
+
+
+def preread_for_config(cfg_or_path, once=False):
+    """The pre-read of the files one config loads, when ABTEST_PREREAD is on (else nothing).  Called before the quiet gate of every start
+    (the gate's foreign-CPU sample must not count it) and again, cheaply (the files are cached by then), inside start_server.  Budget:
+    ABTEST_PREREAD_BUDGET_GIB (default 80% of RAM); time cap ABTEST_PREREAD_MAX_S (default 90).  once=True (start_server): nothing when the
+    caller's pre-read for this config has run and no engine started since (a capped read is not repeated after the quiet gate)."""
+    if not preread_enabled():
+        return []
+    try:
+        cfg = cfg_or_path if isinstance(cfg_or_path, dict) else json.loads(Path(cfg_or_path).read_text(encoding="utf-8"))
+        paths = preread_paths(cfg)
+        if once and tuple(paths) in PREREAD_STAMP:
+            return []
+        PREREAD_STAMP[tuple(paths)] = time.time()
+        ram = os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE")
+        budget = float(os.environ.get("ABTEST_PREREAD_BUDGET_GIB", "0")) * 2**30 or 0.8 * ram
+        return preread_files(paths, float(os.environ.get("ABTEST_PREREAD_MAX_S", "90")), budget)
+    except (OSError, ValueError, KeyError, AttributeError) as e:   # never stops a test: the regime canary / REGIME-PAUSE stay the fallback
+        print(f"PREREAD failed ({type(e).__name__}: {e}): carrying on", flush=True)
+        return []
+
+
 def start_server(cfg_path, log_out, port, ready_wait=900):
     """Starts the engine server for a config and waits for its "ready: http" line.  Returns (process, None), or
     (None, "server died before ready" / "server not ready ...") - the caller stops the servers."""
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
+    preread_for_config(cfg_path, once=True)   # T-1006: a no-op when the caller did it already, or ABTEST_PREREAD is off
     with open(log_out, "w") as lf:
         srv = subprocess.Popen([str(ROOT / "tools/pancake/capped.sh"), PY, "serve/server.py", "--engine", "strata", "--config",
                                 cfg_path, "--port", str(port)], cwd=ROOT, stdout=lf, stderr=subprocess.STDOUT, env=env)
     OWN.append(srv)
+    PREREAD_STAMP.clear()   # this engine evicts the files: the next start reads them again
     t0 = time.time()
     while time.time() - t0 < ready_wait:
         txt = Path(log_out).read_text(errors="replace")
@@ -1167,9 +1313,10 @@ def main():
         regime_arm = bool(a.regime_pause) and (arm in (WARM_ARM, "updated", DRIFT_ARM) or arm.startswith("base-m"))
         regime_first, regime_paused = None, None
         for attempt in range(next_attempt(r, arm), a.retries + 1 + (1 if regime_arm else 0)):
-            quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)
             cfg_path = str(work / f"{arm}.json")
             cfg = make_config(base, spec["arms"][arm], cfg_path)
+            preread_for_config(cfg)   # T-1006: BEFORE the quiet gate, so its CPU / IO is not sampled as foreign noise
+            quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)
             ROT[1] = r
             res, err = run_arm(arm, cfg_path, cfg, cases, P, str(work / f"{arm}-r{r}-a{attempt}.out"), a.port, per_run,
                                passes, a.warmup)
