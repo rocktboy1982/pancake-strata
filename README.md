@@ -24,6 +24,8 @@ hardware, model, settings, repetitions and raw-result archive. A number without 
 - **The RDNA3 branch is paused by owner order (2026-11-20 09:19, box time: "stop doing the Strata-rdna3 tests, compare only to stock Strata").**
   `updated-strata-rdna3` stays as published; no further RDNA3 run is queued. The RDNA3 comparison table below is the 2026-11-19 data and is
   not extended (TEST_LEDGER.md T-1005, MOD_PLAN.md section 5).
+- **Queue order (reordered 2026-11-20, T-1005, headline first):** a PRELIMINARY comparison (stock v0.2.16 against the arms shipped now, 3 reps, with a quality gate) runs first,
+  then the US retest, then the 5-rep FINAL comparison; the long tail of untested US flags follows the final. Expected: retest, preliminary and final in about 14 h.
 - **The upstream (US) retest is in progress** on the box (queue `run-queue-us.sh`, T-1005): every flag of the shipped profile that was dropped or
   restored without a valid single-flag test is confirmed one by one in its own paired block against the updated arm, then the remaining untested
   US flags run in blocked passes, and then a FINAL COMPARISON runs stock upstream v0.2.16 against updated-strata with the final shipped flags (exact
