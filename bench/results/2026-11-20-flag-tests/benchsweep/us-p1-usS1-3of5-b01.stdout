@@ -4,3 +4,11 @@ rep 0 warmup               short 110.6 short 103.0 edit 169.3 edit 168.7 longdec
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 updated              short 106.0 short 103.5 edit 167.3 edit 169.7 longdec64k 82.8/2181p 65242t  foreign CPU 4% [('claude', 11), ('kcompactd0', 5), ('kworker/1:1-mm_percpu_wq', 1)]  gpu 2036/1249 MHz 63C 189W gtt 25M cpu 3720MHz 67C igpu 0%/vcn 0% fclk 1600
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-EMBED_VRAM      short 99.2 short 103.1 edit 162.6 edit 184.3 longdec64k 80.6/2328p 65242t  foreign CPU 5% [('kcompactd0', 11), ('claude', 1), ('kswapd0', 0)]  gpu 2038/1249 MHz 64C 194W gtt 25M cpu 3748MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-EMBED_VRAM: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-EMB_REUSE_ACCOUNT short 107.4 short 102.8 edit 186.1 edit 179.2 longdec64k 82.3/2188p 65242t  foreign CPU 4% [('kcompactd0', 9), ('kswapd0', 3), ('kworker/u65:16-KFD IH', 1)]  gpu 1952/1249 MHz 65C 185W gtt 25M cpu 3675MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-EMB_REUSE_ACCOUNT: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 110.6 short 102.9 edit 168.9 edit 169.5 longdec64k 84.1/2182p 65242t  foreign CPU 3% [('kcompactd0', 7), ('kswapd0', 3), ('kworker/0:1-events', 2)]  gpu 2039/1249 MHz 65C 187W gtt 25M cpu 3755MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
