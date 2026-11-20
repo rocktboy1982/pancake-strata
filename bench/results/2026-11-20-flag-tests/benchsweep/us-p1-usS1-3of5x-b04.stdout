@@ -13,3 +13,9 @@ rep 0 plus-KV_GROW         short 107.7 short 83.7 edit 147.6 edit 177.1 longdec6
 rep 0 plus-KV_GROW: every attempt noisy, keeping the quietest (3% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-m1              short 110.5 short 103.6 edit 169.8 edit 171.5 longdec64k 84.2/2187p 65239t  foreign CPU 4% [('kcompactd0', 5), ('kswapd0', 2), ('claude', 2)]  gpu 1997/1249 MHz 64C 183W gtt 25M cpu 3684MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-LFUSE_PAIR      short 100.4 short 95.6 edit 124.3 edit 120.6 longdec64k 82.4/1425p 65239t  foreign CPU 4% [('kcompactd0', 7), ('kswapd0', 3), ('kworker/1:0-mm_percpu_wq', 2)]  gpu 2046/1249 MHz 63C 177W gtt 25M cpu 3733MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-LFUSE_PAIR: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 92.0 short 100.7 edit 156.8 edit 154.8 longdec64k 59.4/1657p 65239t  foreign CPU 4% [('kcompactd0', 10), ('kswapd0', 3), ('claude', 1)]  gpu 2029/1249 MHz 63C 185W gtt 25M cpu 3746MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1657, pack load 0.54 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
