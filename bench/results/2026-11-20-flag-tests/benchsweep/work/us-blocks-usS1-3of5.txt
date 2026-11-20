@@ -1,0 +1,7 @@
+BLOCK b01 1520 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-3of5-b01.json order: plus-EMBED_VRAM plus-EMB_REUSE_ACCOUNT plus-FUSE_DECODE plus-FS_SLOTS
+BLOCK b02 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-3of5-b02.json order: plus-GROUPED_V1 plus-GDN_TC plus-GDN_CHUNKED_MIN plus-FUSE_HEAD_GR
+BLOCK b03 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-3of5-b03.json order: plus-HC_Q8_ALL_STAGES plus-GR_Q32_G plus-GR_Q8_PFS plus-HCD_EXACT
+BLOCK b04 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-3of5-b04.json order: plus-HIP_ADAPT_KERNEL_COPY plus-IQ_STAGE_GRID plus-HIP_SWIGLU_FUSED plus-HC_Q8_INJECT
+BLOCK b05 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-3of5-b05.json order: plus-IQ_STAGE_GRID_MMVQ plus-IQ_STAGE_TABLES plus-KV_GROW
+BLOCK b06 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-3of5-b06.json order: plus-LFUSE_GATE plus-LFUSE plus-KV_HOST_REGISTER
+BLOCK b07 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-3of5-b07.json order: plus-LM_HIP plus-MMVQ_IL plus-LFUSE_PAIR
