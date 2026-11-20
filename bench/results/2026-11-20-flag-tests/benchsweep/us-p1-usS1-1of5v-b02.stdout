@@ -2,3 +2,9 @@ case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique 
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 updated              short 110.8 short 103.8 edit 169.1 edit 168.3 longdec64k 78.2/1977p 65240t  foreign CPU 2% [('kcompactd0', 4), ('kworker/1:0-mm_percpu_wq', 1), ('rcu_preempt', 0)]  gpu 2047/1249 MHz 61C 183W gtt 25M cpu 3914MHz 64C igpu 0%/vcn 0% fclk 1600
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-ATTN_DAILY     short 100.0 short 97.1 edit 122.5 edit 136.6 longdec64k 75.5/1562p 65240t  foreign CPU 4% [('kcompactd0', 13), ('kworker/1:1-mm_percpu_wq', 3), ('kworker/0:1-events', 3)]  gpu 2018/1249 MHz 61C 177W gtt 25M cpu 3629MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-ATTN_DAILY: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-PF_GROUP_SCRATCH short 108.0 short 106.2 edit 161.8 edit 143.1 longdec64k 80.3/1619p 65240t  foreign CPU 4% [('kcompactd0', 7), ('kworker/1:1-mm_percpu_wq', 2), ('kworker/9:0-mm_percpu_wq', 1)]  gpu 1956/1249 MHz 62C 181W gtt 25M cpu 3847MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PF_GROUP_SCRATCH: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
