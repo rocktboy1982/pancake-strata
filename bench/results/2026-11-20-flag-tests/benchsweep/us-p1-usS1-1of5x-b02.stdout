@@ -9,3 +9,7 @@ REGIME-STILL-SLOW updated: first start prefill 1581 / load 1.2 GiB/s (paused 15:
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-SELECT_WMMA    short 79.1 short 103.4 edit 90.6 edit 149.9 longdec64k 81.6/1554p 65240t  foreign CPU 1% [('claude', 1), ('localsearch-3', 1), ('kworker/u65:14-KFD IH', 1)]  gpu 2044/1249 MHz 63C 184W gtt 25M cpu 3708MHz 67C igpu 0%/vcn 0% fclk 1600
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-PREFILL_CPU_SHARE_MAX short 106.2 short 98.3 edit 147.5 edit 160.2 longdec64k 82.7/2184p 65240t  foreign CPU 2% [('kcompactd0', 3), ('cups-proxyd', 2), ('kswapd0', 1)]  gpu 2045/1249 MHz 62C 185W gtt 25M cpu 3787MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 109.6 short 104.8 edit 154.6 edit 169.6 longdec64k 78.9/1863p 65240t  foreign CPU 2% [('kcompactd0', 6), ('kswapd0', 2), ('kworker/3:2-events', 1)]  gpu 1962/1249 MHz 63C 188W gtt 25M cpu 3574MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
