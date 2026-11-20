@@ -1,0 +1,4 @@
+SWEEP us slice usS1-1of5v: 25 flag arms (25 minus, 0 plus; 25 arm, 0 named, 0 code) in 7 blocks of <= 4 (4/4/4/4/3/3/3), each with updated + base-late; estimate pass 1 8930 s, one block re-run 1140 s, pass 2 <= 9120 s, total <= 19190 s
+ESTIMATE 8930 9120 1140
+FLIP STRATA_SH_STREAM: gfx1100 HIP default is off (verify.cpp: the shared-expert fork is on only in the gfx1151 table), so removing the key leaves 0: the minus arm sets the explicit opposite =1; arm sets STRATA_SH_STREAM=1
+INERT --pool-affinity: --pool-affinity measure on this non-hybrid CPU (Ryzen 7 5700G): the engine logs 'this CPU is not a hybrid one; the layout stays all', the default is all: the minus arm would equal the base

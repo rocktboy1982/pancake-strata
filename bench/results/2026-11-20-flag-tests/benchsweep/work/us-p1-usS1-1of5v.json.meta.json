@@ -1,0 +1,407 @@
+{
+ "branch": "us",
+ "slice": "usS1-1of5v",
+ "flags": {
+  "minus-ROUTE_TAIL_SKIP": {
+   "flag": "STRATA_ROUTE_TAIL_SKIP",
+   "kind": "minus",
+   "keys": [
+    "STRATA_ROUTE_TAIL_SKIP"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_ROUTE_TAIL_SKIP": "0"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-PIN_BY_NEED": {
+   "flag": "STRATA_PIN_BY_NEED",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PIN_BY_NEED"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PIN_BY_NEED": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-EXPDEC": {
+   "flag": "STRATA_EXPDEC",
+   "kind": "minus",
+   "keys": [
+    "STRATA_EXPDEC"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_EXPDEC": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-EXCHANGE_ROTATE": {
+   "flag": "STRATA_EXCHANGE_ROTATE",
+   "kind": "minus",
+   "keys": [
+    "STRATA_EXCHANGE_ROTATE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_EXCHANGE_ROTATE": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-ATTN_DAILY": {
+   "flag": "STRATA_ATTN_DAILY",
+   "kind": "minus",
+   "keys": [
+    "STRATA_ATTN_DAILY"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_ATTN_DAILY": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-PROMPT_ATTN_IMMA": {
+   "flag": "STRATA_PROMPT_ATTN_IMMA",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PROMPT_ATTN_IMMA"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PROMPT_ATTN_IMMA": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-KV_PREFETCH": {
+   "flag": "STRATA_KV_PREFETCH",
+   "kind": "minus",
+   "keys": [
+    "STRATA_KV_PREFETCH"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_KV_PREFETCH": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-PF_GROUP_SCRATCH": {
+   "flag": "STRATA_PF_GROUP_SCRATCH",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PF_GROUP_SCRATCH"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PF_GROUP_SCRATCH": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-SELECT_WMMA": {
+   "flag": "STRATA_SELECT_WMMA",
+   "kind": "minus",
+   "keys": [
+    "STRATA_SELECT_WMMA"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_SELECT_WMMA": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-SH_STREAM": {
+   "flag": "STRATA_SH_STREAM",
+   "kind": "minus",
+   "keys": [
+    "STRATA_SH_STREAM"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_SH_STREAM": "0"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-QFUSE": {
+   "flag": "STRATA_QFUSE",
+   "kind": "minus",
+   "keys": [
+    "STRATA_QFUSE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_QFUSE": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-VERIFY_QDEDUP": {
+   "flag": "STRATA_VERIFY_QDEDUP",
+   "kind": "minus",
+   "keys": [
+    "STRATA_VERIFY_QDEDUP"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_VERIFY_QDEDUP": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-STAGER_RING": {
+   "flag": "STRATA_STAGER_RING",
+   "kind": "minus",
+   "keys": [
+    "STRATA_STAGER_RING"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_STAGER_RING": "64"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-PREFILL_CPU_SHARE_MAX": {
+   "flag": "STRATA_PREFILL_CPU_SHARE_MAX",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PREFILL_CPU_SHARE_MAX"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PREFILL_CPU_SHARE_MAX": "4096"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-GDN_HEAD": {
+   "flag": "STRATA_GDN_HEAD",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GDN_HEAD"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GDN_HEAD": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-GDN_CHUNKED": {
+   "flag": "STRATA_GDN_CHUNKED",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GDN_CHUNKED"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GDN_CHUNKED": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-GDN_CONVL2": {
+   "flag": "STRATA_GDN_CONVL2",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GDN_CONVL2"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GDN_CONVL2": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-GDN_NOY": {
+   "flag": "STRATA_GDN_NOY",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GDN_NOY"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GDN_NOY": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-PF_GEMM": {
+   "flag": "STRATA_PF_GEMM",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PF_GEMM"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PF_GEMM": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-PF_PAD": {
+   "flag": "STRATA_PF_PAD",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PF_PAD"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PF_PAD": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-HC_UPMIX": {
+   "flag": "STRATA_HC_UPMIX",
+   "kind": "minus",
+   "keys": [
+    "STRATA_HC_UPMIX"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_HC_UPMIX": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-PF_HCDOWN": {
+   "flag": "STRATA_PF_HCDOWN",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PF_HCDOWN"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PF_HCDOWN": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-FUSE_CONVAB": {
+   "flag": "STRATA_FUSE_CONVAB",
+   "kind": "minus",
+   "keys": [
+    "STRATA_FUSE_CONVAB"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_FUSE_CONVAB": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-HEAD_MIX_MULTI": {
+   "flag": "STRATA_HEAD_MIX_MULTI",
+   "kind": "minus",
+   "keys": [
+    "STRATA_HEAD_MIX_MULTI"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_HEAD_MIX_MULTI": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-KV_HOST_DMA": {
+   "flag": "STRATA_KV_HOST_DMA",
+   "kind": "minus",
+   "keys": [
+    "STRATA_KV_HOST_DMA"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_KV_HOST_DMA": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  }
+ },
+ "protected": {
+  "STRATA_VERIFY_ECAP": [
+   "edit"
+  ],
+  "STRATA_RDNA_Q6K": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_GR_RDNA": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_RDNA_MMVQ_WAVE": [
+   "short",
+   "edit",
+   "longdec32k"
+  ]
+ },
+ "measured": {
+  "STRATA_PF_HC_REGION": "ledger T-800",
+  "STRATA_HC_Q8": "ledger T-012",
+  "STRATA_PREFILL_CPU_SHARE": "ledger T-827",
+  "STRATA_HIP_WMMA": "ledger T-072",
+  "STRATA_PREFILL_AUTO_MAX": "ledger T-106, T-614",
+  "STRATA_PF_FUSED": "ledger T-803",
+  "GPU_MAX_HW_QUEUES": "ledger T-010",
+  "STRATA_GDN_PP": "ledger T-474, T-527, T-642, T-921",
+  "STRATA_PA_FAST": "ledger T-768",
+  "STRATA_PF_F16": "diag rerun 2026-11-19 (plain build) NO-GAIN",
+  "STRATA_PREFILL_RING": "ledger T-920",
+  "STRATA_ADAPT_OVERLAP": "ledger T-845",
+  "STRATA_HIPBLASLT_TUNING": "diag rerun 2026-11-19 (plain build)",
+  "STRATA_RDNA_MMVQ_WAVE": "diag rerun 2026-11-19",
+  "STRATA_GR_RDNA": "diag rerun 2026-11-19",
+  "STRATA_RDNA_Q6K": "diag rerun 2026-11-19 (UNSUPPORTED, text; owner: invalid, kept)",
+  "STRATA_VERIFY_ECAP": "diag rerun 2026-11-19 NO-GAIN short; spec 222 updated vs updated-exact",
+  "STRATA_COMBINE_CPU": "diag rerun 2026-11-19",
+  "STRATA_WAIT_FUSE": "diag rerun 2026-11-19 (with COMBINE_CPU)",
+  "STRATA_ROUTE_PUBLISH": "ledger T-009, T-549, T-839",
+  "STRATA_POOL_FUSE_PHASES": "ledger T-224",
+  "STRATA_EXPDEC_DOWN": "ledger T-037, T-040, T-222",
+  "--adapt-swaps": "ledger T-248, T-827",
+  "--pcie-frac": "ledger T-197, T-268, T-605, T-640 (+1)",
+  "--lookup-max-t": "ledger T-116, T-126, T-127, T-561",
+  "--conversation-cache-mib": "ledger T-690",
+  "STRATA_DENSE_MMQ": "ledger T-615"
+ },
+ "design": "blocked",
+ "block_size": 4
+}

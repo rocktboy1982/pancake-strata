@@ -1,0 +1,7 @@
+BLOCK b01 1520 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-1of5v-b01.json order: minus-EXCHANGE_ROTATE minus-ROUTE_TAIL_SKIP minus-PIN_BY_NEED minus-EXPDEC
+BLOCK b02 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-1of5v-b02.json order: minus-ATTN_DAILY minus-PF_GROUP_SCRATCH minus-KV_PREFETCH minus-PROMPT_ATTN_IMMA
+BLOCK b03 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-1of5v-b03.json order: minus-VERIFY_QDEDUP minus-QFUSE minus-SH_STREAM minus-SELECT_WMMA
+BLOCK b04 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-1of5v-b04.json order: minus-GDN_HEAD minus-PREFILL_CPU_SHARE_MAX minus-STAGER_RING minus-GDN_CHUNKED
+BLOCK b05 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-1of5v-b05.json order: minus-GDN_CONVL2 minus-PF_GEMM minus-GDN_NOY
+BLOCK b06 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-1of5v-b06.json order: minus-PF_HCDOWN minus-HC_UPMIX minus-PF_PAD
+BLOCK b07 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-1of5v-b07.json order: minus-HEAD_MIX_MULTI minus-FUSE_CONVAB minus-KV_HOST_DMA
