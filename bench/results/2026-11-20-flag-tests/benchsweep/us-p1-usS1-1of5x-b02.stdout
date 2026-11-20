@@ -1,1 +1,6 @@
 case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 109.9 short 103.4 edit 170.2 edit 171.8 longdec64k 60.9/1581p 65240t  foreign CPU 4% [('kcompactd0', 10), ('kswapd0', 3), ('kworker/1:1-mm_percpu_wq', 2)]  gpu 2044/1249 MHz 63C 185W gtt 25M cpu 3525MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1581, pack load 1.2 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
