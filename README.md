@@ -24,14 +24,17 @@ hardware, model, settings, repetitions and raw-result archive. A number without 
 - **The RDNA3 branch is paused by owner order (2026-11-20 09:19, box time: "stop doing the Strata-rdna3 tests, compare only to stock Strata").**
   `updated-strata-rdna3` stays as published; no further RDNA3 run is queued. The RDNA3 comparison table below is the 2026-11-19 data and is
   not extended (TEST_LEDGER.md T-1005, MOD_PLAN.md section 5).
-- **Queue order (reordered 2026-11-20, T-1005, headline first):** a PRELIMINARY comparison (stock v0.2.16 against the arms shipped now, 3 reps, with a quality gate) runs first,
-  then the US retest, then the 5-rep FINAL comparison; the long tail of untested US flags follows the final. Expected: retest, preliminary and final in about 14 h.
-- **The upstream (US) retest is in progress** on the box (queue `run-queue-us.sh`, T-1005): every flag of the shipped profile that was dropped or
-  restored without a valid single-flag test is confirmed one by one in its own paired block against the updated arm, then the remaining untested
-  US flags run in blocked passes, and then a FINAL COMPARISON runs stock upstream v0.2.16 against updated-strata with the final shipped flags (exact
-  and lossy variant, short / edit / long 10K-100K, 5 confirm reps, plus a quality gate). The tables below are not changed until that result
-  exists. Rules: flags are judged individually, a mixed result is OPTIONAL, a flag is dropped only from a clean second pass, a block whose base
-  drifts above 5 % is INCONCLUSIVE.
+- **Queue order (rebuilt 2026-11-20, T-1005, owner protocol "one test of all the flags, then 3 reps of the ones that still stand"):** STAGE 1 one screen of 124 US flags (1 rep, blocks of 8,
+  cases short / edit / long 64K; any case above 0 % = promising); a PRELIMINARY comparison (stock v0.2.16 against the arms shipped now, 3 reps, short / edit / long 64K and 100K, with a quality
+  gate); STAGE 2 the promising flags prioritized by gain: **>= 2.0 % (high gain) get their 3-rep confirm first, highest first, 0-2 % (low gain) are pending** and run after the final comparison;
+  the 5-rep FINAL comparison (exact and lossy, short / edit / long 10K-100K, gate); then the low-gain confirms. Flags with no benefit (<= 0 % in a clean block) are the only ones dropped.
+  Estimate: screen 8.8 h, preliminary 1.95 h, stage 2 about 7 h, final 3.3 h.
+- **Backlog, deferred by the owner to the week of 2026-11-23:** 31 switches that may well not act on this build / model (KVA research, Q2_0 / Q3_K / Q5_0 / K-quant / IQ3_S / TQ / PLE paths,
+  Q4_0-KV prompt attention, conversation checkpoint, admission, remote contexts, sampling, diagnostic) are not in this round; they are listed with their reasons in
+  `tools/pancake/box_chains/sweep_candidates.json` (`backlog`) and `us-backlog.json`, ready to run (`run-queue-us-backlog.sh`, not started). Never tested: `STRATA_PA_V2T` (Turing only),
+  `STRATA_MMVQ_IL_120` (gfx12.0 table), `STRATA_NO_NORM_ROPE` (alias).
+- **The upstream (US) screen is in progress** on the box (queue `run-queue-us3.sh`, T-1005). The tables below are not changed until the comparison results exist. Rules: flags are
+  judged individually, a mixed result is OPTIONAL, a flag is dropped only from a clean result, a block whose base drifts above 5 % is INCONCLUSIVE.
 - **Pending retest** (named in [README-PANCAKE.md](README-PANCAKE.md) sections 2.4 and 2.4a; their current state is not a confirmed per-flag
   result): `--lookup-max-t 12` (taken out of the shipped profile on a whole-arm gate REJECT; its attribution gate and paired block are queued),
   `STRATA_RDNA_Q6K`, `STRATA_GR_RDNA`, `STRATA_RDNA_MMVQ_WAVE` and `STRATA_HIPBLASLT_TUNING` (100401 table) (restored on owner decision; speed

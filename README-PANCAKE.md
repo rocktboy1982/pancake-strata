@@ -167,6 +167,14 @@ the harness checkout. No file had to be copied in: both were already here, byte-
 
 Model weights, packs and the MTP head stay in the data folder (`<STRATA_DATA>`), not in the repository.
 
+### 2.4b Retest queue, prioritized by gain, and the backlog (2026-11-20)
+
+The flags of the shipped profile and every other untested US switch are screened once (1 rep, short / edit / long 64K), then confirmed in 3-rep paired blocks, highest gain first:
+a best case of 2.0 % or more is **high gain** (confirmed this round), above 0 % and below 2.0 % is **low gain: pending**, confirmed after the final comparison; flags at or below 0 % in
+a clean block are dropped. **Backlog, deferred by the owner to the week of 2026-11-23:** 31 switches (KVA research, Q2_0 / Q3_K / Q5_0 / K-quant / IQ3_S / TQ / PLE paths, Q4_0-KV prompt
+attention, conversation checkpoint, admission, remote contexts, sampling, diagnostic) are not tested yet; see `tools/pancake/box_chains/sweep_candidates.json` (`backlog`, with the reason
+each was deferred) and `us-backlog.json`. `STRATA_PA_V2T`, `STRATA_MMVQ_IL_120` and `STRATA_NO_NORM_ROPE` cannot act on gfx1100 and are never tested.
+
 ### 2.5 Per-flag diagnostics: `tools/pancake/flag_diag.sh`
 
 Read-only on the system (sysfs, proc and rocminfo reads; the engine is started as the user; files are written only under the
