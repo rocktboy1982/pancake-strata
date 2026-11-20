@@ -8,3 +8,9 @@ rep 0 minus-STAGER_RING: every attempt noisy, keeping the quietest (7% foreign C
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-VERIFY_QDEDUP  short 93.5 short 82.2 edit 170.0 edit 176.9 longdec64k 79.6/1607p 65242t  foreign CPU 5% [('kcompactd0', 12), ('kswapd0', 3), ('kworker/0:1-events', 2)]  gpu 2010/1249 MHz 62C 176W gtt 25M cpu 3474MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-VERIFY_QDEDUP: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-SELECT_WMMA    short 99.7 short 107.6 edit 132.0 edit 181.7 longdec64k 60.5/1549p 65242t  foreign CPU 6% [('kcompactd0', 19), ('kswapd0', 3), ('kworker/9:1-events_freezable', 3)]  gpu 1978/1249 MHz 64C 183W gtt 25M cpu 3596MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-SELECT_WMMA: every attempt noisy, keeping the quietest (6% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-SH_STREAM      short 94.5 short 87.3 edit 177.7 edit 183.6 longdec64k 75.8/1474p 65242t  foreign CPU 5% [('kcompactd0', 14), ('kswapd0', 3), ('kworker/0:1-events', 2)]  gpu 1965/1249 MHz 63C 180W gtt 25M cpu 3342MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-SH_STREAM: every attempt noisy, keeping the quietest (5% foreign CPU)
