@@ -20,3 +20,55 @@ REGIME-RECOVERED base-m1: first start prefill 1628 / load 0.52 GiB/s (paused 21:
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 plus-KV_GROW         short 110.5 short 103.6 edit 123.6 edit 131.1 longdec64k 53.1/1614p 65241t  foreign CPU 2% [('kcompactd0', 4), ('dbus-daemon', 0), ('localsearch-3', 0)]  gpu 1968/1249 MHz 63C 176W gtt 25M cpu 3469MHz 65C igpu 0%/vcn 0% fclk 1600
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 91.5 short 106.5 edit 115.8 edit 86.7 longdec64k 102.6/1637p 65241t  foreign CPU 4% [('kcompactd0', 5), ('kswapd0', 2), ('claude', 1)]  gpu 2044/1249 MHz 63C 185W gtt 25M cpu 3805MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1637, pack load 0.51 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 109.7 short 103.0 edit 161.6 edit 183.6 longdec64k 77.6/2184p 65241t  foreign CPU 2% [('kcompactd0', 2), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 2045/1249 MHz 62C 186W gtt 25M cpu 3737MHz 65C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 1637 / load 0.51 GiB/s (paused 21:54:08), second start prefill 2184 / load 1.41 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                  86.8 +- 214.2  (n=2)
+                              drafts accepted 0.70
+  short  plus-IQ_STAGE_GRID_MMVQ     91.6 +-  62.3  (n=2)   vs updated:  +5.6% +- 175.1%  -> no difference
+                              drafts accepted 0.68
+  short  plus-IQ_STAGE_TABLES     87.7 +- 214.2  (n=2)   vs updated:  +1.0% +-  0.0%  -> better
+                              drafts accepted 0.70
+  short  base-m1                 107.0 +-  44.5  (n=2)   vs updated: +23.3% +- 195.6%  -> no difference
+                              drafts accepted 0.71
+  short  plus-KV_GROW            107.0 +-  43.8  (n=2)   vs updated: +23.4% +- 196.3%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               106.3 +-  42.6  (n=2)   vs updated: +22.6% +- 197.8%  -> no difference
+                              drafts accepted 0.70
+  edit   updated                 160.1 +- 183.0  (n=2)
+                              drafts accepted 0.88
+  edit   plus-IQ_STAGE_GRID_MMVQ    159.8 +- 104.9  (n=2)   vs updated:  -0.2% +- 48.8%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-IQ_STAGE_TABLES    143.1 +- 135.4  (n=2)   vs updated: -10.6% +- 198.9%  -> no difference
+                              drafts accepted 0.90
+  edit   base-m1                 168.8 +-  12.7  (n=2)   vs updated:  +5.4% +- 106.4%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-KV_GROW            127.3 +-  47.7  (n=2)   vs updated: -20.5% +- 84.5%  -> no difference
+                              drafts accepted 0.91
+  edit   base-late               172.6 +- 139.8  (n=2)   vs updated:  +7.8% +- 27.0%  -> no difference
+                              drafts accepted 0.88
+  longdec64k updated                  80.6 +-   nan  (n=1)
+  longdec64k plus-IQ_STAGE_GRID_MMVQ     78.6 +-   nan  (n=1)   vs updated:  -2.5% +-  nan%  -> no difference
+  longdec64k plus-IQ_STAGE_TABLES     80.8 +-   nan  (n=1)   vs updated:  +0.2% +-  nan%  -> no difference
+  longdec64k base-m1                  84.4 +-   nan  (n=1)   vs updated:  +4.7% +-  nan%  -> no difference
+  longdec64k plus-KV_GROW             53.1 +-   nan  (n=1)   vs updated: -34.1% +-  nan%  -> no difference
+  longdec64k base-late                77.6 +-   nan  (n=1)   vs updated:  -3.7% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-IQ_STAGE_GRID_MMVQ DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-IQ_STAGE_TABLES DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-KV_GROW         DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +22.6%  edit +7.8%  longdec64k -3.7%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-IQ_STAGE_GRID_MMVQ short -5.1%  edit -3.9%  longdec64k -0.6%  -> drop
+  plus-IQ_STAGE_TABLES short -9.2%  edit -14.0%  longdec64k +2.1%  -> drop
+  base-m1              short +10.8%  edit +1.5%  longdec64k +6.7%  -> PROMOTE to confirm
+  plus-KV_GROW         short +10.9%  edit -23.4%  longdec64k -32.9%  -> drop
