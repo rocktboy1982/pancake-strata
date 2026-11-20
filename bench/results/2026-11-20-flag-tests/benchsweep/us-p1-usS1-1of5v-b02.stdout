@@ -20,3 +20,62 @@ rep 0 minus-KV_PREFETCH    short 110.0 short 103.9 edit 169.2 edit 169.4 longdec
 rep 0 minus-PROMPT_ATTN_IMMA short 107.5 short 103.6 edit 169.1 edit 168.1 longdec64k 83.7/2188p 65240t  foreign CPU 4% [('kcompactd0', 9), ('kswapd0', 2), ('claude', 1)]  gpu 2044/1249 MHz 63C 186W gtt 25M cpu 3702MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-PROMPT_ATTN_IMMA: every attempt noisy, keeping the quietest (4% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 101.5 short 96.8 edit 151.2 edit 131.0 longdec64k 74.9/1528p 65240t  foreign CPU 4% [('kcompactd0', 8), ('kswapd0', 3), ('kworker/9:1-mm_percpu_wq', 1)]  gpu 2018/1249 MHz 62C 179W gtt 25M cpu 3777MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1528, pack load 0.59 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.6 short 103.5 edit 169.6 edit 168.5 longdec64k 86.9/2185p 65240t  foreign CPU 2% [('claude', 1), ('systemd-oomd', 1), ('localsearch-3', 1)]  gpu 2042/1249 MHz 61C 185W gtt 25M cpu 3692MHz 66C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 1528 / load 0.59 GiB/s (paused 13:24:18), second start prefill 2185 / load 1.25 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.3 +-  44.5  (n=2)
+                              drafts accepted 0.71
+  short  minus-ATTN_DAILY         98.5 +-  18.4  (n=2)   vs updated:  -8.2% +- 24.3%  -> no difference
+                              drafts accepted 0.70
+  short  minus-PF_GROUP_SCRATCH    107.1 +-  11.4  (n=2)   vs updated:  -0.2% +- 30.8%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 107.2 +-  42.6  (n=2)   vs updated:  -0.1% +-  1.8%  -> no difference
+                              drafts accepted 0.71
+  short  minus-KV_PREFETCH       107.0 +-  38.8  (n=2)   vs updated:  -0.3% +-  5.3%  -> no difference
+                              drafts accepted 0.71
+  short  minus-PROMPT_ATTN_IMMA    105.5 +-  24.8  (n=2)   vs updated:  -1.6% +- 18.4%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               107.0 +-  45.1  (n=2)   vs updated:  -0.2% +-  0.6%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 168.7 +-   5.1  (n=2)
+                              drafts accepted 0.89
+  edit   minus-ATTN_DAILY        129.6 +-  89.6  (n=2)   vs updated: -23.2% +- 56.1%  -> no difference
+                              drafts accepted 0.87
+  edit   minus-PF_GROUP_SCRATCH    152.4 +- 118.8  (n=2)   vs updated:  -9.6% +- 67.4%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 168.9 +-  19.7  (n=2)   vs updated:  +0.1% +- 14.7%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-KV_PREFETCH       169.3 +-   1.3  (n=2)   vs updated:  +0.4% +-  3.8%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-PROMPT_ATTN_IMMA    168.6 +-   6.4  (n=2)   vs updated:  -0.1% +-  0.8%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               169.1 +-   7.0  (n=2)   vs updated:  +0.2% +-  1.1%  -> no difference
+                              drafts accepted 0.90
+  longdec64k updated                  78.2 +-   nan  (n=1)
+  longdec64k minus-ATTN_DAILY         75.5 +-   nan  (n=1)   vs updated:  -3.5% +-  nan%  -> no difference
+  longdec64k minus-PF_GROUP_SCRATCH     80.3 +-   nan  (n=1)   vs updated:  +2.7% +-  nan%  -> no difference
+  longdec64k base-m1                  81.9 +-   nan  (n=1)   vs updated:  +4.7% +-  nan%  -> no difference
+  longdec64k minus-KV_PREFETCH        83.9 +-   nan  (n=1)   vs updated:  +7.3% +-  nan%  -> no difference
+  longdec64k minus-PROMPT_ATTN_IMMA     83.7 +-   nan  (n=1)   vs updated:  +7.0% +-  nan%  -> no difference
+  longdec64k base-late                86.9 +-   nan  (n=1)   vs updated: +11.1% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-ATTN_DAILY     DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-PF_GROUP_SCRATCH DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-KV_PREFETCH    identical on every case -> exact
+  minus-PROMPT_ATTN_IMMA DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -0.2%  edit +0.2%  longdec64k +11.1%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  minus-ATTN_DAILY     short -8.0%  edit -23.3%  longdec64k -8.5%  -> drop
+  minus-PF_GROUP_SCRATCH short -0.1%  edit -9.7%  longdec64k -2.7%  -> drop
+  base-m1              short -0.0%  edit +0.0%  longdec64k -0.8%  -> PROMOTE to confirm
+  minus-KV_PREFETCH    short -0.2%  edit +0.3%  longdec64k +1.6%  -> PROMOTE to confirm
+  minus-PROMPT_ATTN_IMMA short -1.5%  edit -0.2%  longdec64k +1.4%  -> PROMOTE to confirm
