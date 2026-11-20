@@ -35,7 +35,7 @@ say() { echo "$*" >> $L; }
 : ${SWEEP_HARNESS_SHA:?SWEEP_HARNESS_SHA must be set (the pinned harness commit)}
 O=/home/dan/auto-runs/benchsweep; HN=/mnt/pancake/benchsweep/harness; HPY=/home/dan/clone-of-d/src/Strata-win/.venv/bin/python
 export SWEEP_HARNESS_SHA RETEST_NO_RD=1 SWEEP_MAX_S=${SWEEP_MAX_S:-20000} RETEST_MAX_S=${RETEST_MAX_S:-9000} BENCH_PREIDLED=1
-export SWEEP_CASES=short,edit,longdec64k SWEEP_BLOCK=4 SWEEP_MID=2 SWEEP_RERUN=0 SWEEP_QUICK_IDLE_S=15 SWEEP_REGIME_PAUSE=120 SWEEP_REGIME_PREREAD=/home/dan/clone-of-d/Strata-data/packs/iq2_xs SWEEP_WARM=first RETEST_LAYOUT=compact RETEST_WARM=first
+export SWEEP_CASES=short,edit,longdec64k SWEEP_BLOCK=4 SWEEP_MID=2 SWEEP_RERUN=0 SWEEP_QUICK_IDLE_S=15 SWEEP_REGIME_PAUSE=120 SWEEP_REGIME_PREREAD=/home/dan/clone-of-d/Strata-data/models/IQ2_XS/Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf SWEEP_WARM=first RETEST_LAYOUT=compact RETEST_WARM=first
 export SWEEP_EXTRA="us:--lookup-max-t us:STRATA_GR_RDNA us:STRATA_RDNA_MMVQ_WAVE us:STRATA_RDNA_Q6K us:STRATA_HIPBLASLT_TUNING"
 CARRY_GLOB="$O/us-carry-usS1-*.json $O/us-carry-usS2r-*.json"
 n=0
