@@ -7,3 +7,11 @@ rep 0 minus-RDNA_Q6K: every attempt noisy, keeping the quietest (4% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-HIPBLASLT_TUNING short 108.7 short 103.1 edit 185.9 edit 181.3 longdec64k 76.9/2023p 65241t  foreign CPU 4% [('kcompactd0', 6), ('kswapd0', 3), ('kworker/1:2-mm_percpu_wq', 1)]  gpu 2024/1249 MHz 65C 194W gtt 25M cpu 3618MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-HIPBLASLT_TUNING: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 106.2 short 103.7 edit 167.9 edit 169.9 longdec64k 81.9/2190p 65241t  foreign CPU 5% [('kcompactd0', 8), ('kswapd0', 3), ('claude', 1)]  gpu 2046/1249 MHz 64C 186W gtt 25M cpu 3712MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-ADAPT_CALLBACK_WARMUP short 110.7 short 103.6 edit 169.1 edit 168.3 longdec64k 83.8/2187p 65241t  foreign CPU 3% [('kcompactd0', 6), ('kswapd0', 3), ('claude', 1)]  gpu 1988/1249 MHz 65C 183W gtt 25M cpu 3734MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-ADAPT_CALLBACK_WARMUP: every attempt noisy, keeping the quietest (3% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-RDNA_MMVQ_WAVE short 107.5 short 103.3 edit 167.5 edit 169.9 longdec64k 86.3/2172p 65241t  foreign CPU 5% [('kcompactd0', 7), ('kworker/1:2-events_freezable', 3), ('kswapd0', 3)]  gpu 2045/1249 MHz 65C 186W gtt 25M cpu 3660MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-RDNA_MMVQ_WAVE: every attempt noisy, keeping the quietest (5% foreign CPU)
