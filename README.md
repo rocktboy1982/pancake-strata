@@ -28,7 +28,7 @@ hardware, model, settings, repetitions and raw-result archive. A number without 
   cases short / edit / long 64K; any case above 0 % = promising); a PRELIMINARY comparison (stock v0.2.16 against the arms shipped now, 3 reps, short / edit / long 64K and 100K, with a quality
   gate); STAGE 2 the promising flags prioritized by gain: **>= 2.0 % (high gain) get their 3-rep confirm first, highest first, 0-2 % (low gain) are pending** and run after the final comparison;
   the 5-rep FINAL comparison (exact and lossy, short / edit / long 10K-100K, gate); then the low-gain confirms. Flags with no benefit (<= 0 % in a clean block) are the only ones dropped.
-  Estimate: screen 8.8 h, preliminary 1.95 h, stage 2 about 7 h, final 3.3 h.
+  Estimate: screen 8.8 h, preliminary 1.95 h, stage 2 about 7 h, final 3.3 h. Reordered ~10:33: the preliminary comparison runs right after screen slice 1 (about 14:45), before screen slices 2..5; the screens end about 21:20.
 - **Backlog, deferred by the owner to the week of 2026-11-23:** 31 switches that may well not act on this build / model (KVA research, Q2_0 / Q3_K / Q5_0 / K-quant / IQ3_S / TQ / PLE paths,
   Q4_0-KV prompt attention, conversation checkpoint, admission, remote contexts, sampling, diagnostic) are not in this round; they are listed with their reasons in
   `tools/pancake/box_chains/sweep_candidates.json` (`backlog`) and `us-backlog.json`, ready to run (`run-queue-us-backlog.sh`, not started). Never tested: `STRATA_PA_V2T` (Turing only),
