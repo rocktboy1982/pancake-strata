@@ -1,3 +1,7 @@
 case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 updated              short 110.6 short 103.5 edit 169.7 edit 168.8 longdec64k 81.1/2190p 65242t  foreign CPU 2% [('kcompactd0', 5), ('localsearch-3', 1), ('claude', 1)]  gpu 1990/1249 MHz 63C 182W gtt 25M cpu 3594MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-GR_FUSED       short 104.0 short 99.3 edit 161.5 edit 175.0 longdec64k 84.9/2185p 65242t  foreign CPU 2% [('kcompactd0', 5), ('localsearch-3', 1), ('kworker/11:1-mm_percpu_wq', 1)]  gpu 1813/1249 MHz 65C 181W gtt 25M cpu 3633MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-expert-profile short 93.5 short 97.2 edit 166.3 edit 190.1 longdec64k 78.2/1494p 65242t  foreign CPU 2% [('kcompactd0', 4), ('claude', 1), ('kswapd0', 1)]  gpu 1979/1249 MHz 64C 179W gtt 25M cpu 3552MHz 66C igpu 0%/vcn 0% fclk 1600
