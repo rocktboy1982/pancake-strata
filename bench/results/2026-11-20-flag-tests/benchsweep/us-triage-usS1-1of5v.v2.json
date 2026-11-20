@@ -1,0 +1,1060 @@
+{
+ "schema": "pancake.sweep-triage/2",
+ "branch": "us",
+ "slices": [
+  "usS1-1of5v"
+ ],
+ "protected": {
+  "STRATA_VERIFY_ECAP": [
+   "edit"
+  ],
+  "STRATA_RDNA_Q6K": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_GR_RDNA": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_RDNA_MMVQ_WAVE": [
+   "short",
+   "edit",
+   "longdec32k"
+  ]
+ },
+ "drift_max": 5.0,
+ "flags": {
+  "STRATA_ROUTE_TAIL_SKIP": {
+   "flag": "STRATA_ROUTE_TAIL_SKIP",
+   "kind": "minus",
+   "keys": [
+    "STRATA_ROUTE_TAIL_SKIP"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_ROUTE_TAIL_SKIP": "0"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-ROUTE_TAIL_SKIP",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": -5.89,
+    "edit": 4.0,
+    "longdec64k": -1.69,
+    "longdec64k-prompt": -11.82
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b01",
+   "drift1": {
+    "short": -5.12,
+    "edit": 3.36,
+    "longdec64k": -6.9
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k-prompt -11.8 %): reported, the confirm decides",
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b01 base drift longdec64k -6.9 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "STRATA_PIN_BY_NEED": {
+   "flag": "STRATA_PIN_BY_NEED",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PIN_BY_NEED"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PIN_BY_NEED": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-PIN_BY_NEED",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 26.19,
+    "edit": 33.11,
+    "longdec64k": -0.18,
+    "longdec64k-prompt": 12.62
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b01",
+   "drift1": {
+    "short": 9.52,
+    "edit": -7.85,
+    "longdec64k": 7.28
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b01 base drift short +9.5 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "STRATA_EXPDEC": {
+   "flag": "STRATA_EXPDEC",
+   "kind": "minus",
+   "keys": [
+    "STRATA_EXPDEC"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_EXPDEC": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-EXPDEC",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 5.39,
+    "edit": 25.77,
+    "longdec64k": 37.31,
+    "longdec64k-prompt": 28.35
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b01",
+   "drift1": {
+    "short": 9.52,
+    "edit": -7.85,
+    "longdec64k": 7.28
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b01 base drift short +9.5 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "STRATA_EXCHANGE_ROTATE": {
+   "flag": "STRATA_EXCHANGE_ROTATE",
+   "kind": "minus",
+   "keys": [
+    "STRATA_EXCHANGE_ROTATE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_EXCHANGE_ROTATE": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-EXCHANGE_ROTATE",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": -0.74,
+    "edit": 3.93,
+    "longdec64k": -7.41,
+    "longdec64k-prompt": -12.26
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b01",
+   "drift1": {
+    "short": -5.12,
+    "edit": 3.36,
+    "longdec64k": -6.9
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k-prompt -12.3 %): reported, the confirm decides",
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b01 base drift longdec64k -6.9 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "STRATA_ATTN_DAILY": {
+   "flag": "STRATA_ATTN_DAILY",
+   "kind": "minus",
+   "keys": [
+    "STRATA_ATTN_DAILY"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_ATTN_DAILY": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-ATTN_DAILY",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 8.8,
+    "edit": 30.32,
+    "longdec64k": 6.03,
+    "longdec64k-prompt": 33.29
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b02",
+   "drift1": {
+    "short": 0.0,
+    "edit": 1.31,
+    "longdec64k": 4.73
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-1of5v-b02): a case >= +2.0 % (best +33.29 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_PROMPT_ATTN_IMMA": {
+   "flag": "STRATA_PROMPT_ATTN_IMMA",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PROMPT_ATTN_IMMA"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PROMPT_ATTN_IMMA": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-PROMPT_ATTN_IMMA",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 1.47,
+    "edit": 0.24,
+    "longdec64k": 0.84,
+    "longdec64k-prompt": -0.09
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b02",
+   "drift1": {
+    "short": -0.29,
+    "edit": -1.17,
+    "longdec64k": 6.11
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "PROMISING-LOW",
+   "reason": "run 1 (clean block us-p1-usS1-1of5v-b02): best case +1.47 % (0 < gain < 2.0 %): LOW gain, not rescreened this round: backlog (us-backlog-low.json, run-1 numbers kept)"
+  },
+  "STRATA_KV_PREFETCH": {
+   "flag": "STRATA_KV_PREFETCH",
+   "kind": "minus",
+   "keys": [
+    "STRATA_KV_PREFETCH"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_KV_PREFETCH": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-KV_PREFETCH",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 0.14,
+    "edit": -0.18,
+    "longdec64k": 0.6,
+    "longdec64k-prompt": 0.07
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b02",
+   "drift1": {
+    "short": -0.29,
+    "edit": -1.17,
+    "longdec64k": 6.11
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "PROMISING-LOW",
+   "reason": "run 1 (clean block us-p1-usS1-1of5v-b02): best case +0.60 % (0 < gain < 2.0 %): LOW gain, not rescreened this round: backlog (us-backlog-low.json, run-1 numbers kept)"
+  },
+  "STRATA_PF_GROUP_SCRATCH": {
+   "flag": "STRATA_PF_GROUP_SCRATCH",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PF_GROUP_SCRATCH"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PF_GROUP_SCRATCH": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-PF_GROUP_SCRATCH",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 0.12,
+    "edit": 10.74,
+    "longdec64k": -0.31,
+    "longdec64k-prompt": 28.61
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b02",
+   "drift1": {
+    "short": 0.0,
+    "edit": 1.31,
+    "longdec64k": 4.73
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-1of5v-b02): a case >= +2.0 % (best +28.61 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_SELECT_WMMA": {
+   "flag": "STRATA_SELECT_WMMA",
+   "kind": "minus",
+   "keys": [
+    "STRATA_SELECT_WMMA"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_SELECT_WMMA": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-SELECT_WMMA",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 2.31,
+    "edit": -0.81,
+    "longdec64k": -13.12,
+    "longdec64k-prompt": 3.51
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b03",
+   "drift1": {
+    "short": -3.48,
+    "edit": 2.29,
+    "longdec64k": -18.84
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k -13.1 %): reported, the confirm decides",
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b03 base drift longdec64k -18.8 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "STRATA_SH_STREAM": {
+   "flag": "STRATA_SH_STREAM",
+   "kind": "minus",
+   "keys": [
+    "STRATA_SH_STREAM"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_SH_STREAM": "0"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-SH_STREAM",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": -0.05,
+    "edit": 15.95,
+    "longdec64k": -14.39,
+    "longdec64k-prompt": -2.41
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b03",
+   "drift1": {
+    "short": -3.48,
+    "edit": 2.29,
+    "longdec64k": -18.84
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (edit +15.9 %): reported, the confirm decides",
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b03 base drift longdec64k -18.8 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "STRATA_QFUSE": {
+   "flag": "STRATA_QFUSE",
+   "kind": "minus",
+   "keys": [
+    "STRATA_QFUSE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_QFUSE": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-QFUSE",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 3.33,
+    "edit": 3.72,
+    "longdec64k": -0.62,
+    "longdec64k-prompt": 0.22
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b03",
+   "drift1": {
+    "short": -0.19,
+    "edit": -0.76,
+    "longdec64k": -6.74
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-1of5v-b03): a case >= +2.0 % (best +3.72 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_VERIFY_QDEDUP": {
+   "flag": "STRATA_VERIFY_QDEDUP",
+   "kind": "minus",
+   "keys": [
+    "STRATA_VERIFY_QDEDUP"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_VERIFY_QDEDUP": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-VERIFY_QDEDUP",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 1.61,
+    "edit": 0.55,
+    "longdec64k": -9.78,
+    "longdec64k-prompt": -0.11
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b03",
+   "drift1": {
+    "short": -0.19,
+    "edit": -0.76,
+    "longdec64k": -6.74
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "PROMISING-LOW",
+   "reason": "run 1 (clean block us-p1-usS1-1of5v-b03): best case +1.61 % (0 < gain < 2.0 %): LOW gain, not rescreened this round: backlog (us-backlog-low.json, run-1 numbers kept)"
+  },
+  "STRATA_STAGER_RING": {
+   "flag": "STRATA_STAGER_RING",
+   "kind": "minus",
+   "keys": [
+    "STRATA_STAGER_RING"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_STAGER_RING": "64"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-STAGER_RING",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 1.14,
+    "edit": -0.59,
+    "longdec64k": 5.85,
+    "longdec64k-prompt": 0.03
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b04",
+   "drift1": {
+    "short": -0.48,
+    "edit": 8.77,
+    "longdec64k": -7.1
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b04 base drift edit +8.8 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "STRATA_PREFILL_CPU_SHARE_MAX": {
+   "flag": "STRATA_PREFILL_CPU_SHARE_MAX",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PREFILL_CPU_SHARE_MAX"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PREFILL_CPU_SHARE_MAX": "4096"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-PREFILL_CPU_SHARE_MAX",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 8.54,
+    "edit": 17.43,
+    "longdec64k": 13.66,
+    "longdec64k-prompt": 38.16
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b04",
+   "drift1": {
+    "short": -0.19,
+    "edit": -0.53,
+    "longdec64k": 10.82
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b04 base drift longdec64k +10.8 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "STRATA_GDN_HEAD": {
+   "flag": "STRATA_GDN_HEAD",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GDN_HEAD"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GDN_HEAD": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-GDN_HEAD",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 6.12,
+    "edit": 61.73,
+    "longdec64k": 42.83,
+    "longdec64k-prompt": 49.13
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b04",
+   "drift1": {
+    "short": -0.19,
+    "edit": -0.53,
+    "longdec64k": 10.82
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b04 base drift longdec64k +10.8 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "STRATA_GDN_CHUNKED": {
+   "flag": "STRATA_GDN_CHUNKED",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GDN_CHUNKED"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GDN_CHUNKED": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-GDN_CHUNKED",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 1.52,
+    "edit": -6.12,
+    "longdec64k": 5.98,
+    "longdec64k-prompt": 4.27
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b04",
+   "drift1": {
+    "short": -0.48,
+    "edit": 8.77,
+    "longdec64k": -7.1
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (edit -6.1 %): reported, the confirm decides",
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b04 base drift edit +8.8 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "STRATA_GDN_CONVL2": {
+   "flag": "STRATA_GDN_CONVL2",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GDN_CONVL2"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GDN_CONVL2": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-GDN_CONVL2",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": -0.14,
+    "edit": -2.64,
+    "longdec64k": 1.95,
+    "longdec64k-prompt": -0.24
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b05",
+   "drift1": {
+    "short": 0.1,
+    "edit": -0.71,
+    "longdec64k": 1.93
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b05"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "PROMISING-LOW",
+   "reason": "run 1 (clean block us-p1-usS1-1of5v-b05): best case +1.95 % (0 < gain < 2.0 %): LOW gain, not rescreened this round: backlog (us-backlog-low.json, run-1 numbers kept)"
+  },
+  "STRATA_GDN_NOY": {
+   "flag": "STRATA_GDN_NOY",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GDN_NOY"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GDN_NOY": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-GDN_NOY",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": -0.44,
+    "edit": 0.07,
+    "longdec64k": 1.62,
+    "longdec64k-prompt": -0.24
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b05",
+   "drift1": {
+    "short": -0.68,
+    "edit": 8.46,
+    "longdec64k": 0.59
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b05"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b05 base drift edit +8.5 % > 5 % (after its re-run): no verdict"
+  },
+  "STRATA_PF_GEMM": {
+   "flag": "STRATA_PF_GEMM",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PF_GEMM"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PF_GEMM": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-PF_GEMM",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 0.0,
+    "edit": -1.33,
+    "longdec64k": 2.33,
+    "longdec64k-prompt": 4.44
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b05",
+   "drift1": {
+    "short": 0.1,
+    "edit": -0.71,
+    "longdec64k": 1.93
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b05"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-1of5v-b05): a case >= +2.0 % (best +4.44 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_PF_PAD": {
+   "flag": "STRATA_PF_PAD",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PF_PAD"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PF_PAD": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-PF_PAD",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 1.25,
+    "edit": -0.38,
+    "longdec64k": 6.0,
+    "longdec64k-prompt": 0.17
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b06",
+   "drift1": {
+    "short": -0.48,
+    "edit": -5.06,
+    "longdec64k": 5.3
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b06"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-1of5v-b06): a case >= +2.0 % (best +6.00 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_HC_UPMIX": {
+   "flag": "STRATA_HC_UPMIX",
+   "kind": "minus",
+   "keys": [
+    "STRATA_HC_UPMIX"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_HC_UPMIX": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-HC_UPMIX",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 13.08,
+    "edit": 13.28,
+    "longdec64k": 8.71,
+    "longdec64k-prompt": 47.25
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b06",
+   "drift1": {
+    "short": 0.58,
+    "edit": 5.7,
+    "longdec64k": -6.05
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b06"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-1of5v-b06): a case >= +2.0 % (best +47.25 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_PF_HCDOWN": {
+   "flag": "STRATA_PF_HCDOWN",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PF_HCDOWN"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PF_HCDOWN": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-PF_HCDOWN",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 7.32,
+    "edit": -2.11,
+    "longdec64k": 5.76,
+    "longdec64k-prompt": 18.32
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b06",
+   "drift1": {
+    "short": 0.58,
+    "edit": 5.7,
+    "longdec64k": -6.05
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b06"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-1of5v-b06): a case >= +2.0 % (best +18.32 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_FUSE_CONVAB": {
+   "flag": "STRATA_FUSE_CONVAB",
+   "kind": "minus",
+   "keys": [
+    "STRATA_FUSE_CONVAB"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_FUSE_CONVAB": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-FUSE_CONVAB",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 0.93,
+    "edit": 8.43,
+    "longdec64k": 44.25,
+    "longdec64k-prompt": 26.02
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b07",
+   "drift1": {
+    "short": -4.15,
+    "edit": -49.45,
+    "longdec64k": -3.61
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b07"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b07 base drift edit -49.5 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "STRATA_HEAD_MIX_MULTI": {
+   "flag": "STRATA_HEAD_MIX_MULTI",
+   "kind": "minus",
+   "keys": [
+    "STRATA_HEAD_MIX_MULTI"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_HEAD_MIX_MULTI": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-HEAD_MIX_MULTI",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": -5.51,
+    "edit": -21.66,
+    "longdec64k": -3.09,
+    "longdec64k-prompt": -13.53
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b07",
+   "drift1": {
+    "short": -4.15,
+    "edit": -49.45,
+    "longdec64k": -3.61
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b07"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b07 base drift edit -49.5 % > 5 % (after its re-run): no verdict"
+  },
+  "STRATA_KV_HOST_DMA": {
+   "flag": "STRATA_KV_HOST_DMA",
+   "kind": "minus",
+   "keys": [
+    "STRATA_KV_HOST_DMA"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_KV_HOST_DMA": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-KV_HOST_DMA",
+   "slice": "usS1-1of5v",
+   "pass1": {
+    "short": 22.92,
+    "edit": -0.02,
+    "longdec64k": 6.32,
+    "longdec64k-prompt": 23.24
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-1of5v-b07",
+   "drift1": {
+    "short": 3.22,
+    "edit": 111.05,
+    "longdec64k": 3.87
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-1of5v-b07"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-1of5v-b07 base drift edit +111.0 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  }
+ }
+}
