@@ -1,3 +1,8 @@
 case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 updated              short 110.5 short 103.6 edit 169.3 edit 168.9 longdec64k 84.9/2187p 65240t  foreign CPU 2% [('kcompactd0', 5), ('upowerd', 0), ('localsearch-3', 0)]  gpu 1996/1249 MHz 62C 182W gtt 25M cpu 3631MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-PF_GEMM        short 99.6 short 100.9 edit 118.6 edit 180.9 longdec64k 79.6/1502p 65240t  foreign CPU 2% [('kcompactd0', 3), ('claude', 1), ('kworker/1:0-mm_percpu_wq', 1)]  gpu 1942/1249 MHz 65C 191W gtt 25M cpu 3483MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-PF_HCDOWN      short 86.1 short 80.7 edit 113.9 edit 170.6 longdec64k 77.3/1454p 65240t  foreign CPU 3% [('kcompactd0', 5), ('kswapd0', 2), ('localsearch-3', 1)]  gpu 2036/1249 MHz 63C 191W gtt 25M cpu 3811MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PF_HCDOWN: every attempt noisy, keeping the quietest (3% foreign CPU)
