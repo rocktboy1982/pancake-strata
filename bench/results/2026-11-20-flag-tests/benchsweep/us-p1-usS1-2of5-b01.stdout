@@ -1,2 +1,6 @@
 case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 warmup               short 110.0 short 103.0 edit 163.3 edit 179.6 longdec64k 47.3/1970p 65242t  foreign CPU 2% [('kcompactd0', 3), ('claude', 1), ('systemd', 1)]  gpu 2044/1249 MHz 61C 182W gtt 25M cpu 3596MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 75.5 short 102.1 edit 155.7 edit 168.7 longdec64k 79.8/1645p 65242t  foreign CPU 3% [('kcompactd0', 4), ('kworker/9:0-events', 2), ('kworker/1:2-events', 1)]  gpu 2036/1249 MHz 62C 179W gtt 25M cpu 3573MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1645, pack load 0.48 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
