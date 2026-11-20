@@ -3651,3 +3651,12 @@ def test_bench_sweep_screen_only_skips_pass_2_writes_promising_and_the_carry_fil
     assert rows0[:2] == ["warmup", "updated"]
     if (sw_dir / "rd-p1-1of6-b02.jsonl").exists():
         assert [json.loads(l)["arm"] for l in (sw_dir / "rd-p1-1of6-b02.jsonl").read_text().splitlines()][0] == "updated"
+
+
+def test_run_queue_us4_runs_the_preliminary_right_after_screen_slice_1_and_never_restarts_it():
+    q = (CHAINS / "run-queue-us4.sh").read_text()
+    assert "SWEEP_HARNESS_SHA:?" in q and "BENCH_PREIDLED=1" in q and "QUEUE_US4_DONE" in q and "run-queue-us4.log" in q
+    body = q[q.index("# ---- STAGE 1: slice 1 is already running"):]
+    order = [body.index(x) for x in ('pgrep -fx "sh ./bench-sched.v8.sh"', "final preliminary FINAL_PREFIX=prelim FINAL_REPS=3 FINAL_NO_TRIAGE=1", "for k in 2 3 4 5; do screen",
+                                     "sw select", "sw rank", "confirm usS2 0 $cut", "retest gates-us-$i", "final final FINAL_PREFIX=final FINAL_REPS=5", "confirm usM $cut", "QUEUE_US4_DONE")]
+    assert order == sorted(order) and "screen 1/5" not in body and "usS1-1of5; done" not in body        # slice 1 (running under run-queue-us3.sh) is never started again
