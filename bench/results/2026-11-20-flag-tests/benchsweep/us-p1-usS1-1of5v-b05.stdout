@@ -4,3 +4,11 @@ rep 0 updated              short 110.4 short 103.6 edit 166.9 edit 170.2 longdec
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-GDN_CONVL2     short 110.7 short 103.7 edit 163.6 edit 183.2 longdec64k 82.0/2194p 65240t  foreign CPU 4% [('kcompactd0', 8), ('kswapd0', 2), ('kworker/u65:10-KFD IH', 1)]  gpu 2029/1249 MHz 64C 196W gtt 25M cpu 3733MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-GDN_CONVL2: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-PF_GEMM        short 110.5 short 103.6 edit 168.0 edit 174.2 longdec64k 81.7/2095p 65240t  foreign CPU 4% [('kcompactd0', 7), ('kswapd0', 4), ('dbus-daemon', 0)]  gpu 2042/1249 MHz 65C 194W gtt 25M cpu 3482MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PF_GEMM: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 110.5 short 103.7 edit 169.2 edit 169.0 longdec64k 84.4/2189p 65240t  foreign CPU 3% [('kcompactd0', 7), ('kswapd0', 3), ('localsearch-3', 0)]  gpu 1975/1249 MHz 65C 182W gtt 25M cpu 3570MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-GDN_NOY        short 110.5 short 103.6 edit 169.6 edit 171.5 longdec64k 83.3/2190p 65240t  foreign CPU 4% [('kcompactd0', 6), ('kswapd0', 3), ('claude', 1)]  gpu 1949/1249 MHz 64C 181W gtt 25M cpu 3592MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GDN_NOY: every attempt noisy, keeping the quietest (4% foreign CPU)
