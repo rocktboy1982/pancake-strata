@@ -8,3 +8,10 @@ rep 0 plus-ADAPT_NOWAIT: every attempt noisy, keeping the quietest (4% foreign C
 rep 0 plus-ADAPT_OVERLAP_RESIDENT short 74.7 short 97.7 edit 125.4 edit 177.7 longdec64k 57.3/1565p 65241t  foreign CPU 3% [('kcompactd0', 6), ('kswapd0', 3), ('kworker/1:0-mm_percpu_wq', 1)]  gpu 2047/1249 MHz 64C 171W gtt 25M cpu 3248MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-ADAPT_OVERLAP_RESIDENT: every attempt noisy, keeping the quietest (3% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 97.3 short 93.7 edit 174.7 edit 181.3 longdec64k 80.7/1468p 65241t  foreign CPU 3% [('kcompactd0', 6), ('claude', 1), ('kswapd0', 1)]  gpu 1991/1249 MHz 63C 184W gtt 25M cpu 3624MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1468, pack load 0.51 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 110.5 short 103.5 edit 168.4 edit 169.8 longdec64k 80.0/2188p 65241t  foreign CPU 2% [('kcompactd0', 2), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 2021/1249 MHz 62C 184W gtt 25M cpu 3577MHz 66C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-m1: first start prefill 1468 / load 0.51 GiB/s (paused 19:20:58), second start prefill 2188 / load 1.25 GiB/s
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
