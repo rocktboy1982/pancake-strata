@@ -2,3 +2,9 @@ case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique 
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 updated              short 109.4 short 103.3 edit 170.3 edit 168.6 longdec64k 86.4/2188p 65241t  foreign CPU 4% [('kcompactd0', 5), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 1962/1249 MHz 64C 181W gtt 25M cpu 3563MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-ADAPT_NOWAIT    short 111.5 short 99.6 edit 172.7 edit 192.7 longdec64k 79.5/2189p 65241t  foreign CPU 4% [('kcompactd0', 7), ('kswapd0', 3), ('kworker/9:0-mm_percpu_wq', 1)]  gpu 1994/1249 MHz 64C 187W gtt 25M cpu 3701MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-ADAPT_NOWAIT: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-ADAPT_OVERLAP_RESIDENT short 74.7 short 97.7 edit 125.4 edit 177.7 longdec64k 57.3/1565p 65241t  foreign CPU 3% [('kcompactd0', 6), ('kswapd0', 3), ('kworker/1:0-mm_percpu_wq', 1)]  gpu 2047/1249 MHz 64C 171W gtt 25M cpu 3248MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-ADAPT_OVERLAP_RESIDENT: every attempt noisy, keeping the quietest (3% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
