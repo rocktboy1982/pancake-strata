@@ -20,3 +20,8 @@ REGIME-STILL-SLOW base-m1: first start prefill 1528 / load 0.66 GiB/s (paused 12
 rep 0 minus-PIN_BY_NEED    short 67.8 short 95.8 edit 72.5 edit 186.2 longdec64k 81.3/1702p 65240t  foreign CPU 3% [('kcompactd0', 7), ('claude', 1), ('rcu_preempt', 0)]  gpu 1982/1249 MHz 61C 186W gtt 25M cpu 3735MHz 64C igpu 0%/vcn 0% fclk 1600
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-EXPDEC         short 99.2 short 96.7 edit 143.6 edit 130.2 longdec64k 59.1/1494p 65240t  foreign CPU 2% [('kcompactd0', 4), ('localsearch-3', 1), ('rcu_preempt', 0)]  gpu 2009/1249 MHz 62C 187W gtt 25M cpu 3664MHz 64C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 63.8 short 101.8 edit 127.7 edit 144.9 longdec64k 77.1/1507p 65240t  foreign CPU 3% [('kcompactd0', 7), ('localsearch-3', 1), ('kworker/9:2-mm_percpu_wq', 1)]  gpu 2038/1249 MHz 61C 181W gtt 25M cpu 3536MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1507, pack load 0.42 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
