@@ -15,3 +15,58 @@ rep 0 plus-ADAPT_CALLBACK_WARMUP: every attempt noisy, keeping the quietest (3% 
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-RDNA_MMVQ_WAVE short 107.5 short 103.3 edit 167.5 edit 169.9 longdec64k 86.3/2172p 65241t  foreign CPU 5% [('kcompactd0', 7), ('kworker/1:2-events_freezable', 3), ('kswapd0', 3)]  gpu 2045/1249 MHz 65C 186W gtt 25M cpu 3660MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-RDNA_MMVQ_WAVE: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 108.6 short 103.6 edit 159.9 edit 170.1 longdec64k 88.0/2186p 65241t  foreign CPU 4% [('kcompactd0', 8), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 2028/1249 MHz 65C 184W gtt 25M cpu 3694MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 106.9 +-  43.2  (n=2)
+                              drafts accepted 0.71
+  short  minus-RDNA_Q6K          101.6 +-  46.4  (n=2)   vs updated:  -5.0% +- 83.8%  -> no difference
+                              drafts accepted 0.70
+  short  minus-HIPBLASLT_TUNING    105.9 +-  35.6  (n=2)   vs updated:  -0.9% +-  7.1%  -> no difference
+                              drafts accepted 0.70
+  short  base-m1                 105.0 +-  15.9  (n=2)   vs updated:  -1.8% +- 25.6%  -> no difference
+                              drafts accepted 0.71
+  short  plus-ADAPT_CALLBACK_WARMUP    107.2 +-  45.1  (n=2)   vs updated:  +0.2% +-  1.8%  -> no difference
+                              drafts accepted 0.71
+  short  minus-RDNA_MMVQ_WAVE    105.4 +-  26.7  (n=2)   vs updated:  -1.4% +- 15.5%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               106.1 +-  31.8  (n=2)   vs updated:  -0.7% +- 10.7%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 170.3 +-  12.7  (n=2)
+                              drafts accepted 0.89
+  edit   minus-RDNA_Q6K          149.5 +-  80.1  (n=2)   vs updated: -12.2% +- 39.6%  -> no difference
+                              drafts accepted 0.93
+  edit   minus-HIPBLASLT_TUNING    183.6 +-  29.2  (n=2)   vs updated:  +7.8% +- 24.6%  -> no difference
+                              drafts accepted 0.91
+  edit   base-m1                 168.9 +-  12.7  (n=2)   vs updated:  -0.8% +-  0.0%  -> worse
+                              drafts accepted 0.90
+  edit   plus-ADAPT_CALLBACK_WARMUP    168.7 +-   5.1  (n=2)   vs updated:  -0.9% +- 10.4%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-RDNA_MMVQ_WAVE    168.7 +-  15.3  (n=2)   vs updated:  -0.9% +-  1.5%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               165.0 +-  64.8  (n=2)   vs updated:  -3.1% +- 30.6%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  84.9 +-   nan  (n=1)
+  longdec64k minus-RDNA_Q6K           77.6 +-   nan  (n=1)   vs updated:  -8.6% +-  nan%  -> no difference
+  longdec64k minus-HIPBLASLT_TUNING     76.9 +-   nan  (n=1)   vs updated:  -9.4% +-  nan%  -> no difference
+  longdec64k base-m1                  81.9 +-   nan  (n=1)   vs updated:  -3.5% +-  nan%  -> no difference
+  longdec64k plus-ADAPT_CALLBACK_WARMUP     83.8 +-   nan  (n=1)   vs updated:  -1.3% +-  nan%  -> no difference
+  longdec64k minus-RDNA_MMVQ_WAVE     86.3 +-   nan  (n=1)   vs updated:  +1.6% +-  nan%  -> no difference
+  longdec64k base-late                88.0 +-   nan  (n=1)   vs updated:  +3.7% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-RDNA_Q6K       DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-HIPBLASLT_TUNING DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-ADAPT_CALLBACK_WARMUP DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-RDNA_MMVQ_WAVE identical on every case -> exact
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -0.7%  edit -3.1%  longdec64k +3.7%
+  minus-RDNA_Q6K       short -4.6%  edit -10.8%  longdec64k -10.2%  -> drop
+  minus-HIPBLASLT_TUNING short -0.6%  edit +9.5%  longdec64k -11.0%  -> drop
+  base-m1              short -1.5%  edit +0.7%  longdec64k -5.3%  -> drop
+  plus-ADAPT_CALLBACK_WARMUP short +0.6%  edit +0.6%  longdec64k -3.1%  -> drop
+  minus-RDNA_MMVQ_WAVE short -1.0%  edit +0.6%  longdec64k -0.2%  -> PROMOTE to confirm
