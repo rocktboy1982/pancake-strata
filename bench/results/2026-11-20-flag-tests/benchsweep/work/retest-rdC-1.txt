@@ -1,0 +1,12 @@
+ARMFIX dropped STRATA_POOL_FUSE_PHASES=1 from the updated config
+ARMFIX STRATA_VERIFY_ECAP=0 already in the updated config
+ARMFIX STRATA_VERIFY_ECAP_MIN_ROWS=9 already in the updated config
+BLOCK k01 paired 1050 rd /home/dan/auto-runs/benchsweep/work/retest-rdC-1-k01.json updated plus-EMB_REUSE_ACCOUNT short,edit,longdec32k STRATA_EMB_REUSE_ACCOUNT
+BLOCK k02 paired 1050 rd /home/dan/auto-runs/benchsweep/work/retest-rdC-1-k02.json updated plus-GROUPED_V1 short,edit,longdec32k STRATA_GROUPED_V1
+BLOCK k03 paired 1050 rd /home/dan/auto-runs/benchsweep/work/retest-rdC-1-k03.json updated plus-CVEC_FUSE short,edit,longdec32k STRATA_CVEC_FUSE
+BLOCK k04 paired 1050 rd /home/dan/auto-runs/benchsweep/work/retest-rdC-1-k04.json updated plus-EARLY_REMOTE_CONTEXTS short,edit,longdec32k STRATA_EARLY_REMOTE_CONTEXTS
+BLOCK k05 paired 1050 rd /home/dan/auto-runs/benchsweep/work/retest-rdC-1-k05.json updated minus-EXPDEC short,edit,longdec32k STRATA_EXPDEC
+BLOCK k06 paired 1050 rd /home/dan/auto-runs/benchsweep/work/retest-rdC-1-k06.json updated plus-FUSE_HEAD_GR short,edit,longdec32k STRATA_FUSE_HEAD_GR
+BLOCK k07 paired 1050 rd /home/dan/auto-runs/benchsweep/work/retest-rdC-1-k07.json updated minus-PF_GROUP_SCRATCH short,edit,longdec32k STRATA_PF_GROUP_SCRATCH
+RETEST rdC-1: 7 blocks, estimate 7350 s
+ESTIMATE 7350

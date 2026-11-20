@@ -1,0 +1,33 @@
+DROP         STRATA_EXPDEC                        pass1 {"short": -2.11, "edit": 64.67, "longdec32k": 3.68, "longdec32k-prompt": -2.94}  pass2 {"short": -9.23, "edit": 2.6, "longdec32k": 13.81, "longdec32k-prompt": 0.85}
+DROP         STRATA_KV_PREFETCH                   pass1 {"short": -5.6, "edit": 11.81, "longdec32k": 13.78, "longdec32k-prompt": 0.28}
+DROP         --pool-affinity                      pass1 {"short": -5.17, "edit": 67.75, "longdec32k": 38.73, "longdec32k-prompt": -5.19}
+DROP         STRATA_ADAPT_PERSIST                 pass1 {"short": -2.74, "edit": -1.83, "longdec32k": 0.94, "longdec32k-prompt": -3.68}
+DROP         STRATA_AMD_COMMUNITY_TUNING          pass1 {"short": -8.88, "edit": 3.59, "longdec32k": -3.99, "longdec32k-prompt": 3.04}
+DROP         STRATA_ADAPT_CALLBACK_WARMUP         pass1 {"short": -13.92, "edit": 14.3, "longdec32k": 0.8, "longdec32k-prompt": -3.43}
+DROP         STRATA_ADAPT_NOWAIT                  pass1 {"short": -4.87, "edit": -5.21, "longdec32k": -25.31, "longdec32k-prompt": -10.61}
+DROP         STRATA_ADAPT_OVERLAP_RESIDENT        pass1 {"short": -16.82, "edit": 6.5, "longdec32k": 5.29, "longdec32k-prompt": 43.43}
+DROP         STRATA_ADMIT_MERGE_FIRST             pass1 {"short": 8.11, "edit": -15.34, "longdec32k": -0.22, "longdec32k-prompt": 47.01}
+DROP         STRATA_ATTN_LANECELL                 pass1 {"short": 2.74, "edit": 11.14, "longdec32k": -3.55, "longdec32k-prompt": 45.53}
+DROP         STRATA_ATTN_V3                       pass1 {"short": -5.59, "edit": -21.85, "longdec32k": -15.59, "longdec32k-prompt": -4.59}
+DROP         STRATA_CKPT_POOL                     pass1 {"short": -16.87, "edit": -0.32, "longdec32k": -3.55, "longdec32k-prompt": -2.01}
+DROP         STRATA_CKPT_THREADS                  pass1 {"short": -8.84, "edit": 4.38, "longdec32k": -6.6, "longdec32k-prompt": -12.77}
+DROP         STRATA_CPU_IQ_ALL_EXACT1             pass1 {"short": -14.06, "edit": -26.88, "longdec32k": -4.42, "longdec32k-prompt": -8.05}
+DROP         STRATA_CVEC_FUSE                     pass1 {"short": 8.88, "edit": 5.32, "longdec32k": 2.97, "longdec32k-prompt": 45.87}  pass2 {"short": 8.53, "edit": 1.96, "longdec32k": -4.04, "longdec32k-prompt": -0.15}
+DROP         STRATA_EARLY_REMOTE_CONTEXTS         pass1 {"short": 8.74, "edit": 13.73, "longdec32k": 6.31, "longdec32k-prompt": 51.79}  pass2 {"short": 4.53, "edit": 5.43, "longdec32k": -0.0, "longdec32k-prompt": -3.07}
+DROP         STRATA_EXPERT_V2                     pass1 {"short": 9.85, "edit": -4.81, "longdec32k": -3.55, "longdec32k-prompt": 45.97}
+DROP         STRATA_EXPERT_V2K                    pass1 {"short": 7.53, "edit": -22.24, "longdec32k": -2.83, "longdec32k-prompt": 44.9}
+DROP         STRATA_EXP_MODE                      pass1 {"short": 9.66, "edit": -14.05, "longdec32k": 1.81, "longdec32k-prompt": 49.07}
+DROP         STRATA_FS_SLOTS                      pass1 {"short": 3.32, "edit": -1.08, "longdec32k": -5.73, "longdec32k-prompt": 20.95}
+DROP         STRATA_FUSE_DECODE                   pass1 {"short": -9.8, "edit": -8.91, "longdec32k": -4.13, "longdec32k-prompt": -9.47}
+DROP         STRATA_FUSE_HEAD_GR                  pass1 {"short": 9.51, "edit": 5.64, "longdec32k": -1.23, "longdec32k-prompt": 46.23}  pass2 {"short": 8.17, "edit": -8.6, "longdec32k": -2.0, "longdec32k-prompt": -2.43}
+DROP         STRATA_GROUPED_V1                    pass1 {"short": 8.25, "edit": 1.98, "longdec32k": 4.71, "longdec32k-prompt": 48.6}  pass2 {"short": 11.28, "edit": 9.88, "longdec32k": -2.18, "longdec32k-prompt": -3.03}
+DROP         STRATA_HCD_EXACT                     pass1 {"short": 8.98, "edit": -19.83, "longdec32k": 3.12, "longdec32k-prompt": 47.68}
+KEEP         STRATA_EMB_REUSE_ACCOUNT             pass1 {"short": 9.03, "edit": 13.33, "longdec32k": 1.96, "longdec32k-prompt": 46.66}  pass2 {"short": 7.46, "edit": 13.04, "longdec32k": 3.36, "longdec32k-prompt": -0.46}
+RETEST       STRATA_PIN_BY_NEED                   pass1 {"short": -0.31, "edit": 6.96, "longdec32k": 6.57, "longdec32k-prompt": -2.33}
+RETEST       STRATA_EXCHANGE_ROTATE               pass1 {"short": 3.9, "edit": -0.07, "longdec32k": 3.22, "longdec32k-prompt": 4.94}
+RETEST       STRATA_PROMPT_ATTN_IMMA              pass1 {"short": 6.63, "edit": 26.27, "longdec32k": 1.1, "longdec32k-prompt": 0.22}
+RETEST       STRATA_ATTN_DAILY                    pass1 {"short": 15.58, "edit": 6.83, "longdec32k": 33.88, "longdec32k-prompt": 9.4}
+RETEST       STRATA_PF_GROUP_SCRATCH              pass1 {"short": 27.58, "edit": 10.57, "longdec32k": 29.85, "longdec32k-prompt": -2.57}
+RETEST       STRATA_ROUTE_TAIL_SKIP               pass1 {"short": 20.16, "edit": 22.92, "longdec32k": 7.9, "longdec32k-prompt": 1.88}
+RETEST       --grammar                            pass1 {"short": 16.24, "edit": 26.16, "longdec32k": 17.06, "longdec32k-prompt": 0.18}
+RETEST       --conversation-cache-min-tokens      pass1 {"short": 16.63, "edit": 14.24, "longdec32k": 1.85, "longdec32k-prompt": 0.11}

@@ -1,0 +1,2 @@
+SWEEP us slice usS1-1of5: 25 flag arms (25 minus, 0 plus; 25 arm, 0 named, 0 code) in 4 blocks of <= 8 (7/6/6/6), each with updated + base-late; estimate pass 1 6460 s, one block re-run 1710 s, pass 2 <= 9120 s, total <= 17290 s
+ESTIMATE 6460 9120 1710

@@ -1,0 +1,11 @@
+case longdec32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 warmup               short 105.7 short 103.5 edit 169.0 edit 168.5 longdec32k 98.9/1750p 31452t  foreign CPU 7% [('kcompactd0', 18), ('kswapd0', 4), ('kworker/10:0-events', 3)]  gpu 2050/1249 MHz 58C 173W gtt 25M cpu 3658MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 warmup: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 101.9 short 100.3 edit 163.2 edit 176.2 longdec32k 88.9/1757p 31452t  foreign CPU 7% [('kcompactd0', 11), ('kworker/3:2-mm_percpu_wq', 3), ('kworker/1:1-mm_percpu_wq', 3)]  gpu 1991/1249 MHz 59C 175W gtt 25M cpu 3710MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-ENGINE_NICE    short 107.9 short 104.0 edit 161.9 edit 170.2 longdec32k 94.4/1767p 31452t  foreign CPU 6% [('kcompactd0', 11), ('kswapd0', 3), ('systemd-journal', 1)]  gpu 2018/1249 MHz 60C 171W gtt 25M cpu 3675MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-ENGINE_NICE: every attempt noisy, keeping the quietest (6% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)

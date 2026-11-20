@@ -1,0 +1,36 @@
+rep 0 plain                short 87.8 edit 83.1 short 84.0 edit 93.1 short 62.8 edit 92.6  foreign CPU 58% [('kcompactd0', 72), ('kworker/0:2-events', 9), ('kworker/9:0-events', 5)]  gpu 1813/1249 MHz 60C 132W gtt 21M cpu 4184MHz 58C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 0 updated-exact        short 85.9 edit 95.1 short 86.7 edit 97.8 short 90.1 edit 97.1  foreign CPU 29% [('kcompactd0', 52), ('kworker/15:2-events_freezable', 4), ('kworker/14:1-events', 4)]  gpu 2028/1249 MHz 60C 148W gtt 21M cpu 4372MHz 57C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 0 updated              short 90.5 edit 118.5 short 88.0 edit 102.6 short 91.4 edit 93.7  foreign CPU 32% [('kcompactd0', 61), ('kworker/0:0-events_freezable', 7), ('kworker/8:2-events', 2)]  gpu 1968/1249 MHz 61C 148W gtt 21M cpu 4268MHz 57C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 1 updated              short 89.0 edit 104.9 short 91.2 edit 116.1 short 85.6 edit 136.0  foreign CPU 33% [('kcompactd0', 66), ('kworker/14:1-events', 10), ('kworker/0:0-events', 4)]  gpu 1933/1249 MHz 61C 146W gtt 21M cpu 4122MHz 56C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 0 updated: slow start (more than 8.75% below the arm's other starts): run again
+rep 0 updated              short 89.8 edit 96.8 short 90.7 edit 91.5 short 77.3 edit 85.3  foreign CPU 36% [('kcompactd0', 72), ('kworker/9:2-mm_percpu_wq', 8), ('kworker/15:0-events', 3)]  gpu 1909/1249 MHz 61C 140W gtt 21M cpu 4142MHz 58C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 0 updated: slow start (more than 8.75% below the arm's other starts): run again
+rep 0 updated              short 90.9 edit 97.5 short 86.8 edit 110.5 short 85.6 edit 110.1  foreign CPU 32% [('kcompactd0', 48), ('kworker/0:1-events_freezable', 5), ('kworker/9:2-events_freezable', 4)]  gpu 1956/1249 MHz 61C 148W gtt 21M cpu 4150MHz 58C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 1 updated-exact        short 94.4 edit 91.2 short 82.2 edit 91.8 short 85.8 edit 89.6  foreign CPU 40% [('kcompactd0', 66), ('kworker/9:1-events', 6), ('kworker/0:0-mm_percpu_wq', 5)]  gpu 1894/1249 MHz 61C 134W gtt 21M cpu 4166MHz 58C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 1 plain                short 82.1 edit 80.2 short 86.1 edit 88.5 short 73.0 edit 93.7  foreign CPU 52% [('kcompactd0', 79), ('kworker/0:1-mm_percpu_wq', 8), ('kworker/14:1-events', 5)]  gpu 1929/1249 MHz 61C 144W gtt 21M cpu 4281MHz 59C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+
+outlier rule robust: 3 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 1 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  updated              rep 0 attempt 0 slow start (means): short 90.0, edit 104.9
+  updated              rep 0 attempt 1 slow start (means): short 85.9, edit 91.2
+  updated              rep 0 attempt 2 slow start (means): short 87.8, edit 106.0
+  plain                rep 0 attempt 0 pass 3: short 62.8 outside [62.8, 103.3], edit 92.6
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  plain                    82.6 +-   9.9  (n=5)
+                              drafts accepted 0.72
+  short  updated-exact            87.5 +-   6.1  (n=6)   vs plain:  +5.3% +- 16.2%  -> no difference
+                              drafts accepted 0.72
+  short  updated                  88.6 +-   9.7  (n=3)   vs plain:  +9.9% +- 16.2%  -> no difference
+                              drafts accepted 0.72
+  edit   plain                    87.7 +-  10.3  (n=5)
+                              drafts accepted 0.96
+  edit   updated-exact            93.8 +-   4.9  (n=6)   vs plain:  +6.1% +- 12.7%  -> no difference
+                              drafts accepted 0.94
+  edit   updated                 119.0 +-  53.9  (n=3)   vs plain: +35.9% +- 36.8%  -> no difference
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  updated-exact        DIFFERENT text -> lossy or placement-dependent: quality gate
+  updated              DIFFERENT text -> lossy or placement-dependent: quality gate

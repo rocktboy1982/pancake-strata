@@ -1,0 +1,5 @@
+case longdec32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 87.8 edit 131.2 longdec32k 77.9/2408p 31410t  foreign CPU 19% [('kcompactd0', 40), ('kswapd0', 14), ('kworker/0:1-events_freezable', 12)]  gpu 2027/1249 MHz 61C 172W gtt 25M cpu 3782MHz 66C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-KV_HOST_REGISTER short 94.4 edit 164.9 longdec32k 76.0/2465p 31410t  foreign CPU 12% [('kcompactd0', 26), ('kswapd0', 13), ('kworker/0:2-events', 5)]  gpu 2020/1249 MHz 63C 175W gtt 25M cpu 3802MHz 64C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)

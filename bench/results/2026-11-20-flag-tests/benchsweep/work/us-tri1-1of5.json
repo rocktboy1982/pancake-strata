@@ -1,0 +1,929 @@
+{
+ "schema": "pancake.sweep-triage/1",
+ "branch": "us",
+ "slices": [
+  "1/5"
+ ],
+ "protected": {
+  "STRATA_VERIFY_ECAP": [
+   "edit"
+  ],
+  "STRATA_RDNA_Q6K": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_GR_RDNA": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_RDNA_MMVQ_WAVE": [
+   "short",
+   "edit",
+   "longdec32k"
+  ]
+ },
+ "flags": {
+  "STRATA_ROUTE_TAIL_SKIP": {
+   "flag": "STRATA_ROUTE_TAIL_SKIP",
+   "kind": "minus",
+   "keys": [
+    "STRATA_ROUTE_TAIL_SKIP"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_ROUTE_TAIL_SKIP": "0"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-ROUTE_TAIL_SKIP",
+   "pass1": {
+    "short": -2.81,
+    "edit": -21.06,
+    "longdec32k": 6.51,
+    "longdec32k-prompt": -1.1
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.5 %, floor -3 %)"
+  },
+  "STRATA_PIN_BY_NEED": {
+   "flag": "STRATA_PIN_BY_NEED",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PIN_BY_NEED"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PIN_BY_NEED": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-PIN_BY_NEED",
+   "pass1": {
+    "short": 5.54,
+    "edit": -22.53,
+    "longdec32k": 29.44,
+    "longdec32k-prompt": 17.82
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_EXPDEC": {
+   "flag": "STRATA_EXPDEC",
+   "kind": "minus",
+   "keys": [
+    "STRATA_EXPDEC"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_EXPDEC": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-EXPDEC",
+   "pass1": {
+    "short": 13.1,
+    "edit": -20.78,
+    "longdec32k": 2.42,
+    "longdec32k-prompt": 24.7
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_EXCHANGE_ROTATE": {
+   "flag": "STRATA_EXCHANGE_ROTATE",
+   "kind": "minus",
+   "keys": [
+    "STRATA_EXCHANGE_ROTATE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_EXCHANGE_ROTATE": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-EXCHANGE_ROTATE",
+   "pass1": {
+    "short": 3.3,
+    "edit": -24.71,
+    "longdec32k": 7.62,
+    "longdec32k-prompt": 29.6
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_ATTN_DAILY": {
+   "flag": "STRATA_ATTN_DAILY",
+   "kind": "minus",
+   "keys": [
+    "STRATA_ATTN_DAILY"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_ATTN_DAILY": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-ATTN_DAILY",
+   "pass1": {
+    "short": 34.4,
+    "edit": 0.06,
+    "longdec32k": 10.17,
+    "longdec32k-prompt": 32.88
+   },
+   "promising": true,
+   "pass2": null,
+   "verdict": "RETEST",
+   "reason": "promising; pass 2 not run (budget or no rows)"
+  },
+  "STRATA_PROMPT_ATTN_IMMA": {
+   "flag": "STRATA_PROMPT_ATTN_IMMA",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PROMPT_ATTN_IMMA"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PROMPT_ATTN_IMMA": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-PROMPT_ATTN_IMMA",
+   "pass1": {
+    "short": 7.83,
+    "edit": -16.15,
+    "longdec32k": 41.64,
+    "longdec32k-prompt": 28.52
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.5 %, floor -3 %)"
+  },
+  "STRATA_KV_PREFETCH": {
+   "flag": "STRATA_KV_PREFETCH",
+   "kind": "minus",
+   "keys": [
+    "STRATA_KV_PREFETCH"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_KV_PREFETCH": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-KV_PREFETCH",
+   "pass1": {
+    "short": 19.41,
+    "edit": -6.13,
+    "longdec32k": 6.76,
+    "longdec32k-prompt": 29.09
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_PF_GROUP_SCRATCH": {
+   "flag": "STRATA_PF_GROUP_SCRATCH",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PF_GROUP_SCRATCH"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PF_GROUP_SCRATCH": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-PF_GROUP_SCRATCH",
+   "pass1": {
+    "short": 14.27,
+    "edit": -12.92,
+    "longdec32k": 4.48,
+    "longdec32k-prompt": 33.5
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_SELECT_WMMA": {
+   "flag": "STRATA_SELECT_WMMA",
+   "kind": "minus",
+   "keys": [
+    "STRATA_SELECT_WMMA"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_SELECT_WMMA": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-SELECT_WMMA",
+   "pass1": {
+    "short": 26.78,
+    "edit": 2.04,
+    "longdec32k": 12.56,
+    "longdec32k-prompt": 42.97
+   },
+   "promising": true,
+   "pass2": null,
+   "verdict": "RETEST",
+   "reason": "promising; pass 2 not run (budget or no rows)"
+  },
+  "STRATA_SH_STREAM": {
+   "flag": "STRATA_SH_STREAM",
+   "kind": "minus",
+   "keys": [
+    "STRATA_SH_STREAM"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_SH_STREAM": "0"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-SH_STREAM",
+   "pass1": {
+    "short": 6.05,
+    "edit": -3.15,
+    "longdec32k": 8.25,
+    "longdec32k-prompt": 43.83
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_QFUSE": {
+   "flag": "STRATA_QFUSE",
+   "kind": "minus",
+   "keys": [
+    "STRATA_QFUSE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_QFUSE": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-QFUSE",
+   "pass1": {
+    "short": 2.5,
+    "edit": -4.39,
+    "longdec32k": 39.94,
+    "longdec32k-prompt": 19.19
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_VERIFY_QDEDUP": {
+   "flag": "STRATA_VERIFY_QDEDUP",
+   "kind": "minus",
+   "keys": [
+    "STRATA_VERIFY_QDEDUP"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_VERIFY_QDEDUP": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-VERIFY_QDEDUP",
+   "pass1": {
+    "short": 4.21,
+    "edit": -26.19,
+    "longdec32k": 10.95,
+    "longdec32k-prompt": 18.94
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_STAGER_RING": {
+   "flag": "STRATA_STAGER_RING",
+   "kind": "minus",
+   "keys": [
+    "STRATA_STAGER_RING"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_STAGER_RING": "64"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-STAGER_RING",
+   "pass1": {
+    "short": 15.12,
+    "edit": -17.02,
+    "longdec32k": -2.2,
+    "longdec32k-prompt": 31.73
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_PREFILL_CPU_SHARE_MAX": {
+   "flag": "STRATA_PREFILL_CPU_SHARE_MAX",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PREFILL_CPU_SHARE_MAX"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PREFILL_CPU_SHARE_MAX": "4096"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-PREFILL_CPU_SHARE_MAX",
+   "pass1": {
+    "short": -5.66,
+    "edit": -19.09,
+    "longdec32k": -1.69,
+    "longdec32k-prompt": -15.27
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_GDN_HEAD": {
+   "flag": "STRATA_GDN_HEAD",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GDN_HEAD"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GDN_HEAD": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-GDN_HEAD",
+   "pass1": {
+    "short": -4.44,
+    "edit": -23.88,
+    "longdec32k": -0.64,
+    "longdec32k-prompt": -15.2
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_GDN_CHUNKED": {
+   "flag": "STRATA_GDN_CHUNKED",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GDN_CHUNKED"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GDN_CHUNKED": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-GDN_CHUNKED",
+   "pass1": {
+    "short": -3.98,
+    "edit": -10.15,
+    "longdec32k": 1.3,
+    "longdec32k-prompt": 41.64
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_GDN_CONVL2": {
+   "flag": "STRATA_GDN_CONVL2",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GDN_CONVL2"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GDN_CONVL2": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-GDN_CONVL2",
+   "pass1": {
+    "short": 10.83,
+    "edit": -10.67,
+    "longdec32k": -0.96,
+    "longdec32k-prompt": 27.56
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.5 %, floor -3 %)"
+  },
+  "STRATA_GDN_NOY": {
+   "flag": "STRATA_GDN_NOY",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GDN_NOY"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GDN_NOY": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-GDN_NOY",
+   "pass1": {
+    "short": 15.86,
+    "edit": -14.62,
+    "longdec32k": 2.31,
+    "longdec32k-prompt": 35.56
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_PF_GEMM": {
+   "flag": "STRATA_PF_GEMM",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PF_GEMM"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PF_GEMM": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-PF_GEMM",
+   "pass1": {
+    "short": -3.56,
+    "edit": -21.25,
+    "longdec32k": -5.95,
+    "longdec32k-prompt": -12.33
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_PF_PAD": {
+   "flag": "STRATA_PF_PAD",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PF_PAD"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PF_PAD": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-PF_PAD",
+   "pass1": {
+    "short": -0.67,
+    "edit": -23.99,
+    "longdec32k": -9.16,
+    "longdec32k-prompt": -13.94
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_HC_UPMIX": {
+   "flag": "STRATA_HC_UPMIX",
+   "kind": "minus",
+   "keys": [
+    "STRATA_HC_UPMIX"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_HC_UPMIX": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-HC_UPMIX",
+   "pass1": {
+    "short": -3.93,
+    "edit": -21.46,
+    "longdec32k": -6.43,
+    "longdec32k-prompt": -12.21
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.5 %, floor -3 %)"
+  },
+  "STRATA_PF_HCDOWN": {
+   "flag": "STRATA_PF_HCDOWN",
+   "kind": "minus",
+   "keys": [
+    "STRATA_PF_HCDOWN"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PF_HCDOWN": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-PF_HCDOWN",
+   "pass1": {
+    "short": -1.85,
+    "edit": -27.13,
+    "longdec32k": 1.19,
+    "longdec32k-prompt": -13.66
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.5 %, floor -3 %)"
+  },
+  "STRATA_FUSE_CONVAB": {
+   "flag": "STRATA_FUSE_CONVAB",
+   "kind": "minus",
+   "keys": [
+    "STRATA_FUSE_CONVAB"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_FUSE_CONVAB": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-FUSE_CONVAB",
+   "pass1": {
+    "short": -1.46,
+    "edit": -23.61,
+    "longdec32k": -2.1,
+    "longdec32k-prompt": -15.72
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_HEAD_MIX_MULTI": {
+   "flag": "STRATA_HEAD_MIX_MULTI",
+   "kind": "minus",
+   "keys": [
+    "STRATA_HEAD_MIX_MULTI"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_HEAD_MIX_MULTI": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-HEAD_MIX_MULTI",
+   "pass1": {
+    "short": -2.43,
+    "edit": -23.77,
+    "longdec32k": 4.02,
+    "longdec32k-prompt": -15.1
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_KV_HOST_DMA": {
+   "flag": "STRATA_KV_HOST_DMA",
+   "kind": "minus",
+   "keys": [
+    "STRATA_KV_HOST_DMA"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_KV_HOST_DMA": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-KV_HOST_DMA",
+   "pass1": {
+    "short": -2.52,
+    "edit": -23.79,
+    "longdec32k": -2.71,
+    "longdec32k-prompt": -14.74
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_QSA_ROWS": {
+   "flag": "STRATA_QSA_ROWS",
+   "kind": "minus",
+   "keys": [
+    "STRATA_QSA_ROWS"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_QSA_ROWS": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-QSA_ROWS",
+   "pass1": {
+    "short": -3.04,
+    "edit": -22.92,
+    "longdec32k": -4.9,
+    "longdec32k-prompt": -16.32
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_GR_RDNA_Q8": {
+   "flag": "STRATA_GR_RDNA_Q8",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GR_RDNA_Q8"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GR_RDNA_Q8": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-GR_RDNA_Q8",
+   "pass1": {
+    "short": -2.9,
+    "edit": -21.65,
+    "longdec32k": 8.75,
+    "longdec32k-prompt": 4.65
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.5 %, floor -3 %)"
+  },
+  "STRATA_GR_RDNA_A8": {
+   "flag": "STRATA_GR_RDNA_A8",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GR_RDNA_A8"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GR_RDNA_A8": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-GR_RDNA_A8",
+   "pass1": {
+    "short": 5.15,
+    "edit": -11.18,
+    "longdec32k": 13.24,
+    "longdec32k-prompt": 29.39
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.5 %, floor -3 %)"
+  },
+  "STRATA_GR_INJ_UP": {
+   "flag": "STRATA_GR_INJ_UP",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GR_INJ_UP"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GR_INJ_UP": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-GR_INJ_UP",
+   "pass1": {
+    "short": 2.55,
+    "edit": -21.67,
+    "longdec32k": -0.53,
+    "longdec32k-prompt": 32.89
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.5 %, floor -3 %)"
+  },
+  "STRATA_GR_FUSED": {
+   "flag": "STRATA_GR_FUSED",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GR_FUSED"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GR_FUSED": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-GR_FUSED",
+   "pass1": {
+    "short": 3.62,
+    "edit": -24.73,
+    "longdec32k": 6.76,
+    "longdec32k-prompt": 22.72
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.5 %, floor -3 %)"
+  },
+  "STRATA_ENGINE_NICE": {
+   "flag": "STRATA_ENGINE_NICE",
+   "kind": "minus",
+   "keys": [
+    "STRATA_ENGINE_NICE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_ENGINE_NICE": "0"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-ENGINE_NICE",
+   "pass1": {
+    "short": 13.16,
+    "edit": 21.55,
+    "longdec32k": -0.32,
+    "longdec32k-prompt": 39.21
+   },
+   "promising": true,
+   "pass2": null,
+   "verdict": "RETEST",
+   "reason": "promising; pass 2 not run (budget or no rows)"
+  },
+  "--expert-profile": {
+   "flag": "--expert-profile",
+   "kind": "minus",
+   "keys": [
+    "--expert-profile"
+   ],
+   "exact": true,
+   "env": {},
+   "args": {
+    "--expert-profile": "/mnt/pancake/benchus/src-us/data/expert-profile-pancake.bin"
+   },
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-expert-profile",
+   "pass1": {
+    "short": 4.93,
+    "edit": -12.25,
+    "longdec32k": 38.9,
+    "longdec32k-prompt": 43.2
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "--pool-affinity": {
+   "flag": "--pool-affinity",
+   "kind": "minus",
+   "keys": [
+    "--pool-affinity"
+   ],
+   "exact": true,
+   "env": {},
+   "args": {
+    "--pool-affinity": "measure"
+   },
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-pool-affinity",
+   "pass1": {
+    "short": -0.72,
+    "edit": -20.27,
+    "longdec32k": -3.22,
+    "longdec32k-prompt": 18.95
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "--adapt-every": {
+   "flag": "--adapt-every",
+   "kind": "minus",
+   "keys": [
+    "--adapt-every"
+   ],
+   "exact": true,
+   "env": {},
+   "args": {
+    "--adapt-every": "1"
+   },
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-adapt-every",
+   "pass1": {
+    "short": -4.85,
+    "edit": -13.06,
+    "longdec32k": -5.09,
+    "longdec32k-prompt": -14.73
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "--conversation-cache-min-tokens": {
+   "flag": "--conversation-cache-min-tokens",
+   "kind": "minus",
+   "keys": [
+    "--conversation-cache-min-tokens"
+   ],
+   "exact": true,
+   "env": {},
+   "args": {
+    "--conversation-cache-min-tokens": "8192"
+   },
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "arm": "minus-conversation-cache-min-tokens",
+   "pass1": {
+    "short": -3.79,
+    "edit": -9.34,
+    "longdec32k": 1.19,
+    "longdec32k-prompt": -15.94
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  },
+  "STRATA_AMD_COMMUNITY_TUNING": {
+   "flag": "STRATA_AMD_COMMUNITY_TUNING",
+   "kind": "plus",
+   "keys": [
+    "STRATA_AMD_COMMUNITY_TUNING"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_AMD_COMMUNITY_TUNING": "0"
+   },
+   "args": {},
+   "why": "ported / named switch not in the updated arm; no gfx1100 ledger row, no box verdict",
+   "source": "owner list 2026-11-20 + branch code",
+   "arm": "plus-AMD_COMMUNITY_TUNING",
+   "pass1": {
+    "short": 5.5,
+    "edit": 7.56,
+    "longdec32k": -7.19,
+    "longdec32k-prompt": -15.99
+   },
+   "promising": false,
+   "pass2": null,
+   "verdict": "DROP",
+   "reason": "low performer in pass 1 (bar 1.0 %, floor -3 %)"
+  }
+ }
+}

@@ -1,0 +1,385 @@
+case longdec32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 103.2 short 103.4 edit 169.2 edit 168.3 longdec32k 94.7/1753p 31449t  foreign CPU 8% [('kcompactd0', 23), ('kworker/1:2-events', 10), ('kswapd0', 3)]  gpu 2028/1249 MHz 61C 172W gtt 25M cpu 3695MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-ROUTE_TAIL_SKIP short 100.7 short 104.1 edit 162.1 edit 170.5 longdec32k 87.5/1495p 31449t  foreign CPU 11% [('kcompactd0', 27), ('kworker/0:1-events', 5), ('kworker/3:0-mm_percpu_wq', 4)]  gpu 2030/1249 MHz 62C 184W gtt 25M cpu 3784MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-ROUTE_TAIL_SKIP: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-PIN_BY_NEED    short 96.9 short 91.7 edit 161.0 edit 177.9 longdec32k 72.0/1255p 31449t  foreign CPU 9% [('kcompactd0', 36), ('kworker/1:0-events', 10), ('kworker/9:0-mm_percpu_wq', 4)]  gpu 1955/1249 MHz 61C 166W gtt 25M cpu 3670MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PIN_BY_NEED: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-EXPDEC         short 95.6 short 80.4 edit 156.2 edit 175.2 longdec32k 91.0/1186p 31449t  foreign CPU 9% [('kcompactd0', 31), ('kworker/0:1-events', 10), ('kworker/9:1-mm_percpu_wq', 1)]  gpu 1922/1249 MHz 61C 163W gtt 25M cpu 3651MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-EXPDEC: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-EXCHANGE_ROTATE short 92.7 short 100.0 edit 168.0 edit 180.7 longdec32k 86.6/1141p 31449t  foreign CPU 10% [('kcompactd0', 38), ('kworker/0:1-events', 9), ('kworker/9:1-mm_percpu_wq', 2)]  gpu 1836/1249 MHz 61C 170W gtt 25M cpu 3659MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-EXCHANGE_ROTATE: every attempt noisy, keeping the quietest (10% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-ATTN_DAILY     short 85.6 short 62.5 edit 117.4 edit 145.0 longdec32k 84.6/1113p 31449t  foreign CPU 8% [('kcompactd0', 28), ('kworker/1:2-events', 5), ('kworker/1:0-events_freezable', 2)]  gpu 1968/1249 MHz 61C 161W gtt 25M cpu 3724MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-ATTN_DAILY: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-PROMPT_ATTN_IMMA short 77.7 short 106.9 edit 134.5 edit 178.6 longdec32k 65.8/1151p 31449t  foreign CPU 9% [('kcompactd0', 28), ('kworker/3:2-mm_percpu_wq', 5), ('kworker/1:0-events_freezable', 3)]  gpu 1928/1249 MHz 61C 152W gtt 25M cpu 3563MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PROMPT_ATTN_IMMA: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-KV_PREFETCH    short 94.8 short 71.9 edit 101.2 edit 178.5 longdec32k 87.3/1146p 31449t  foreign CPU 10% [('kcompactd0', 36), ('kworker/1:2-events_freezable', 6), ('kworker/13:0-events_freezable', 5)]  gpu 1906/1249 MHz 61C 161W gtt 25M cpu 3653MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-KV_PREFETCH: every attempt noisy, keeping the quietest (10% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-PF_GROUP_SCRATCH short 76.5 short 97.7 edit 155.1 edit 146.4 longdec32k 89.2/1108p 31449t  foreign CPU 9% [('kcompactd0', 22), ('kworker/0:2-events', 6), ('kswapd0', 3)]  gpu 1919/1249 MHz 61C 162W gtt 25M cpu 3580MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PF_GROUP_SCRATCH: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-SELECT_WMMA    short 85.8 short 71.2 edit 104.9 edit 152.4 longdec32k 82.8/1034p 31450t  foreign CPU 6% [('kcompactd0', 25), ('kworker/1:2-mm_percpu_wq', 3), ('rcu_preempt', 0)]  gpu 2053/1249 MHz 60C 159W gtt 25M cpu 3644MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-SELECT_WMMA: every attempt noisy, keeping the quietest (6% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-SH_STREAM      short 96.5 short 91.2 edit 145.3 edit 125.8 longdec32k 86.1/1028p 31450t  foreign CPU 10% [('kcompactd0', 29), ('kworker/0:0-events', 5), ('kworker/1:2-mm_percpu_wq', 4)]  gpu 1922/1249 MHz 61C 164W gtt 25M cpu 3785MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-SH_STREAM: every attempt noisy, keeping the quietest (10% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-QFUSE          short 91.3 short 102.9 edit 162.4 edit 112.2 longdec32k 66.6/1241p 31450t  foreign CPU 11% [('kcompactd0', 34), ('kworker/0:0-events', 7), ('kswapd0', 3)]  gpu 2013/1249 MHz 61C 174W gtt 25M cpu 3555MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-QFUSE: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-VERIFY_QDEDUP  short 93.1 short 97.9 edit 171.2 edit 184.5 longdec32k 84.0/1243p 31450t  foreign CPU 11% [('kcompactd0', 31), ('kworker/1:1-events', 7), ('kworker/9:1-events_freezable', 5)]  gpu 1938/1249 MHz 61C 166W gtt 25M cpu 3776MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-VERIFY_QDEDUP: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-STAGER_RING    short 71.0 short 101.9 edit 178.7 edit 137.7 longdec32k 95.3/1122p 31450t  foreign CPU 12% [('kcompactd0', 70), ('kworker/0:0-events_freezable', 32), ('kworker/1:0-events_freezable', 3)]  gpu 2016/1249 MHz 61C 179W gtt 25M cpu 3671MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-STAGER_RING: every attempt noisy, keeping the quietest (12% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-PREFILL_CPU_SHARE_MAX short 104.2 short 106.8 edit 154.2 edit 170.3 longdec32k 94.8/1745p 31450t  foreign CPU 10% [('kcompactd0', 28), ('kworker/1:1-events_freezable', 5), ('kswapd0', 3)]  gpu 2007/1249 MHz 63C 183W gtt 25M cpu 3680MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PREFILL_CPU_SHARE_MAX: every attempt noisy, keeping the quietest (10% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-GDN_HEAD       short 105.4 short 102.9 edit 161.7 edit 183.2 longdec32k 93.8/1744p 31450t  foreign CPU 10% [('kcompactd0', 30), ('kworker/13:1-events', 5), ('kworker/11:1-events_freezable', 3)]  gpu 2035/1249 MHz 63C 181W gtt 25M cpu 3745MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GDN_HEAD: every attempt noisy, keeping the quietest (10% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-GDN_CHUNKED    short 102.1 short 105.2 edit 158.6 edit 133.6 longdec32k 92.0/1044p 31450t  foreign CPU 9% [('kcompactd0', 29), ('kworker/9:0-events_freezable', 7), ('kworker/1:0-mm_percpu_wq', 6)]  gpu 1898/1249 MHz 63C 172W gtt 25M cpu 3757MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GDN_CHUNKED: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-GDN_CONVL2     short 82.9 short 96.7 edit 120.9 edit 173.0 longdec32k 94.1/1159p 31450t  foreign CPU 4% [('kcompactd0', 22), ('kworker/0:0-events', 2), ('kworker/9:1-mm_percpu_wq', 2)]  gpu 1963/1249 MHz 61C 175W gtt 25M cpu 3740MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GDN_CONVL2: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-GDN_NOY        short 71.1 short 100.7 edit 155.3 edit 152.2 longdec32k 91.1/1091p 31450t  foreign CPU 8% [('kcompactd0', 34), ('kworker/1:1-mm_percpu_wq', 9), ('kworker/11:0-events_freezable', 3)]  gpu 2045/1249 MHz 61C 177W gtt 25M cpu 3964MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GDN_NOY: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-PF_GEMM        short 102.5 short 103.9 edit 163.0 edit 170.4 longdec32k 99.1/1687p 31450t  foreign CPU 9% [('kcompactd0', 25), ('kworker/1:1-events_freezable', 4), ('kswapd0', 3)]  gpu 2045/1249 MHz 64C 188W gtt 25M cpu 3844MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PF_GEMM: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-PF_PAD         short 96.3 short 104.1 edit 171.2 edit 174.2 longdec32k 102.6/1718p 31450t  foreign CPU 14% [('kcompactd0', 30), ('kworker/0:2-events', 4), ('kworker/8:1-events', 4)]  gpu 1953/1249 MHz 63C 176W gtt 25M cpu 3748MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PF_PAD: every attempt noisy, keeping the quietest (14% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-HC_UPMIX       short 104.0 short 103.2 edit 154.2 edit 180.1 longdec32k 99.6/1684p 31450t  foreign CPU 12% [('kcompactd0', 29), ('kworker/0:2-events', 5), ('kswapd0', 3)]  gpu 2017/1249 MHz 63C 184W gtt 25M cpu 3725MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-HC_UPMIX: every attempt noisy, keeping the quietest (12% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-PF_HCDOWN      short 100.1 short 102.7 edit 182.9 edit 177.4 longdec32k 92.1/1713p 31450t  foreign CPU 11% [('kcompactd0', 31), ('kworker/1:0-events', 6), ('kswapd0', 3)]  gpu 2040/1249 MHz 64C 189W gtt 25M cpu 3635MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PF_HCDOWN: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-FUSE_CONVAB    short 98.7 short 103.3 edit 170.5 edit 173.2 longdec32k 95.2/1755p 31450t  foreign CPU 10% [('kcompactd0', 29), ('kswapd0', 4), ('kworker/0:1-events', 4)]  gpu 2010/1249 MHz 63C 179W gtt 25M cpu 3776MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-FUSE_CONVAB: every attempt noisy, keeping the quietest (10% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-HEAD_MIX_MULTI short 97.0 short 107.0 edit 162.4 edit 182.0 longdec32k 89.6/1742p 31450t  foreign CPU 11% [('kcompactd0', 30), ('kworker/0:0-events', 6), ('kswapd0', 2)]  gpu 2022/1249 MHz 62C 168W gtt 25M cpu 3776MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-HEAD_MIX_MULTI: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-KV_HOST_DMA    short 101.2 short 103.0 edit 160.9 edit 183.6 longdec32k 95.8/1734p 31450t  foreign CPU 13% [('kcompactd0', 34), ('kworker/11:2-events_freezable', 3), ('kworker/8:2-events', 2)]  gpu 2007/1249 MHz 64C 181W gtt 25M cpu 3733MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-KV_HOST_DMA: every attempt noisy, keeping the quietest (13% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-QSA_ROWS       short 102.4 short 102.9 edit 169.6 edit 171.0 longdec32k 98.0/1767p 31450t  foreign CPU 8% [('kcompactd0', 30), ('kworker/1:2-mm_percpu_wq', 5), ('kswapd0', 3)]  gpu 2016/1249 MHz 63C 172W gtt 25M cpu 3748MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-QSA_ROWS: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-GR_RDNA_Q8     short 97.7 short 107.3 edit 163.2 edit 171.9 longdec32k 85.7/1413p 31450t  foreign CPU 11% [('kcompactd0', 29), ('kworker/0:2-events', 3), ('kworker/8:1-events', 2)]  gpu 1997/1249 MHz 63C 176W gtt 25M cpu 3564MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GR_RDNA_Q8: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-GR_RDNA_A8     short 86.9 short 102.4 edit 118.0 edit 177.6 longdec32k 82.3/1143p 31450t  foreign CPU 9% [('kcompactd0', 30), ('kworker/11:0-events_freezable', 6), ('kworker/9:1-mm_percpu_wq', 3)]  gpu 2051/1249 MHz 61C 166W gtt 25M cpu 3656MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GR_RDNA_A8: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-GR_INJ_UP      short 96.5 short 97.6 edit 162.3 edit 172.9 longdec32k 93.7/1113p 31450t  foreign CPU 9% [('kcompactd0', 19), ('kworker/0:1+events_freezable', 5), ('kswapd0', 3)]  gpu 1993/1249 MHz 61C 167W gtt 25M cpu 3848MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GR_INJ_UP: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-GR_FUSED       short 93.9 short 98.2 edit 165.4 edit 183.4 longdec32k 87.3/1205p 31450t  foreign CPU 7% [('kcompactd0', 16), ('claude', 3), ('kworker/9:2-mm_percpu_wq', 3)]  gpu 2043/1249 MHz 60C 166W gtt 25M cpu 3741MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GR_FUSED: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-ENGINE_NICE    short 79.3 short 96.6 edit 105.7 edit 110.3 longdec32k 93.5/1062p 31450t  foreign CPU 11% [('kcompactd0', 30), ('kworker/0:2-events', 4), ('kworker/0:1-events', 3)]  gpu 1987/1249 MHz 60C 159W gtt 25M cpu 3532MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-ENGINE_NICE: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-expert-profile short 102.7 short 87.0 edit 136.8 edit 162.4 longdec32k 67.1/1033p 31450t  foreign CPU 7% [('kcompactd0', 18), ('kworker/0:2-events', 5), ('kworker/3:2-mm_percpu_wq', 2)]  gpu 1983/1249 MHz 60C 161W gtt 25M cpu 3514MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-expert-profile: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-pool-affinity  short 102.6 short 97.9 edit 158.8 edit 170.5 longdec32k 96.3/1243p 31450t  foreign CPU 10% [('kcompactd0', 28), ('kworker/11:0-events', 3), ('kworker/14:1-mm_percpu_wq', 2)]  gpu 1939/1249 MHz 60C 166W gtt 25M cpu 3651MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-pool-affinity: every attempt noisy, keeping the quietest (10% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-adapt-every    short 106.4 short 102.8 edit 138.9 edit 163.1 longdec32k 98.2/1734p 31450t  foreign CPU 11% [('kcompactd0', 32), ('kworker/0:3+events_freezable', 8), ('kswapd0', 2)]  gpu 2031/1249 MHz 62C 178W gtt 25M cpu 3761MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-adapt-every: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 minus-conversation-cache-min-tokens short 99.7 short 107.2 edit 154.1 edit 135.5 longdec32k 92.1/1759p 31450t  foreign CPU 17% [('kcompactd0', 29), ('kworker/10:0-events_freezable', 8), ('kworker/10:2-mm_percpu_wq', 6)]  gpu 2045/1249 MHz 63C 181W gtt 25M cpu 3708MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-conversation-cache-min-tokens: every attempt noisy, keeping the quietest (17% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-AMD_COMMUNITY_TUNING short 102.6 short 107.4 edit 103.9 edit 178.5 longdec32k 86.5/1242p 31450t  foreign CPU 9% [('kcompactd0', 34), ('kworker/0:1-events', 3), ('kswapd0', 2)]  gpu 2028/1249 MHz 62C 172W gtt 25M cpu 3693MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-AMD_COMMUNITY_TUNING: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 base-late            short 98.1 short 93.4 edit 83.4 edit 104.2 longdec32k 91.7/1204p 31450t  foreign CPU 8% [('kcompactd0', 26), ('kworker/11:3-mm_percpu_wq', 3), ('kworker/9:3-events', 2)]  gpu 2028/1249 MHz 61C 166W gtt 25M cpu 3820MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late: every attempt noisy, keeping the quietest (8% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 103.3 +-   1.3  (n=2)
+                              drafts accepted 0.71
+  short  minus-ROUTE_TAIL_SKIP    102.4 +-  21.6  (n=2)   vs updated:  -0.9% +- 19.7%  -> no difference
+                              drafts accepted 0.70
+  short  minus-PIN_BY_NEED        94.3 +-  33.0  (n=2)   vs updated:  -8.7% +- 33.2%  -> no difference
+                              drafts accepted 0.65
+  short  minus-EXPDEC             88.0 +-  96.6  (n=2)   vs updated: -14.8% +- 94.7%  -> no difference
+                              drafts accepted 0.66
+  short  minus-EXCHANGE_ROTATE     96.3 +-  46.4  (n=2)   vs updated:  -6.7% +- 43.7%  -> no difference
+                              drafts accepted 0.70
+  short  minus-ATTN_DAILY         74.0 +- 146.8  (n=2)   vs updated: -28.3% +- 143.3%  -> no difference
+                              drafts accepted 0.68
+  short  minus-PROMPT_ATTN_IMMA     92.3 +- 185.6  (n=2)   vs updated: -10.6% +- 178.4%  -> no difference
+                              drafts accepted 0.68
+  short  minus-KV_PREFETCH        83.3 +- 145.5  (n=2)   vs updated: -19.3% +- 142.1%  -> no difference
+                              drafts accepted 0.69
+  short  minus-PF_GROUP_SCRATCH     87.1 +- 134.7  (n=2)   vs updated: -15.7% +- 129.2%  -> no difference
+                              drafts accepted 0.65
+  short  minus-SELECT_WMMA        78.5 +-  92.8  (n=2)   vs updated: -24.0% +- 91.0%  -> no difference
+                              drafts accepted 0.66
+  short  minus-SH_STREAM          93.8 +-  33.7  (n=2)   vs updated:  -9.1% +- 33.8%  -> no difference
+                              drafts accepted 0.64
+  short  minus-QFUSE              97.1 +-  73.7  (n=2)   vs updated:  -6.0% +- 70.1%  -> no difference
+                              drafts accepted 0.70
+  short  minus-VERIFY_QDEDUP      95.5 +-  30.5  (n=2)   vs updated:  -7.6% +- 28.3%  -> no difference
+                              drafts accepted 0.69
+  short  minus-STAGER_RING        86.5 +- 196.4  (n=2)   vs updated: -16.3% +- 188.9%  -> no difference
+                              drafts accepted 0.68
+  short  minus-PREFILL_CPU_SHARE_MAX    105.5 +-  16.5  (n=2)   vs updated:  +2.1% +- 14.8%  -> no difference
+                              drafts accepted 0.70
+  short  minus-GDN_HEAD          104.2 +-  15.9  (n=2)   vs updated:  +0.8% +- 16.6%  -> no difference
+                              drafts accepted 0.70
+  short  minus-GDN_CHUNKED       103.7 +-  19.7  (n=2)   vs updated:  +0.3% +- 17.8%  -> no difference
+                              drafts accepted 0.73
+  short  minus-GDN_CONVL2         89.8 +-  87.7  (n=2)   vs updated: -13.1% +- 83.7%  -> no difference
+                              drafts accepted 0.67
+  short  minus-GDN_NOY            85.9 +- 188.1  (n=2)   vs updated: -16.8% +- 180.9%  -> no difference
+                              drafts accepted 0.70
+  short  minus-PF_GEMM           103.2 +-   8.9  (n=2)   vs updated:  -0.1% +-  7.4%  -> no difference
+                              drafts accepted 0.71
+  short  minus-PF_PAD            100.2 +-  49.6  (n=2)   vs updated:  -3.0% +- 46.8%  -> no difference
+                              drafts accepted 0.69
+  short  minus-HC_UPMIX          103.6 +-   5.1  (n=2)   vs updated:  +0.3% +-  6.2%  -> no difference
+                              drafts accepted 0.71
+  short  minus-PF_HCDOWN         101.4 +-  16.5  (n=2)   vs updated:  -1.8% +- 14.8%  -> no difference
+                              drafts accepted 0.70
+  short  minus-FUSE_CONVAB       101.0 +-  29.2  (n=2)   vs updated:  -2.2% +- 27.1%  -> no difference
+                              drafts accepted 0.69
+  short  minus-HEAD_MIX_MULTI    102.0 +-  63.5  (n=2)   vs updated:  -1.3% +- 60.3%  -> no difference
+                              drafts accepted 0.68
+  short  minus-KV_HOST_DMA       102.1 +-  11.4  (n=2)   vs updated:  -1.2% +-  9.8%  -> no difference
+                              drafts accepted 0.70
+  short  minus-QSA_ROWS          102.7 +-   3.2  (n=2)   vs updated:  -0.6% +-  1.8%  -> no difference
+                              drafts accepted 0.71
+  short  minus-GR_RDNA_Q8        102.5 +-  61.0  (n=2)   vs updated:  -0.8% +- 57.8%  -> no difference
+                              drafts accepted 0.73
+  short  minus-GR_RDNA_A8         94.7 +-  98.5  (n=2)   vs updated:  -8.4% +- 94.1%  -> no difference
+                              drafts accepted 0.71
+  short  minus-GR_INJ_UP          97.0 +-   7.0  (n=2)   vs updated:  -6.1% +-  5.5%  -> worse
+                              drafts accepted 0.68
+  short  minus-GR_FUSED           96.1 +-  27.3  (n=2)   vs updated:  -7.0% +- 25.2%  -> no difference
+                              drafts accepted 0.68
+  short  minus-ENGINE_NICE        87.9 +- 109.9  (n=2)   vs updated: -14.9% +- 105.2%  -> no difference
+                              drafts accepted 0.67
+  short  minus-expert-profile     94.8 +-  99.8  (n=2)   vs updated:  -8.2% +- 97.8%  -> no difference
+                              drafts accepted 0.69
+  short  minus-pool-affinity     100.2 +-  29.9  (n=2)   vs updated:  -3.0% +- 30.1%  -> no difference
+                              drafts accepted 0.67
+  short  minus-adapt-every       104.6 +-  22.9  (n=2)   vs updated:  +1.3% +- 23.4%  -> no difference
+                              drafts accepted 0.70
+  short  minus-conversation-cache-min-tokens    103.5 +-  47.7  (n=2)   vs updated:  +0.1% +- 44.9%  -> no difference
+                              drafts accepted 0.70
+  short  plus-AMD_COMMUNITY_TUNING    105.0 +-  30.5  (n=2)   vs updated:  +1.6% +- 28.3%  -> no difference
+                              drafts accepted 0.70
+  short  base-late                95.8 +-  29.9  (n=2)   vs updated:  -7.3% +- 30.1%  -> no difference
+                              drafts accepted 0.68
+  edit   updated                 168.8 +-   5.7  (n=2)
+                              drafts accepted 0.90
+  edit   minus-ROUTE_TAIL_SKIP    166.3 +-  53.4  (n=2)   vs updated:  -1.5% +- 35.0%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-PIN_BY_NEED       169.4 +- 107.4  (n=2)   vs updated:  +0.4% +- 67.0%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-EXPDEC            165.7 +- 120.7  (n=2)   vs updated:  -1.8% +- 74.9%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-EXCHANGE_ROTATE    174.3 +-  80.7  (n=2)   vs updated:  +3.3% +- 51.2%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-ATTN_DAILY        131.2 +- 175.4  (n=2)   vs updated: -22.3% +- 107.3%  -> no difference
+                              drafts accepted 0.93
+  edit   minus-PROMPT_ATTN_IMMA    156.6 +- 280.3  (n=2)   vs updated:  -7.2% +- 169.5%  -> no difference
+                              drafts accepted 0.87
+  edit   minus-KV_PREFETCH       139.8 +- 491.2  (n=2)   vs updated: -17.1% +- 294.5%  -> no difference
+                              drafts accepted 0.88
+  edit   minus-PF_GROUP_SCRATCH    150.8 +-  55.3  (n=2)   vs updated: -10.7% +- 29.4%  -> no difference
+                              drafts accepted 0.91
+  edit   minus-SELECT_WMMA       128.7 +- 301.9  (n=2)   vs updated: -23.8% +- 182.3%  -> no difference
+                              drafts accepted 0.95
+  edit   minus-SH_STREAM         135.6 +- 123.9  (n=2)   vs updated: -19.7% +- 70.0%  -> no difference
+                              drafts accepted 0.91
+  edit   minus-QFUSE             137.3 +- 319.0  (n=2)   vs updated: -18.6% +- 185.7%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-VERIFY_QDEDUP     177.8 +-  84.5  (n=2)   vs updated:  +5.4% +- 53.5%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-STAGER_RING       158.2 +- 260.6  (n=2)   vs updated:  -6.3% +- 151.0%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-PREFILL_CPU_SHARE_MAX    162.2 +- 102.3  (n=2)   vs updated:  -3.9% +- 64.0%  -> no difference
+                              drafts accepted 0.88
+  edit   minus-GDN_HEAD          172.4 +- 136.6  (n=2)   vs updated:  +2.2% +- 84.4%  -> no difference
+                              drafts accepted 0.88
+  edit   minus-GDN_CHUNKED       146.1 +- 158.9  (n=2)   vs updated: -13.4% +- 90.8%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-GDN_CONVL2        146.9 +- 331.1  (n=2)   vs updated: -12.9% +- 199.6%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-GDN_NOY           153.8 +-  19.7  (n=2)   vs updated:  -8.9% +-  8.3%  -> worse
+                              drafts accepted 0.89
+  edit   minus-PF_GEMM           166.7 +-  47.0  (n=2)   vs updated:  -1.2% +- 31.3%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-PF_PAD            172.7 +-  19.1  (n=2)   vs updated:  +2.3% +- 14.7%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-HC_UPMIX          167.1 +- 164.6  (n=2)   vs updated:  -0.9% +- 100.9%  -> no difference
+                              drafts accepted 0.92
+  edit   minus-PF_HCDOWN         180.2 +-  35.0  (n=2)   vs updated:  +6.8% +- 17.3%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-FUSE_CONVAB       171.8 +-  17.2  (n=2)   vs updated:  +1.8% +- 13.6%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-HEAD_MIX_MULTI    172.2 +- 124.6  (n=2)   vs updated:  +2.0% +- 77.2%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-KV_HOST_DMA       172.2 +- 144.3  (n=2)   vs updated:  +2.1% +- 88.9%  -> no difference
+                              drafts accepted 0.88
+  edit   minus-QSA_ROWS          170.3 +-   8.9  (n=2)   vs updated:  +0.9% +-  8.7%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-GR_RDNA_Q8        167.6 +-  55.3  (n=2)   vs updated:  -0.7% +- 36.2%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-GR_RDNA_A8        147.8 +- 378.8  (n=2)   vs updated: -12.4% +- 227.8%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-GR_INJ_UP         167.6 +-  67.4  (n=2)   vs updated:  -0.7% +- 43.3%  -> no difference
+                              drafts accepted 0.86
+  edit   minus-GR_FUSED          174.4 +- 114.4  (n=2)   vs updated:  +3.3% +- 71.2%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-ENGINE_NICE       108.0 +-  29.2  (n=2)   vs updated: -36.0% +- 20.7%  -> worse
+                              drafts accepted 0.91
+  edit   minus-expert-profile    149.6 +- 162.7  (n=2)   vs updated: -11.3% +- 99.8%  -> no difference
+                              drafts accepted 0.87
+  edit   minus-pool-affinity     164.7 +-  74.4  (n=2)   vs updated:  -2.4% +- 47.5%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-adapt-every       151.0 +- 153.8  (n=2)   vs updated: -10.5% +- 94.5%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-conversation-cache-min-tokens    144.8 +- 118.2  (n=2)   vs updated: -14.2% +- 66.7%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-AMD_COMMUNITY_TUNING    141.2 +- 474.1  (n=2)   vs updated: -16.3% +- 284.3%  -> no difference
+                              drafts accepted 0.87
+  edit   base-late                93.8 +- 132.2  (n=2)   vs updated: -44.4% +- 81.7%  -> no difference
+                              drafts accepted 0.91
+  longdec32k updated                  94.7 +-   nan  (n=1)
+  longdec32k minus-ROUTE_TAIL_SKIP     87.5 +-   nan  (n=1)   vs updated:  -7.6% +-  nan%  -> no difference
+  longdec32k minus-PIN_BY_NEED        72.0 +-   nan  (n=1)   vs updated: -24.0% +-  nan%  -> no difference
+  longdec32k minus-EXPDEC             91.0 +-   nan  (n=1)   vs updated:  -3.9% +-  nan%  -> no difference
+  longdec32k minus-EXCHANGE_ROTATE     86.6 +-   nan  (n=1)   vs updated:  -8.6% +-  nan%  -> no difference
+  longdec32k minus-ATTN_DAILY         84.6 +-   nan  (n=1)   vs updated: -10.7% +-  nan%  -> no difference
+  longdec32k minus-PROMPT_ATTN_IMMA     65.8 +-   nan  (n=1)   vs updated: -30.5% +-  nan%  -> no difference
+  longdec32k minus-KV_PREFETCH        87.3 +-   nan  (n=1)   vs updated:  -7.8% +-  nan%  -> no difference
+  longdec32k minus-PF_GROUP_SCRATCH     89.2 +-   nan  (n=1)   vs updated:  -5.8% +-  nan%  -> no difference
+  longdec32k minus-SELECT_WMMA        82.8 +-   nan  (n=1)   vs updated: -12.6% +-  nan%  -> no difference
+  longdec32k minus-SH_STREAM          86.1 +-   nan  (n=1)   vs updated:  -9.1% +-  nan%  -> no difference
+  longdec32k minus-QFUSE              66.6 +-   nan  (n=1)   vs updated: -29.7% +-  nan%  -> no difference
+  longdec32k minus-VERIFY_QDEDUP      84.0 +-   nan  (n=1)   vs updated: -11.3% +-  nan%  -> no difference
+  longdec32k minus-STAGER_RING        95.3 +-   nan  (n=1)   vs updated:  +0.6% +-  nan%  -> no difference
+  longdec32k minus-PREFILL_CPU_SHARE_MAX     94.8 +-   nan  (n=1)   vs updated:  +0.1% +-  nan%  -> no difference
+  longdec32k minus-GDN_HEAD           93.8 +-   nan  (n=1)   vs updated:  -1.0% +-  nan%  -> no difference
+  longdec32k minus-GDN_CHUNKED        92.0 +-   nan  (n=1)   vs updated:  -2.9% +-  nan%  -> no difference
+  longdec32k minus-GDN_CONVL2         94.1 +-   nan  (n=1)   vs updated:  -0.6% +-  nan%  -> no difference
+  longdec32k minus-GDN_NOY            91.1 +-   nan  (n=1)   vs updated:  -3.8% +-  nan%  -> no difference
+  longdec32k minus-PF_GEMM            99.1 +-   nan  (n=1)   vs updated:  +4.6% +-  nan%  -> no difference
+  longdec32k minus-PF_PAD            102.6 +-   nan  (n=1)   vs updated:  +8.3% +-  nan%  -> no difference
+  longdec32k minus-HC_UPMIX           99.6 +-   nan  (n=1)   vs updated:  +5.2% +-  nan%  -> no difference
+  longdec32k minus-PF_HCDOWN          92.1 +-   nan  (n=1)   vs updated:  -2.7% +-  nan%  -> no difference
+  longdec32k minus-FUSE_CONVAB        95.2 +-   nan  (n=1)   vs updated:  +0.5% +-  nan%  -> no difference
+  longdec32k minus-HEAD_MIX_MULTI     89.6 +-   nan  (n=1)   vs updated:  -5.4% +-  nan%  -> no difference
+  longdec32k minus-KV_HOST_DMA        95.8 +-   nan  (n=1)   vs updated:  +1.2% +-  nan%  -> no difference
+  longdec32k minus-QSA_ROWS           98.0 +-   nan  (n=1)   vs updated:  +3.5% +-  nan%  -> no difference
+  longdec32k minus-GR_RDNA_Q8         85.7 +-   nan  (n=1)   vs updated:  -9.5% +-  nan%  -> no difference
+  longdec32k minus-GR_RDNA_A8         82.3 +-   nan  (n=1)   vs updated: -13.1% +-  nan%  -> no difference
+  longdec32k minus-GR_INJ_UP          93.7 +-   nan  (n=1)   vs updated:  -1.1% +-  nan%  -> no difference
+  longdec32k minus-GR_FUSED           87.3 +-   nan  (n=1)   vs updated:  -7.8% +-  nan%  -> no difference
+  longdec32k minus-ENGINE_NICE        93.5 +-   nan  (n=1)   vs updated:  -1.3% +-  nan%  -> no difference
+  longdec32k minus-expert-profile     67.1 +-   nan  (n=1)   vs updated: -29.1% +-  nan%  -> no difference
+  longdec32k minus-pool-affinity      96.3 +-   nan  (n=1)   vs updated:  +1.7% +-  nan%  -> no difference
+  longdec32k minus-adapt-every        98.2 +-   nan  (n=1)   vs updated:  +3.7% +-  nan%  -> no difference
+  longdec32k minus-conversation-cache-min-tokens     92.1 +-   nan  (n=1)   vs updated:  -2.7% +-  nan%  -> no difference
+  longdec32k plus-AMD_COMMUNITY_TUNING     86.5 +-   nan  (n=1)   vs updated:  -8.7% +-  nan%  -> no difference
+  longdec32k base-late                91.7 +-   nan  (n=1)   vs updated:  -3.2% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-ROUTE_TAIL_SKIP DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-PIN_BY_NEED    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-EXPDEC         DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-EXCHANGE_ROTATE DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-ATTN_DAILY     DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-PROMPT_ATTN_IMMA DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-KV_PREFETCH    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-PF_GROUP_SCRATCH DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-SELECT_WMMA    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-SH_STREAM      DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-QFUSE          DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-VERIFY_QDEDUP  DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-STAGER_RING    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-PREFILL_CPU_SHARE_MAX DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GDN_HEAD       DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GDN_CHUNKED    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GDN_CONVL2     DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GDN_NOY        DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-PF_GEMM        identical on every case -> exact
+  minus-PF_PAD         DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-HC_UPMIX       DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-PF_HCDOWN      DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-FUSE_CONVAB    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-HEAD_MIX_MULTI DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-KV_HOST_DMA    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-QSA_ROWS       DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GR_RDNA_Q8     DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GR_RDNA_A8     DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GR_INJ_UP      DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GR_FUSED       DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-ENGINE_NICE    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-expert-profile DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-pool-affinity  DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-adapt-every    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-conversation-cache-min-tokens DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-AMD_COMMUNITY_TUNING DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -7.3%  edit -44.4%  longdec32k -3.2%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  minus-ROUTE_TAIL_SKIP short +2.9%  edit +26.7%  longdec32k -6.1%  -> drop
+  minus-PIN_BY_NEED    short -5.2%  edit +29.1%  longdec32k -22.7%  -> drop
+  minus-EXPDEC         short -11.6%  edit +26.2%  longdec32k -2.4%  -> drop
+  minus-EXCHANGE_ROTATE short -3.2%  edit +32.8%  longdec32k -7.1%  -> drop
+  minus-ATTN_DAILY     short -25.6%  edit -0.1%  longdec32k -9.2%  -> drop
+  minus-PROMPT_ATTN_IMMA short -7.3%  edit +19.3%  longdec32k -29.4%  -> drop
+  minus-KV_PREFETCH    short -16.3%  edit +6.5%  longdec32k -6.3%  -> drop
+  minus-PF_GROUP_SCRATCH short -12.5%  edit +14.8%  longdec32k -4.3%  -> drop
+  minus-SELECT_WMMA    short -21.1%  edit -2.0%  longdec32k -11.2%  -> drop
+  minus-SH_STREAM      short -5.7%  edit +3.3%  longdec32k -7.6%  -> drop
+  minus-QFUSE          short -2.4%  edit +4.6%  longdec32k -28.5%  -> drop
+  minus-VERIFY_QDEDUP  short -4.0%  edit +35.5%  longdec32k -9.9%  -> drop
+  minus-STAGER_RING    short -13.1%  edit +20.5%  longdec32k +2.3%  -> drop
+  minus-PREFILL_CPU_SHARE_MAX short +6.0%  edit +23.6%  longdec32k +1.7%  -> PROMOTE to confirm
+  minus-GDN_HEAD       short +4.6%  edit +31.4%  longdec32k +0.6%  -> PROMOTE to confirm
+  minus-GDN_CHUNKED    short +4.1%  edit +11.3%  longdec32k -1.3%  -> PROMOTE to confirm
+  minus-GDN_CONVL2     short -9.8%  edit +11.9%  longdec32k +1.0%  -> drop
+  minus-GDN_NOY        short -13.7%  edit +17.1%  longdec32k -2.3%  -> drop
+  minus-PF_GEMM        short +3.7%  edit +27.0%  longdec32k +6.3%  -> PROMOTE to confirm
+  minus-PF_PAD         short +0.7%  edit +31.6%  longdec32k +10.1%  -> PROMOTE to confirm
+  minus-HC_UPMIX       short +4.1%  edit +27.3%  longdec32k +6.9%  -> PROMOTE to confirm
+  minus-PF_HCDOWN      short +1.9%  edit +37.2%  longdec32k -1.2%  -> PROMOTE to confirm
+  minus-FUSE_CONVAB    short +1.5%  edit +30.9%  longdec32k +2.1%  -> PROMOTE to confirm
+  minus-HEAD_MIX_MULTI short +2.5%  edit +31.2%  longdec32k -3.9%  -> drop
+  minus-KV_HOST_DMA    short +2.6%  edit +31.2%  longdec32k +2.8%  -> PROMOTE to confirm
+  minus-QSA_ROWS       short +3.1%  edit +29.7%  longdec32k +5.2%  -> PROMOTE to confirm
+  minus-GR_RDNA_Q8     short +3.0%  edit +27.6%  longdec32k -8.0%  -> drop
+  minus-GR_RDNA_A8     short -4.9%  edit +12.6%  longdec32k -11.7%  -> drop
+  minus-GR_INJ_UP      short -2.5%  edit +27.7%  longdec32k +0.5%  -> PROMOTE to confirm
+  minus-GR_FUSED       short -3.5%  edit +32.9%  longdec32k -6.3%  -> drop
+  minus-ENGINE_NICE    short -11.6%  edit -17.7%  longdec32k +0.3%  -> drop
+  minus-expert-profile short -4.7%  edit +14.0%  longdec32k -28.0%  -> drop
+  minus-pool-affinity  short +0.7%  edit +25.4%  longdec32k +3.3%  -> PROMOTE to confirm
+  minus-adapt-every    short +5.1%  edit +15.0%  longdec32k +5.4%  -> PROMOTE to confirm
+  minus-conversation-cache-min-tokens short +3.9%  edit +10.3%  longdec32k -1.2%  -> PROMOTE to confirm
+  plus-AMD_COMMUNITY_TUNING short +5.5%  edit +7.6%  longdec32k -7.2%  -> drop

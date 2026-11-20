@@ -1,0 +1,7 @@
+BLOCK k01 paired 1200 us /home/dan/auto-runs/benchsweep/work/retest-usT-1-k01.json updated minus-ENGINE_NICE short,edit,longdec32k STRATA_ENGINE_NICE
+BLOCK k02 paired 1200 us /home/dan/auto-runs/benchsweep/work/retest-usT-1-k02.json updated minus-SELECT_WMMA short,edit,longdec32k STRATA_SELECT_WMMA
+BLOCK k03 paired 1200 us /home/dan/auto-runs/benchsweep/work/retest-usT-1-k03.json updated minus-ATTN_DAILY short,edit,longdec32k STRATA_ATTN_DAILY
+BLOCK k04 paired 1200 us /home/dan/auto-runs/benchsweep/work/retest-usT-1-k04.json updated minus-KV_PREFETCH short,edit,longdec32k STRATA_KV_PREFETCH
+BLOCK k05 paired 1200 us /home/dan/auto-runs/benchsweep/work/retest-usT-1-k05.json updated minus-STAGER_RING short,edit,longdec32k STRATA_STAGER_RING
+RETEST usT-1: 5 blocks, estimate 6000 s
+ESTIMATE 6000

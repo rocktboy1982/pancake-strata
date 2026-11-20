@@ -1,0 +1,537 @@
+[
+ {
+  "key": "rd:STRATA_EMB_REUSE_ACCOUNT",
+  "branch": "rd",
+  "flag": "STRATA_EMB_REUSE_ACCOUNT",
+  "why": "",
+  "cases": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "bundle": false,
+  "type": "paired",
+  "kind": "plus",
+  "exact": true,
+  "base_name": "updated",
+  "arm_name": "plus-EMB_REUSE_ACCOUNT",
+  "base_arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_EMB_REUSE_ACCOUNT": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "env": {
+   "STRATA_EMB_REUSE_ACCOUNT": "1"
+  },
+  "args": {},
+  "base": "/home/dan/auto-runs/benchRD/config-plain.json",
+  "est": 1050,
+  "bid": "k01",
+  "slice": "rdC-1",
+  "path": "/home/dan/auto-runs/benchsweep/work/retest-rdC-1-k01.json"
+ },
+ {
+  "key": "rd:STRATA_GROUPED_V1",
+  "branch": "rd",
+  "flag": "STRATA_GROUPED_V1",
+  "why": "",
+  "cases": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "bundle": false,
+  "type": "paired",
+  "kind": "plus",
+  "exact": false,
+  "base_name": "updated",
+  "arm_name": "plus-GROUPED_V1",
+  "base_arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_GROUPED_V1": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "env": {
+   "STRATA_GROUPED_V1": "1"
+  },
+  "args": {},
+  "base": "/home/dan/auto-runs/benchRD/config-plain.json",
+  "est": 1050,
+  "bid": "k02",
+  "slice": "rdC-1",
+  "path": "/home/dan/auto-runs/benchsweep/work/retest-rdC-1-k02.json"
+ },
+ {
+  "key": "rd:STRATA_CVEC_FUSE",
+  "branch": "rd",
+  "flag": "STRATA_CVEC_FUSE",
+  "why": "",
+  "cases": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "bundle": false,
+  "type": "paired",
+  "kind": "plus",
+  "exact": true,
+  "base_name": "updated",
+  "arm_name": "plus-CVEC_FUSE",
+  "base_arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_CVEC_FUSE": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "env": {
+   "STRATA_CVEC_FUSE": "1"
+  },
+  "args": {},
+  "base": "/home/dan/auto-runs/benchRD/config-plain.json",
+  "est": 1050,
+  "bid": "k03",
+  "slice": "rdC-1",
+  "path": "/home/dan/auto-runs/benchsweep/work/retest-rdC-1-k03.json"
+ },
+ {
+  "key": "rd:STRATA_EARLY_REMOTE_CONTEXTS",
+  "branch": "rd",
+  "flag": "STRATA_EARLY_REMOTE_CONTEXTS",
+  "why": "",
+  "cases": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "bundle": false,
+  "type": "paired",
+  "kind": "plus",
+  "exact": true,
+  "base_name": "updated",
+  "arm_name": "plus-EARLY_REMOTE_CONTEXTS",
+  "base_arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_EARLY_REMOTE_CONTEXTS": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "env": {
+   "STRATA_EARLY_REMOTE_CONTEXTS": "1"
+  },
+  "args": {},
+  "base": "/home/dan/auto-runs/benchRD/config-plain.json",
+  "est": 1050,
+  "bid": "k04",
+  "slice": "rdC-1",
+  "path": "/home/dan/auto-runs/benchsweep/work/retest-rdC-1-k04.json"
+ },
+ {
+  "key": "rd:STRATA_EXPDEC",
+  "branch": "rd",
+  "flag": "STRATA_EXPDEC",
+  "why": "pass 1 (void one-run slice 1): long-decode gain, short loss: an OPTIONAL candidate",
+  "cases": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "bundle": false,
+  "type": "paired",
+  "kind": "minus",
+  "exact": true,
+  "base_name": "updated",
+  "arm_name": "minus-EXPDEC",
+  "base_arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "env": {
+   "STRATA_EXPDEC": "1"
+  },
+  "args": {},
+  "base": "/home/dan/auto-runs/benchRD/config-plain.json",
+  "est": 1050,
+  "bid": "k05",
+  "slice": "rdC-1",
+  "path": "/home/dan/auto-runs/benchsweep/work/retest-rdC-1-k05.json"
+ },
+ {
+  "key": "rd:STRATA_FUSE_HEAD_GR",
+  "branch": "rd",
+  "flag": "STRATA_FUSE_HEAD_GR",
+  "why": "",
+  "cases": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "bundle": false,
+  "type": "paired",
+  "kind": "plus",
+  "exact": false,
+  "base_name": "updated",
+  "arm_name": "plus-FUSE_HEAD_GR",
+  "base_arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_FUSE_HEAD_GR": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "env": {
+   "STRATA_FUSE_HEAD_GR": "1"
+  },
+  "args": {},
+  "base": "/home/dan/auto-runs/benchRD/config-plain.json",
+  "est": 1050,
+  "bid": "k06",
+  "slice": "rdC-1",
+  "path": "/home/dan/auto-runs/benchsweep/work/retest-rdC-1-k06.json"
+ },
+ {
+  "key": "rd:STRATA_PF_GROUP_SCRATCH",
+  "branch": "rd",
+  "flag": "STRATA_PF_GROUP_SCRATCH",
+  "why": "",
+  "cases": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "bundle": false,
+  "type": "paired",
+  "kind": "minus",
+  "exact": true,
+  "base_name": "updated",
+  "arm_name": "minus-PF_GROUP_SCRATCH",
+  "base_arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "arm": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "env": {
+   "STRATA_PF_GROUP_SCRATCH": "1"
+  },
+  "args": {},
+  "base": "/home/dan/auto-runs/benchRD/config-plain.json",
+  "est": 1050,
+  "bid": "k07",
+  "slice": "rdC-1",
+  "path": "/home/dan/auto-runs/benchsweep/work/retest-rdC-1-k07.json"
+ }
+]

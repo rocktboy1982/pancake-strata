@@ -1,0 +1,75 @@
+case longdec32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 106.1 short 112.3 edit 138.9 edit 177.9 longdec32k 68.6/1643p 31408t  foreign CPU 9% [('kcompactd0', 12), ('kswapd0', 3), ('kworker/13:0-events_freezable', 2)]  gpu 2045/1249 MHz 61C 183W gtt 25M cpu 3877MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-GROUPED_V1      short 106.7 short 111.4 edit 141.1 edit 176.1 longdec32k 67.2/1644p 31408t  foreign CPU 9% [('kcompactd0', 19), ('kworker/0:0-events', 2), ('kswapd0', 2)]  gpu 2046/1249 MHz 61C 182W gtt 25M cpu 3892MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-GROUPED_V1: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated~2            short 107.1 short 114.1 edit 140.6 edit 176.1 longdec32k 67.8/1653p 31408t  foreign CPU 9% [('kcompactd0', 13), ('kworker/1:0-mm_percpu_wq', 6), ('kswapd0', 3)]  gpu 1915/1249 MHz 62C 173W gtt 25M cpu 3684MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated~2: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-GROUPED_V1~2    short 89.8 short 86.7 edit 139.2 edit 162.9 longdec32k 66.2/1060p 31408t  foreign CPU 7% [('kcompactd0', 12), ('kswapd0', 3), ('kworker/0:0-events', 3)]  gpu 1977/1249 MHz 60C 157W gtt 25M cpu 3720MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-GROUPED_V1~2: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated~3            short 90.0 short 85.8 edit 75.7 edit 97.8 longdec32k 67.9/1179p 31408t  foreign CPU 7% [('kcompactd0', 15), ('kworker/11:2-events', 3), ('kworker/3:2-mm_percpu_wq', 2)]  gpu 1963/1249 MHz 60C 164W gtt 25M cpu 4018MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated~3: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-GROUPED_V1~3    short 106.6 short 113.5 edit 133.0 edit 185.2 longdec32k 72.4/1636p 31408t  foreign CPU 10% [('kcompactd0', 11), ('kworker/0:2-mm_percpu_wq', 3), ('kworker/1:1-mm_percpu_wq', 3)]  gpu 2028/1249 MHz 62C 182W gtt 25M cpu 3829MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-GROUPED_V1~3: every attempt noisy, keeping the quietest (10% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 base-late            short 105.9 short 112.0 edit 138.9 edit 175.8 longdec32k 69.5/1646p 31408t  foreign CPU 9% [('kcompactd0', 15), ('kswapd0', 3), ('kworker/12:2-events', 3)]  gpu 1969/1249 MHz 61C 175W gtt 25M cpu 3755MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late: every attempt noisy, keeping the quietest (9% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 109.2 +-  39.4  (n=2)
+                              drafts accepted 0.71
+  short  plus-GROUPED_V1         109.1 +-  29.9  (n=2)   vs updated:  -0.1% +-  8.7%  -> no difference
+                              drafts accepted 0.71
+  short  updated~2               110.6 +-  44.5  (n=2)   vs updated:  +1.3% +-  4.7%  -> no difference
+                              drafts accepted 0.71
+  short  plus-GROUPED_V1~2        88.2 +-  19.7  (n=2)   vs updated: -19.2% +- 54.1%  -> no difference
+                              drafts accepted 0.70
+  short  updated~3                87.9 +-  26.7  (n=2)   vs updated: -19.5% +- 60.5%  -> no difference
+                              drafts accepted 0.73
+  short  plus-GROUPED_V1~3       110.0 +-  43.8  (n=2)   vs updated:  +0.8% +-  4.1%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               109.0 +-  38.8  (n=2)   vs updated:  -0.2% +-  0.6%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 158.4 +- 247.8  (n=2)
+                              drafts accepted 0.90
+  edit   plus-GROUPED_V1         158.6 +- 222.4  (n=2)   vs updated:  +0.1% +- 16.0%  -> no difference
+                              drafts accepted 0.91
+  edit   updated~2               158.3 +- 225.6  (n=2)   vs updated:  -0.0% +- 14.0%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-GROUPED_V1~2       151.1 +- 150.6  (n=2)   vs updated:  -4.6% +- 61.4%  -> no difference
+                              drafts accepted 0.90
+  edit   updated~3                86.8 +- 140.4  (n=2)   vs updated: -45.2% +- 67.8%  -> no difference
+                              drafts accepted 0.96
+  edit   plus-GROUPED_V1~3       159.1 +- 331.7  (n=2)   vs updated:  +0.4% +- 53.0%  -> no difference
+                              drafts accepted 0.92
+  edit   base-late               157.4 +- 234.5  (n=2)   vs updated:  -0.7% +-  8.4%  -> no difference
+                              drafts accepted 0.90
+  longdec32k updated                  68.6 +-   nan  (n=1)
+  longdec32k plus-GROUPED_V1          67.2 +-   nan  (n=1)   vs updated:  -2.0% +-  nan%  -> no difference
+  longdec32k updated~2                67.8 +-   nan  (n=1)   vs updated:  -1.2% +-  nan%  -> no difference
+  longdec32k plus-GROUPED_V1~2        66.2 +-   nan  (n=1)   vs updated:  -3.5% +-  nan%  -> no difference
+  longdec32k updated~3                67.9 +-   nan  (n=1)   vs updated:  -1.0% +-  nan%  -> no difference
+  longdec32k plus-GROUPED_V1~3        72.4 +-   nan  (n=1)   vs updated:  +5.5% +-  nan%  -> no difference
+  longdec32k base-late                69.5 +-   nan  (n=1)   vs updated:  +1.3% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-GROUPED_V1      DIFFERENT text -> lossy or placement-dependent: quality gate
+  updated~2            identical on every case -> exact
+  plus-GROUPED_V1~2    DIFFERENT text -> lossy or placement-dependent: quality gate
+  updated~3            DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-GROUPED_V1~3    DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -0.2%  edit -0.7%  longdec32k +1.3%
+  plus-GROUPED_V1      short -0.0%  edit +0.5%  longdec32k -2.7%  -> PROMOTE to confirm
+  updated~2            short +1.4%  edit +0.3%  longdec32k -1.8%  -> PROMOTE to confirm
+  plus-GROUPED_V1~2    short -19.1%  edit -4.3%  longdec32k -4.1%  -> drop
+  updated~3            short -19.4%  edit -45.1%  longdec32k -1.7%  -> drop
+  plus-GROUPED_V1~3    short +0.9%  edit +0.8%  longdec32k +4.9%  -> PROMOTE to confirm

@@ -1,0 +1,505 @@
+{
+ "branch": "rd",
+ "slice": "2/3",
+ "flags": {
+  "plus-HC_Q8_INJECT": {
+   "flag": "STRATA_HC_Q8_INJECT",
+   "kind": "plus",
+   "keys": [
+    "STRATA_HC_Q8_INJECT"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_HC_Q8_INJECT": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Key: int8 HC image of the inject rows); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-HC_REQ8": {
+   "flag": "STRATA_HC_REQ8",
+   "kind": "plus",
+   "keys": [
+    "STRATA_HC_REQ8"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_HC_REQ8": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Key: HC projections loaded as int8 (changes the output)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-HC_WN4": {
+   "flag": "STRATA_HC_WN4",
+   "kind": "plus",
+   "keys": [
+    "STRATA_HC_WN4"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_HC_WN4": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: rdna3 3dbb40516: prompt HC write+norm with 16-byte accesses; same bits (gr_wn4_p); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-HIP_ADAPT_KERNEL_COPY": {
+   "flag": "STRATA_HIP_ADAPT_KERNEL_COPY",
+   "kind": "plus",
+   "keys": [
+    "STRATA_HIP_ADAPT_KERNEL_COPY"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_HIP_ADAPT_KERNEL_COPY": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-HIP_SWIGLU_FUSED": {
+   "flag": "STRATA_HIP_SWIGLU_FUSED",
+   "kind": "plus",
+   "keys": [
+    "STRATA_HIP_SWIGLU_FUSED"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_HIP_SWIGLU_FUSED": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-IQ_STAGE_GRID": {
+   "flag": "STRATA_IQ_STAGE_GRID",
+   "kind": "plus",
+   "keys": [
+    "STRATA_IQ_STAGE_GRID"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_IQ_STAGE_GRID": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-IQ_STAGE_GRID_MMVQ": {
+   "flag": "STRATA_IQ_STAGE_GRID_MMVQ",
+   "kind": "plus",
+   "keys": [
+    "STRATA_IQ_STAGE_GRID_MMVQ"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_IQ_STAGE_GRID_MMVQ": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-IQ_STAGE_TABLES": {
+   "flag": "STRATA_IQ_STAGE_TABLES",
+   "kind": "plus",
+   "keys": [
+    "STRATA_IQ_STAGE_TABLES"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_IQ_STAGE_TABLES": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-KV_HOST_REGISTER": {
+   "flag": "STRATA_KV_HOST_REGISTER",
+   "kind": "plus",
+   "keys": [
+    "STRATA_KV_HOST_REGISTER"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_KV_HOST_REGISTER": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: KV placement/growth); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-LFUSE": {
+   "flag": "STRATA_LFUSE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_LFUSE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_LFUSE": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-LFUSE_GATE": {
+   "flag": "STRATA_LFUSE_GATE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_LFUSE_GATE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_LFUSE_GATE": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-LFUSE_PAIR": {
+   "flag": "STRATA_LFUSE_PAIR",
+   "kind": "plus",
+   "keys": [
+    "STRATA_LFUSE_PAIR"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_LFUSE_PAIR": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MMQ_KQ": {
+   "flag": "STRATA_MMQ_KQ",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MMQ_KQ"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_MMQ_KQ": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class KeyIfSet: K-quant experts on MMQ (first-token KL ~0.03)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MMVF_AUX": {
+   "flag": "STRATA_MMVF_AUX",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MMVF_AUX"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MMVF_AUX": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MMVQ_IL": {
+   "flag": "STRATA_MMVQ_IL",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MMVQ_IL"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MMVQ_IL": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MMVQ_IL_120": {
+   "flag": "STRATA_MMVQ_IL_120",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MMVQ_IL_120"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_MMVQ_IL_120": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: IL row table for big 12.0 cards); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MMVQ_IL_Q3K": {
+   "flag": "STRATA_MMVQ_IL_Q3K",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MMVQ_IL_Q3K"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_MMVQ_IL_Q3K": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: IL kernel for Q3_K); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MMVQ_IL_T1": {
+   "flag": "STRATA_MMVQ_IL_T1",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MMVQ_IL_T1"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_MMVQ_IL_T1": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: IL kernel for one token); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MMVQ_IL_WIDE": {
+   "flag": "STRATA_MMVQ_IL_WIDE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MMVQ_IL_WIDE"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_MMVQ_IL_WIDE": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: wide IL kernels); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MMVQ_WAVE": {
+   "flag": "STRATA_MMVQ_WAVE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MMVQ_WAVE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MMVQ_WAVE": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MTP_CATCHUP_ALL": {
+   "flag": "STRATA_MTP_CATCHUP_ALL",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MTP_CATCHUP_ALL"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MTP_CATCHUP_ALL": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MTP_FULL_HEAD": {
+   "flag": "STRATA_MTP_FULL_HEAD",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MTP_FULL_HEAD"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MTP_FULL_HEAD": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MTP_TOP2": {
+   "flag": "STRATA_MTP_TOP2",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MTP_TOP2"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MTP_TOP2": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-NORM_ROPE": {
+   "flag": "STRATA_NORM_ROPE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_NORM_ROPE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_NORM_ROPE": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-NO_MMVQ_ROWS2": {
+   "flag": "STRATA_NO_MMVQ_ROWS2",
+   "kind": "plus",
+   "keys": [
+    "STRATA_NO_MMVQ_ROWS2"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_NO_MMVQ_ROWS2": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: rows-2 MMVQ layout off); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-NO_MULTI_GR": {
+   "flag": "STRATA_NO_MULTI_GR",
+   "kind": "plus",
+   "keys": [
+    "STRATA_NO_MULTI_GR"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_NO_MULTI_GR": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-NO_NORM_ROPE": {
+   "flag": "STRATA_NO_NORM_ROPE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_NO_NORM_ROPE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_NO_NORM_ROPE": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-NO_SUB16_GU": {
+   "flag": "STRATA_NO_SUB16_GU",
+   "kind": "plus",
+   "keys": [
+    "STRATA_NO_SUB16_GU"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_NO_SUB16_GU": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-OLD_GROUPED": {
+   "flag": "STRATA_OLD_GROUPED",
+   "kind": "plus",
+   "keys": [
+    "STRATA_OLD_GROUPED"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_OLD_GROUPED": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: old Q2_0 grouped kernel kept for A/B; no bitwise claim found); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-OLD_IQ_MMVQ": {
+   "flag": "STRATA_OLD_IQ_MMVQ",
+   "kind": "plus",
+   "keys": [
+    "STRATA_OLD_IQ_MMVQ"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_OLD_IQ_MMVQ": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-PA_V2T": {
+   "flag": "STRATA_PA_V2T",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PA_V2T"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PA_V2T": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class KeyIfSet: Turing v2 attention with register staging (changes answers)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-PCIE_AUTO_CANON": {
+   "flag": "STRATA_PCIE_AUTO_CANON",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PCIE_AUTO_CANON"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PCIE_AUTO_CANON": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-PCIE_OFF": {
+   "flag": "STRATA_PCIE_OFF",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PCIE_OFF"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PCIE_OFF": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  }
+ },
+ "protected": {
+  "STRATA_VERIFY_ECAP": [
+   "edit"
+  ],
+  "STRATA_RDNA_Q6K": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_GR_RDNA": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_RDNA_MMVQ_WAVE": [
+   "short",
+   "edit",
+   "longdec32k"
+  ]
+ },
+ "measured": {
+  "STRATA_VERIFY_ECAP": "benchRD-diag-updated; spec 252 screen",
+  "STRATA_EXPDEC_DOWN": "ledger T-037, T-040, T-222",
+  "STRATA_PF_HC_REGION": "ledger T-800",
+  "STRATA_PREFILL_EQUAL_TAIL": "ledger T-679, T-810, T-822",
+  "STRATA_HC_Q8": "ledger T-012",
+  "--lookup-max-t": "ledger T-116, T-126, T-127, T-561",
+  "STRATA_GR_RDNA": "ledger T-649, T-650, T-678",
+  "STRATA_RDNA_MMVQ_WAVE": "benchRD-diag-updated GAIN",
+  "STRATA_COMBINE_CPU": "ledger T-009, T-313",
+  "STRATA_WAIT_FUSE": "ledger T-009",
+  "STRATA_ROUTE_PUBLISH": "ledger T-009, T-549, T-839",
+  "STRATA_POOL_FUSE_PHASES": "benchRD-diag-updated 2026-11-19 -5.97%",
+  "STRATA_PF_F16": "benchRD-diag-updated GAIN; spec 250 updated+pf16-1",
+  "STRATA_RDNA_KQ_MAXCOLS": "ledger T-080, T-699, T-767",
+  "STRATA_DENSE_MMQ": "ledger T-615"
+ }
+}

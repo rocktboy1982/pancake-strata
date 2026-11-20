@@ -1,0 +1,75 @@
+case longdec32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 104.4 short 114.3 edit 138.8 edit 174.6 longdec32k 74.0/1649p 31410t  foreign CPU 9% [('kcompactd0', 17), ('kswapd0', 3), ('kworker/0:2-events', 3)]  gpu 2038/1249 MHz 61C 182W gtt 25M cpu 3859MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-EMB_REUSE_ACCOUNT short 110.7 short 113.9 edit 136.3 edit 175.5 longdec32k 73.8/1646p 31410t  foreign CPU 8% [('kcompactd0', 17), ('kworker/10:0-mm_percpu_wq', 3), ('kswapd0', 2)]  gpu 2039/1249 MHz 62C 183W gtt 25M cpu 3754MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-EMB_REUSE_ACCOUNT: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated~2            short 110.6 short 113.3 edit 138.9 edit 175.8 longdec32k 72.4/1653p 31410t  foreign CPU 7% [('kcompactd0', 11), ('kworker/1:0-mm_percpu_wq', 4), ('kswapd0', 2)]  gpu 2037/1249 MHz 62C 181W gtt 25M cpu 3852MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated~2: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-EMB_REUSE_ACCOUNT~2 short 112.7 short 111.1 edit 139.1 edit 185.3 longdec32k 69.9/1662p 31410t  foreign CPU 7% [('kcompactd0', 18), ('kworker/1:1-events', 8), ('kswapd0', 2)]  gpu 2029/1249 MHz 61C 179W gtt 25M cpu 3951MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-EMB_REUSE_ACCOUNT~2: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated~3            short 106.4 short 112.5 edit 141.7 edit 177.9 longdec32k 73.8/1652p 31410t  foreign CPU 8% [('kcompactd0', 15), ('kswapd0', 2), ('kworker/u65:1-KFD IH', 1)]  gpu 2041/1249 MHz 62C 185W gtt 25M cpu 3860MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated~3: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-EMB_REUSE_ACCOUNT~3 short 106.9 short 113.8 edit 139.1 edit 176.1 longdec32k 72.5/1656p 31410t  foreign CPU 8% [('kcompactd0', 19), ('kworker/1:1-mm_percpu_wq', 7), ('kswapd0', 2)]  gpu 2042/1249 MHz 62C 181W gtt 25M cpu 3789MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-EMB_REUSE_ACCOUNT~3: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 base-late            short 108.6 short 113.4 edit 137.1 edit 140.9 longdec32k 73.4/1546p 31410t  foreign CPU 16% [('kcompactd0', 33), ('kworker/0:2-events', 5), ('kworker/0:0-events_freezable', 5)]  gpu 2017/1249 MHz 62C 174W gtt 25M cpu 3814MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late: every attempt noisy, keeping the quietest (16% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 109.3 +-  62.9  (n=2)
+                              drafts accepted 0.71
+  short  plus-EMB_REUSE_ACCOUNT    112.3 +-  20.3  (n=2)   vs updated:  +2.7% +- 38.9%  -> no difference
+                              drafts accepted 0.71
+  short  updated~2               111.9 +-  17.2  (n=2)   vs updated:  +2.4% +- 41.8%  -> no difference
+                              drafts accepted 0.71
+  short  plus-EMB_REUSE_ACCOUNT~2    111.9 +-  10.2  (n=2)   vs updated:  +2.3% +- 66.8%  -> no difference
+                              drafts accepted 0.70
+  short  updated~3               109.5 +-  38.8  (n=2)   vs updated:  +0.1% +- 22.1%  -> no difference
+                              drafts accepted 0.71
+  short  plus-EMB_REUSE_ACCOUNT~3    110.3 +-  43.8  (n=2)   vs updated:  +0.9% +- 17.4%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               111.0 +-  30.5  (n=2)   vs updated:  +1.5% +- 29.6%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 156.7 +- 227.5  (n=2)
+                              drafts accepted 0.90
+  edit   plus-EMB_REUSE_ACCOUNT    155.9 +- 249.1  (n=2)   vs updated:  -0.5% +- 13.8%  -> no difference
+                              drafts accepted 0.90
+  edit   updated~2               157.4 +- 234.5  (n=2)   vs updated:  +0.4% +-  4.5%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-EMB_REUSE_ACCOUNT~2    162.2 +- 293.6  (n=2)   vs updated:  +3.5% +- 42.2%  -> no difference
+                              drafts accepted 0.89
+  edit   updated~3               159.8 +- 230.1  (n=2)   vs updated:  +2.0% +-  1.6%  -> better
+                              drafts accepted 0.90
+  edit   plus-EMB_REUSE_ACCOUNT~3    157.6 +- 235.1  (n=2)   vs updated:  +0.6% +-  4.9%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               139.0 +-  24.1  (n=2)   vs updated: -11.3% +- 129.8%  -> no difference
+                              drafts accepted 0.90
+  longdec32k updated                  74.0 +-   nan  (n=1)
+  longdec32k plus-EMB_REUSE_ACCOUNT     73.8 +-   nan  (n=1)   vs updated:  -0.3% +-  nan%  -> no difference
+  longdec32k updated~2                72.4 +-   nan  (n=1)   vs updated:  -2.2% +-  nan%  -> no difference
+  longdec32k plus-EMB_REUSE_ACCOUNT~2     69.9 +-   nan  (n=1)   vs updated:  -5.5% +-  nan%  -> no difference
+  longdec32k updated~3                73.8 +-   nan  (n=1)   vs updated:  -0.3% +-  nan%  -> no difference
+  longdec32k plus-EMB_REUSE_ACCOUNT~3     72.5 +-   nan  (n=1)   vs updated:  -2.0% +-  nan%  -> no difference
+  longdec32k base-late                73.4 +-   nan  (n=1)   vs updated:  -0.8% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-EMB_REUSE_ACCOUNT identical on every case -> exact
+  updated~2            identical on every case -> exact
+  plus-EMB_REUSE_ACCOUNT~2 DIFFERENT text -> lossy or placement-dependent: quality gate
+  updated~3            identical on every case -> exact
+  plus-EMB_REUSE_ACCOUNT~3 identical on every case -> exact
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +1.5%  edit -11.3%  longdec32k -0.8%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-EMB_REUSE_ACCOUNT short +1.9%  edit +5.4%  longdec32k +0.1%  -> PROMOTE to confirm
+  updated~2            short +1.6%  edit +6.4%  longdec32k -1.8%  -> PROMOTE to confirm
+  plus-EMB_REUSE_ACCOUNT~2 short +1.6%  edit +9.7%  longdec32k -5.2%  -> drop
+  updated~3            short -0.7%  edit +8.1%  longdec32k +0.1%  -> PROMOTE to confirm
+  plus-EMB_REUSE_ACCOUNT~3 short +0.2%  edit +6.6%  longdec32k -1.6%  -> PROMOTE to confirm

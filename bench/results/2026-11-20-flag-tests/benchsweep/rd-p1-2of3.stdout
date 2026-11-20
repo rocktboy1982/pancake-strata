@@ -1,0 +1,355 @@
+case longdec32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 106.4 short 111.4 edit 135.7 edit 185.0 longdec32k 67.8/1651p 31409t  foreign CPU 7% [('kcompactd0', 12), ('kworker/13:2-mm_percpu_wq', 4), ('kworker/11:0-mm_percpu_wq', 3)]  gpu 2040/1249 MHz 61C 183W gtt 25M cpu 3746MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-HC_Q8_INJECT    short 93.6 short 92.3 edit 102.4 edit 158.0 longdec32k 62.5/989p 31409t  foreign CPU 9% [('kcompactd0', 23), ('kworker/0:0-events_freezable', 5), ('kworker/9:1-events_freezable', 4)]  gpu 1897/1249 MHz 61C 160W gtt 25M cpu 3667MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-HC_Q8_INJECT: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-HC_REQ8         short 86.5 short 84.3 edit 101.6 edit 130.9 longdec32k 57.0/793p 31409t  foreign CPU 11% [('kcompactd0', 30), ('kworker/3:1-events', 9), ('kworker/1:0-events_freezable', 6)]  gpu 2043/1249 MHz 61C 162W gtt 25M cpu 3643MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-HC_REQ8: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-HC_WN4          short 80.9 short 108.8 edit 137.9 edit 137.0 longdec32k 67.6/1057p 31409t  foreign CPU 8% [('kcompactd0', 22), ('kswapd0', 1), ('localsearch-3', 1)]  gpu 2030/1249 MHz 59C 163W gtt 25M cpu 3891MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-HC_WN4: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-HIP_ADAPT_KERNEL_COPY short 72.8 short 79.7 edit 105.3 edit 173.8 longdec32k 52.6/1190p 31409t  foreign CPU 9% [('kcompactd0', 26), ('kworker/3:1-mm_percpu_wq', 3), ('kworker/1:2-events', 3)]  gpu 2055/1249 MHz 60C 159W gtt 25M cpu 3428MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-HIP_ADAPT_KERNEL_COPY: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-HIP_SWIGLU_FUSED short 113.0 short 113.9 edit 139.0 edit 187.5 longdec32k 66.9/1638p 31409t  foreign CPU 11% [('kcompactd0', 28), ('kworker/0:1-events', 4), ('kworker/11:1-mm_percpu_wq', 1)]  gpu 2033/1249 MHz 61C 178W gtt 25M cpu 3813MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-HIP_SWIGLU_FUSED: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-IQ_STAGE_GRID   short 110.4 short 114.4 edit 129.6 edit 173.8 longdec32k 67.3/1590p 31409t  foreign CPU 13% [('kcompactd0', 30), ('kworker/3:1-events_freezable', 6), ('kworker/0:1-events_freezable', 5)]  gpu 2048/1249 MHz 61C 180W gtt 25M cpu 3836MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-IQ_STAGE_GRID: every attempt noisy, keeping the quietest (13% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-IQ_STAGE_GRID_MMVQ short 92.8 short 114.3 edit 134.3 edit 175.0 longdec32k 66.2/1578p 31409t  foreign CPU 16% [('kcompactd0', 40), ('kworker/0:0-events_freezable', 9), ('kworker/9:1-events', 3)]  gpu 2034/1249 MHz 62C 178W gtt 25M cpu 3875MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-IQ_STAGE_GRID_MMVQ: every attempt noisy, keeping the quietest (16% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-IQ_STAGE_TABLES short 105.7 short 112.8 edit 132.2 edit 186.1 longdec32k 70.6/1644p 31409t  foreign CPU 12% [('kcompactd0', 19), ('kswapd0', 3), ('kworker/0:1-events', 2)]  gpu 2043/1249 MHz 62C 185W gtt 25M cpu 4014MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-IQ_STAGE_TABLES: every attempt noisy, keeping the quietest (12% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-KV_HOST_REGISTER short 108.5 short 109.9 edit 141.1 edit 177.5 longdec32k 70.2/1656p 31410t  foreign CPU 6% [('kcompactd0', 18), ('kworker/0:1-events', 3), ('kworker/11:0-events', 3)]  gpu 2046/1249 MHz 62C 182W gtt 25M cpu 3747MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-KV_HOST_REGISTER: every attempt noisy, keeping the quietest (6% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-LFUSE           short 112.8 short 113.9 edit 87.9 edit 129.7 longdec32k 66.1/1269p 31410t  foreign CPU 11% [('kcompactd0', 30), ('kworker/8:2-events_freezable', 7), ('kworker/0:1-events', 6)]  gpu 2049/1249 MHz 62C 163W gtt 25M cpu 3902MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-LFUSE: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-LFUSE_GATE      short 110.3 short 78.1 edit 119.9 edit 180.1 longdec32k 62.1/912p 31410t  foreign CPU 11% [('kcompactd0', 35), ('kworker/11:0-events', 9), ('kworker/0:1-events', 6)]  gpu 1976/1249 MHz 60C 161W gtt 25M cpu 3489MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-LFUSE_GATE: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-LFUSE_PAIR      short 110.1 short 95.1 edit 124.5 edit 183.4 longdec32k 59.9/1057p 31410t  foreign CPU 12% [('kcompactd0', 52), ('kworker/9:1-mm_percpu_wq', 7), ('kworker/11:2-events_freezable', 7)]  gpu 2047/1249 MHz 61C 151W gtt 25M cpu 3796MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-LFUSE_PAIR: every attempt noisy, keeping the quietest (12% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-MMQ_KQ          short 92.2 short 113.8 edit 133.2 edit 174.4 longdec32k 64.6/990p 31410t  foreign CPU 10% [('kcompactd0', 33), ('kworker/1:2-events', 4), ('kworker/9:2-mm_percpu_wq', 4)]  gpu 1885/1249 MHz 60C 162W gtt 25M cpu 3937MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MMQ_KQ: every attempt noisy, keeping the quietest (10% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-MMVF_AUX        short 94.8 short 90.0 edit 93.5 edit 134.1 longdec32k 69.6/998p 31410t  foreign CPU 8% [('kcompactd0', 44), ('kworker/1:2-mm_percpu_wq', 10), ('kworker/13:2-events_freezable', 8)]  gpu 1923/1249 MHz 60C 154W gtt 25M cpu 3556MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MMVF_AUX: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-MMVQ_IL         short 106.5 short 109.0 edit 138.9 edit 184.3 longdec32k 66.6/1023p 31410t  foreign CPU 10% [('kcompactd0', 24), ('kworker/3:1-memcg', 3), ('kswapd0', 2)]  gpu 2047/1249 MHz 59C 182W gtt 25M cpu 3909MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MMVQ_IL: every attempt noisy, keeping the quietest (10% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-MMVQ_IL_120     short 106.8 short 98.7 edit 104.9 edit 169.0 longdec32k 56.1/1167p 31410t  foreign CPU 11% [('kworker/1:2-mm_percpu_wq', 17), ('khugepaged', 12), ('kcompactd0', 8)]  gpu 1945/1249 MHz 59C 171W gtt 25M cpu 4055MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MMVQ_IL_120: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-MMVQ_IL_Q3K     short 88.8 short 70.6 edit 110.5 edit 119.4 longdec32k 68.1/1186p 31410t  foreign CPU 9% [('kcompactd0', 30), ('kworker/0:2-events', 2), ('kswapd0', 2)]  gpu 2022/1249 MHz 59C 156W gtt 25M cpu 3882MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MMVQ_IL_Q3K: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-MMVQ_IL_T1      short 87.8 short 82.5 edit 133.6 edit 175.8 longdec32k 64.2/1144p 31410t  foreign CPU 10% [('kcompactd0', 35), ('kworker/0:2-events', 5), ('kswapd0', 3)]  gpu 2013/1249 MHz 60C 177W gtt 25M cpu 3940MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MMVQ_IL_T1: every attempt noisy, keeping the quietest (10% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-MMVQ_IL_WIDE    short 87.5 short 83.8 edit 119.4 edit 189.4 longdec32k 66.5/1062p 31410t  foreign CPU 13% [('kcompactd0', 41), ('kworker/0:2-events', 7), ('kworker/1:1-events_freezable', 7)]  gpu 1994/1249 MHz 59C 158W gtt 25M cpu 3574MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MMVQ_IL_WIDE: every attempt noisy, keeping the quietest (13% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-MMVQ_WAVE       short 103.5 short 112.6 edit 99.3 edit 154.4 longdec32k 67.4/1102p 31410t  foreign CPU 10% [('kcompactd0', 27), ('kworker/9:3-events', 3), ('kworker/0:2-events', 3)]  gpu 1982/1249 MHz 60C 175W gtt 25M cpu 3835MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MMVQ_WAVE: every attempt noisy, keeping the quietest (10% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-MTP_CATCHUP_ALL short 106.2 short 90.1 edit 133.3 edit 143.7 longdec32k 64.0/1092p 31410t  foreign CPU 12% [('kcompactd0', 29), ('kworker/0:0-events_freezable', 6), ('kworker/1:1-mm_percpu_wq', 6)]  gpu 2018/1249 MHz 61C 165W gtt 25M cpu 3874MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MTP_CATCHUP_ALL: every attempt noisy, keeping the quietest (12% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-MTP_FULL_HEAD   short 106.1 short 77.5 edit 73.4 edit 126.6 longdec32k 64.9/1631p 31410t  foreign CPU 9% [('kcompactd0', 22), ('kworker/1:0-events', 2), ('kworker/0:0-events', 2)]  gpu 1776/1249 MHz 59C 154W gtt 25M cpu 3742MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MTP_FULL_HEAD: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-MTP_TOP2        short 109.3 short 112.9 edit 110.0 edit 176.4 longdec32k 71.3/1546p 31410t  foreign CPU 17% [('kcompactd0', 40), ('kworker/0:0-events', 10), ('kworker/1:1-events_freezable', 4)]  gpu 2044/1249 MHz 61C 176W gtt 25M cpu 3794MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MTP_TOP2: every attempt noisy, keeping the quietest (17% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-NORM_ROPE       short 96.3 short 113.1 edit 132.7 edit 173.6 longdec32k 70.3/1143p 31410t  foreign CPU 7% [('kcompactd0', 15), ('kworker/1:1-mm_percpu_wq', 4), ('kworker/9:3-events', 3)]  gpu 2042/1249 MHz 61C 183W gtt 25M cpu 3870MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-NORM_ROPE: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-NO_MMVQ_ROWS2   short 79.5 short 82.1 edit 121.3 edit 134.4 longdec32k 68.1/1067p 31410t  foreign CPU 6% [('kcompactd0', 15), ('kworker/0:1-events', 6), ('kswapd0', 4)]  gpu 1999/1249 MHz 59C 152W gtt 25M cpu 3658MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-NO_MMVQ_ROWS2: every attempt noisy, keeping the quietest (6% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-NO_MULTI_GR     short 91.2 short 96.2 edit 118.0 edit 190.1 longdec32k 63.6/955p 31410t  foreign CPU 11% [('kcompactd0', 26), ('kworker/0:2-events', 9), ('kworker/13:3-events_freezable', 7)]  gpu 1891/1249 MHz 59C 160W gtt 25M cpu 3810MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-NO_MULTI_GR: every attempt noisy, keeping the quietest (11% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-NO_NORM_ROPE    short 96.4 short 112.0 edit 77.8 edit 179.9 longdec32k 63.0/1181p 31410t  foreign CPU 13% [('kcompactd0', 36), ('kworker/9:1-events_freezable', 9), ('kworker/1:0-mm_percpu_wq', 8)]  gpu 1818/1249 MHz 59C 151W gtt 25M cpu 3872MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-NO_NORM_ROPE: every attempt noisy, keeping the quietest (13% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-NO_SUB16_GU     short 107.4 short 114.0 edit 133.4 edit 184.5 longdec32k 73.6/1621p 31410t  foreign CPU 14% [('kcompactd0', 27), ('kworker/9:3-events', 4), ('kworker/3:1-events_freezable', 4)]  gpu 1992/1249 MHz 61C 176W gtt 25M cpu 3793MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-NO_SUB16_GU: every attempt noisy, keeping the quietest (14% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-OLD_GROUPED     short 108.7 short 114.2 edit 129.9 edit 174.0 longdec32k 66.2/1386p 31410t  foreign CPU 13% [('kcompactd0', 33), ('kworker/9:0-events', 3), ('kswapd0', 2)]  gpu 2007/1249 MHz 61C 171W gtt 25M cpu 3897MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-OLD_GROUPED: every attempt noisy, keeping the quietest (13% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-OLD_IQ_MMVQ     short 97.0 short 86.4 edit 108.7 edit 111.1 longdec32k 49.4/1206p 31410t  foreign CPU 9% [('kcompactd0', 19), ('kswapd0', 3), ('kworker/1:0-events', 2)]  gpu 1921/1249 MHz 59C 162W gtt 25M cpu 3697MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-OLD_IQ_MMVQ: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-PA_V2T          short 109.6 short 81.8 edit 145.0 edit 124.9 longdec32k 66.0/1130p 31410t  foreign CPU 12% [('kcompactd0', 39), ('kworker/11:0-events', 7), ('kworker/0:3-events', 6)]  gpu 1993/1249 MHz 59C 174W gtt 25M cpu 3832MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-PA_V2T: every attempt noisy, keeping the quietest (12% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-PCIE_AUTO_CANON short 78.7 short 66.3 edit 105.5 edit 180.2 longdec32k 65.3/1016p 31410t  foreign CPU 9% [('kcompactd0', 28), ('kworker/5:2-mm_percpu_wq', 5), ('kworker/9:0-events', 2)]  gpu 1951/1249 MHz 60C 155W gtt 25M cpu 3640MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-PCIE_AUTO_CANON: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plus-PCIE_OFF        short 101.4 short 108.5 edit 125.5 edit 182.9 longdec32k 63.3/1612p 31410t  foreign CPU 14% [('kcompactd0', 17), ('kworker/11:0-mm_percpu_wq', 6), ('kworker/0:1-events', 5)]  gpu 1938/1249 MHz 60C 170W gtt 25M cpu 3926MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-PCIE_OFF: every attempt noisy, keeping the quietest (14% foreign CPU)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 base-late            short 110.1 short 111.8 edit 118.0 edit 175.6 longdec32k 74.3/1616p 31410t  foreign CPU 12% [('kcompactd0', 20), ('kworker/0:1-events', 4), ('kswapd0', 3)]  gpu 2041/1249 MHz 61C 173W gtt 25M cpu 3861MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late: every attempt noisy, keeping the quietest (12% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 108.9 +-  31.8  (n=2)
+                              drafts accepted 0.70
+  short  plus-HC_Q8_INJECT        92.9 +-   8.3  (n=2)   vs updated: -14.6% +- 36.8%  -> no difference
+                              drafts accepted 0.73
+  short  plus-HC_REQ8             85.4 +-  14.0  (n=2)   vs updated: -21.6% +- 42.0%  -> no difference
+                              drafts accepted 0.68
+  short  plus-HC_WN4              94.8 +- 177.3  (n=2)   vs updated: -12.9% +- 133.6%  -> no difference
+                              drafts accepted 0.71
+  short  plus-HIP_ADAPT_KERNEL_COPY     76.2 +-  43.8  (n=2)   vs updated: -30.0% +- 11.1%  -> worse
+                              drafts accepted 0.69
+  short  plus-HIP_SWIGLU_FUSED    113.5 +-   5.7  (n=2)   vs updated:  +4.2% +- 23.9%  -> no difference
+                              drafts accepted 0.71
+  short  plus-IQ_STAGE_GRID      112.4 +-  25.4  (n=2)   vs updated:  +3.2% +-  5.8%  -> no difference
+                              drafts accepted 0.71
+  short  plus-IQ_STAGE_GRID_MMVQ    103.5 +- 136.6  (n=2)   vs updated:  -4.9% +- 96.3%  -> no difference
+                              drafts accepted 0.70
+  short  plus-IQ_STAGE_TABLES    109.2 +-  45.1  (n=2)   vs updated:  +0.3% +- 12.3%  -> no difference
+                              drafts accepted 0.71
+  short  plus-KV_HOST_REGISTER    109.2 +-   8.9  (n=2)   vs updated:  +0.3% +- 21.0%  -> no difference
+                              drafts accepted 0.69
+  short  plus-LFUSE              113.3 +-   7.0  (n=2)   vs updated:  +4.1% +- 22.8%  -> no difference
+                              drafts accepted 0.71
+  short  plus-LFUSE_GATE          94.2 +- 204.6  (n=2)   vs updated: -13.5% +- 217.1%  -> no difference
+                              drafts accepted 0.70
+  short  plus-LFUSE_PAIR         102.6 +-  95.3  (n=2)   vs updated:  -5.8% +- 116.7%  -> no difference
+                              drafts accepted 0.71
+  short  plus-MMQ_KQ             103.0 +- 137.3  (n=2)   vs updated:  -5.4% +- 96.9%  -> no difference
+                              drafts accepted 0.71
+  short  plus-MMVF_AUX            92.4 +-  30.5  (n=2)   vs updated: -15.2% +- 57.2%  -> no difference
+                              drafts accepted 0.70
+  short  plus-MMVQ_IL            107.8 +-  15.9  (n=2)   vs updated:  -1.1% +- 14.6%  -> no difference
+                              drafts accepted 0.70
+  short  plus-MMVQ_IL_120        102.8 +-  51.5  (n=2)   vs updated:  -5.6% +- 76.4%  -> no difference
+                              drafts accepted 0.72
+  short  plus-MMVQ_IL_Q3K         79.7 +- 115.7  (n=2)   vs updated: -26.8% +- 135.4%  -> no difference
+                              drafts accepted 0.71
+  short  plus-MMVQ_IL_T1          85.2 +-  33.7  (n=2)   vs updated: -21.8% +- 60.1%  -> no difference
+                              drafts accepted 0.73
+  short  plus-MMVQ_IL_WIDE        85.7 +-  23.5  (n=2)   vs updated: -21.3% +- 50.8%  -> no difference
+                              drafts accepted 0.68
+  short  plus-MMVQ_WAVE          108.0 +-  57.8  (n=2)   vs updated:  -0.8% +- 23.9%  -> no difference
+                              drafts accepted 0.73
+  short  plus-MTP_CATCHUP_ALL     98.2 +- 102.3  (n=2)   vs updated:  -9.9% +- 123.1%  -> no difference
+                              drafts accepted 0.70
+  short  plus-MTP_FULL_HEAD       91.8 +- 181.8  (n=2)   vs updated: -15.7% +- 196.1%  -> no difference
+                              drafts accepted 0.74
+  short  plus-MTP_TOP2           111.1 +-  22.9  (n=2)   vs updated:  +2.0% +-  8.2%  -> no difference
+                              drafts accepted 0.71
+  short  plus-NORM_ROPE          104.7 +- 106.8  (n=2)   vs updated:  -3.9% +- 68.9%  -> no difference
+                              drafts accepted 0.72
+  short  plus-NO_MMVQ_ROWS2       80.8 +-  16.5  (n=2)   vs updated: -25.8% +- 14.0%  -> worse
+                              drafts accepted 0.71
+  short  plus-NO_MULTI_GR         93.7 +-  31.8  (n=2)   vs updated: -14.0% +-  0.0%  -> worse
+                              drafts accepted 0.71
+  short  plus-NO_NORM_ROPE       104.2 +-  99.1  (n=2)   vs updated:  -4.3% +- 61.9%  -> no difference
+                              drafts accepted 0.72
+  short  plus-NO_SUB16_GU        110.7 +-  41.9  (n=2)   vs updated:  +1.7% +-  9.3%  -> no difference
+                              drafts accepted 0.71
+  short  plus-OLD_GROUPED        111.5 +-  35.0  (n=2)   vs updated:  +2.3% +-  2.9%  -> no difference
+                              drafts accepted 0.71
+  short  plus-OLD_IQ_MMVQ         91.7 +-  67.4  (n=2)   vs updated: -15.8% +- 91.0%  -> no difference
+                              drafts accepted 0.71
+  short  plus-PA_V2T              95.7 +- 176.7  (n=2)   vs updated: -12.1% +- 191.4%  -> no difference
+                              drafts accepted 0.71
+  short  plus-PCIE_AUTO_CANON     72.5 +-  78.8  (n=2)   vs updated: -33.4% +- 101.5%  -> no difference
+                              drafts accepted 0.71
+  short  plus-PCIE_OFF           105.0 +-  45.1  (n=2)   vs updated:  -3.6% +- 12.3%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               110.9 +-  10.8  (n=2)   vs updated:  +1.9% +- 19.3%  -> no difference
+                              drafts accepted 0.70
+  edit   updated                 160.3 +- 313.3  (n=2)
+                              drafts accepted 0.90
+  edit   plus-HC_Q8_INJECT       130.2 +- 353.3  (n=2)   vs updated: -18.8% +- 25.0%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-HC_REQ8            116.2 +- 186.2  (n=2)   vs updated: -27.5% +- 79.3%  -> no difference
+                              drafts accepted 0.86
+  edit   plus-HC_WN4             137.4 +-   5.7  (n=2)   vs updated: -14.3% +- 199.0%  -> no difference
+                              drafts accepted 0.91
+  edit   plus-HIP_ADAPT_KERNEL_COPY    139.6 +- 435.3  (n=2)   vs updated: -13.0% +- 76.1%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-HIP_SWIGLU_FUSED    163.2 +- 308.2  (n=2)   vs updated:  +1.8% +-  3.2%  -> no difference
+                              drafts accepted 0.91
+  edit   plus-IQ_STAGE_GRID      151.7 +- 280.9  (n=2)   vs updated:  -5.4% +- 20.2%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-IQ_STAGE_GRID_MMVQ    154.7 +- 258.6  (n=2)   vs updated:  -3.6% +- 34.1%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-IQ_STAGE_TABLES    159.1 +- 342.5  (n=2)   vs updated:  -0.7% +- 18.2%  -> no difference
+                              drafts accepted 0.92
+  edit   plus-KV_HOST_REGISTER    159.3 +- 231.3  (n=2)   vs updated:  -0.7% +- 51.1%  -> no difference
+                              drafts accepted 0.92
+  edit   plus-LFUSE              108.8 +- 265.6  (n=2)   vs updated: -32.1% +- 29.7%  -> worse
+                              drafts accepted 0.96
+  edit   plus-LFUSE_GATE         150.0 +- 382.6  (n=2)   vs updated:  -6.5% +- 43.2%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-LFUSE_PAIR         153.9 +- 374.3  (n=2)   vs updated:  -4.0% +- 38.0%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-MMQ_KQ             153.8 +- 261.8  (n=2)   vs updated:  -4.1% +- 32.1%  -> no difference
+                              drafts accepted 0.92
+  edit   plus-MMVF_AUX           113.8 +- 258.0  (n=2)   vs updated: -29.0% +- 34.5%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-MMVQ_IL            161.6 +- 288.5  (n=2)   vs updated:  +0.8% +- 15.5%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-MMVQ_IL_120        136.9 +- 407.4  (n=2)   vs updated: -14.6% +- 58.7%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-MMVQ_IL_Q3K        115.0 +-  56.6  (n=2)   vs updated: -28.3% +- 160.1%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-MMVQ_IL_T1         154.7 +- 268.2  (n=2)   vs updated:  -3.5% +- 28.1%  -> no difference
+                              drafts accepted 0.91
+  edit   plus-MMVQ_IL_WIDE       154.4 +- 444.9  (n=2)   vs updated:  -3.7% +- 82.0%  -> no difference
+                              drafts accepted 0.91
+  edit   plus-MMVQ_WAVE          126.8 +- 350.2  (n=2)   vs updated: -20.9% +- 23.0%  -> no difference
+                              drafts accepted 0.92
+  edit   plus-MTP_CATCHUP_ALL    138.5 +-  66.1  (n=2)   vs updated: -13.6% +- 154.2%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-MTP_FULL_HEAD      100.0 +- 338.1  (n=2)   vs updated: -37.6% +- 15.5%  -> worse
+                              drafts accepted 0.96
+  edit   plus-MTP_TOP2           143.2 +- 422.0  (n=2)   vs updated: -10.7% +- 67.8%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-NORM_ROPE          153.1 +- 259.9  (n=2)   vs updated:  -4.5% +- 33.3%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-NO_MMVQ_ROWS2      127.8 +-  83.3  (n=2)   vs updated: -20.3% +- 143.5%  -> no difference
+                              drafts accepted 0.85
+  edit   plus-NO_MULTI_GR        154.1 +- 458.2  (n=2)   vs updated:  -3.9% +- 90.4%  -> no difference
+                              drafts accepted 0.92
+  edit   plus-NO_NORM_ROPE       128.8 +- 648.8  (n=2)   vs updated: -19.6% +- 209.3%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-NO_SUB16_GU        158.9 +- 324.7  (n=2)   vs updated:  -0.9% +-  7.1%  -> no difference
+                              drafts accepted 0.92
+  edit   plus-OLD_GROUPED        151.9 +- 280.3  (n=2)   vs updated:  -5.2% +- 20.6%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-OLD_IQ_MMVQ        109.9 +-  15.3  (n=2)   vs updated: -31.5% +- 185.9%  -> no difference
+                              drafts accepted 0.86
+  edit   plus-PA_V2T             134.9 +- 127.7  (n=2)   vs updated: -15.8% +- 275.0%  -> no difference
+                              drafts accepted 0.92
+  edit   plus-PCIE_AUTO_CANON    142.8 +- 474.7  (n=2)   vs updated: -10.9% +- 100.7%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-PCIE_OFF           154.2 +- 364.8  (n=2)   vs updated:  -3.8% +- 32.1%  -> no difference
+                              drafts accepted 0.92
+  edit   base-late               146.8 +- 366.0  (n=2)   vs updated:  -8.5% +- 32.9%  -> no difference
+                              drafts accepted 0.90
+  longdec32k updated                  67.8 +-   nan  (n=1)
+  longdec32k plus-HC_Q8_INJECT        62.5 +-   nan  (n=1)   vs updated:  -7.8% +-  nan%  -> no difference
+  longdec32k plus-HC_REQ8             57.0 +-   nan  (n=1)   vs updated: -15.9% +-  nan%  -> no difference
+  longdec32k plus-HC_WN4              67.6 +-   nan  (n=1)   vs updated:  -0.3% +-  nan%  -> no difference
+  longdec32k plus-HIP_ADAPT_KERNEL_COPY     52.6 +-   nan  (n=1)   vs updated: -22.4% +-  nan%  -> no difference
+  longdec32k plus-HIP_SWIGLU_FUSED     66.9 +-   nan  (n=1)   vs updated:  -1.3% +-  nan%  -> no difference
+  longdec32k plus-IQ_STAGE_GRID       67.3 +-   nan  (n=1)   vs updated:  -0.7% +-  nan%  -> no difference
+  longdec32k plus-IQ_STAGE_GRID_MMVQ     66.2 +-   nan  (n=1)   vs updated:  -2.4% +-  nan%  -> no difference
+  longdec32k plus-IQ_STAGE_TABLES     70.6 +-   nan  (n=1)   vs updated:  +4.1% +-  nan%  -> no difference
+  longdec32k plus-KV_HOST_REGISTER     70.2 +-   nan  (n=1)   vs updated:  +3.5% +-  nan%  -> no difference
+  longdec32k plus-LFUSE               66.1 +-   nan  (n=1)   vs updated:  -2.5% +-  nan%  -> no difference
+  longdec32k plus-LFUSE_GATE          62.1 +-   nan  (n=1)   vs updated:  -8.4% +-  nan%  -> no difference
+  longdec32k plus-LFUSE_PAIR          59.9 +-   nan  (n=1)   vs updated: -11.7% +-  nan%  -> no difference
+  longdec32k plus-MMQ_KQ              64.6 +-   nan  (n=1)   vs updated:  -4.7% +-  nan%  -> no difference
+  longdec32k plus-MMVF_AUX            69.6 +-   nan  (n=1)   vs updated:  +2.7% +-  nan%  -> no difference
+  longdec32k plus-MMVQ_IL             66.6 +-   nan  (n=1)   vs updated:  -1.8% +-  nan%  -> no difference
+  longdec32k plus-MMVQ_IL_120         56.1 +-   nan  (n=1)   vs updated: -17.3% +-  nan%  -> no difference
+  longdec32k plus-MMVQ_IL_Q3K         68.1 +-   nan  (n=1)   vs updated:  +0.4% +-  nan%  -> no difference
+  longdec32k plus-MMVQ_IL_T1          64.2 +-   nan  (n=1)   vs updated:  -5.3% +-  nan%  -> no difference
+  longdec32k plus-MMVQ_IL_WIDE        66.5 +-   nan  (n=1)   vs updated:  -1.9% +-  nan%  -> no difference
+  longdec32k plus-MMVQ_WAVE           67.4 +-   nan  (n=1)   vs updated:  -0.6% +-  nan%  -> no difference
+  longdec32k plus-MTP_CATCHUP_ALL     64.0 +-   nan  (n=1)   vs updated:  -5.6% +-  nan%  -> no difference
+  longdec32k plus-MTP_FULL_HEAD       64.9 +-   nan  (n=1)   vs updated:  -4.3% +-  nan%  -> no difference
+  longdec32k plus-MTP_TOP2            71.3 +-   nan  (n=1)   vs updated:  +5.2% +-  nan%  -> no difference
+  longdec32k plus-NORM_ROPE           70.3 +-   nan  (n=1)   vs updated:  +3.7% +-  nan%  -> no difference
+  longdec32k plus-NO_MMVQ_ROWS2       68.1 +-   nan  (n=1)   vs updated:  +0.4% +-  nan%  -> no difference
+  longdec32k plus-NO_MULTI_GR         63.6 +-   nan  (n=1)   vs updated:  -6.2% +-  nan%  -> no difference
+  longdec32k plus-NO_NORM_ROPE        63.0 +-   nan  (n=1)   vs updated:  -7.1% +-  nan%  -> no difference
+  longdec32k plus-NO_SUB16_GU         73.6 +-   nan  (n=1)   vs updated:  +8.6% +-  nan%  -> no difference
+  longdec32k plus-OLD_GROUPED         66.2 +-   nan  (n=1)   vs updated:  -2.4% +-  nan%  -> no difference
+  longdec32k plus-OLD_IQ_MMVQ         49.4 +-   nan  (n=1)   vs updated: -27.1% +-  nan%  -> no difference
+  longdec32k plus-PA_V2T              66.0 +-   nan  (n=1)   vs updated:  -2.7% +-  nan%  -> no difference
+  longdec32k plus-PCIE_AUTO_CANON     65.3 +-   nan  (n=1)   vs updated:  -3.7% +-  nan%  -> no difference
+  longdec32k plus-PCIE_OFF            63.3 +-   nan  (n=1)   vs updated:  -6.6% +-  nan%  -> no difference
+  longdec32k base-late                74.3 +-   nan  (n=1)   vs updated:  +9.6% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-HC_Q8_INJECT    DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-HC_REQ8         DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-HC_WN4          DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-HIP_ADAPT_KERNEL_COPY DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-HIP_SWIGLU_FUSED DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-IQ_STAGE_GRID   DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-IQ_STAGE_GRID_MMVQ DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-IQ_STAGE_TABLES DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-KV_HOST_REGISTER DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-LFUSE           DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-LFUSE_GATE      DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-LFUSE_PAIR      DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MMQ_KQ          DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MMVF_AUX        DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MMVQ_IL         DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MMVQ_IL_120     DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MMVQ_IL_Q3K     DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MMVQ_IL_T1      DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MMVQ_IL_WIDE    DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MMVQ_WAVE       DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MTP_CATCHUP_ALL identical on every case -> exact
+  plus-MTP_FULL_HEAD   DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MTP_TOP2        DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-NORM_ROPE       DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-NO_MMVQ_ROWS2   DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-NO_MULTI_GR     DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-NO_NORM_ROPE    DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-NO_SUB16_GU     DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-OLD_GROUPED     DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-OLD_IQ_MMVQ     DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-PA_V2T          DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-PCIE_AUTO_CANON DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-PCIE_OFF        DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +1.9%  edit -8.5%  longdec32k +9.6%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-HC_Q8_INJECT    short -15.4%  edit -15.2%  longdec32k -12.0%  -> drop
+  plus-HC_REQ8         short -22.3%  edit -24.3%  longdec32k -19.8%  -> drop
+  plus-HC_WN4          short -13.7%  edit -10.5%  longdec32k -4.9%  -> drop
+  plus-HIP_ADAPT_KERNEL_COPY short -30.6%  edit -9.1%  longdec32k -26.0%  -> drop
+  plus-HIP_SWIGLU_FUSED short +3.2%  edit +6.3%  longdec32k -5.8%  -> drop
+  plus-IQ_STAGE_GRID   short +2.3%  edit -1.2%  longdec32k -5.3%  -> drop
+  plus-IQ_STAGE_GRID_MMVQ short -5.8%  edit +0.7%  longdec32k -6.8%  -> drop
+  plus-IQ_STAGE_TABLES short -0.6%  edit +3.6%  longdec32k -0.6%  -> PROMOTE to confirm
+  plus-KV_HOST_REGISTER short -0.7%  edit +3.7%  longdec32k -1.2%  -> PROMOTE to confirm
+  plus-LFUSE           short +3.1%  edit -29.2%  longdec32k -7.0%  -> drop
+  plus-LFUSE_GATE      short -14.3%  edit -2.3%  longdec32k -12.6%  -> drop
+  plus-LFUSE_PAIR      short -6.7%  edit +0.2%  longdec32k -15.7%  -> drop
+  plus-MMQ_KQ          short -6.3%  edit +0.1%  longdec32k -9.1%  -> drop
+  plus-MMVF_AUX        short -15.9%  edit -25.9%  longdec32k -2.0%  -> drop
+  plus-MMVQ_IL         short -2.0%  edit +5.2%  longdec32k -6.3%  -> drop
+  plus-MMVQ_IL_120     short -6.5%  edit -10.8%  longdec32k -21.0%  -> drop
+  plus-MMVQ_IL_Q3K     short -27.5%  edit -25.2%  longdec32k -4.2%  -> drop
+  plus-MMVQ_IL_T1      short -22.5%  edit +0.7%  longdec32k -9.6%  -> drop
+  plus-MMVQ_IL_WIDE    short -22.1%  edit +0.5%  longdec32k -6.4%  -> drop
+  plus-MMVQ_WAVE       short -1.7%  edit -17.4%  longdec32k -5.1%  -> drop
+  plus-MTP_CATCHUP_ALL short -10.7%  edit -9.8%  longdec32k -9.9%  -> drop
+  plus-MTP_FULL_HEAD   short -16.5%  edit -34.9%  longdec32k -8.7%  -> drop
+  plus-MTP_TOP2        short +1.1%  edit -6.8%  longdec32k +0.4%  -> drop
+  plus-NORM_ROPE       short -4.8%  edit -0.3%  longdec32k -1.1%  -> drop
+  plus-NO_MMVQ_ROWS2   short -26.5%  edit -16.8%  longdec32k -4.2%  -> drop
+  plus-NO_MULTI_GR     short -14.8%  edit +0.3%  longdec32k -10.5%  -> drop
+  plus-NO_NORM_ROPE    short -5.2%  edit -16.1%  longdec32k -11.3%  -> drop
+  plus-NO_SUB16_GU     short +0.7%  edit +3.5%  longdec32k +3.6%  -> PROMOTE to confirm
+  plus-OLD_GROUPED     short +1.4%  edit -1.1%  longdec32k -6.8%  -> drop
+  plus-OLD_IQ_MMVQ     short -16.6%  edit -28.4%  longdec32k -30.5%  -> drop
+  plus-PA_V2T          short -12.9%  edit -12.1%  longdec32k -7.1%  -> drop
+  plus-PCIE_AUTO_CANON short -34.0%  edit -7.0%  longdec32k -8.1%  -> drop
+  plus-PCIE_OFF        short -4.5%  edit +0.4%  longdec32k -10.9%  -> drop

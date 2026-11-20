@@ -1,0 +1,898 @@
+{
+ "base": "/home/dan/auto-runs/benchRD/config-plain.json",
+ "drift_check": true,
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "short",
+  "edit",
+  "longdec32k"
+ ],
+ "reps": 1,
+ "arms": {
+  "updated": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-HC_Q8_INJECT": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_HC_Q8_INJECT": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-HC_REQ8": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_HC_REQ8": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-HC_WN4": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_HC_WN4": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-HIP_ADAPT_KERNEL_COPY": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_HIP_ADAPT_KERNEL_COPY": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-HIP_SWIGLU_FUSED": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_HIP_SWIGLU_FUSED": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-IQ_STAGE_GRID": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_IQ_STAGE_GRID": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-IQ_STAGE_GRID_MMVQ": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_IQ_STAGE_GRID_MMVQ": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-IQ_STAGE_TABLES": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_IQ_STAGE_TABLES": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-KV_HOST_REGISTER": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_KV_HOST_REGISTER": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-LFUSE": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_LFUSE": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-LFUSE_GATE": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_LFUSE_GATE": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-LFUSE_PAIR": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_LFUSE_PAIR": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-MMQ_KQ": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_MMQ_KQ": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-MMVF_AUX": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_MMVF_AUX": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-MMVQ_IL": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_MMVQ_IL": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-MMVQ_IL_120": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_MMVQ_IL_120": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-MMVQ_IL_Q3K": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_MMVQ_IL_Q3K": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-MMVQ_IL_T1": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_MMVQ_IL_T1": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-MMVQ_IL_WIDE": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_MMVQ_IL_WIDE": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-MMVQ_WAVE": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_MMVQ_WAVE": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-MTP_CATCHUP_ALL": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_MTP_CATCHUP_ALL": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-MTP_FULL_HEAD": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_MTP_FULL_HEAD": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-MTP_TOP2": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_MTP_TOP2": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-NORM_ROPE": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_NORM_ROPE": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-NO_MMVQ_ROWS2": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_NO_MMVQ_ROWS2": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-NO_MULTI_GR": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_NO_MULTI_GR": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-NO_NORM_ROPE": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_NO_NORM_ROPE": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-NO_SUB16_GU": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_NO_SUB16_GU": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-OLD_GROUPED": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_OLD_GROUPED": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-OLD_IQ_MMVQ": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_OLD_IQ_MMVQ": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-PA_V2T": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_PA_V2T": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-PCIE_AUTO_CANON": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_PCIE_AUTO_CANON": "1"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "plus-PCIE_OFF": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0",
+    "STRATA_PCIE_OFF": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  }
+ },
+ "note": "bench-sweep.sh pass 1 (rd, slice 2/3): the updated arm, then one arm per flag (minus-X: taken out, plus-X: added); tools/pancake/box_chains/sweep.py"
+}

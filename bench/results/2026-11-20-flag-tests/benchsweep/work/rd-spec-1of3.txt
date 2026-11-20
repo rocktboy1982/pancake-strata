@@ -1,0 +1,5 @@
+ARMFIX dropped STRATA_POOL_FUSE_PHASES=1 from the updated config
+ARMFIX STRATA_VERIFY_ECAP=0 already in the updated config
+ARMFIX STRATA_VERIFY_ECAP_MIN_ROWS=9 already in the updated config
+SWEEP rd slice 1/3: 33 flag arms (11 minus, 22 plus; 11 arm, 2 named, 20 code) + updated + base-late; estimate pass 1 5250 s, pass 2 <= 3150 s, total <= 8400 s
+ESTIMATE 5250 3150

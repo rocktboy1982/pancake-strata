@@ -1,0 +1,71 @@
+{
+ "drift_check": false,
+ "base": "/home/dan/auto-runs/benchRD/config-plain.json",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 1,
+ "arms": {
+  "plain": {
+   "exe": "/mnt/pancake/benchRD/build-plain/strata"
+  },
+  "updated-exact": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  },
+  "updated": {
+   "exe": "/mnt/pancake/benchRD/build-updated/strata",
+   "env": {
+    "STRATA_POOL_FUSE_PHASES": "1",
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9",
+    "STRATA_PIN_BY_NEED": "1",
+    "STRATA_EXPDEC": "1",
+    "STRATA_EXPDEC_DOWN": "1",
+    "STRATA_EXCHANGE_ROTATE": "1",
+    "STRATA_KV_PREFETCH": "1",
+    "STRATA_PROMPT_ATTN_IMMA": "1",
+    "STRATA_ATTN_DAILY": "1",
+    "STRATA_PF_GROUP_SCRATCH": "1",
+    "STRATA_PF_HC_REGION": "1",
+    "STRATA_PREFILL_EQUAL_TAIL": "1",
+    "STRATA_ROUTE_TAIL_SKIP": "0",
+    "STRATA_HC_Q8": "0"
+   },
+   "args": {
+    "--grammar": "on",
+    "--lookup-max-t": "12",
+    "--pool-affinity": "measure",
+    "--conversation-cache-min-tokens": "8192"
+   }
+  }
+ },
+ "note": "RDNA3 follow-up of spec 250 (owner order 2026-11-19; arms re-made 2026-11-19 night, TEST_LEDGER.md T-984): updated = spec 250's updated arm (Strata-rdna3 + the whole pancake daily preset: exactly rdna3/recommended-flags/gfx1100.json's env + args of updated-strata-rdna3); updated-exact = updated minus its lossy additions, by the convention of spec 222 (the lossy switches of MOD_PLAN.md section 3):  [chain T: arms cut to the screen winners updated-exact,updated]",
+ "stop": [
+  "an arm whose server dies before ready twice: stop and read the engine log",
+  "a DIFFERENT text of updated-exact vs plain on short / edit is placement noise or a build difference, never a quality verdict by itself"
+ ]
+}

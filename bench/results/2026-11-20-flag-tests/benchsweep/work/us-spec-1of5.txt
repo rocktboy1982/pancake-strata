@@ -1,0 +1,2 @@
+SWEEP us slice 1/5: 36 flag arms (35 minus, 1 plus; 35 arm, 1 named, 0 code) + updated + base-late; estimate pass 1 5700 s, pass 2 <= 3150 s, total <= 8850 s
+ESTIMATE 5700 3150

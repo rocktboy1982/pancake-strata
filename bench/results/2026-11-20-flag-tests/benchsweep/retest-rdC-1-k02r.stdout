@@ -1,0 +1,4 @@
+case longdec32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 104.9 short 111.9 edit 138.5 edit 177.1 longdec32k 54.4/1352p 31409t  foreign CPU 8% [('kcompactd0', 15), ('kswapd0', 3), ('kworker/6:1-mm_percpu_wq', 2)]  gpu 2049/1249 MHz 61C 174W gtt 25M cpu 3796MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (8% foreign CPU)

@@ -1,0 +1,17 @@
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 warmup               short 108.2 short 103.5 edit 169.7 edit 169.2 longdec64k 77.9/2162p 65241t  foreign CPU 8% [('kcompactd0', 14), ('kworker/1:2-events', 6), ('kworker/1:1-events', 4)]  gpu 2042/1249 MHz 60C 185W gtt 25M cpu 3587MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 warmup: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 100.5 short 100.0 edit 166.7 edit 183.6 longdec64k 79.9/2160p 65241t  foreign CPU 8% [('kcompactd0', 17), ('kworker/11:2-events', 5), ('kworker/9:3-events_freezable', 3)]  gpu 1899/1249 MHz 62C 181W gtt 25M cpu 3511MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-ROUTE_TAIL_SKIP short 108.8 short 103.7 edit 167.6 edit 169.9 longdec64k 79.8/2183p 65241t  foreign CPU 6% [('kcompactd0', 19), ('kswapd0', 4), ('kworker/1:2-events_freezable', 1)]  gpu 2046/1249 MHz 62C 186W gtt 25M cpu 3641MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-ROUTE_TAIL_SKIP: every attempt noisy, keeping the quietest (6% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-EXCHANGE_ROTATE short 102.1 short 99.8 edit 163.1 edit 175.9 longdec64k 84.3/2181p 65241t  foreign CPU 6% [('kcompactd0', 15), ('kworker/1:2-mm_percpu_wq', 2), ('localsearch-3', 1)]  gpu 1992/1249 MHz 63C 193W gtt 25M cpu 3597MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-EXCHANGE_ROTATE: every attempt noisy, keeping the quietest (6% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-PIN_BY_NEED    short 101.2 short 99.9 edit 166.4 edit 181.5 longdec64k 78.2/2127p 65241t  foreign CPU 9% [('kcompactd0', 27), ('kworker/3:2-mm_percpu_wq', 8), ('kworker/11:1-events', 7)]  gpu 1943/1249 MHz 63C 178W gtt 25M cpu 3585MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PIN_BY_NEED: every attempt noisy, keeping the quietest (9% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
