@@ -1,6 +1,6 @@
 {
  "schema": "pancake.retest-groups/1",
- "note": "RETEST slices of bench-retest.sh (owner orders 2026-11-20, TEST_LEDGER.md and MOD_PLAN.md section 5 'retest'): every flag is confirmed ONE BY ONE in its own paired block (base, flag, base, flag, base, flag, base: abtest --tier screen --drift-check on a spec with 3 interleaved reps, sweep.py paired_spec), cases short, edit, longdec32k (32K prompt: prompt and decode tok/s); a block above 5 % base drift runs once more, then its flag is INCONCLUSIVE. Order = the owner's priority list: the RD flags, then the US flags, then the retest items of the 2026-11-20 review (RD spec 250 bundle as a reference only, POOL_FUSE_PHASES, PF_F16=1 vs 2, the spec 251 arms, the US --lookup-max-t quality gate, US 222 updated-exact confirm, US 223 completed). Slices of <= 7 blocks (7 x 1050 s + one re-run <= 2.5 h). kind: minus = the updated arm sets it, taken out; plus = added to the updated arm (sweep.py resolves it when not given). bundle: a whole arm against another (changes no flag: owner rule 2026-11-20, flags are judged individually). ship: the value apply_triage.py writes (<ROOT> = the branch tree) when a box path is in the arm.",
+ "note": "RETEST slices of bench-retest.sh (owner orders 2026-11-20, TEST_LEDGER.md and MOD_PLAN.md section 5 'retest'): every flag is confirmed ONE BY ONE in its own paired block (base, flag, base, flag, base, flag, base: abtest --tier screen --drift-check on a spec with 3 interleaved reps, sweep.py paired_spec), cases short, edit, longdec32k (32K prompt: prompt and decode tok/s); a block above 5 % base drift runs once more, then its flag is INCONCLUSIVE. Order = the owner's priority list: the RD flags, then the US flags, then the retest items of the 2026-11-20 review (RD spec 250 bundle as a reference only, POOL_FUSE_PHASES, PF_F16=1 vs 2, the spec 251 arms, the US --lookup-max-t quality gate, US 222 updated-exact confirm, US 223 completed). US-ONLY slices usT-1..usT-4 (owner order 2026-11-20 09:19: stop the Strata-rdna3 tests, compare only to stock Strata; the RD slices above stay in the file as published and are not queued): the US flags of mixC-3, usC-4, mixR-5, mixR-6, usR-7 in the same order, <= 5 blocks per slice so a drifted block can run again inside the budget. Slices of <= 7 blocks (7 x 1050 s + one re-run <= 2.5 h). kind: minus = the updated arm sets it, taken out; plus = added to the updated arm (sweep.py resolves it when not given). bundle: a whole arm against another (changes no flag: owner rule 2026-11-20, flags are judged individually). ship: the value apply_triage.py writes (<ROOT> = the branch tree) when a box path is in the arm.",
  "slices": {
   "rdC-1": ["rd:STRATA_EMB_REUSE_ACCOUNT", "rd:STRATA_GROUPED_V1", "rd:STRATA_CVEC_FUSE", "rd:STRATA_EARLY_REMOTE_CONTEXTS", "rd:STRATA_EXPDEC", "rd:STRATA_FUSE_HEAD_GR", "rd:STRATA_PF_GROUP_SCRATCH"],
   "rdC-2": ["rd:STRATA_ROUTE_TAIL_SKIP", "rd:--grammar", "rd:STRATA_ATTN_DAILY", "rd:--pool-affinity", "rd:--conversation-cache-min-tokens", "rd:STRATA_PROMPT_ATTN_IMMA", "rd:STRATA_KV_PREFETCH"],
@@ -8,7 +8,11 @@
   "usC-4": ["us:STRATA_PF_GROUP_SCRATCH", "us:STRATA_PROMPT_ATTN_IMMA", "us:--lookup-max-t", "us:STRATA_GR_RDNA_Q8", "us:STRATA_GR_RDNA_A8", "us:STRATA_GR_INJ_UP", "us:STRATA_GR_FUSED"],
   "mixR-5": ["us:STRATA_GR_RDNA", "us:STRATA_RDNA_MMVQ_WAVE", "us:STRATA_RDNA_Q6K", "rd:BUNDLE-250-updated", "rd:STRATA_POOL_FUSE_PHASES", "rd:STRATA_PF_F16", "rd:STRATA_HIPBLASLT_TUNING"],
   "mixR-6": ["rd:--expert-profile", "rd:--mtp-draft-vocab", "rd:--max-context", "rd:--conversation-cache-mib", "us:BUNDLE-222-updated-exact", "us:GATE-lookup-max-t"],
-  "usR-7": ["us:SPEC-223"]
+  "usR-7": ["us:SPEC-223"],
+  "usT-1": ["us:STRATA_ENGINE_NICE", "us:STRATA_SELECT_WMMA", "us:STRATA_ATTN_DAILY", "us:STRATA_KV_PREFETCH", "us:STRATA_STAGER_RING"],
+  "usT-2": ["us:STRATA_PF_GROUP_SCRATCH", "us:STRATA_PROMPT_ATTN_IMMA", "us:--lookup-max-t", "us:STRATA_GR_RDNA_Q8", "us:STRATA_GR_RDNA_A8"],
+  "usT-3": ["us:STRATA_GR_INJ_UP", "us:STRATA_GR_FUSED", "us:STRATA_GR_RDNA", "us:STRATA_RDNA_MMVQ_WAVE", "us:STRATA_RDNA_Q6K"],
+  "usT-4": ["us:STRATA_HIPBLASLT_TUNING", "us:BUNDLE-222-updated-exact", "us:GATE-lookup-max-t", "us:SPEC-223"]
  },
  "entries": {
   "rd:STRATA_EXPDEC": {"kind": "minus", "why": "pass 1 (void one-run slice 1): long-decode gain, short loss: an OPTIONAL candidate"},
@@ -21,6 +25,7 @@
   "rd:--max-context": {"kind": "plus", "exact": true, "args": {"--max-context": "131072"}, "why": "spec 251 arm max-context-131072"},
   "rd:--conversation-cache-mib": {"kind": "plus", "exact": true, "args": {"--conversation-cache-mib": "2048"}, "why": "spec 251 arm conversation-cache-2048"},
   "us:--lookup-max-t": {"kind": "minus", "exact": true, "args": {"--lookup-max-t": "12"}, "why": "removed from the US shipped file on a whole-arm gate REJECT; out of the shipped file until this decides"},
+  "us:STRATA_HIPBLASLT_TUNING": {"kind": "minus", "exact": true, "env": {"STRATA_HIPBLASLT_TUNING": "@SRC@/terminal/tools/hip/gfx1100-hipblaslt-100401.txt"}, "ship": {"env": {"STRATA_HIPBLASLT_TUNING": "<ROOT>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt"}}, "why": "the 100401 table: restored in the US shipped flags by owner decision 2026-11-20 on text identity alone; confirm it on speed"},
   "us:STRATA_GR_RDNA": {"kind": "minus", "exact": true, "env": {"STRATA_GR_RDNA": "1"}, "why": "core preset flag: pass-1 minus-arm gain, confirm it individually"},
   "us:STRATA_RDNA_MMVQ_WAVE": {"kind": "minus", "exact": true, "env": {"STRATA_RDNA_MMVQ_WAVE": "3"}, "why": "core preset flag: confirm it individually"},
   "us:STRATA_RDNA_Q6K": {"kind": "minus", "exact": true, "env": {"STRATA_RDNA_Q6K": "1"}, "why": "core preset flag: confirm it individually"},

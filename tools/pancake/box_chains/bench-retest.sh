@@ -4,6 +4,7 @@
 # Marker WINBENCHRETEST_DONE (the line before it is WINBENCHRETEST_ABORTED after an abort or a signal).  Log: <script name without .sh>.log in
 # /home/dan/clone-of-d/src (bench-retest.v1.sh -> bench-retest.v1.log; RETEST_LOG overrides).  The file name has no "win-chain", "redo-chain" or
 # "tail-chain": no busy() pattern of another chain sees it.
+# RETEST_NO_RD=1: the RD configs are not read at all (the US-only queue run-queue-us.sh); the slices usT-1..usT-4 hold US entries only.
 # RETEST_SLICE=<name> picks a slice of tools/pancake/box_chains/retest_groups.json (rdC-1, rdC-2, mixC-3, usC-4, mixR-5, mixR-6, usR-7) or
 #   carry-rd / carry-us / carry (the flags bench-sweep.sh carried: $O/<branch>-carry-*.json, pass 2 over its budget or a drifted block).
 # A PAIRED BLOCK (sweep.py paired_spec) = abtest --tier screen --drift-check on a spec whose arms are warmup (the base, an extra first start: not counted, not judged), base, flag, base~2, flag~2, base~3, flag~3, and
@@ -154,7 +155,9 @@ say "PREREQ harness ok: $HPY imports serve.server from $HN $(date +%T)"
 fx=; for k in ${RETEST_RD_DROP-STRATA_POOL_FUSE_PHASES}; do fx="$fx --drop-env $k"; done
 for kv in ${RETEST_RD_SET-STRATA_VERIFY_ECAP=0 STRATA_VERIFY_ECAP_MIN_ROWS=9}; do fx="$fx --set-env $kv"; done
 cf=; case "$RS" in carry*) cf="--carry $(ls $O/*-carry-*.json 2>/dev/null | tr '\n' ' ')";; esac
-sw retest --slice $RS --out-dir $T --rd-plain $RDC --rd-updated $RDU --rd-src $RDB/src-updated $fx \
+rdargs="--rd-plain $RDC --rd-updated $RDU --rd-src $RDB/src-updated $fx"
+[ "${RETEST_NO_RD:-0}" = 1 ] && rdargs=   # US-only queue (owner order 2026-11-20 09:19): no RD config is read, no RD arm is built
+sw retest --slice $RS --out-dir $T $rdargs \
    --us-plain $HN/configs/pancake/flashnext-iq2_xs-plain-upstream.json --us-arm-spec $HN/bench/specs/220-updated-vs-upstream-short.json \
    --us-exact-spec $HN/bench/specs/222-updated-exact-vs-upstream-short.json --us-src $USB/src-us $cf > $T/retest-$RS.txt 2>&1 \
    || abort "SPEC: sweep.py retest failed: $(tail -n 1 $T/retest-$RS.txt)"

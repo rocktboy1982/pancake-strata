@@ -17,6 +17,9 @@ retest, don't keep low performers").
                    --us-exact-spec S --us-src D] [--carry C.json...] [--drop-env K]... [--set-env K=V]...   the blocks of a RETEST slice
   sweep.py retest-triage --blocks BLOCKS.json --run BID=ROWS.jsonl... --out-dir DIR   per-flag verdicts of a RETEST slice (one v2 file per
                    branch: DIR/<branch>-triage-rt-<slice>.v2.json)
+  sweep.py final-specs --triage us-triage.v2.json --us-arm-spec S220 --us-exact-spec S222 --out-dir DIR [--shipped tuned-flags.json]   the FINAL
+                   COMPARISON of the US-only queue: stock upstream against updated-strata with the shipped flags AFTER apply_triage (final-short.json,
+                   final-long.json, final-gate.json, final-plan.txt; ESTIMATE line)
   sweep.py paired-drift --rows ROWS.jsonl --base NAME --arm NAME [--cases a,b]   the base drift of one paired block (exit 0 clean, 4 drift, 5 none)
   sweep.py carry   --spec SPEC1.json --meta META --triage TRI.v2.json --tag T --out CARRY.json   the carried flags of a slice (with their arms)
   sweep.py merge   --out BRANCH-triage.v2.json PART.json...                               one triage file of all slices of a branch (oldest first)
@@ -740,6 +743,66 @@ def retest_verdicts(blocks, runs, drift_max=DRIFT_MAX):
     return out
 
 
+# ------------------------------------------------------------------ FINAL COMPARISON (bench-final-us.sh): stock upstream against the final shipped flags
+FINAL_SHORT = ["short", "edit"]             # edit = the code-edit case ("code")
+FINAL_LONG = ["longdec10k", "longdec32k", "longdec64k", "longdec100k"]
+FINAL_REPS = 5
+
+
+def final_arms(tri, s220, s222):
+    """(arms, changes): spec 220's updated arm and spec 222's updated-exact arm after apply_triage's rules (tools/pancake/apply_triage.py plan +
+    apply_spec: a clean pass-2 DROP / OPTIONAL leaves the arm, a clean KEEP of a flag the arm lacks is added; HOLD, INCONCLUSIVE, RETEST-GATE,
+    bundles change nothing)."""
+    import sys as _sys
+    up = os.path.dirname(HERE)
+    if up not in _sys.path:
+        _sys.path.insert(0, up)
+    import apply_triage as AT
+    actions = AT.plan(tri)
+    doc = {"arms": {"updated": json.loads(json.dumps(s220["updated"])), "updated-exact": json.loads(json.dumps(s222["updated-exact"]))}}
+    changes = AT.apply_spec(doc, actions)
+    return doc["arms"], changes, actions
+
+
+def final_specs(tri, s220_doc, s222_doc, shipped=None):
+    """{name: spec} of the final comparison: final-short (short + edit), final-long (10K / 32K / 64K / 100K), final-gate (the quality-gate spec: plain-upstream
+    first = scored twice as the noise, updated-exact, updated); each with the three arms stock plain-upstream, updated (lossy), updated-exact; plus the plan lines."""
+    arms, changes, actions = final_arms(tri, s220_doc["arms"], s222_doc["arms"])
+    plain = s220_doc["arms"]["plain-upstream"]
+    three = {"plain-upstream": plain, "updated": arms["updated"], "updated-exact": arms["updated-exact"]}
+    note = ("FINAL COMPARISON (owner order 2026-11-20 09:19: stop the Strata-rdna3 tests, compare only to stock Strata): stock upstream Strata v0.2.16 (plain-upstream, "
+            "its own default flags) against updated-strata with the final shipped flags: `updated` (lossy variant: the shipped flags after apply_triage on the US "
+            "triage) and `updated-exact` (exact variant: the 11 lossy switches out). Confirm standard: abtest.py --tier confirm --block 3 --warmup 1 --outlier robust "
+            "--reclaim-max 3 --reps %d --no-early-stop. Built by tools/pancake/box_chains/bench-final-us.sh (sweep.py final-specs) from specs 220 / 222 and the merged "
+            "US triage; the flag changes are listed in the chain log." % FINAL_REPS)
+    base = s220_doc["base"]
+    mk = lambda cases, prefill, reps: {"base": base, "lossy": True, "prefill": prefill, "cases": list(cases), "reps": reps,
+                                       "arms": json.loads(json.dumps(three)), "note": note}
+    specs = {"final-short": mk(FINAL_SHORT, False, FINAL_REPS), "final-long": mk(FINAL_LONG, True, FINAL_REPS)}
+    gate = mk(FINAL_SHORT, False, 1)
+    gate["arms"] = {k: json.loads(json.dumps(three[k])) for k in ("plain-upstream", "updated-exact", "updated")}     # the order of spec 222
+    gate["note"] = "QUALITY GATE of the final comparison: " + note
+    specs["final-gate"] = gate
+    shipped_changes = []
+    if shipped:
+        import apply_triage as AT
+        shipped_changes = AT.apply_us_shipped(shipped, actions)
+    lines = ["FINALARM %s" % c for c in changes] + ["FINALSHIPPED %s" % c for c in shipped_changes]
+    verdicts = {}
+    for flag, act, rec in actions:
+        verdicts.setdefault("%s/%s" % (rec.get("verdict"), act), []).append(flag)
+    lines += ["FINALVERDICTS %s: %s" % (k, ", ".join(v)) for k, v in sorted(verdicts.items())]
+    return specs, lines
+
+
+def final_estimate(specs):
+    """seconds: short = 15 starts + 2 warm-ups per block of 3 reps, long = the same for the four long cases (one start holds the cases of a rep), gate = quality_gate.py (T-1003 bench-retest: 2700 s)."""
+    n_arms = 3
+    blocks = -(-FINAL_REPS // 3)
+    starts = n_arms * FINAL_REPS + blocks * n_arms * 1
+    return {"final-short": starts * start_s(FINAL_SHORT), "final-long": starts * start_s(FINAL_LONG), "final-gate": 2700}
+
+
 def read_lines(f):
     return open(f, encoding="utf-8").read().splitlines() if f and os.path.exists(f) else None
 
@@ -822,6 +885,12 @@ def main(argv=None):
     rv.add_argument("--run", action="append", default=[], help="BID=FILE.jsonl (a block's run; its re-run after it)")
     rv.add_argument("--out-dir", required=True, help="writes <branch>-triage-rt-<slice>.v2.json per branch")
     rv.add_argument("--drift-max", type=float, default=DRIFT_MAX)
+    fs = sub.add_parser("final-specs")
+    fs.add_argument("--triage", required=True)
+    fs.add_argument("--us-arm-spec", required=True)
+    fs.add_argument("--us-exact-spec", required=True)
+    fs.add_argument("--shipped", help="terminal/data/tuned-flags.json (a copy is changed in memory only: the FINALSHIPPED lines)")
+    fs.add_argument("--out-dir", required=True)
     pd = sub.add_parser("paired-drift")
     pd.add_argument("--rows", required=True)
     pd.add_argument("--base", required=True)
@@ -976,6 +1045,20 @@ def main(argv=None):
             for fl, rc in doc["flags"].items():
                 print("%-12s %-36s %s  [%s]" % (rc["verdict"], fl, json.dumps(rc.get("pass2") or rc.get("pass1")), rc["reason"]))
             print("TRIAGEFILE %s %s" % (br, path))
+    elif a.cmd == "final-specs":
+        tri = json.load(open(a.triage, encoding="utf-8"))
+        if tri.get("schema") != "pancake.sweep-triage/2" or tri.get("branch") not in (None, "us"):
+            raise SystemExit("sweep final-specs: %s is not a v2 triage of branch us" % a.triage)
+        sh = json.load(open(a.shipped, encoding="utf-8")) if a.shipped and os.path.exists(a.shipped) else None
+        specs, lines = final_specs(tri, json.load(open(a.us_arm_spec, encoding="utf-8")), json.load(open(a.us_exact_spec, encoding="utf-8")), sh)
+        est = final_estimate(specs)
+        for name, sp in specs.items():
+            json.dump(sp, open(os.path.join(a.out_dir, name + ".json"), "w"), indent=1)
+            print("FINALSPEC %s %s arms %s cases %s reps %s estimate %d s" % (name, os.path.join(a.out_dir, name + ".json"), ",".join(sp["arms"]),
+                                                                              ",".join(sp["cases"]), sp["reps"], est[name]))
+        for ln in lines:
+            print(ln[:600])
+        print("ESTIMATE %d" % sum(est.values()))
     elif a.cmd == "paired-drift":
         lines = read_lines(a.rows) or []
         eff, dd, per = paired_eval(lines, a.base, a.arm, "plus", a.cases.split(","))

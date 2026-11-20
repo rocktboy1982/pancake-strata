@@ -2253,7 +2253,7 @@ def prepare_be(box, us=True, rd=True, follow=False):
     for rel in ("bench/specs/222-updated-exact-vs-upstream-short.json", "bench/specs/223-updated-exact-vs-upstream-long.json",
                 "bench/specs/252-rdna3-updated-exact.json", "configs/pancake/flashnext-iq2_xs-plain-upstream.json",
                 "tools/pancake/box_chains/sweep.py", "tools/pancake/box_chains/sweep_candidates.json", "tools/pancake/box_chains/retest_groups.json",
-                "bench/specs/220-updated-vs-upstream-short.json"):
+                "bench/specs/220-updated-vs-upstream-short.json", "tools/pancake/apply_triage.py"):
         (pkg / rel).parent.mkdir(parents=True, exist_ok=True)
         shutil.copy(root / rel, pkg / rel)
     for rel in ("tools/pancake/abtest.py", "tools/pancake/quality_gate.py", "tools/force_check.py", "bench/quality/set-v2.json", "serve/__init__.py",
@@ -3239,6 +3239,8 @@ def test_retest_slices_one_flag_per_block_owner_order_and_budget():
     for sl in groups["slices"]:
         bl = mod.retest_blocks(groups, sl, bases, reg, src)
         assert 1 <= len(bl) <= 7 and sum(e["est"] for e in bl) <= 9000, sl                       # <= 2.5 h (estimate: 150 s per start, the box runs ~105 s)
+        if sl.startswith("usT-"):          # the US-only queue slices repeat the US flags of mixC-3 .. usR-7: own test below
+            continue
         allb += bl
     flags = [e["flag"] for e in allb]
     rd_order = ["STRATA_EMB_REUSE_ACCOUNT", "STRATA_GROUPED_V1", "STRATA_CVEC_FUSE", "STRATA_EARLY_REMOTE_CONTEXTS", "STRATA_EXPDEC", "STRATA_FUSE_HEAD_GR",
@@ -3333,3 +3335,128 @@ def test_bench_retest_rd_slice_runs_one_paired_block_per_flag_and_writes_per_fla
     n = len(be_calls(box, "abtest.py"))
     box.finish(box.start(RT, env=be_env(RETEST_SLICE="rdC-1", STUB_ARM_DECODE=json.dumps(dec), RETEST_LOG=(box.S / "bench-retest.log").as_posix())), timeout=240)
     assert "was run before" in "\n".join(box.log("bench-retest.log")) and len(be_calls(box, "abtest.py")) == n
+
+
+# ------------------------------------------------------------------------------------------------ US-only queue (owner order 2026-11-20 09:19, TEST_LEDGER.md T-1005)
+def test_us_only_slices_hold_every_us_retest_flag_once_in_the_owner_order_and_no_rd_entry():
+    mod = sweep_mod()
+    groups = json.loads((CHAINS / "retest_groups.json").read_text())
+    reg = sweep_registry()
+    bases = {"us": retest_bases()["us"]}                               # no RD base at all: a rd: entry in a usT slice could not even resolve
+    src = {"rd": "/nonexistent", "us": "/mnt/pancake/benchus/src-us"}
+    allb = []
+    for sl in ("usT-1", "usT-2", "usT-3", "usT-4"):
+        assert all(k.startswith("us:") for k in groups["slices"][sl]), sl
+        bl = mod.retest_blocks(groups, sl, bases, reg, src)
+        assert 1 <= len(bl) <= 5 and sum(e["est"] for e in bl) <= 9000 and all(e["branch"] == "us" for e in bl), sl
+        allb += bl
+    paired = [e["flag"] for e in allb if e["type"] == "paired" and not e["bundle"]]
+    assert paired == ["STRATA_ENGINE_NICE", "STRATA_SELECT_WMMA", "STRATA_ATTN_DAILY", "STRATA_KV_PREFETCH", "STRATA_STAGER_RING", "STRATA_PF_GROUP_SCRATCH",
+                      "STRATA_PROMPT_ATTN_IMMA", "--lookup-max-t", "STRATA_GR_RDNA_Q8", "STRATA_GR_RDNA_A8", "STRATA_GR_INJ_UP", "STRATA_GR_FUSED",
+                      "STRATA_GR_RDNA", "STRATA_RDNA_MMVQ_WAVE", "STRATA_RDNA_Q6K", "STRATA_HIPBLASLT_TUNING"]
+    by = {e["key"]: e for e in allb}
+    assert by["us:BUNDLE-222-updated-exact"]["bundle"] and by["us:GATE-lookup-max-t"]["type"] == "gate" and by["us:SPEC-223"]["type"] == "spec"
+    hb = by["us:STRATA_HIPBLASLT_TUNING"]                              # in the updated arm: a minus block, the 100401 table, shipped as <ROOT>/terminal/...
+    assert hb["kind"] == "minus" and "STRATA_HIPBLASLT_TUNING" not in hb["arm"]["env"] and "STRATA_HIPBLASLT_TUNING" in hb["base_arm"]["env"]
+    assert hb["ship"]["env"]["STRATA_HIPBLASLT_TUNING"] == "<ROOT>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt"
+
+
+def final_tri(**flags):
+    return {"schema": "pancake.sweep-triage/2", "branch": "us", "slices": [], "protected": {}, "drift_max": 5.0, "flags": flags}
+
+
+def final_rec(flag, verdict, env=None, args=None, clean=True, bundle=False, **kw):
+    return {"flag": flag, "verdict": verdict, "env": env or {}, "args": args or {}, "exact": True, "bundle": bundle, "pass1": {"short": 1.0},
+            "pass2": {"short": 1.0} if clean else None, "pass2_clean": clean, "reason": "t", **kw}
+
+
+def test_final_specs_follow_apply_triage_stock_against_updated_exact_and_lossy_confirm_standard():
+    mod = sweep_mod()
+    s220 = json.loads((SPECS / "220-updated-vs-upstream-short.json").read_text())
+    s222 = json.loads((SPECS / "222-updated-exact-vs-upstream-short.json").read_text())
+    tri = final_tri(**{
+        "STRATA_ATTN_DAILY": final_rec("STRATA_ATTN_DAILY", "DROP", env={"STRATA_ATTN_DAILY": "1"}),                       # clean pass 2 DROP: leaves both arms
+        "STRATA_KV_PREFETCH": final_rec("STRATA_KV_PREFETCH", "DROP", env={"STRATA_KV_PREFETCH": "1"}, clean=False),        # DROP without a clean pass 2: HOLD, stays
+        "STRATA_EXPDEC": final_rec("STRATA_EXPDEC", "OPTIONAL", env={"STRATA_EXPDEC": "1"}, pass2={"longdec32k": 12.0, "short": -4.0}),
+        "STRATA_NEW_FLAG": final_rec("STRATA_NEW_FLAG", "KEEP", env={"STRATA_NEW_FLAG": "1"}),                              # clean KEEP of a flag the arm lacks: added
+        "BUNDLE x": final_rec("BUNDLE x", "OPTIONAL", env={"STRATA_PF_F16": "2"}, bundle=True)})                            # a bundle never changes a flag
+    specs, lines = mod.final_specs(tri, s220, s222)
+    assert set(specs) == {"final-short", "final-long", "final-gate"}
+    for n, sp in specs.items():
+        assert list(sp["arms"])[0] == "plain-upstream" and sp["arms"]["plain-upstream"]["exe"].endswith("build-up/strata")
+        for a in ("updated", "updated-exact"):
+            e = sp["arms"][a]["env"]
+            assert "STRATA_ATTN_DAILY" not in e and "STRATA_EXPDEC" not in e and e["STRATA_KV_PREFETCH"] == "1" and e["STRATA_NEW_FLAG"] == "1", (n, a)
+            assert (e["STRATA_PF_F16"] == "1") if a == "updated" else ("STRATA_PF_F16" not in e)
+    assert specs["final-short"]["cases"] == ["short", "edit"] and specs["final-short"]["reps"] == 5
+    assert specs["final-long"]["cases"] == ["longdec10k", "longdec32k", "longdec64k", "longdec100k"] and specs["final-long"]["prefill"] is True
+    assert list(specs["final-gate"]["arms"]) == ["plain-upstream", "updated-exact", "updated"]
+    text = "\n".join(lines)
+    assert "FINALARM spec arm updated: removed STRATA_ATTN_DAILY" in text and "added STRATA_NEW_FLAG" in text and "FINALVERDICTS" in text
+    assert s220["arms"]["updated"]["env"]["STRATA_ATTN_DAILY"] == "1"          # the inputs are not changed
+    assert sum(mod.final_estimate(specs).values()) < 4 * 3600
+
+
+def test_run_queue_us_runs_only_us_slices_in_the_owner_order_and_ends_with_the_final_comparison():
+    q = (CHAINS / "run-queue-us.sh").read_text()
+    body = q.split("retest() {")[1]
+    assert "rdC" not in body and "rdB" not in body and "sweep rd" not in body and "retest carry-rd" not in body
+    assert "for s in usT-1 usT-2 usT-3 usT-4; do retest $s; done" in q and "sweep us $k/9 usB-${k}of9" in q
+    tail = q[q.index("for s in usT-1"):]
+    order = [tail.index(x) for x in ("usT-1 usT-2", "sweep us $k/9", "retest carry-us", "bench-final-us.v1.sh", "QUEUE_US_DONE")]
+    assert order == sorted(order)
+    assert "RETEST_NO_RD=1" in q and "BENCH_NO_RESUME=1" in q and "N=15" in q and "SWEEP_HARNESS_SHA:?" in q
+    assert "SWEEP_EXCLUDE_META" not in q and "SWEEP_ONLY_META" not in q
+    f = (CHAINS / "bench-final-us.sh").read_text()
+    assert f.index("WINBENCHFINALUS_DONE") < f.index("WINBENCHFINALUS_ABORTED")
+    assert "--tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5" in f
+    assert "RDB" not in f and "benchRD" not in f and "quality_gate.py" in f and "--near-tie" in f and "final-specs" in f
+    assert f.splitlines()[0] == "#!/bin/sh" and re.search(r"WIN[A-Z]*_DONE", f).group(0) == "WINBENCHFINALUS_DONE"      # the marker bench-sched.sh greps
+
+
+def test_bench_final_us_runs_short_long_and_gate_on_the_shipped_arms_and_refuses_a_second_run(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box, rd=False)
+    sw_dir = box.tmp / "auto-runs" / "benchsweep"
+    sw_dir.mkdir(parents=True, exist_ok=True)
+    tri = final_tri(**{"STRATA_ATTN_DAILY": final_rec("STRATA_ATTN_DAILY", "DROP", env={"STRATA_ATTN_DAILY": "1"})})
+    (sw_dir / "us-triage.v2.json").write_text(json.dumps(tri))
+    env = be_env(FINAL_LOG=(box.S / "bench-final-us.log").as_posix())
+    box.finish(box.start("bench-final-us.sh", env=env), timeout=240)
+    lines = box.log("bench-final-us.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHFINALUS_DONE" and "ABORTED" not in text and "ERROR" not in text, text
+    assert_start_end_pairs(lines)
+    assert "FINALARM spec arm updated: removed STRATA_ATTN_DAILY" in text
+    assert "SUMMARY final comparison (US only): final-short exit=0, final-long exit=0, final-gate exit=0" in text
+    order = ["SYNC harness", "FINALSPEC final-short", "START final-short", "START final-long", "START final-gate", "SUMMARY final comparison"]
+    pos = [text.index(k) for k in order]
+    assert pos == sorted(pos), order
+    ab = be_calls(box, "abtest.py")
+    assert len(ab) == 2 and all("--tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5 --no-early-stop" in x for x in ab), ab
+    assert sum(1 for c in box.calls() if c.startswith("PY") and "quality_gate.py" in c) == 1
+    spec = json.loads((sw_dir / "final-short.json").read_text())
+    assert list(spec["arms"]) == ["plain-upstream", "updated", "updated-exact"] and "STRATA_ATTN_DAILY" not in spec["arms"]["updated"]["env"]
+    assert not any(c.startswith("SIG") for c in box.calls())
+    assert not any(c.startswith("SYSTEMCTL") and (" start " in c or " stop " in c) for c in box.calls())
+    n = len(be_calls(box, "abtest.py"))
+    for f in ("final-short.jsonl", "final-long.jsonl"):
+        (sw_dir / f).write_text("{}")
+    box.finish(box.start("bench-final-us.sh", env=env), timeout=240)
+    assert "was run before" in "\n".join(box.log("bench-final-us.log")) and len(be_calls(box, "abtest.py")) == n
+
+
+def test_bench_retest_no_rd_reads_no_rd_config_and_runs_a_us_only_slice(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box, rd=False)                                          # no RD config exists on this box
+    b = {"short": 100.0, "edit": 140.0, "longdec32k": 30.0, "longdec32k-prompt": 1500.0}
+    dec = {"*": b, "minus-GR_RDNA": {**b, "edit": 130.0}}
+    box.finish(box.start(RT, env=be_env(RETEST_SLICE="usT-3", RETEST_NO_RD="1", STUB_ARM_DECODE=json.dumps(dec),
+                                        RETEST_LOG=(box.S / "bench-retest.log").as_posix())), timeout=300)
+    lines = box.log("bench-retest.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHRETEST_DONE" and "ABORTED" not in text and "ARMFIX" not in text, text
+    assert "RETEST usT-3: 5 blocks" in text and "SUMMARY retest slice usT-3: 5 blocks" in text
+    assert len(be_calls(box, "abtest.py")) == 5
+    assert (box.tmp / "auto-runs" / "benchsweep" / "us-triage-rt-usT-3.v2.json").exists()
+    assert not (box.tmp / "auto-runs" / "benchsweep" / "rd-triage-rt-usT-3.v2.json").exists()
