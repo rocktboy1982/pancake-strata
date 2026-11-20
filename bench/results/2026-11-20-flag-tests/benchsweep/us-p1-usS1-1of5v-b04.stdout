@@ -6,3 +6,7 @@ REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1414, pack load 0.48 GiB/
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 updated              short 110.6 short 103.7 edit 167.4 edit 169.7 longdec64k 81.3/2177p 65242t  foreign CPU 2% [('snapd', 4), ('dbus-daemon', 0), ('upowerd', 0)]  gpu 2045/1249 MHz 61C 182W gtt 25M cpu 3794MHz 66C igpu 0%/vcn 0% fclk 1600
 REGIME-RECOVERED updated: first start prefill 1414 / load 0.48 GiB/s (paused 13:48:58), second start prefill 2177 / load 1.24 GiB/s
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-GDN_HEAD       short 103.4 short 98.5 edit 103.9 edit 105.0 longdec64k 60.0/1462p 65242t  foreign CPU 2% [('kcompactd0', 7), ('claude', 1), ('localsearch-3', 1)]  gpu 2001/1249 MHz 61C 170W gtt 25M cpu 3438MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-PREFILL_CPU_SHARE_MAX short 100.9 short 96.5 edit 154.6 edit 133.1 longdec64k 75.4/1578p 65242t  foreign CPU 2% [('kcompactd0', 7), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 1975/1249 MHz 62C 186W gtt 25M cpu 3785MHz 65C igpu 0%/vcn 0% fclk 1600
