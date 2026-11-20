@@ -6,3 +6,7 @@ rep 0 minus-PF_GEMM        short 99.6 short 100.9 edit 118.6 edit 180.9 longdec6
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-PF_HCDOWN      short 86.1 short 80.7 edit 113.9 edit 170.6 longdec64k 77.3/1454p 65240t  foreign CPU 3% [('kcompactd0', 5), ('kswapd0', 2), ('localsearch-3', 1)]  gpu 2036/1249 MHz 63C 191W gtt 25M cpu 3811MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-PF_HCDOWN: every attempt noisy, keeping the quietest (3% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 61.0 short 104.0 edit 124.0 edit 101.4 longdec64k 79.9/2106p 65240t  foreign CPU 4% [('kcompactd0', 4), ('kswapd0', 4), ('claude', 1)]  gpu 2037/1249 MHz 63C 179W gtt 25M cpu 3526MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 2106, pack load 0.41 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
