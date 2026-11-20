@@ -63,3 +63,50 @@ PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.53 13.7 s (2.66
 PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf 0.00 0.0 s: skipped, 26.82 GiB would take the planned 64.8 GiB over the 46.2 GiB the page cache can hold
   WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.7 short 103.7 edit 168.7 edit 171.7 longdec64k 84.3/2190p 65241t  foreign CPU 2% [('systemd', 1), ('claude', 1), ('systemd-journal', 0)]  gpu 2042/1249 MHz 63C 187W gtt 25M cpu 3584MHz 65C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.2 +-  45.1  (n=2)
+                              drafts accepted 0.71
+  short  plus-MMVQ_IL            101.9 +-  23.5  (n=2)   vs updated:  -4.9% +- 20.1%  -> no difference
+                              drafts accepted 0.67
+  short  plus-GROUPED_V1         100.2 +-  14.6  (n=2)   vs updated:  -6.6% +- 55.7%  -> no difference
+                              drafts accepted 0.70
+  short  base-m1                  90.0 +- 132.8  (n=2)   vs updated: -16.1% +- 81.8%  -> no difference
+                              drafts accepted 0.65
+  short  plus-LM_HIP             102.2 +-  25.4  (n=2)   vs updated:  -4.7% +- 18.4%  -> no difference
+                              drafts accepted 0.67
+  short  base-late               107.2 +-  44.5  (n=2)   vs updated:  -0.0% +-  0.6%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 169.3 +-   4.4  (n=2)
+                              drafts accepted 0.89
+  edit   plus-MMVQ_IL            169.3 +-  82.6  (n=2)   vs updated:  -0.0% +- 51.4%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-GROUPED_V1         173.3 +-  59.7  (n=2)   vs updated:  +2.3% +- 37.9%  -> no difference
+                              drafts accepted 0.90
+  edit   base-m1                 110.3 +-  67.4  (n=2)   vs updated: -34.9% +- 42.4%  -> no difference
+                              drafts accepted 0.91
+  edit   plus-LM_HIP             173.9 +-  94.7  (n=2)   vs updated:  +2.7% +- 58.5%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               170.2 +-  19.1  (n=2)   vs updated:  +0.5% +- 13.9%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  83.5 +-   nan  (n=1)
+  longdec64k plus-MMVQ_IL             78.8 +-   nan  (n=1)   vs updated:  -5.6% +-  nan%  -> no difference
+  longdec64k plus-GROUPED_V1          61.2 +-   nan  (n=1)   vs updated: -26.7% +-  nan%  -> no difference
+  longdec64k base-m1                  72.4 +-   nan  (n=1)   vs updated: -13.3% +-  nan%  -> no difference
+  longdec64k plus-LM_HIP              80.6 +-   nan  (n=1)   vs updated:  -3.5% +-  nan%  -> no difference
+  longdec64k base-late                84.3 +-   nan  (n=1)   vs updated:  +1.0% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-MMVQ_IL         DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-GROUPED_V1      DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-LM_HIP          DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -0.0%  edit +0.5%  longdec64k +1.0%
+  plus-MMVQ_IL         short -4.9%  edit -0.3%  longdec64k -6.1%  -> drop
+  plus-GROUPED_V1      short -6.6%  edit +2.1%  longdec64k -27.1%  -> drop
+  base-m1              short -16.1%  edit -35.0%  longdec64k -13.7%  -> drop
+  plus-LM_HIP          short -4.7%  edit +2.4%  longdec64k -3.9%  -> drop

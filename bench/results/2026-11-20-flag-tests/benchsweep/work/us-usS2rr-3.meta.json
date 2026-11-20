@@ -1,0 +1,146 @@
+{
+ "schema": "pancake.sweep-select/1",
+ "verdicts": [
+  "INCONCLUSIVE"
+ ],
+ "flags": {
+  "plus-EMB_REUSE_ACCOUNT": {
+   "flag": "STRATA_EMB_REUSE_ACCOUNT",
+   "kind": "plus",
+   "keys": [
+    "STRATA_EMB_REUSE_ACCOUNT"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_EMB_REUSE_ACCOUNT": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: VRAM accounting for chunk sizing); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": -0.61,
+    "edit": 8.17,
+    "longdec64k": -1.38,
+    "longdec64k-prompt": 0.29
+   },
+   "run1_best": "edit",
+   "arm": "plus-EMB_REUSE_ACCOUNT",
+   "slice": "usS2r-3-1of1",
+   "pass1": {
+    "short": -10.63,
+    "edit": -32.59,
+    "longdec64k": -7.14,
+    "longdec64k-prompt": -24.7
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-3-1of1-b01",
+   "drift1": {
+    "short": 0.58,
+    "edit": -8.45,
+    "longdec64k": 6.64
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-3-1of1-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-3-1of1-b01 base drift edit -8.4 % > 5 % (after its re-run): no verdict"
+  },
+  "plus-GDN_TC": {
+   "flag": "STRATA_GDN_TC",
+   "kind": "plus",
+   "keys": [
+    "STRATA_GDN_TC"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GDN_TC": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class KeyIfSet: tensor-core GDN scan (opt-in)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": -4.17,
+    "edit": 4.1,
+    "longdec64k": 0.12,
+    "longdec64k-prompt": 0.44
+   },
+   "run1_best": "edit",
+   "arm": "plus-GDN_TC",
+   "slice": "usS2r-3-1of1",
+   "pass1": {
+    "short": -15.55,
+    "edit": -15.84,
+    "longdec64k": -24.88,
+    "longdec64k-prompt": -28.62
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-3-1of1-b01",
+   "drift1": {
+    "short": 0.58,
+    "edit": -8.45,
+    "longdec64k": 6.64
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-3-1of1-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-3-1of1-b01 base drift edit -8.4 % > 5 % (after its re-run): no verdict"
+  },
+  "plus-LM_HIP": {
+   "flag": "STRATA_LM_HIP",
+   "kind": "plus",
+   "keys": [
+    "STRATA_LM_HIP"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_LM_HIP": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: HIP LM head variant); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": -3.27,
+    "edit": -0.89,
+    "longdec64k": 2.63,
+    "longdec64k-prompt": -1.45
+   },
+   "run1_best": "longdec64k",
+   "arm": "plus-LM_HIP",
+   "slice": "usS2r-3-1of1",
+   "pass1": {
+    "short": -2.22,
+    "edit": 2.48,
+    "longdec64k": -0.68,
+    "longdec64k-prompt": -0.28
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-3-1of1-b02",
+   "drift1": {
+    "short": 4.22,
+    "edit": -2.22,
+    "longdec64k": 8.08
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-3-1of1-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-3-1of1-b02 base drift longdec64k +8.1 % > 5 % (after its re-run): no verdict"
+  }
+ }
+}
