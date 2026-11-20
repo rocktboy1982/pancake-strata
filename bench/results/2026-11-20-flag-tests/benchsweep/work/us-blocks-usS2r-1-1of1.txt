@@ -1,0 +1,3 @@
+BLOCK b01 1520 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-1-1of1-b01.json order: minus-ATTN_DAILY minus-PIN_BY_NEED minus-KV_PREFETCH minus-EXCHANGE_ROTATE
+BLOCK b02 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-1-1of1-b02.json order: minus-GDN_CHUNKED minus-GDN_NOY minus-QFUSE minus-PF_GROUP_SCRATCH
+BLOCK b03 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-1-1of1-b03.json order: minus-PF_GEMM minus-PF_HCDOWN minus-PF_PAD minus-HC_UPMIX
