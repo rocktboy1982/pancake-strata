@@ -18,8 +18,8 @@ where both have one and the values differ, Strata-rdna3's value stays and the pa
 dropped or never wired stays out.
 
 All numbers below were measured on the pancake line: RX 7900 XT 20 GB (gfx1100), Ryzen 7 5700G, ROCm 10.0, model Qwen3.8-Flash-Next (GSQ-RCO IQ2_XS),
-greedy decoding unless stated. They are not yet measured on this branch. Section 4 holds the benchmark of this branch against plain Strata-rdna3; its
-tables are marked TO BE MEASURED until the box run exists. The ledger rows (`T-nnn`) are rows of `TEST_LEDGER.md` on the pancake line.
+greedy decoding unless stated. Section 4 holds the benchmark of this branch against plain Strata-rdna3, run on 2026-11-19 / 20 on that machine
+(pancake ledger T-997..T-1000); the per-switch numbers of section 2 are still the pancake line's, not re-measured one by one here. The ledger rows (`T-nnn`) are rows of `TEST_LEDGER.md` on the pancake line.
 
 ## 1. What this branch adds
 
@@ -127,7 +127,7 @@ compare it with `data/expert-profile.bin`. A recommended argument replaces the s
   the pancake daily preset runs none of these on the 7900 XT, so the daily preset does not use it there either.
 - (Since the 2026-11-19 night round `STRATA_AMD_COMMUNITY_TUNING` IS ported, for the users of other AMD cards: section 2.16.)
 - The BF16 router kernels for exactly 7 and 8 columns (micro-benchmark only, not part of the preset).
-TO BE MEASURED on this branch: everything in sections 2.9 to 2.15.
+Measured on this branch only as a whole (section 4, T-997..T-1000): everything in sections 2.9 to 2.15; no single-switch number of those sections is from this branch.
 
 ### 2.9 Verify windows of up to 16 rows and `--lookup-max-t N` (build option + engine; pancake T-126, T-127)
 What: the verify / batch window holds up to 16 rows in the HIP build (CMake `STRATA_WINDOW_MAX_T` = auto | 8 | 16, auto = 16 for HIP and 8 for CUDA;
@@ -267,22 +267,63 @@ tools/pancake/test_pcie_link.py` (fake hardware, fake verdicts, fake sysfs); `ve
 ROCm host (they include POSIX headers): `tools/pancake/build_updated_rdna3.sh SRC BUILD --target strata` builds them, `ctest --test-dir BUILD -R
 "verify_ecap_test|sampler_parity|elementwise_parity|window_limits_test|draft_policy_test|prefill_plan_test"` runs the parity and window tests. On the target machine: `tools/pancake/flag_diag.sh run --config <server config>
 --flags POOL_FUSE_PHASES,VERIFY_ECAP,PF_F16,HIPBLASLT_TUNING,EXPERT_PROFILE` (a few minutes per flag; it starts engines only through the A/B harness). Results of a diagnostic
-run on the box: TO BE MEASURED.
+run on the box (2026-11-20 00:34-00:41, T-1000; one start per flag, short case only; flag_diag before its T-990 fix): `POOL_FUSE_PHASES` "FAIL" is no result
+(its 7 pool ctests were all "Not Run": the test binaries were not built), speed -0.96 %; `VERIFY_ECAP` NO-GAIN -2.93 % (short case only; ECAP's gain is on the
+code edit, gates T-589 / T-591); `PF_F16` NO-GAIN +0.18 %; `RDNA_MMVQ_WAVE` NO-GAIN -1.71 %, `KV_HOST_DMA` NO-GAIN -2.10 % (text differs: treated as lossy).
+Parity ctests of the updated build: `sampler_parity`, `sampler_parity_one_block`, `sampler_parity_old`, `elementwise_parity`, `verify_ecap_test` 5 of 5 passed; the
+plain build's 4 registered tests were "Not Run" (no result).
 
-## 4. Benchmark: plain Strata-rdna3 against this branch (TO BE MEASURED)
+## 4. Benchmark: plain Strata-rdna3 against this branch
 Plan: `tools/pancake/box_chains/bench-updatedRD.sh` builds plain Strata-rdna3 `8b01b0c85` with its documented flags and this branch with
 `build_updated_rdna3.sh`, runs the parity tests, the flag diagnostics, spec 250 (screen, then 5 repeats in blocks of 3, one engine at a time, text compared with
 the plain arm; arms `plain`, `updated` = plain + the whole pancake preset of 2.15, `updated+pf16-1`) and spec 251 (screen first: the 100401 table and the learned
 profile against the updated arm with Strata-rdna3's own table and profile). Workloads: short chat and code edit (decode tok/s), cold prompts of 10,000 / 32,000 / 64,000 / 100,000 tokens (prompt tok/s). Short plan (screen first, confirm only for arms with a screen benefit, 3 reps, tune-up included): about 1.9 hours of box time, budget 2 hours (`bench-sched.sh` runs it before the rest of the box queue).
 
-| case | plain | updated | change | text identical |
-|---|---|---|---|---|
-| short (decode tok/s) | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED |
-| edit (decode tok/s) | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED |
-| 10,000 tokens (prompt tok/s) | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED | n/a (unique first line) |
-| 32,000 tokens (prompt tok/s) | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED | n/a |
-| 64,000 tokens (prompt tok/s) | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED | n/a |
-| 100,000 tokens (prompt tok/s) | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED | n/a |
+Results (run 2026-11-19 22:09 to 2026-11-20 00:50). Hardware: RX 7900 XT 20 GB (gfx1100), Ryzen 7 5700G, 58 GB RAM, PCIe 4.0 x16, ROCm 10.0,
+Linux. Model: Qwen3.8-Flash-Next `GSQ-RCO-IQ2_XS`. Plain = Strata-rdna3 `8b01b0c85` built with its documented flags and started with its own setup config
+`rdna3/configs/iq3-1gpu.json` exactly (only the model is the box's IQ2_XS; `--mtp-q4 proj` instead of `all`, because this model's draft head is stored below
+4.5 bits, T-987). Updated = this branch, the same config plus only the settings plain does not set (the pancake preset, 2.15), `--lookup-max-t 12`, 16-row
+windows. Updated-exact = updated without `STRATA_VERIFY_ECAP` (+`_MIN_ROWS`), its one lossy addition. Both arms also carry Strata-rdna3's own lossy defaults
+(`GR_RDNA_Q8`, `_A8`, ...), so "exact" is relative to plain. Numbers are mean +- 95 % interval in tok/s; n = measured requests per case. Ledger rows are
+pancake-strata `TEST_LEDGER.md`; raw files in its `bench/results/2026-11-19-benchmarks/`.
+
+**Noise caveat.** The machine was far from quiet: foreign CPU load 21-29 % in spec 250 and 29-58 % in the spec 252 confirm, the memory compaction
+thread `kcompactd0` at the top every time. The screens kept the quietest of 3 noisy attempts, and two screens of the same plain config gave 32K prompt
+speeds of 1,901 and 1,073 tok/s. Read the screens as direction only. The confirm (spec 252) is the result: no difference that this noise can resolve.
+
+Spec 252 confirm, 2 starts x 3 passes per arm (T-999):
+
+| case | plain Strata-rdna3 | updated-exact | updated (lossy: + ECAP) | n | verdict |
+|---|---|---|---|---|---|
+| short, decode tok/s | 82.6 +-9.9 | 87.5 +-6.1 (+5.3 % +-16.2) | 88.6 +-9.7 (+9.9 % +-16.2) | 5 / 6 / 3 | no difference |
+| edit, decode tok/s | 87.7 +-10.3 | 93.8 +-4.9 (+6.1 % +-12.7) | 119.0 +-53.9 (+35.9 % +-36.8) | 5 / 6 / 3 | no difference |
+
+Screens (quietest attempt; direction only):
+
+| case | plain | updated-exact | updated (lossy) | n, spec | ledger |
+|---|---|---|---|---|---|
+| short, decode tok/s | 70.3 +-10.2 | 112.0 +-56.6 (+59.2 %, no difference) | 113.6 +-25.4 (+61.6 % +-50.6, better) | n = 2, spec 252 | T-999 |
+| edit, decode tok/s | 84.1 +-160.1 | 109.5 +-280.9 (+30.2 %, no difference) | 118.1 +-188.7 (+40.4 % +-34.0, better) | n = 2, spec 252 | T-999 |
+| 32,000 tokens, prompt tok/s | 1,072.9 | 1,604.5 (+49.5 %) | 1,592.6 (+48.4 %) | n = 1, spec 252 | T-999 |
+| short, decode tok/s | 93.6 +-10.2 | not in this spec | 73.9 +-68.0 (-21.0 % +-61.8, no difference) | n = 2, spec 250 | T-997 |
+| edit, decode tok/s | 96.4 +-114.4 | not in this spec | 141.9 +-617.1 (+47.3 %, no difference) | n = 2, spec 250 | T-997 |
+| 10,000 tokens, prompt tok/s | 1,441.5 | not in this spec | 940.0 (-34.8 %) | n = 1, spec 250 | T-997 |
+| 32,000 tokens, prompt tok/s | 1,900.7 | not in this spec | 1,273.4 (-33.0 %) | n = 1, spec 250 | T-997 |
+| 64,000 tokens, prompt tok/s | 2,221.7 | not in this spec | 2,187.9 (-1.5 %) | n = 1, spec 250 | T-997 |
+| 100,000 tokens, prompt tok/s | 2,413.4 | not in this spec | 2,486.3 (+3.0 %) | n = 1, spec 250 | T-997 |
+
+Over all three attempts of spec 250 the updated prompt speed at 10,000 tokens was 940-1,496 tok/s against plain 1,138-1,442, at 32,000 tokens
+1,273-1,796 against 1,436-1,901: no clear direction. The arm `updated+pf16-1` (the pancake `PF_F16=1` instead of Strata-rdna3's 2) was no different on
+decode and not faster on prompt (T-997). Spec 251 (single settings against updated, screen, T-998): the 100401 hipBLASLt table +4.1 % +-23.3 short, the
+learned profile, the English draft vocabulary, `--max-context 131072` and the 2048 MiB conversation cache all no difference on short and slower on the
+single 32K request; all dropped at the screen. Note from the engine logs: on ROCm 10.0 the hipBLASLt runtime is 100401, so Strata-rdna3's 100200 table
+is refused (`hipBLASLt version mismatch: file=100200 runtime=100401; using hipBLASEx`); only the 100401 table is used there.
+
+Text and quality. Text differed in every arm, the second plain run included, so text identity cannot judge exactness on this model. Strata-rdna3 has no
+`STRATA_FOLLOW`, so the token-forcing gate cannot score it; the task gate ran instead (T-1000; `tools/pancake/task_gate.py`, 18 tasks: 8 code edits, 7
+tool calls, 3 questions, 5 repetitions, temperature 0.2, plain run twice): plain 180 of 180 (100.0 %, 95 % interval [97.9, 100.0]), updated 90 of 90
+(100.0 % [95.9, 100.0]), tool-call validity 100 % both, success difference +0.0 points [+0.0, +0.0]: **PASS**. Caveat: this task set also sat at 100 % on
+the pancake line (T-819), so the tasks may be too easy to separate the arms; the PASS may be a ceiling.
 
 Build flags of the optimised build (each justified in the script header): Release, -O3, gfx1100 only, HIP on and CUDA off, `-mtune=native` (no change of
 instruction set, same bits), no fast-math, `-DSTRATA_WINDOW_MAX_T=16` (2.9); `-march=native` and LTO stay opt-in until measured.
