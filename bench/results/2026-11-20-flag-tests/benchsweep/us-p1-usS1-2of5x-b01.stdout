@@ -1,1 +1,11 @@
 case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 27.52 37.6 s (0.73 GiB/s; stopped; waited 11.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 warmup               short 108.2 short 103.6 edit 169.2 edit 168.3 longdec64k 82.9/2173p 65241t  foreign CPU 14% [('find', 23), ('kcompactd0', 22), ('kswapd0', 2)]  gpu 2046/1249 MHz 62C 179W gtt 25M cpu 3622MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.45 34.2 s (1.07 GiB/s; stopped; waited 12.1 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 100.6 short 100.2 edit 162.6 edit 175.6 longdec64k 80.5/2172p 65241t  foreign CPU 8% [('kcompactd0', 26), ('kworker/14:0-events', 2), ('kworker/11:2-events', 2)]  gpu 2029/1249 MHz 63C 189W gtt 25M cpu 3622MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.47 35.3 s (1.03 GiB/s; stopped; waited 12.0 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-adapt-every    short 102.9 short 110.2 edit 154.5 edit 177.8 longdec64k 89.3/2180p 65241t  foreign CPU 7% [('kcompactd0', 21), ('kswapd0', 3), ('kworker/3:2-events_freezable', 2)]  gpu 2041/1249 MHz 64C 182W gtt 25M cpu 3609MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-adapt-every: every attempt noisy, keeping the quietest (7% foreign CPU)
