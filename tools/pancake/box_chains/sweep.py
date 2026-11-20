@@ -52,6 +52,12 @@ at the end; the box slowed down during the run and the late base was up to 44 % 
 judged against the wrong base): pass 1 runs as blocks of at most 6 arms; each block is its own abtest run (base `updated`, the block's arms in a
 random order, the base again: `base-late`), so every arm is judged against the two base runs of its own block (<= ~20 min apart).  A block whose
 base drift (late vs early) is above 5 % on any case is run once more; still above 5 %: its arms are INCONCLUSIVE (never DROP / KEEP / RETEST).
+WARM-UP + DRIFT ESTIMATOR (T-1004, owner-delegated 2026-11-20): every block (pass-1 block, paired confirm block) starts with ONE extra engine start of the
+base, arm `warmup` (the base config; run first; never counted, never judged: it brings the box, the page cache and kcompactd to a steady state;
+in the first real block the first start ran edit at 158.5 tok/s and every later one at 137-140).  The drift is judged on the counted base runs
+only, with the LAST request of each case in a start (the second request of short / edit, the single one of longdec32k): it varies 0.3 % (short) /
+0.5 % (edit) from start to start, the first request 3-6 %.  The effects (the flag against the base) still use the mean of both requests.  The 5 %
+limit, the one re-run and INCONCLUSIVE after it are unchanged.
 TRIAGE GUARD (schema pancake.sweep-triage/2): a verdict computed on data with a base drift above 5 % is INCONCLUSIVE (pass 1: the block's late vs
 early base; pass 2: the largest deviation of a base rep from the first one), also when pass 1 was clean.  An INCONCLUSIVE or RETEST flag with
 promising numbers is marked "carry": true: the follow-up RETEST slice (bench-retest.sh, slice carry-<branch>) runs it again.  A flag with a
@@ -79,6 +85,7 @@ PROMISE = {True: 1.0, False: 1.5}        # exact / lossy: pass-1 bar
 KEEP = {True: 2.0, False: 3.0}           # exact / lossy: pass-2 bar
 FLOOR = -3.0
 BASES = ("updated", "base-late")
+WARM = "warmup"                          # the extra first engine start of every block (T-1004): base config, not counted, not judged
 
 
 def argmap(args):
@@ -189,18 +196,18 @@ def block_sizes(n, size=BLOCK):
 
 def estimate(n_arms, pass2_max=6, block=BLOCK):
     """(pass 1, one block re-run, pass 2) in seconds: every block = its arms + updated + base-late; one re-run of the largest block is budgeted;
-    pass 2 = pass2_max paired blocks of 7 starts (base, flag x 3 interleaved, base)."""
+    pass 2 = pass2_max paired blocks of 8 starts (warm-up, base, flag x 3 interleaved, base); every block has one extra warm-up start (T-1004)."""
     bs = block_sizes(n_arms, block)
-    p1 = (n_arms + 2 * len(bs)) * START_S
-    rr = ((max(bs) + 2) * START_S) if bs else 0
-    p2 = min(pass2_max, n_arms) * 7 * START_S          # planning: one paired block (7 starts) per flag; pass 2 itself has no cap
+    p1 = (n_arms + 3 * len(bs)) * START_S
+    rr = ((max(bs) + 3) * START_S) if bs else 0
+    p2 = min(pass2_max, n_arms) * 8 * START_S          # planning: one paired block (8 starts) per flag; pass 2 itself has no cap
     #                                                    (bench-sweep.sh runs blocks while the 2.5 h budget holds, the rest is carried)
     return p1, rr, p2
 
 
 def block_specs(spec, size=BLOCK, seed="0"):
     """[(block id, spec, arm order)]: the flag arms of a pass-1 spec in blocks of <= size (spec order), each block's arms shuffled (a seeded
-    random order: the same seed gives the same order); every block spec = updated, the block's arms, then abtest's base-late (drift_check)."""
+    random order: the same seed gives the same order); every block spec = the warm-up start (the base, not counted), updated, the block's arms, then abtest's base-late (drift_check)."""
     names = [a for a in spec["arms"] if a != "updated"]
     sizes = block_sizes(len(names), size)
     out, i = [], 0
@@ -209,9 +216,9 @@ def block_specs(spec, size=BLOCK, seed="0"):
         i += n
         bid = "b%02d" % k
         random.Random("%s:%s" % (seed, bid)).shuffle(part)
-        arms = {"updated": spec["arms"]["updated"]}
+        arms = {WARM: spec["arms"]["updated"], "updated": spec["arms"]["updated"]}     # warm-up start first (T-1004: not counted, not judged)
         arms.update({a: spec["arms"][a] for a in part})
-        note = "%s; block %s of %d: %d arms, random order, base again at the end" % (spec.get("note", ""), bid, len(sizes), n)
+        note = "%s; block %s of %d: warm-up start, %d arms, random order, base again at the end" % (spec.get("note", ""), bid, len(sizes), n)
         out.append((bid, {**spec, "arms": arms, "drift_check": True, "note": note.lstrip("; ")}, part))
     return out
 
@@ -253,9 +260,10 @@ def records(lines):
     return out
 
 
-def metrics(lines, rep=None, cases=None):
+def metrics(lines, rep=None, cases=None, last=False):
     """{arm: {metric: mean}} from abtest jsonl lines (rep: only the records of that rep).  short / edit / longdecN: decode tok/s (longdecN also
-    "-prompt": prompt tok/s); longN (a cold prompt, 32 tokens out): prompt tok/s only ("longN-prompt")."""
+    "-prompt": prompt tok/s); longN (a cold prompt, 32 tokens out): prompt tok/s only ("longN-prompt").
+    last=True: only the LAST request of each case in a start counts (the second one of short / edit): the drift estimator (T-1004)."""
     cases = cases or CASES
     acc = {}
     for ln in lines:
@@ -269,7 +277,10 @@ def metrics(lines, rep=None, cases=None):
         arm = rec.get("arm")
         if rep is not None and rec.get("rep", 0) != rep:
             continue
-        for r in rec.get("rows") or []:
+        rows = rec.get("rows") or []
+        if last:
+            rows = list({r.get("case"): r for r in rows}.values())     # the last row of each case (dict order: the first sighting; value: the last row)
+        for r in rows:
             c = r.get("case")
             if not arm or c not in cases:
                 continue
@@ -337,9 +348,10 @@ def drift_keys(cases):
 
 
 def drift1(lines, base="updated", cases=None):
-    """Pass 1 (one block): {case: % of the late base run (base-late) against the early one (base)}; {} without both."""
+    """Pass 1 (one block): {case: % of the late base run (base-late) against the early one (base)}; {} without both.  Drift estimator (T-1004): the
+    LAST request of each case in a start (the second one of short / edit: the steady one; the first one wobbles 4-9 % from start to start)."""
     cases = cases or CASES
-    m = metrics(lines, cases=cases)
+    m = metrics(lines, cases=cases, last=True)
     e, l = m.get(base, {}), m.get("base-late", {})
     return {c: round(l[c] / e[c] * 100.0 - 100.0, 2) for c in drift_keys(cases) if e.get(c) and l.get(c)}
 
@@ -350,8 +362,8 @@ def drift2(lines, base="updated", cases=None):
     reps = sorted({r.get("rep", 0) for r in records(lines) if r.get("arm") == base})
     if len(reps) < 2:
         return {}
-    first = metrics(lines, reps[0], cases).get(base, {})
-    later = [metrics(lines, k, cases).get(base, {}) for k in reps[1:]]
+    first = metrics(lines, reps[0], cases, last=True).get(base, {})
+    later = [metrics(lines, k, cases, last=True).get(base, {}) for k in reps[1:]]
     out = {}
     for c in drift_keys(cases):
         devs = [x[c] / first[c] * 100.0 - 100.0 for x in later if x.get(c) and first.get(c)]
@@ -443,16 +455,16 @@ def rep_name(arm, k):
 
 
 def paired_spec(base_path, base_name, base_arm, name, arm, cases=None, note="", reps=PAIRED_REPS):
-    """ONE flag's confirm block: base, flag, base, flag, base, flag, base -- abtest --tier screen --drift-check runs the arms in spec order, one
+    """ONE flag's confirm block: warm-up (the base, not counted), base, flag, base, flag, base, flag, base -- abtest --tier screen --drift-check runs the arms in spec order, one
     engine start each, and the base again at the end (base-late): 3 interleaved reps of the flag, each between two base runs of the same block."""
     cases = cases or CASES
-    arms = {}
+    arms = {WARM: base_arm}                      # the warm-up start (T-1004): first, not counted, not judged
     for k in range(1, reps + 1):
         arms[rep_name(base_name, k)] = base_arm
         arms[rep_name(name, k)] = arm
     return {"base": base_path, "drift_check": True, "lossy": True, "prefill": any(c.startswith("long") for c in cases), "cases": list(cases),
             "reps": 1, "arms": arms,
-            "note": ("paired confirm block of ONE flag (%s against %s): base, flag x %d interleaved, base again at the end; tools/pancake/box_chains/"
+            "note": ("paired confirm block of ONE flag (%s against %s): one warm-up start of the base (not counted), base, flag x %d interleaved, base again at the end; tools/pancake/box_chains/"
                      "sweep.py paired_spec. %s" % (name, base_name, reps, note)).strip()}
 
 
@@ -483,10 +495,11 @@ def paired_eval(lines, base_name, name, kind, cases=None, reps=PAIRED_REPS):
         vals = [e[met] for e in per if met in e]
         eff[met] = round(sum(vals) / len(vals), 2)
     eff = {k: eff[k] for k in sorted(eff, key=lambda k: (METRICS.index(k) if k in METRICS else 99, k))}
-    first = m.get(bases[0], {})
+    md = metrics(lines, cases=cases, last=True)        # the drift is judged on the last request of each case per start (T-1004), the effects on the mean
+    first = md.get(bases[0], {})
     drift = {}
     for c in drift_keys(cases):
-        devs = [m[b][c] / first[c] * 100.0 - 100.0 for b in bases[1:] if m.get(b, {}).get(c) and first.get(c)]
+        devs = [md[b][c] / first[c] * 100.0 - 100.0 for b in bases[1:] if md.get(b, {}).get(c) and first.get(c)]
         if devs:
             drift[c] = round(max(devs, key=abs), 2)
     return eff, drift, [{k: round(v, 2) for k, v in e.items()} for e in per]
@@ -502,7 +515,7 @@ def paired_record(rec, runs, base_name, name, kind, exact, cases, mx=DRIFT_MAX):
     lab, (eff, drift, per) = ([x for x in evs if clean(x[1][1], mx)] or evs)[-1]
     ok = clean(drift, mx)
     rec.update({"pass2": eff, "pass2_reps": per, "pass2_drift": drift or None, "pass2_clean": ok, "pass2_block": lab,
-                "pass2_runs": [x[0] for x in evs], "pass2_design": "paired block: base, flag x 3 interleaved, base"})
+                "pass2_runs": [x[0] for x in evs], "pass2_design": "paired block: warm-up (not counted), base, flag x 3 interleaved, base", "drift_estimator": "last request of each case per start"})
     if not ok:
         rec["carry"] = True
         return "INCONCLUSIVE", "paired block %s base drift %s > %.0f %% (after its re-run): no verdict; carried to the follow-up RETEST slice" % (
@@ -640,7 +653,7 @@ def resolve_entry(key, ent, bases, registry, src):
         if ent.get("ship"):
             d["ship"] = ent["ship"]
     d["base"] = B["path"]
-    d["est"] = 7 * start_s(d["cases"])
+    d["est"] = 8 * start_s(d["cases"])
     return d
 
 
@@ -654,7 +667,7 @@ def carry_entries(docs):
             out.append({"key": "%s:%s" % (doc["branch"], m["flag"]), "branch": doc["branch"], "flag": m["flag"], "type": "paired", "kind": m["kind"],
                         "exact": bool(m.get("exact", True)), "bundle": False, "base_name": "updated", "arm_name": an, "base_arm": doc["base_arm"],
                         "arm": x["arm"], "env": m.get("env") or {}, "args": m.get("args") or {}, "base": doc["base"], "cases": cases,
-                        "est": 7 * start_s(cases), "why": "carried from slice %s (pass 1 %s)" % (doc.get("slice"), json.dumps(x.get("pass1")))})
+                        "est": 8 * start_s(cases), "why": "carried from slice %s (pass 1 %s)" % (doc.get("slice"), json.dumps(x.get("pass1")))})
     return out
 
 
@@ -854,7 +867,7 @@ def main(argv=None):
         for bid, sp, order in block_specs(spec, a.size, a.seed):
             path = "%s-%s.json" % (a.prefix, bid)
             json.dump(sp, open(path, "w"), indent=1)
-            print("BLOCK %s %d %s order: %s" % (bid, (len(order) + 2) * START_S, path, " ".join(order)))
+            print("BLOCK %s %d %s order: %s" % (bid, (len(order) + 3) * START_S, path, " ".join(order)))
     elif a.cmd == "drift":
         lines = read_lines(a.rows) or []
         dd = drift2(lines) if a.pass2 else drift1(lines)
@@ -903,10 +916,10 @@ def main(argv=None):
                              "bench-sweep.sh pass 2 of %s" % fl)
             path = "%s-%s.json" % (a.out[:-5] if a.out.endswith(".json") else a.out, an)
             json.dump(ps, open(path, "w"), indent=1)
-            print("PAIR %s %d %s" % (an, 7 * start_s(spec.get("cases") or CASES), path))
+            print("PAIR %s %d %s" % (an, 8 * start_s(spec.get("cases") or CASES), path))
         if carry:
             print("CARRY %d flag(s) over the budget: %s" % (len(carry), ", ".join(r["flag"] for r in carry)))
-        print("ESTIMATE2 %d" % (len(names) * 7 * start_s(spec.get("cases") or CASES)))
+        print("ESTIMATE2 %d" % (len(names) * 8 * start_s(spec.get("cases") or CASES)))
     elif a.cmd == "carry":
         spec, meta = json.load(open(a.spec, encoding="utf-8")), json.load(open(a.meta, encoding="utf-8"))
         tri = json.load(open(a.triage, encoding="utf-8"))

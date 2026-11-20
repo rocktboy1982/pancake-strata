@@ -91,8 +91,9 @@ if name == "abtest.py":
         fac = next((v for k, v in late.items() if k in out), 1.0)
         for r in range(reps):
             for arm in arms + (["base-late"] if drift and "base-late" not in arms else []):
-                an = arm.split("~")[0]                   # a paired block's repeated arms (flag~2, updated~3) measure as their arm
-                d = dec.get(an, dec.get(arms[0].split("~")[0], dec.get("*", {})) if arm == "base-late" else dec.get("*", {}))
+                ref = next(x for x in arms if x != "warmup")       # the warm-up start (T-1004) measures as the base
+                an = (ref if arm == "warmup" else arm).split("~")[0]   # a paired block's repeated arms (flag~2, updated~3) measure as their arm
+                d = dec.get(an, dec.get(ref.split("~")[0], dec.get("*", {})) if arm == "base-late" else dec.get("*", {}))
                 f = fac if (arm == "base-late" or (reps > 1 and arm == arms[0] and r == reps - 1)) else 1.0
                 open(out, "a").write(json.dumps({"arm": arm, "rep": r, "rows": [{"case": c, "decode_tps": d.get(c, 100.0) * f,
                                                                                    "prompt_tps": d.get(c + "-prompt", 1000.0)}
@@ -2545,12 +2546,12 @@ def test_sweep_us_arms_minus_the_untested_switches_of_the_updated_arm_plus_the_o
     assert spec["arms"][pl]["env"] == {**arm["env"], **flags[pl]["env"]}
     # one run would be over 2.5 h: the blocked design (blocks of <= 6, each with 2 base runs, one re-run budgeted) fits in 9 even slices of 17
     n = len(flags)
-    fits = lambda k: sum(mod.estimate(k)[:2]) + 7 * 150 <= 9000      # pass 1 + one re-run + one paired confirm block (pass 2 takes the rest)
+    fits = lambda k: sum(mod.estimate(k)[:2]) + 8 * 150 <= 9000      # pass 1 + one re-run + one paired confirm block (pass 2 takes the rest)
     assert n == len(unt) and not fits(n)
     parts = [mod.build_spec("us", "/x/plain.json", arm, reg, "/s", "%d/9" % k, plain={"env": {}, "args": []}, split="even")[1]["flags"] for k in range(1, 10)]
     assert set().union(*map(set, parts)) == set(flags) and sum(len(x) for x in parts) == n and [len(x) for x in parts] == [17] * 9
     assert all(fits(len(x)) for x in parts)
-    assert mod.estimate(17) == ((17 + 6) * 150, 8 * 150, 6 * 7 * 150)
+    assert mod.estimate(17) == ((17 + 9) * 150, 9 * 150, 6 * 8 * 150)      # + the warm-up start of every block (T-1004)
 
 
 def test_sweep_rd_arm_is_what_config_updated_adds_and_a_plus_value_theirs_already_run_gets_no_arm(tmp_path):
@@ -2569,7 +2570,7 @@ def test_sweep_rd_arm_is_what_config_updated_adds_and_a_plus_value_theirs_alread
     rest = [mod.build_spec("rd", "/p.json", arm, reg, "/s", "%d/4" % k, plain=plain, split="even", exclude=list(parts[0]))[1]["flags"] for k in (1, 2, 3, 4)]
     redo = [mod.build_spec("rd", "/p.json", arm, reg, "/s", "%d/2" % k, plain=plain, split="even", only=list(parts[0]))[1]["flags"] for k in (1, 2)]
     assert set().union(*map(set, rest)) == set(meta["flags"]) - set(parts[0]) and set().union(*map(set, redo)) == set(parts[0])
-    assert all(sum(mod.estimate(len(x))[:2]) + 7 * 150 <= 9000 for x in rest + redo) and all(len(x) <= 18 for x in rest + redo)
+    assert all(sum(mod.estimate(len(x))[:2]) + 8 * 150 <= 9000 for x in rest + redo) and all(len(x) <= 18 for x in rest + redo)
     # priority order: every [arm] and [named] arm is in slice 1, ahead of its [code] arms
     first = [f for f in parts[0].values()]
     assert {f["flag"] for f in meta["flags"].values() if mod.priority(f) < 2} <= {f["flag"] for f in first}
@@ -2657,7 +2658,8 @@ def test_sweep_blocks_are_at_most_6_arms_base_first_random_order_and_cover_the_s
     assert [len(o) for _, _, o in bl] == [6, 6, 5] and [b for b, _, _ in bl] == ["b01", "b02", "b03"]
     assert sorted(a for _, _, o in bl for a in o) == sorted(a for a in spec["arms"] if a != "updated")
     for bid, sp, order in bl:
-        assert list(sp["arms"]) == ["updated"] + order and sp["drift_check"] is True and sp["arms"]["updated"] == spec["arms"]["updated"]
+        assert list(sp["arms"]) == ["warmup", "updated"] + order and sp["drift_check"] is True and sp["arms"]["updated"] == spec["arms"]["updated"]
+        assert sp["arms"]["warmup"] == spec["arms"]["updated"]                          # the warm-up start (T-1004): the base config, first
     assert [o for _, _, o in bl] == [o for _, _, o in mod.block_specs(spec, 6, "s1")]           # the seed fixes the order
     assert any(o != sorted(o) for _, _, o in bl)                                                 # and it is not the spec order
     assert mod.block_sizes(13, 6) == [5, 4, 4] and mod.block_sizes(6, 6) == [6] and mod.block_sizes(0, 6) == []
@@ -2777,11 +2779,11 @@ def test_bench_sweep_rd_full_flow_pass1_triage_pass2_and_the_triage_file(tmp_pat
     assert tri["flags"][wflag]["verdict"] == "KEEP" and tri["flags"][wflag]["pass2"]["short"] == 4.0 and tri["flags"][wflag]["pass2_clean"] is True
     assert all(r["verdict"] == "NO-GAIN-P1" and r["clean1"] for f, r in tri["flags"].items() if f != wflag) and tri["slices"] == ["1of6"]
     p2 = [json.loads(l)["arm"] for l in (sw_dir / ("rd-p2-1of6-%s.jsonl" % win)).read_text().splitlines()]
-    assert p2 == ["updated", win, "updated~2", win + "~2", "updated~3", win + "~3", "base-late"]          # base, flag x 3 interleaved, base
+    assert p2 == ["warmup", "updated", win, "updated~2", win + "~2", "updated~3", win + "~3", "base-late"]    # warm-up, base, flag x 3 interleaved, base
     assert (sw_dir / "rd-triage-1of6.v2.json").exists() and not (sw_dir / "rd-triage.json").exists()
-    for k in range(1, nb + 1):                                                            # each block: updated, <= 6 arms, base-late
+    for k in range(1, nb + 1):                                                            # each block: warm-up, updated, <= 6 arms, base-late
         rows = [json.loads(l)["arm"] for l in (sw_dir / ("rd-p1-1of6-b%02d.jsonl" % k)).read_text().splitlines()]
-        assert rows[0] == "updated" and rows[-1] == "base-late" and len(rows) - 2 <= 6
+        assert rows[:2] == ["warmup", "updated"] and rows[-1] == "base-late" and len(rows) - 3 <= 6
     assert sum(1 for c in box.calls() if c.startswith("SETSID")) == nb + 1               # each abtest run in its own session
     assert not any(c.startswith("SIG") for c in box.calls())
     assert not any(c.startswith("SYSTEMCTL") and (" start " in c or " stop " in c) for c in box.calls())
@@ -3122,7 +3124,7 @@ def test_bench_sweep_drifting_block_runs_once_more_a_clean_rerun_counts_a_second
     pos = [text.index(k) for k in order]
     assert pos == sorted(pos), order
     assert "DRIFT b03r" not in text and "SUMMARY branch rd slice rdB-1of6 (1/6): 3 blocks (2 clean, 2 re-run, 1 INCONCLUSIVE)" in text
-    blk = {json.loads(l)["arm"] for l in (sw_dir / "rd-p1-rdB-1of6-b02.jsonl").read_text().splitlines()} - {"updated", "base-late"}
+    blk = {json.loads(l)["arm"] for l in (sw_dir / "rd-p1-rdB-1of6-b02.jsonl").read_text().splitlines()} - {"warmup", "updated", "base-late"}
     tri = json.loads((sw_dir / "rd-triage.v2.json").read_text())
     by_arm = {r["arm"]: r for r in tri["flags"].values() if "arm" in r}
     assert blk and all(by_arm[a]["verdict"] == "INCONCLUSIVE" for a in blk)
@@ -3139,10 +3141,46 @@ def paired_rows(base, flag, an="plus-X", bn="updated", late=None, mid=None):
             for a, v in order]
 
 
+def two_request_rows(arm, first, second, longdec=70.0):
+    """one abtest record of a start with the two requests of short / edit (first, second) and the single longdec32k request."""
+    rows = [{"case": "short", "decode_tps": first["short"]}, {"case": "short", "decode_tps": second["short"]},
+            {"case": "edit", "decode_tps": first["edit"]}, {"case": "edit", "decode_tps": second["edit"]},
+            {"case": "longdec32k", "decode_tps": longdec, "prompt_tps": 1600.0}]
+    return json.dumps({"arm": arm, "rep": 0, "rows": rows})
+
+
+def test_drift_uses_the_last_request_of_each_start_and_the_warmup_start_is_never_judged():
+    """T-1004: the rdC-1 / EMB_REUSE_ACCOUNT block (first real block): the first start ran edit 158.5 / 185.4, every later one 137-140 / 175: drift
+    9 % with the mean of both requests; the warm-up start takes the odd first start out, the second request alone has a 0.5 % spread."""
+    mod = sweep_mod()
+    rows = [two_request_rows("warmup", {"short": 113.0, "edit": 158.5}, {"short": 113.8, "edit": 185.4}),      # the warm-up: never judged
+            two_request_rows("updated", {"short": 104.6, "edit": 139.6}, {"short": 114.2, "edit": 175.9}),
+            two_request_rows("plus-X", {"short": 110.6, "edit": 132.5}, {"short": 114.3, "edit": 175.5}),
+            two_request_rows("updated~2", {"short": 110.7, "edit": 137.2}, {"short": 114.5, "edit": 175.7}),
+            two_request_rows("plus-X~2", {"short": 110.3, "edit": 140.2}, {"short": 114.1, "edit": 175.6}),
+            two_request_rows("updated~3", {"short": 110.7, "edit": 137.2}, {"short": 114.5, "edit": 175.7}),
+            two_request_rows("plus-X~3", {"short": 110.3, "edit": 140.2}, {"short": 114.1, "edit": 175.6}),
+            two_request_rows("base-late", {"short": 106.6, "edit": 139.0}, {"short": 113.7, "edit": 174.3})]
+    _, drift, _ = mod.paired_eval(rows, "updated", "plus-X", "plus", ["short", "edit", "longdec32k"])
+    assert mod.clean(drift) and max(abs(v) for v in drift.values()) < 1.0, drift
+    assert drift["edit"] == -0.91 and drift["short"] == -0.44 and drift["longdec32k"] == 0.0, drift
+    # the old rule (the first start counted, the mean of both requests): the same start values as the first counted start
+    old = [two_request_rows("updated", {"short": 113.0, "edit": 158.5}, {"short": 113.8, "edit": 185.4})] + rows[2:]
+    _, d_old, _ = mod.paired_eval(old, "updated", "plus-X", "plus", ["short", "edit", "longdec32k"])
+    assert d_old["edit"] == -5.99 and not mod.clean(d_old)                                   # the first start itself is odd (185.4): the warm-up removes it
+    m_old = mod.metrics(old, cases=["short", "edit"])                                        # the mean of both requests: 172.0 vs 156.7
+    assert round(m_old["base-late"]["edit"] / m_old["updated"]["edit"] * 100 - 100, 1) == -8.9
+    assert mod.drift1(rows, "updated", ["short", "edit", "longdec32k"]) == {"short": -0.44, "edit": -0.91, "longdec32k": 0.0}
+    # effects keep the mean of both requests (the estimator of the gains is unchanged): flag edit first request 132.5 vs base 137-140
+    eff, _, _ = mod.paired_eval(rows, "updated", "plus-X", "plus", ["short", "edit", "longdec32k"])
+    assert eff["edit"] < 0 and eff["short"] > 0
+
+
 def test_paired_spec_runs_base_flag_three_times_interleaved_and_the_base_again():
     mod = sweep_mod()
     sp = mod.paired_spec("/p.json", "updated", {"env": {"A": "1"}}, "plus-X", {"env": {"A": "1", "X": "1"}})
-    assert list(sp["arms"]) == ["updated", "plus-X", "updated~2", "plus-X~2", "updated~3", "plus-X~3"] and sp["drift_check"] is True
+    assert list(sp["arms"]) == ["warmup", "updated", "plus-X", "updated~2", "plus-X~2", "updated~3", "plus-X~3"] and sp["drift_check"] is True
+    assert sp["arms"]["warmup"] == sp["arms"]["updated"] == {"env": {"A": "1"}}
     assert sp["cases"] == ["short", "edit", "longdec32k"] and sp["reps"] == 1 and sp["prefill"] is True
     b = {"short": 100.0, "edit": 100.0, "longdec32k": 30.0, "longdec32k-prompt": 1500.0}
     eff, drift, per = mod.paired_eval(paired_rows(b, {**b, "edit": 110.0}), "updated", "plus-X", "plus")
@@ -3200,7 +3238,7 @@ def test_retest_slices_one_flag_per_block_owner_order_and_budget():
     allb = []
     for sl in groups["slices"]:
         bl = mod.retest_blocks(groups, sl, bases, reg, src)
-        assert 1 <= len(bl) <= 7 and sum(e["est"] for e in bl) <= 8000, sl                       # <= 2.5 h with one re-run
+        assert 1 <= len(bl) <= 7 and sum(e["est"] for e in bl) <= 9000, sl                       # <= 2.5 h (estimate: 150 s per start, the box runs ~105 s)
         allb += bl
     flags = [e["flag"] for e in allb]
     rd_order = ["STRATA_EMB_REUSE_ACCOUNT", "STRATA_GROUPED_V1", "STRATA_CVEC_FUSE", "STRATA_EARLY_REMOTE_CONTEXTS", "STRATA_EXPDEC", "STRATA_FUSE_HEAD_GR",
@@ -3216,8 +3254,8 @@ def test_retest_slices_one_flag_per_block_owner_order_and_budget():
         if e["type"] != "paired":
             continue
         sp = mod.block_spec_of(e)
-        assert len(sp["arms"]) == 6 and sp["cases"] == ["short", "edit", "longdec32k"]               # base + ONE flag, 3 interleaved reps
-        assert e["est"] == 7 * 150
+        assert len(sp["arms"]) == 7 and sp["cases"] == ["short", "edit", "longdec32k"]               # base + ONE flag, 3 interleaved reps
+        assert e["est"] == 8 * 150
     by = {e["key"]: e for e in allb}
     assert by["rd:STRATA_EXPDEC"]["kind"] == "minus" and "STRATA_EXPDEC" not in by["rd:STRATA_EXPDEC"]["arm"]["env"]
     assert by["rd:STRATA_POOL_FUSE_PHASES"]["kind"] == "plus" and by["rd:STRATA_POOL_FUSE_PHASES"]["arm"]["env"]["STRATA_POOL_FUSE_PHASES"] == "1"
@@ -3271,14 +3309,14 @@ def test_bench_retest_rd_slice_runs_one_paired_block_per_flag_and_writes_per_fla
     text = "\n".join(lines)
     assert lines[-1] == "WINBENCHRETEST_DONE" and "ERROR" not in text and "ABORTED" not in text, text
     assert_start_end_pairs(lines)
-    order = ["PREREQ ok", "SYNC harness", "PREREQ harness ok", "ARMFIX ", "BLOCK k01 paired 1050 rd", "RETEST rdC-1: 7 blocks",
+    order = ["PREREQ ok", "SYNC harness", "PREREQ harness ok", "ARMFIX ", "BLOCK k01 paired 1200 rd", "RETEST rdC-1: 7 blocks",
              "BUDGET ", "START retest-rdC-1-k01", "DRIFT k01 (STRATA_EMB_REUSE_ACCOUNT", "START retest-rdC-1-k07", "DRIFT k07", "TRIAGE KEEP",
              "TRIAGE file", "SUMMARY retest slice rdC-1: 7 blocks (7 clean, 0 re-run, 0 INCONCLUSIVE, 0 not run: budget)"]
     assert all(k in text for k in order), [k for k in order if k not in text]
     pos = [text.index(k) for k in order]
     assert pos == sorted(pos), order
     ab = be_calls(box, "abtest.py")
-    assert len(ab) == 7 and all("--tier screen" in x and "--drift-check" in x for x in ab)
+    assert len(ab) == 7 and all("--tier screen" in x and "--drift-check" in x for x in ab)      # one abtest run per block (8 starts each)
     sw_dir = box.tmp / "auto-runs" / "benchsweep"
     tri = json.loads((sw_dir / "rd-triage-rt-rdC-1.v2.json").read_text())
     assert tri["flags"]["STRATA_EMB_REUSE_ACCOUNT"]["verdict"] == "KEEP" and tri["flags"]["STRATA_EMB_REUSE_ACCOUNT"]["pass2"]["short"] == 4.0
@@ -3288,7 +3326,7 @@ def test_bench_retest_rd_slice_runs_one_paired_block_per_flag_and_writes_per_fla
     assert tri["flags"]["STRATA_CVEC_FUSE"]["verdict"] == "DROP" and tri["flags"]["STRATA_CVEC_FUSE"]["pass2_clean"] is True
     assert json.loads((sw_dir / "rd-triage.v2.json").read_text())["flags"]["STRATA_EXPDEC"]["verdict"] == "OPTIONAL"
     rows = [json.loads(l)["arm"] for l in (sw_dir / "retest-rdC-1-k01.jsonl").read_text().splitlines()]
-    assert rows == ["updated", "plus-EMB_REUSE_ACCOUNT", "updated~2", "plus-EMB_REUSE_ACCOUNT~2", "updated~3", "plus-EMB_REUSE_ACCOUNT~3", "base-late"]
+    assert rows == ["warmup", "updated", "plus-EMB_REUSE_ACCOUNT", "updated~2", "plus-EMB_REUSE_ACCOUNT~2", "updated~3", "plus-EMB_REUSE_ACCOUNT~3", "base-late"]
     assert not any(c.startswith("SIG") for c in box.calls())
     assert not any(c.startswith("SYSTEMCTL") and (" start " in c or " stop " in c) for c in box.calls())
     # the same slice again: refused, nothing overwritten

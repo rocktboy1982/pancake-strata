@@ -273,7 +273,7 @@ grep -E '^(ARMFIX|SWEEP)' $T/$B-spec-$SLN.txt >> $L
 set -- $(grep '^ESTIMATE' $T/$B-spec-$SLN.txt); E1=${2:-0}; E2=${3:-0}; ER=${4:-0}
 [ "$E1" -gt 0 ] || abort "SPEC: no estimate from sweep.py (no flag arm in this slice?)"
 # pass 1 + its re-run + at least one paired confirm block must fit 2.5 h; pass 2 takes what is left of the 2.5 h, the rest is carried
-P2ONE=$((7 * 150))
+P2ONE=$((8 * 150))   # a paired block = warm-up start + 7 counted starts (T-1004)
 if [ $((E1 + ER + P2ONE)) -gt $MAXS ]; then
   n=${SL#*/}; need=$(( (E1 + ER + P2ONE) * n / MAXS + 1 ))
   abort "BUDGET: this run's pass 1 ($E1 s) + one block re-run ($ER s) + one paired confirm block ($P2ONE s) is over $MAXS s (2.5 h): split it (SWEEP_SLICE=1/$need ... at least $need parts); nothing was started"

@@ -6,8 +6,9 @@
 # "tail-chain": no busy() pattern of another chain sees it.
 # RETEST_SLICE=<name> picks a slice of tools/pancake/box_chains/retest_groups.json (rdC-1, rdC-2, mixC-3, usC-4, mixR-5, mixR-6, usR-7) or
 #   carry-rd / carry-us / carry (the flags bench-sweep.sh carried: $O/<branch>-carry-*.json, pass 2 over its budget or a drifted block).
-# A PAIRED BLOCK (sweep.py paired_spec) = abtest --tier screen --drift-check on a spec whose arms are base, flag, base~2, flag~2, base~3, flag~3, and
-#   abtest's base-late at the end: 7 engine starts (~17 min with short + edit + longdec32k), each flag rep between two base runs of the same block.
+# A PAIRED BLOCK (sweep.py paired_spec) = abtest --tier screen --drift-check on a spec whose arms are warmup (the base, an extra first start: not counted, not judged), base, flag, base~2, flag~2, base~3, flag~3, and
+#   abtest's base-late at the end: 8 engine starts (~19 min with short + edit + longdec32k), each flag rep between two base runs of the same block.
+#   The drift (counted base runs against the first counted one) is judged on the last request of each case per start (sweep.py, T-1004).
 #   The base drift (every later base run against the first) above SWEEP_DRIFT_MAX (5 %) on a case: the block runs once more when the budget holds
 #   it; still above: INCONCLUSIVE (carried).  Verdicts (sweep.py retest-triage, per flag, its own block): KEEP >= 2 % (exact) / RETEST-GATE >= 3 %
 #   (lossy) with no case below -3 %; OPTIONAL a case >= +10 % and a case <= -3 % (opt-in, not default); else DROP.  Bundles (a whole arm) and the

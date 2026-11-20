@@ -914,6 +914,7 @@ def print_selection(used, dropped, robust, passes=1):
 
 
 DRIFT_ARM = "base-late"
+WARM_ARM = "warmup"   # a spec's first arm of this name is an extra engine start of the base: run, kept in the jsonl, never reported / judged (T-1004)
 DRIFT_WARN = 5.0   # % between the early and the late base run above which the screen verdict is not trusted
 
 
@@ -1059,9 +1060,10 @@ def main():
     RECLAIM_MAX = a.reclaim_max
     spec = json.load(open(a.spec))
     arms = list(spec["arms"])
+    ref_arm = next((x for x in arms if x != WARM_ARM), arms[0])   # the base of the reports (the warm-up start is none)
     drift = a.drift_check or (a.tier == "screen" and bool(spec.get("drift_check")))   # (a spec may ask for it: "drift_check": true)
     if drift:   # the base arm again, last: screen_verdict compares every arm with both
-        spec["arms"][DRIFT_ARM] = dict(spec["arms"][arms[0]])
+        spec["arms"][DRIFT_ARM] = dict(spec["arms"][ref_arm])
         arms.append(DRIFT_ARM)
     cases = spec.get("cases", ["short", "edit", "long"])
     reps = a.reps or spec.get("reps", 3)
@@ -1136,7 +1138,7 @@ def main():
                         print(f"ABORT: the server died twice before ready (free RAM in 2 MiB blocks: {big_free_gib():.0f} GiB;"
                               f" fix the machine first: 'sudo tools/pancake/os_tune.sh compact'). Partial results below.",
                               flush=True)
-                        summary(select(records)[0], arms, cases, deff)
+                        summary(select(records)[0], [x for x in arms if x != WARM_ARM], cases, deff)
                         return 2
                     continue   # one retry
                 break
@@ -1170,10 +1172,11 @@ def main():
             order[i:i] = again
     results, dropped = select(records)   # gate: per arm and rep the first clean attempt, else the quietest (as above)
     print_selection(results, dropped, robust, passes)
-    summary(results, arms, cases, deff)
-    text_check(results, arms, cases)
+    rarms = [x for x in arms if x != WARM_ARM]   # the warm-up start is in the jsonl and nowhere else
+    summary(results, rarms, cases, deff)
+    text_check(results, rarms, cases)
     if a.tier == "screen":
-        screen_verdict(results, arms, cases, drift=drift)
+        screen_verdict(results, rarms, cases, drift=drift)
 
 
 if __name__ == "__main__":
