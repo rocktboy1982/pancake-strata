@@ -1182,15 +1182,13 @@ def test_diag_us_runs_only_the_two_fixed_diagnostics_on_the_existing_builds(tmp_
     assert text.index("START diag plain") < text.index("END diag plain") < text.index("START diag updated")
 
 
-def test_diag_us_standalone_waits_for_the_rd_marker_and_reaps_leftovers(tmp_path):
+def test_diag_us_standalone_does_not_wait_for_the_rd_marker_and_reaps_leftovers(tmp_path):
+    """RD (Strata-rdna3) is paused since 2026-11-20: an unfinished RD log (no WINBENCHRD_DONE) no longer blocks the US diagnostic."""
     box = Box(tmp_path)
     prepare_du(box)
     (box.S / "bench-updatedRD.log").write_text("START\n")
-    p = box.start(DU, env={"BENCH_PREIDLED": "1", "SVC_DOWN": "1", "FD_LEFTOVER": "1"})
-    time.sleep(1.5)
-    assert p.poll() is None and len(box.log("bench-diagUS.log")) == 1, "waits for WINBENCHRD_DONE"
-    append(box, "bench-updatedRD.log", "WINBENCHRD_DONE")
-    box.finish(p)
+    assert "RD_LOG" not in (CHAINS / DU).read_text()
+    box.finish(box.start(DU, env={"BENCH_PREIDLED": "1", "SVC_DOWN": "1", "FD_LEFTOVER": "1"}), timeout=60)
     lines = box.log("bench-diagUS.log")
     text = "\n".join(lines)
     assert lines[-1] == "WINDIAGUS_DONE"
@@ -2053,6 +2051,27 @@ def test_sched_freezes_aa_waits_for_the_running_step_runs_both_chains_then_resum
     assert chains_log(box) == ["us env: BENCH_SCHED=1 BENCH_PREIDLED=1 KEEP=1 stat=T", "rd env: BENCH_SCHED=1 BENCH_PREIDLED=1 KEEP=1 stat=T"]   # AA frozen during both
     assert (box.tmp / "stat.4242").read_text().strip() == "S"
     assert not any(c.startswith("SYSTEMCTL") and ("start" in c or "stop" in c) for c in box.calls())     # the scheduler never touches the service
+
+
+def test_sched_rd_is_opt_in_skipped_by_default_run_by_bench_rd_or_only_rd(tmp_path):
+    """Owner 2026-11-20: Strata-rdna3 is paused; the RD chain runs only with BENCH_RD set explicitly or BENCH_ONLY=RD."""
+    box = Box(tmp_path)
+    prepare_sched(box)
+    box.finish(box.start(SCHED, env={"BENCH_US": "./fake-us.sh"}))
+    text = "\n".join(box.log("bench-sched.log"))
+    assert [l.split()[0] for l in chains_log(box)] == ["us"] and "START RD" not in text and "RD chain skipped" in text and "ERROR" not in text
+    (tmp_path / "b").mkdir()
+    box2 = Box(tmp_path / "b")
+    prepare_sched(box2)
+    box2.finish(box2.start(SCHED, env=sched_env(BENCH_ONLY="RD")))
+    assert [l.split()[0] for l in chains_log(box2)] == ["rd"]
+    (tmp_path / "c").mkdir()
+    box3 = Box(tmp_path / "c")
+    prepare_sched(box3)
+    box3.finish(box3.start(SCHED, env=sched_env()))
+    assert [l.split()[0] for l in chains_log(box3)] == ["us", "rd"]
+    body = (CHAINS / SCHED).read_text()
+    assert "RD=${BENCH_RD:-}" in body and "RD=./bench-updatedRD.sh" in body
 
 
 def test_sched_a_chain_without_marker_is_an_error_the_next_chain_and_the_resume_still_happen(tmp_path):

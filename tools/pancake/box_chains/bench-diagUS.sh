@@ -13,13 +13,13 @@
 # Rules (standing, as bench-updatedAA.sh): box jobs never overlap (busy() sees every other job; a FROZEN AA shell is not a job and is never resumed or touched here:
 # AA stays frozen); pancake.service is stopped only after 3 minutes without a client on port 11437 and comes back at the end unless BENCH_KEEP_SERVICE_DOWN=1;
 # nothing outside the diagnostic's own session is killed, nothing is deleted outside this script's own folders; sources are unpacked with `tar xmf`; no sudo.
-# NOT launched by default: queue it after the RD chain (scheduler: BENCH_SCHED=1 BENCH_PREIDLED=1 BENCH_KEEP_SERVICE_DOWN=1).  Standalone it first waits for the
-# RD marker (WINBENCHRD_DONE as the last line of bench-updatedRD.log) and for 3 idle minutes.
+# NOT launched by default (scheduler: BENCH_SCHED=1 BENCH_PREIDLED=1 BENCH_KEEP_SERVICE_DOWN=1).  US only: Strata-rdna3 (RD) is paused since 2026-11-20, so
+# standalone it no longer waits for the RD marker; it waits for 3 idle minutes (busy() still sees a running bench-updatedRD).
 # Results: /home/dan/auto-runs/winbenchus/diag-rerun/ (diag-plain/, diag-updated/ with verdicts.json, *.stdout, tuned-flags-recommended.json).
 # Log: /home/dan/clone-of-d/src/bench-diagUS.log; the last line is WINDIAGUS_DONE (also after an abort: the line before it is then WINDIAGUS_ABORTED).
 # Start (box):  cd /home/dan/clone-of-d/src && setsid nohup sh ./bench-diagUS.sh > /dev/null 2>&1 &
 S=/home/dan/clone-of-d/src; R=$S/Strata-win; L=$S/bench-diagUS.log; O=/home/dan/auto-runs/winbenchus/diag-rerun; PM=/mnt/pancake/benchus
-RD_LOG=$S/bench-updatedRD.log; ROCM=/opt/rocm/core-10.0
+ROCM=/opt/rocm/core-10.0
 BUP=$PM/build-up; BUS=$PM/build-us; USD=$PM/src-us-diag
 US_URL=https://codeload.github.com/rocktboy1982/pancake-strata/tar.gz/refs/heads/updated-strata
 FLAG_TIMEOUT=${FLAG_TIMEOUT:-240}
@@ -52,11 +52,8 @@ run_diag_group() {  # run_diag_group SECONDS LOG CMD...: CMD in its own session;
   return $rc
 }
 
-# ------------------------------------------------------------------ 0. wait (standalone: the RD chain first), service, prerequisites
-if [ "${BENCH_SCHED:-0}" != 1 ]; then
-  until [ "$(tail -n 1 $RD_LOG 2>/dev/null)" = WINBENCHRD_DONE ]; do sleep 300; done
-  say "the RD chain is done $(date +%T)"
-else say "started by the scheduler: the AA shell is frozen and stays frozen here $(date +%T)"; fi
+# ------------------------------------------------------------------ 0. service, prerequisites
+if [ "${BENCH_SCHED:-0}" = 1 ]; then say "started by the scheduler: the AA shell is frozen and stays frozen here $(date +%T)"; fi
 if systemctl --user is-active --quiet pancake.service; then
   q=0; while [ $q -lt 3 ]; do if [ "$(clients)" -gt 0 ]; then q=0; say "WAIT service has clients $(date +%T)"; else q=$((q+1)); fi; sleep 60; done
   systemctl --user stop pancake.service; say "service stopped (idle) $(date +%T)"

@@ -16,13 +16,15 @@
 #      HUP / INT / TERM).  AA continues exactly where it was (its first wait_idle sees nothing of this script or the chains: they have ended).
 # Only SIGKILL of this script leaves AA frozen: then run on the box   kill -CONT <pid of sh ./redo-chainAA.sh>   (pgrep -fx 'sh ./redo-chainAA.sh').
 # Log: /home/dan/clone-of-d/src/bench-sched.log, last line BENCHSCHED_DONE.  Start:  cd /home/dan/clone-of-d/src && setsid nohup sh ./bench-sched.sh > /dev/null 2>&1 &
-# Environment: BENCH_US / BENCH_RD = the chain scripts (default ./bench-updatedAA.sh ./bench-updatedRD.sh), SIGCMD = the kill command (tests).
+# Environment: BENCH_US = the US chain script (default ./bench-updatedAA.sh), SIGCMD = the kill command (tests).  The RD chain (Strata-rdna3) is PAUSED since
+# 2026-11-20 (owner: compare only to stock upstream Strata): it runs only when BENCH_RD=<script> is set explicitly or BENCH_ONLY=RD (default script ./bench-updatedRD.sh).
 # BENCH_EXTRA=<script> (a third slot, after US and RD): run that chain too, with the same three variables; its log is <script name without .sh>.log in this
 # directory and its marker is the line its own header names (bench-exact.sh: bench-exact.log, WINBENCHEXACT_DONE).  BENCH_ONLY=EXTRA runs the extra chain alone.
 # A versioned copy (bench-exact.v1.sh, bench-rdgate.v1.sh, bench-sweep.v1.sh) keeps the log of its family (bench-exact.log / bench-rdgate.log /
 # bench-sweep.log, WINBENCHRDGATE_DONE / WINBENCHSWEEP_DONE).
 S=/home/dan/clone-of-d/src; L=$S/bench-sched.log
-US=${BENCH_US:-./bench-updatedAA.sh}; RD=${BENCH_RD:-./bench-updatedRD.sh}
+US=${BENCH_US:-./bench-updatedAA.sh}; RD=${BENCH_RD:-}
+[ "${BENCH_ONLY:-}" = RD ] && [ -z "$RD" ] && RD=./bench-updatedRD.sh   # RD is opt-in (owner 2026-11-20)
 AA_CMD="sh ./redo-chainAA.sh"; AAPID=
 cd $S || exit 1
 say() { echo "$*" >> $L; }
@@ -69,7 +71,7 @@ run_chain() {  # run_chain NAME SCRIPT LOG MARKER
 }
 # BENCH_ONLY=US or RD runs one chain (a rerun of one benchmark); BENCH_ONLY=EXTRA only the BENCH_EXTRA chain
 case "${BENCH_ONLY:-}" in RD|EXTRA) ;; *) run_chain US "$US" $S/bench-updatedAA.log WINBENCHUS_DONE ;; esac
-case "${BENCH_ONLY:-}" in US|EXTRA) ;; *) run_chain RD "$RD" $S/bench-updatedRD.log WINBENCHRD_DONE ;; esac
+case "${BENCH_ONLY:-}" in US|EXTRA) ;; *) if [ -n "$RD" ]; then run_chain RD "$RD" $S/bench-updatedRD.log WINBENCHRD_DONE; else say "RD chain skipped (paused: opt-in with BENCH_RD=<script> or BENCH_ONLY=RD)"; fi ;; esac
 if [ -n "${BENCH_EXTRA:-}" ]; then
   case "${BENCH_ONLY:-}" in US|RD) ;; *)
     case "$(basename "$BENCH_EXTRA")" in
