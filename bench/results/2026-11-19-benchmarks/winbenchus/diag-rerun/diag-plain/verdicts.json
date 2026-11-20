@@ -1,0 +1,45 @@
+{
+ "schema": "strata.flag-diag/1",
+ "hardware": {
+  "gfx": "gfx1100",
+  "rocm": "10.0.0",
+  "vram_gib": 20.0,
+  "pcie_link": "16.0 GT/s PCIe x16",
+  "cpu": "AMD Ryzen 7 5700G with Radeon Graphics",
+  "ram_gib": 57.7,
+  "hipblaslt": true,
+  "wave": 32,
+  "kfd": true,
+  "vmm": "kfd-present (the engine's own check decides at start)"
+ },
+ "minutes": 3.5,
+ "config": "/home/dan/auto-runs/winbenchus/diag-rerun/diag-plain-config.json",
+ "complete": true,
+ "flag_timeout_s": 240.0,
+ "verdicts": [
+  {
+   "name": "STRATA_HIPBLASLT_TUNING",
+   "kind": "env",
+   "value": "<ROOT>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt",
+   "exact": true,
+   "ledger": "T-096",
+   "metric": "prompt",
+   "verdict": "UNSUPPORTED",
+   "reason": "claimed exact but the text differs from the default here"
+  },
+  {
+   "name": "STRATA_PF_F16",
+   "kind": "env",
+   "value": "1",
+   "exact": false,
+   "ledger": "T-820, T-828",
+   "metric": "prompt",
+   "quality_gate": "PASS",
+   "gain_pct": -21.2,
+   "noise_pct": 0.0,
+   "bar_pct": 3.0,
+   "verdict": "NO-GAIN",
+   "reason": "-21.2 % against a bar of 3 % and a noise floor of 0.0 %"
+  }
+ ]
+}

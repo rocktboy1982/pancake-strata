@@ -1,0 +1,144 @@
+Test project /mnt/pancake/benchRD/build-plain
+    Start 40: sampler_parity
+Could not find executable /mnt/pancake/benchRD/build-plain/sampler_parity
+Looked in the following places:
+/mnt/pancake/benchRD/build-plain/sampler_parity
+/mnt/pancake/benchRD/build-plain/sampler_parity
+/mnt/pancake/benchRD/build-plain/Release/sampler_parity
+/mnt/pancake/benchRD/build-plain/Release/sampler_parity
+/mnt/pancake/benchRD/build-plain/Debug/sampler_parity
+/mnt/pancake/benchRD/build-plain/Debug/sampler_parity
+/mnt/pancake/benchRD/build-plain/MinSizeRel/sampler_parity
+/mnt/pancake/benchRD/build-plain/MinSizeRel/sampler_parity
+/mnt/pancake/benchRD/build-plain/RelWithDebInfo/sampler_parity
+/mnt/pancake/benchRD/build-plain/RelWithDebInfo/sampler_parity
+/mnt/pancake/benchRD/build-plain/Deployment/sampler_parity
+/mnt/pancake/benchRD/build-plain/Deployment/sampler_parity
+/mnt/pancake/benchRD/build-plain/Development/sampler_parity
+/mnt/pancake/benchRD/build-plain/Development/sampler_parity
+mnt/pancake/benchRD/build-plain/sampler_parity
+mnt/pancake/benchRD/build-plain/sampler_parity
+mnt/pancake/benchRD/build-plain/Release/sampler_parity
+mnt/pancake/benchRD/build-plain/Release/sampler_parity
+mnt/pancake/benchRD/build-plain/Debug/sampler_parity
+mnt/pancake/benchRD/build-plain/Debug/sampler_parity
+mnt/pancake/benchRD/build-plain/MinSizeRel/sampler_parity
+mnt/pancake/benchRD/build-plain/MinSizeRel/sampler_parity
+mnt/pancake/benchRD/build-plain/RelWithDebInfo/sampler_parity
+mnt/pancake/benchRD/build-plain/RelWithDebInfo/sampler_parity
+mnt/pancake/benchRD/build-plain/Deployment/sampler_parity
+mnt/pancake/benchRD/build-plain/Deployment/sampler_parity
+mnt/pancake/benchRD/build-plain/Development/sampler_parity
+mnt/pancake/benchRD/build-plain/Development/sampler_parity
+Unable to find executable: /mnt/pancake/benchRD/build-plain/sampler_parity
+1/4 Test #40: sampler_parity ...................***Not Run   0.00 sec
+    Start 42: sampler_parity_one_block
+Could not find executable /mnt/pancake/benchRD/build-plain/sampler_parity
+Looked in the following places:
+/mnt/pancake/benchRD/build-plain/sampler_parity
+/mnt/pancake/benchRD/build-plain/sampler_parity
+/mnt/pancake/benchRD/build-plain/Release/sampler_parity
+/mnt/pancake/benchRD/build-plain/Release/sampler_parity
+/mnt/pancake/benchRD/build-plain/Debug/sampler_parity
+/mnt/pancake/benchRD/build-plain/Debug/sampler_parity
+/mnt/pancake/benchRD/build-plain/MinSizeRel/sampler_parity
+/mnt/pancake/benchRD/build-plain/MinSizeRel/sampler_parity
+/mnt/pancake/benchRD/build-plain/RelWithDebInfo/sampler_parity
+/mnt/pancake/benchRD/build-plain/RelWithDebInfo/sampler_parity
+/mnt/pancake/benchRD/build-plain/Deployment/sampler_parity
+/mnt/pancake/benchRD/build-plain/Deployment/sampler_parity
+/mnt/pancake/benchRD/build-plain/Development/sampler_parity
+/mnt/pancake/benchRD/build-plain/Development/sampler_parity
+mnt/pancake/benchRD/build-plain/sampler_parity
+mnt/pancake/benchRD/build-plain/sampler_parity
+mnt/pancake/benchRD/build-plain/Release/sampler_parity
+mnt/pancake/benchRD/build-plain/Release/sampler_parity
+mnt/pancake/benchRD/build-plain/Debug/sampler_parity
+mnt/pancake/benchRD/build-plain/Debug/sampler_parity
+mnt/pancake/benchRD/build-plain/MinSizeRel/sampler_parity
+mnt/pancake/benchRD/build-plain/MinSizeRel/sampler_parity
+mnt/pancake/benchRD/build-plain/RelWithDebInfo/sampler_parity
+mnt/pancake/benchRD/build-plain/RelWithDebInfo/sampler_parity
+mnt/pancake/benchRD/build-plain/Deployment/sampler_parity
+mnt/pancake/benchRD/build-plain/Deployment/sampler_parity
+mnt/pancake/benchRD/build-plain/Development/sampler_parity
+mnt/pancake/benchRD/build-plain/Development/sampler_parity
+Unable to find executable: /mnt/pancake/benchRD/build-plain/sampler_parity
+2/4 Test #42: sampler_parity_one_block .........***Not Run   0.00 sec
+    Start 43: sampler_parity_old
+Could not find executable /mnt/pancake/benchRD/build-plain/sampler_parity
+Looked in the following places:
+/mnt/pancake/benchRD/build-plain/sampler_parity
+/mnt/pancake/benchRD/build-plain/sampler_parity
+/mnt/pancake/benchRD/build-plain/Release/sampler_parity
+/mnt/pancake/benchRD/build-plain/Release/sampler_parity
+/mnt/pancake/benchRD/build-plain/Debug/sampler_parity
+/mnt/pancake/benchRD/build-plain/Debug/sampler_parity
+/mnt/pancake/benchRD/build-plain/MinSizeRel/sampler_parity
+/mnt/pancake/benchRD/build-plain/MinSizeRel/sampler_parity
+/mnt/pancake/benchRD/build-plain/RelWithDebInfo/sampler_parity
+/mnt/pancake/benchRD/build-plain/RelWithDebInfo/sampler_parity
+/mnt/pancake/benchRD/build-plain/Deployment/sampler_parity
+/mnt/pancake/benchRD/build-plain/Deployment/sampler_parity
+/mnt/pancake/benchRD/build-plain/Development/sampler_parity
+/mnt/pancake/benchRD/build-plain/Development/sampler_parity
+mnt/pancake/benchRD/build-plain/sampler_parity
+mnt/pancake/benchRD/build-plain/sampler_parity
+mnt/pancake/benchRD/build-plain/Release/sampler_parity
+mnt/pancake/benchRD/build-plain/Release/sampler_parity
+mnt/pancake/benchRD/build-plain/Debug/sampler_parity
+mnt/pancake/benchRD/build-plain/Debug/sampler_parity
+mnt/pancake/benchRD/build-plain/MinSizeRel/sampler_parity
+mnt/pancake/benchRD/build-plain/MinSizeRel/sampler_parity
+mnt/pancake/benchRD/build-plain/RelWithDebInfo/sampler_parity
+mnt/pancake/benchRD/build-plain/RelWithDebInfo/sampler_parity
+mnt/pancake/benchRD/build-plain/Deployment/sampler_parity
+mnt/pancake/benchRD/build-plain/Deployment/sampler_parity
+mnt/pancake/benchRD/build-plain/Development/sampler_parity
+mnt/pancake/benchRD/build-plain/Development/sampler_parity
+Unable to find executable: /mnt/pancake/benchRD/build-plain/sampler_parity
+3/4 Test #43: sampler_parity_old ...............***Not Run   0.00 sec
+    Start 56: elementwise_parity
+Could not find executable /mnt/pancake/benchRD/build-plain/elementwise_parity
+Looked in the following places:
+/mnt/pancake/benchRD/build-plain/elementwise_parity
+/mnt/pancake/benchRD/build-plain/elementwise_parity
+/mnt/pancake/benchRD/build-plain/Release/elementwise_parity
+/mnt/pancake/benchRD/build-plain/Release/elementwise_parity
+/mnt/pancake/benchRD/build-plain/Debug/elementwise_parity
+/mnt/pancake/benchRD/build-plain/Debug/elementwise_parity
+/mnt/pancake/benchRD/build-plain/MinSizeRel/elementwise_parity
+/mnt/pancake/benchRD/build-plain/MinSizeRel/elementwise_parity
+/mnt/pancake/benchRD/build-plain/RelWithDebInfo/elementwise_parity
+/mnt/pancake/benchRD/build-plain/RelWithDebInfo/elementwise_parity
+/mnt/pancake/benchRD/build-plain/Deployment/elementwise_parity
+/mnt/pancake/benchRD/build-plain/Deployment/elementwise_parity
+/mnt/pancake/benchRD/build-plain/Development/elementwise_parity
+/mnt/pancake/benchRD/build-plain/Development/elementwise_parity
+mnt/pancake/benchRD/build-plain/elementwise_parity
+mnt/pancake/benchRD/build-plain/elementwise_parity
+mnt/pancake/benchRD/build-plain/Release/elementwise_parity
+mnt/pancake/benchRD/build-plain/Release/elementwise_parity
+mnt/pancake/benchRD/build-plain/Debug/elementwise_parity
+mnt/pancake/benchRD/build-plain/Debug/elementwise_parity
+mnt/pancake/benchRD/build-plain/MinSizeRel/elementwise_parity
+mnt/pancake/benchRD/build-plain/MinSizeRel/elementwise_parity
+mnt/pancake/benchRD/build-plain/RelWithDebInfo/elementwise_parity
+mnt/pancake/benchRD/build-plain/RelWithDebInfo/elementwise_parity
+mnt/pancake/benchRD/build-plain/Deployment/elementwise_parity
+mnt/pancake/benchRD/build-plain/Deployment/elementwise_parity
+mnt/pancake/benchRD/build-plain/Development/elementwise_parity
+mnt/pancake/benchRD/build-plain/Development/elementwise_parity
+Unable to find executable: /mnt/pancake/benchRD/build-plain/elementwise_parity
+4/4 Test #56: elementwise_parity ...............***Not Run   0.00 sec
+
+0% tests passed, 4 tests failed out of 4
+
+Total Test time (real) =   0.09 sec
+
+The following tests FAILED:
+	 40 - sampler_parity (Not Run)
+	 42 - sampler_parity_one_block (Not Run)
+	 43 - sampler_parity_old (Not Run)
+	 56 - elementwise_parity (Not Run)
+Errors while running CTest

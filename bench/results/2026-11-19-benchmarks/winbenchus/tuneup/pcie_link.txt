@@ -1,0 +1,9 @@
+pcie_aspm policy: default [performance] powersave powersupersave
+0000:12:00.0: L1-OFF
+  0000:12:00.0  link 16.0 GT/s PCIe x16 (max 16.0 GT/s PCIe)  aspm on: none
+  0000:11:00.0  link 16.0 GT/s PCIe x16 (max 16.0 GT/s PCIe)  aspm on: no link/ files
+  0000:10:00.0  link 8.0 GT/s PCIe x16 (max 16.0 GT/s PCIe)  aspm on: no link/ files
+  0000:00:01.1  link 8.0 GT/s PCIe x16 (max 8.0 GT/s PCIe)  aspm on: no link/ files
+0000:30:00.0: L1-OFF
+  0000:30:00.0  link 8.0 GT/s PCIe x16 (max 8.0 GT/s PCIe)  aspm on: none
+  0000:00:08.1  link 8.0 GT/s PCIe x16 (max 8.0 GT/s PCIe)  aspm on: no link/ files

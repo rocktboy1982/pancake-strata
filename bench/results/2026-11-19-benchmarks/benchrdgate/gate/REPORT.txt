@@ -1,0 +1,10 @@
+arm                     runs     success (95% Wilson) tool valid t_success med s/success  vs base
+plain                    180 100.0% [97.9, 100.0]     100.0%          1.4s      1.3s
+                       time-AUC 0.999 (horizon 1800 s; success within 25% / 50% / 75% / 100% of it: 100.0% / 100.0% / 100.0% / 100.0%)
+                       by kind: code_edit 100% (n=80)  tool_call 100% (n=70)  qa 100% (n=30)
+updated                   90 100.0% [95.9, 100.0]     100.0%          1.3s      1.2s  success  +0.0 pts [ +0.0,  +0.0] PASS; validity  +0.0 [ +0.0,  +0.0] PASS  => PASS
+                       time-AUC 0.999 (horizon 1800 s; success within 25% / 50% / 75% / 100% of it: 100.0% / 100.0% / 100.0% / 100.0%)  vs base +0.000 [-0.000, +0.000]
+                       by kind: code_edit 100% (n=40)  tool_call 100% (n=35)  qa 100% (n=15)
+base run 2 vs run 1: +0.0 pts [+0.0, +0.0]
+verdict: success non-inferior within 5 pts, tool-call validity within 3 pts; paired by task, bootstrap over tasks and repetitions
+WARNING: updated: foreign CPU load during the run: its times are unreliable (success rates are not affected)

@@ -1,0 +1,44 @@
+rep 0 plain-upstream       short 69.8 short 76.6 edit 79.5 edit 83.4  foreign CPU 20% [('kcompactd0', 57), ('kworker/10:1-events_freezable', 6), ('kworker/12:1-events_freezable', 5)]  gpu 1983/1249 MHz 58C 146W gtt 25M cpu 3828MHz 59C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plain-upstream       short 71.0 short 77.2 edit 78.2 edit 93.9  foreign CPU 18% [('kcompactd0', 43), ('localsearch-3', 1), ('kworker/u65:8-KFD IH', 1)]  gpu 2039/1249 MHz 58C 153W gtt 25M cpu 3796MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plain-upstream       short 71.2 short 76.2 edit 79.9 edit 85.9  foreign CPU 20% [('kcompactd0', 54), ('kworker/8:1-events_freezable', 3), ('kswapd0', 2)]  gpu 1903/1249 MHz 59C 145W gtt 25M cpu 3698MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plain-upstream: every attempt noisy, keeping the quietest (18% foreign CPU)
+rep 0 updated-exact        short 96.9 short 106.8 edit 120.4 edit 151.1  foreign CPU 11% [('kcompactd0', 22), ('kswapd0', 2), ('claude', 1)]  gpu 2003/1249 MHz 59C 156W gtt 25M cpu 3992MHz 58C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated-exact        short 100.9 short 106.9 edit 116.7 edit 148.5  foreign CPU 15% [('kcompactd0', 37), ('kworker/9:0-events_freezable', 3), ('kworker/1:1-events', 2)]  gpu 2057/1249 MHz 60C 159W gtt 25M cpu 4138MHz 59C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated-exact        short 100.9 short 107.2 edit 124.4 edit 142.4  foreign CPU 12% [('kcompactd0', 22), ('kworker/1:1-events_freezable', 2), ('kworker/9:2-mm_percpu_wq', 1)]  gpu 2030/1249 MHz 60C 157W gtt 25M cpu 3862MHz 58C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated-exact: every attempt noisy, keeping the quietest (11% foreign CPU)
+rep 0 updated              short 103.9 short 107.1 edit 154.5 edit 170.8  foreign CPU 9% [('kcompactd0', 17), ('kworker/1:2-mm_percpu_wq', 5), ('kworker/9:0-mm_percpu_wq', 2)]  gpu 2051/1249 MHz 61C 170W gtt 21M cpu 4142MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated              short 82.1 short 96.4 edit 169.7 edit 128.2  foreign CPU 13% [('kcompactd0', 36), ('kswapd0', 3), ('kworker/9:0-events', 2)]  gpu 2062/1249 MHz 59C 150W gtt 21M cpu 3926MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated              short 81.4 short 78.0 edit 168.8 edit 179.9  foreign CPU 9% [('kcompactd0', 21), ('kworker/1:2-events_freezable', 6), ('kworker/9:1-events', 2)]  gpu 1894/1249 MHz 59C 155W gtt 21M cpu 4176MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (9% foreign CPU)
+rep 0 base-late            short 55.1 short 63.4 edit 79.4 edit 82.2  foreign CPU 21% [('kcompactd0', 62), ('kworker/12:0-events_freezable', 6), ('kworker/13:2+events_freezable', 5)]  gpu 1979/1249 MHz 58C 127W gtt 25M cpu 3781MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late            short 74.7 short 77.7 edit 80.6 edit 93.8  foreign CPU 12% [('kcompactd0', 30), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 2064/1249 MHz 58C 147W gtt 25M cpu 3949MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late            short 71.6 short 77.1 edit 78.8 edit 86.8  foreign CPU 17% [('kcompactd0', 40), ('kworker/0:0-events', 6), ('kworker/1:1-events_freezable', 4)]  gpu 2051/1249 MHz 60C 156W gtt 25M cpu 3952MHz 59C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late: every attempt noisy, keeping the quietest (12% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  plain-upstream           74.1 +-  39.4  (n=2)
+                              drafts accepted 0.68
+  short  updated-exact           101.8 +-  62.9  (n=2)   vs plain-upstream: +37.4% +- 31.7%  -> better
+                              drafts accepted 0.73
+  short  updated                 105.5 +-  20.3  (n=2)   vs plain-upstream: +42.4% +- 25.7%  -> better
+                              drafts accepted 0.70
+  short  base-late                76.2 +-  19.1  (n=2)   vs plain-upstream:  +2.8% +- 27.4%  -> no difference
+                              drafts accepted 0.70
+  edit   plain-upstream           86.1 +-  99.8  (n=2)
+                              drafts accepted 0.95
+  edit   updated-exact           135.8 +- 195.1  (n=2)   vs plain-upstream: +57.8% +- 110.8%  -> no difference
+                              drafts accepted 0.92
+  edit   updated                 162.7 +- 103.6  (n=2)   vs plain-upstream: +89.0% +-  4.4%  -> better
+                              drafts accepted 0.88
+  edit   base-late                87.2 +-  83.9  (n=2)   vs plain-upstream:  +1.3% +- 18.5%  -> no difference
+                              drafts accepted 0.95
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  updated-exact        DIFFERENT text -> lossy or placement-dependent: quality gate
+  updated              DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +2.8%  edit +1.3%
+  updated-exact        short +35.5%  edit +56.7%  -> PROMOTE to confirm
+  updated              short +40.4%  edit +87.8%  -> PROMOTE to confirm

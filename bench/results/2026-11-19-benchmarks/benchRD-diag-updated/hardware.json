@@ -1,0 +1,10 @@
+{
+ "gfx": "gfx1100",
+ "rocm": "10.0",
+ "vram_gib": 20,
+ "pcie": "16.0 GT/s PCIe x16",
+ "cpu": "AMD Ryzen 7 5700G with Radeon Graphics",
+ "ram_gib": 58,
+ "vmm": true,
+ "hipblaslt": true
+}

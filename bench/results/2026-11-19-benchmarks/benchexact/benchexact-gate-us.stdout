@@ -1,0 +1,20 @@
+scoring plain-upstream (a) ...
+scoring plain-upstream (b) ...
+scoring updated-exact ...
+scoring updated ...
+updated-exact            REJECT
+      0
+     ],
+     "events_p": 0.11111,
+     "event_rule": "PASS",
+     "verdict": "REJECT"
+    }
+    near-tie: top-1 agreement 96.621%, 318 differences, 226 near-ties (margin <= 0.75): FAIL
+updated                  REJECT
+      0
+     ],
+     "events_p": 0.11111,
+     "event_rule": "PASS",
+     "verdict": "REJECT"
+    }
+    near-tie: top-1 agreement 96.036%, 373 differences, 268 near-ties (margin <= 0.75): FAIL

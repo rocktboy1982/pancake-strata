@@ -1,0 +1,15 @@
+Test project /mnt/pancake/benchRD/build-updated
+    Start  65: sampler_parity
+1/5 Test  #65: sampler_parity ...................   Passed    0.98 sec
+    Start  67: sampler_parity_one_block
+2/5 Test  #67: sampler_parity_one_block .........   Passed    1.36 sec
+    Start  68: sampler_parity_old
+3/5 Test  #68: sampler_parity_old ...............   Passed    6.59 sec
+    Start  81: elementwise_parity
+4/5 Test  #81: elementwise_parity ...............   Passed    0.13 sec
+    Start 106: verify_ecap_test
+5/5 Test #106: verify_ecap_test .................   Passed    0.04 sec
+
+100% tests passed, 0 tests failed out of 5
+
+Total Test time (real) =   9.10 sec

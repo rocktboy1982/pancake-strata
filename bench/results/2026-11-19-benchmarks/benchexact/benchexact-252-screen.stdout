@@ -1,0 +1,47 @@
+case long32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plain                short 102.9 short 92.9 edit 77.2 edit 83.2 long32k 56.8/1673p 31411t  foreign CPU 35% [('kcompactd0', 63), ('kworker/9:2-events_freezable', 12), ('kworker/1:3-events_freezable', 7)]  gpu 1827/1249 MHz 61C 154W gtt 25M cpu 3762MHz 62C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plain                short 71.1 short 69.5 edit 71.5 edit 96.7 long32k 53.4/1073p 31411t  foreign CPU 28% [('kcompactd0', 74), ('kworker/10:3-events_freezable', 12), ('kworker/10:0-events', 4)]  gpu 1925/1249 MHz 61C 145W gtt 25M cpu 3678MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 plain                short 89.3 short 75.5 edit 62.3 edit 95.6 long32k 28.1/1093p 31411t  foreign CPU 35% [('kcompactd0', 59), ('kworker/9:2-events', 7), ('kswapd0', 5)]  gpu 1872/1249 MHz 61C 149W gtt 25M cpu 3716MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plain: every attempt noisy, keeping the quietest (28% foreign CPU)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated-exact        short 109.3 short 115.0 edit 89.7 edit 144.9 long32k 20.0/1635p 31411t  foreign CPU 21% [('kcompactd0', 55), ('kworker/9:2+events_freezable', 5), ('kworker/0:0-events', 3)]  gpu 2032/1249 MHz 63C 176W gtt 25M cpu 3833MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated-exact        short 107.5 short 116.4 edit 87.4 edit 131.6 long32k 47.8/1604p 31411t  foreign CPU 20% [('kcompactd0', 48), ('kworker/3:2-events', 6), ('kworker/9:1-mm_percpu_wq', 5)]  gpu 1973/1249 MHz 63C 169W gtt 25M cpu 3774MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated-exact        short 114.8 short 116.2 edit 94.3 edit 134.7 long32k 43.7/1548p 31411t  foreign CPU 21% [('kcompactd0', 44), ('kworker/0:2-events_freezable', 11), ('kworker/3:1-mm_percpu_wq', 4)]  gpu 2015/1249 MHz 64C 177W gtt 25M cpu 3894MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated-exact: every attempt noisy, keeping the quietest (20% foreign CPU)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 111.6 short 115.6 edit 103.2 edit 132.9 long32k 54.4/1593p 31411t  foreign CPU 17% [('kcompactd0', 46), ('kworker/0:0-events', 8), ('kworker/15:2-mm_percpu_wq', 2)]  gpu 1942/1249 MHz 63C 163W gtt 25M cpu 3845MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 111.7 short 115.5 edit 94.9 edit 132.7 long32k 54.9/1587p 31411t  foreign CPU 20% [('kcompactd0', 58), ('kworker/11:2-mm_percpu_wq', 7), ('kworker/1:0-events_freezable', 5)]  gpu 1971/1249 MHz 64C 171W gtt 25M cpu 3649MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 105.3 short 115.7 edit 101.5 edit 163.8 long32k 56.5/1586p 31411t  foreign CPU 20% [('kcompactd0', 42), ('kworker/0:0-events_freezable', 7), ('kworker/8:2-events_freezable', 5)]  gpu 1998/1249 MHz 63C 171W gtt 25M cpu 3951MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (17% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  plain                    70.3 +-  10.2  (n=2)
+                              drafts accepted 0.70
+  short  updated-exact           112.0 +-  56.6  (n=2)   vs plain: +59.2% +- 94.9%  -> no difference
+                              drafts accepted 0.73
+  short  updated                 113.6 +-  25.4  (n=2)   vs plain: +61.6% +- 50.6%  -> better
+                              drafts accepted 0.71
+  edit   plain                    84.1 +- 160.1  (n=2)
+                              drafts accepted 0.96
+  edit   updated-exact           109.5 +- 280.9  (n=2)   vs plain: +30.2% +- 143.6%  -> no difference
+                              drafts accepted 0.94
+  edit   updated                 118.1 +- 188.7  (n=2)   vs plain: +40.4% +- 34.0%  -> better
+                              drafts accepted 0.97
+  long32k plain                  1072.9 +-   nan  (n=1)
+  long32k updated-exact          1604.5 +-   nan  (n=1)   vs plain: +49.5% +-  nan%  -> no difference
+  long32k updated                1592.6 +-   nan  (n=1)   vs plain: +48.4% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  updated-exact        DIFFERENT text -> lossy or placement-dependent: quality gate
+  updated              DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  updated-exact        short +59.2%  edit +30.2%  long32k +49.5%  -> PROMOTE to confirm
+  updated              short +61.6%  edit +40.4%  long32k +48.4%  -> PROMOTE to confirm

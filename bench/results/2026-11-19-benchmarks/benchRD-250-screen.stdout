@@ -1,0 +1,112 @@
+case long10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+case long32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+case long64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+case long100k: 320073 chars, sha1 de7aa27b48cb, target 100000 tokens (a unique run line is prepended to every request)
+  long10k: 10338 prompt tokens by count_tokens (target 10000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+  long100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 plain                short 94.4 short 92.8 edit 105.4 edit 87.4 long10k 54.3/1442p 10322t long32k 68.4/1901p 31410t long64k 74.9/2222p 65198t long100k 73.3/2413p 100986t  foreign CPU 22% [('kcompactd0', 82), ('kworker/11:0-events_freezable', 16), ('kworker/0:0-events', 13)]  gpu 2012/1249 MHz 67C 195W gtt 25M cpu 3401MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long10k: 10338 prompt tokens by count_tokens (target 10000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+  long100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 plain                short 89.7 short 92.8 edit 82.3 edit 115.8 long10k 38.8/1419p 10322t long32k 40.3/1900p 31410t long64k 70.5/2242p 65198t long100k 77.2/2359p 100986t  foreign CPU 28% [('kcompactd0', 59), ('kworker/0:0-events_freezable', 11), ('kworker/1:0-events', 11)]  gpu 1929/1249 MHz 70C 179W gtt 25M cpu 3491MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long10k: 10338 prompt tokens by count_tokens (target 10000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+  long100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 plain                short 79.1 short 72.2 edit 66.2 edit 116.9 long10k 15.7/1138p 10322t long32k 20.9/1436p 31411t long64k 72.3/2185p 65199t long100k 30.8/2386p 100987t  foreign CPU 29% [('kcompactd0', 82), ('kworker/12:2-events_freezable', 15), ('kworker/12:1-events', 6)]  gpu 1984/1249 MHz 70C 182W gtt 25M cpu 3346MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plain: every attempt noisy, keeping the quietest (22% foreign CPU)
+  long10k: 10338 prompt tokens by count_tokens (target 10000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+  long100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 updated              short 113.6 short 95.4 edit 108.6 edit 134.7 long10k 60.7/1467p 10323t long32k 65.3/1788p 31411t long64k 75.5/2180p 65199t long100k 31.7/2446p 100987t  foreign CPU 27% [('kcompactd0', 65), ('kworker/1:0+events_freezable', 20), ('kworker/0:2+events_freezable', 5)]  gpu 1958/1249 MHz 69C 185W gtt 25M cpu 3363MHz 69C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long10k: 10338 prompt tokens by count_tokens (target 10000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+  long100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 updated              short 114.3 short 113.0 edit 108.3 edit 175.5 long10k 58.1/1496p 10323t long32k 67.7/1796p 31411t long64k 76.6/2213p 65199t long100k 58.0/2394p 100987t  foreign CPU 25% [('kcompactd0', 62), ('kworker/11:1-events_freezable', 11), ('kworker/11:2-events_freezable', 7)]  gpu 1995/1249 MHz 72C 194W gtt 25M cpu 3313MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long10k: 10338 prompt tokens by count_tokens (target 10000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+  long100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 updated              short 79.3 short 68.6 edit 93.4 edit 190.5 long10k 48.0/940p 10323t long32k 63.4/1273p 31411t long64k 66.1/2188p 65199t long100k 40.3/2486p 100987t  foreign CPU 21% [('kcompactd0', 68), ('kworker/0:1-events', 10), ('kswapd0', 7)]  gpu 1998/1249 MHz 70C 191W gtt 25M cpu 3419MHz 69C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (21% foreign CPU)
+  long10k: 10338 prompt tokens by count_tokens (target 10000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+  long100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 updated+pf16-1       short 75.3 short 82.5 edit 125.8 edit 140.7 long10k 27.5/932p 10323t long32k 58.6/1286p 31411t long64k 46.5/2058p 65199t long100k 36.1/2265p 100987t  foreign CPU 22% [('kcompactd0', 63), ('kworker/0:1-events', 14), ('kworker/13:0-events', 9)]  gpu 1951/1249 MHz 69C 179W gtt 25M cpu 3367MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long10k: 10338 prompt tokens by count_tokens (target 10000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+  long100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 updated+pf16-1       short 92.2 short 72.2 edit 103.0 edit 181.2 long10k 26.3/1140p 10323t long32k 65.0/1332p 31411t long64k 69.5/2138p 65199t long100k 41.7/2206p 100987t  foreign CPU 21% [('kcompactd0', 72), ('kworker/9:0-events', 4), ('kworker/0:2-events', 4)]  gpu 1983/1249 MHz 69C 182W gtt 25M cpu 3267MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long10k: 10338 prompt tokens by count_tokens (target 10000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+  long100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 updated+pf16-1       short 96.8 short 110.7 edit 101.4 edit 131.1 long10k 21.0/1128p 10323t long32k 60.9/1719p 31411t long64k 70.3/2008p 65199t long100k 24.1/2214p 100987t  foreign CPU 24% [('kcompactd0', 67), ('kworker/13:1-events', 14), ('kworker/13:0-mm_percpu_wq', 11)]  gpu 1978/1249 MHz 70C 186W gtt 25M cpu 3483MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated+pf16-1: every attempt noisy, keeping the quietest (21% foreign CPU)
+  long10k: 10338 prompt tokens by count_tokens (target 10000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+  long100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 base-late            short 95.8 short 91.5 edit 87.1 edit 115.5 long10k 34.3/1481p 10323t long32k 30.3/1899p 31411t long64k 55.2/2271p 65199t long100k 72.4/2376p 100987t  foreign CPU 27% [('kcompactd0', 75), ('kworker/0:1-events', 9), ('kworker/15:1-mm_percpu_wq', 7)]  gpu 1960/1249 MHz 71C 191W gtt 25M cpu 3425MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long10k: 10338 prompt tokens by count_tokens (target 10000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+  long100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 base-late            short 79.3 short 95.9 edit 82.6 edit 115.5 long10k 22.4/1143p 10323t long32k 33.9/1293p 31411t long64k 51.5/2246p 65199t long100k 32.4/2412p 100987t  foreign CPU 27% [('kcompactd0', 82), ('kworker/11:2-mm_percpu_wq', 7), ('kworker/0:1-events', 6)]  gpu 2015/1249 MHz 70C 190W gtt 25M cpu 3378MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long10k: 10338 prompt tokens by count_tokens (target 10000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+  long100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 base-late            short 97.9 short 95.5 edit 85.3 edit 118.2 long10k 42.3/1493p 10323t long32k 31.7/1903p 31411t long64k 46.8/2235p 65199t long100k 78.5/2419p 100987t  foreign CPU 27% [('kcompactd0', 77), ('kworker/10:1-events_freezable', 11), ('kworker/10:0-events', 8)]  gpu 1950/1249 MHz 71C 187W gtt 25M cpu 3490MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late: every attempt noisy, keeping the quietest (27% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  plain                    93.6 +-  10.2  (n=2)
+                              drafts accepted 0.72
+  short  updated                  73.9 +-  68.0  (n=2)   vs plain: -21.0% +- 61.8%  -> no difference
+                              drafts accepted 0.71
+  short  updated+pf16-1           82.2 +- 127.1  (n=2)   vs plain: -12.2% +- 124.9%  -> no difference
+                              drafts accepted 0.69
+  short  base-late                93.7 +-  27.3  (n=2)   vs plain:  +0.1% +- 18.3%  -> no difference
+                              drafts accepted 0.71
+  edit   plain                    96.4 +- 114.4  (n=2)
+                              drafts accepted 0.94
+  edit   updated                 141.9 +- 617.1  (n=2)   vs plain: +47.3% +- 758.8%  -> no difference
+                              drafts accepted 0.90
+  edit   updated+pf16-1          142.1 +- 497.0  (n=2)   vs plain: +47.4% +- 634.2%  -> no difference
+                              drafts accepted 0.87
+  edit   base-late               101.3 +- 180.5  (n=2)   vs plain:  +5.1% +- 305.9%  -> no difference
+                              drafts accepted 0.97
+  long10k plain                  1441.5 +-   nan  (n=1)
+  long10k updated                 940.0 +-   nan  (n=1)   vs plain: -34.8% +-  nan%  -> no difference
+  long10k updated+pf16-1         1140.0 +-   nan  (n=1)   vs plain: -20.9% +-  nan%  -> no difference
+  long10k base-late              1481.0 +-   nan  (n=1)   vs plain:  +2.7% +-  nan%  -> no difference
+  long32k plain                  1900.7 +-   nan  (n=1)
+  long32k updated                1273.4 +-   nan  (n=1)   vs plain: -33.0% +-  nan%  -> no difference
+  long32k updated+pf16-1         1332.1 +-   nan  (n=1)   vs plain: -29.9% +-  nan%  -> no difference
+  long32k base-late              1898.6 +-   nan  (n=1)   vs plain:  -0.1% +-  nan%  -> no difference
+  long64k plain                  2221.7 +-   nan  (n=1)
+  long64k updated                2187.9 +-   nan  (n=1)   vs plain:  -1.5% +-  nan%  -> no difference
+  long64k updated+pf16-1         2137.5 +-   nan  (n=1)   vs plain:  -3.8% +-  nan%  -> no difference
+  long64k base-late              2271.4 +-   nan  (n=1)   vs plain:  +2.2% +-  nan%  -> no difference
+  long100k plain                  2413.4 +-   nan  (n=1)
+  long100k updated                2486.3 +-   nan  (n=1)   vs plain:  +3.0% +-  nan%  -> no difference
+  long100k updated+pf16-1         2206.3 +-   nan  (n=1)   vs plain:  -8.6% +-  nan%  -> no difference
+  long100k base-late              2375.5 +-   nan  (n=1)   vs plain:  -1.6% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  updated              DIFFERENT text -> lossy or placement-dependent: quality gate
+  updated+pf16-1       DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.1%  edit +5.1%  long10k +2.7%  long32k -0.1%  long64k +2.2%  long100k -1.6%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  updated              short -21.0%  edit +43.6%  long10k -35.7%  long32k -33.0%  long64k -2.6%  long100k +3.8%  -> drop
+  updated+pf16-1       short -12.2%  edit +43.8%  long10k -22.0%  long32k -29.9%  long64k -4.9%  long100k -7.9%  -> drop

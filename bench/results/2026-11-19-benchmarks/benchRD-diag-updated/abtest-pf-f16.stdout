@@ -1,0 +1,9 @@
+rep 0 pf-f16               short 109.5 short 88.1  foreign CPU 1% [('localsearch-3', 1), ('claude', 1), ('ptyxis', 0)]  gpu 2072/1249 MHz 57C 141W gtt 21M cpu 3816MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  pf-f16                   98.8 +- 136.0  (n=2)
+                              drafts accepted 0.71
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)

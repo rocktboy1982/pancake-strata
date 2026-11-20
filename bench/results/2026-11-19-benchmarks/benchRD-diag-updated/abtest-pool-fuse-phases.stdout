@@ -1,0 +1,9 @@
+rep 0 pool-fuse-phases     short 68.5 short 100.0  foreign CPU 1% [('localsearch-3', 1), ('claude', 1), ('python', 0)]  gpu 2068/1249 MHz 56C 154W gtt 21M cpu 4414MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  pool-fuse-phases         84.2 +- 200.2  (n=2)
+                              drafts accepted 0.72
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)

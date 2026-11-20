@@ -1,0 +1,10 @@
+rep 0 base                 short 71.9 short 76.1  foreign CPU 14% [('kcompactd0', 52), ('kworker/14:1-events', 3), ('kworker/8:0-events', 3)]  gpu 2022/1249 MHz 57C 150W gtt 21M cpu 4064MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base: every attempt noisy, keeping the quietest (14% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                     74.0 +-  26.7  (n=2)
+                              drafts accepted 0.65
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)

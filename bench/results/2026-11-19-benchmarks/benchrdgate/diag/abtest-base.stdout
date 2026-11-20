@@ -1,0 +1,9 @@
+rep 0 base                 short 113.4 short 114.9  foreign CPU 1% [('claude', 1), ('localsearch-3', 1)]  gpu 2062/1249 MHz 57C 166W gtt 21M cpu 4367MHz 52C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    114.2 +-   9.5  (n=2)
+                              drafts accepted 0.73
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)

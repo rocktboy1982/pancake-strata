@@ -1,0 +1,12 @@
+{
+ "gfx": "gfx1100",
+ "rocm": "10.0.0",
+ "vram_gib": 20.0,
+ "pcie_link": "16.0 GT/s PCIe x16",
+ "cpu": "AMD Ryzen 7 5700G with Radeon Graphics",
+ "ram_gib": 57.7,
+ "hipblaslt": true,
+ "wave": 32,
+ "kfd": true,
+ "vmm": "kfd-present (the engine's own check decides at start)"
+}

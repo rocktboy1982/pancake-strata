@@ -1,0 +1,74 @@
+{
+ "POOL_FUSE_PHASES": {
+  "env": {
+   "STRATA_POOL_FUSE_PHASES": "1"
+  },
+  "args": {},
+  "claimed_exact": true,
+  "exact": false,
+  "gain_pct": -5.97,
+  "cases": {
+   "short": -5.97
+  },
+  "verdict": "FAIL",
+  "note": "a parity ctest of this flag failed"
+ },
+ "VERIFY_ECAP": {
+  "env": {
+   "STRATA_VERIFY_ECAP": "0",
+   "STRATA_VERIFY_ECAP_MIN_ROWS": "6"
+  },
+  "args": {},
+  "claimed_exact": false,
+  "exact": false,
+  "gain_pct": -7.37,
+  "cases": {
+   "short": -7.37
+  },
+  "verdict": "NO-GAIN",
+  "gate_pass": true,
+  "note": "quality gate: T-589,T-591"
+ },
+ "PF_F16": {
+  "env": {
+   "STRATA_PF_F16": "1"
+  },
+  "args": {},
+  "claimed_exact": false,
+  "exact": false,
+  "gain_pct": 10.27,
+  "cases": {
+   "short": 10.27
+  },
+  "verdict": "GAIN",
+  "gate_pass": true,
+  "note": "quality gate: T-828"
+ },
+ "RDNA_MMVQ_WAVE": {
+  "env": {
+   "STRATA_RDNA_MMVQ_WAVE": "3"
+  },
+  "args": {},
+  "claimed_exact": true,
+  "exact": true,
+  "gain_pct": 27.34,
+  "cases": {
+   "short": 27.34
+  },
+  "verdict": "GAIN"
+ },
+ "KV_HOST_DMA": {
+  "env": {
+   "STRATA_KV_HOST_DMA": "1"
+  },
+  "args": {},
+  "claimed_exact": true,
+  "exact": false,
+  "gain_pct": 22.49,
+  "cases": {
+   "short": 22.49
+  },
+  "verdict": "GAIN",
+  "note": "claimed exact but the text differs: treated as lossy"
+ }
+}

@@ -1,0 +1,17 @@
+{
+ "base": "/home/dan/auto-runs/winbenchus/diag-rerun/diag-plain-config.json",
+ "arms": {
+  "STRATA_PF_F16": {
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  }
+ },
+ "cases": [
+  "short"
+ ],
+ "reps": 1,
+ "lossy": true,
+ "prefill": false,
+ "note": "flag_diag.py: one arm, one engine start, case short (quick screen)"
+}

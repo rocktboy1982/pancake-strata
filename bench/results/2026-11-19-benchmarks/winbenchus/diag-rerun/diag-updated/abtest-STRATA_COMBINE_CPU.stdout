@@ -1,0 +1,10 @@
+rep 0 STRATA_COMBINE_CPU   short 65.8 short 66.4  foreign CPU 6% [('kcompactd0', 23), ('kswapd0', 2), ('kworker/9:3-mm_percpu_wq', 2)]  gpu 2071/1249 MHz 57C 143W gtt 21M cpu 3970MHz 51C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 STRATA_COMBINE_CPU: every attempt noisy, keeping the quietest (6% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  STRATA_COMBINE_CPU       66.1 +-   3.8  (n=2)
+                              drafts accepted 0.68
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)

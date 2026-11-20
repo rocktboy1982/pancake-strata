@@ -1,0 +1,12 @@
+pancake memory check:
+  RAM available:                       54 GiB
+  free in blocks of 2 MiB or more:     33 GiB   (the arena locks 33 GiB; low = fragmented)
+  vm.compact_unevictable_allowed:      0         (pancake needs 0: compaction must not move the locked arena)
+  vm.compaction_proactiveness:         50        (pancake recommends 50; the kernel default is 20)
+  vm.nr_hugepages:                     0 (0 free)   (optional: 16920 holds the IQ2_XS arena)
+  /etc/sysctl.d/90-pancake.conf: present
+  -> optional:    sudo /mnt/pancake/benchus/src-us/tools/pancake/os_tune.sh install --hugepages   (reserves 33 GiB at boot for the arena; see the header)
+  iGPU 0000:30:00.0: high (sclk now: 0Mhz)
+  core idle state C3 disabled: 1   (pancake: 1 during benchmarks / daily decode)
+  /etc/systemd/system/pancake-cpu.service: present (applied at boot)
+  IOMMU group of GPU 0000:12:00.0: identity   (identity = passthrough, DMA / DMA-FQ = translated)

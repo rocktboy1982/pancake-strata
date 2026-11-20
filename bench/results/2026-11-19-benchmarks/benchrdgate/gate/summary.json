@@ -1,0 +1,113 @@
+{
+ "arms": {
+  "plain": {
+   "stats": {
+    "n": 180,
+    "ok": 180,
+    "rate": 1.0,
+    "lo": 0.9791037501849418,
+    "hi": 1.0,
+    "kinds": {
+     "code_edit": {
+      "n": 80,
+      "rate": 1.0
+     },
+     "tool_call": {
+      "n": 70,
+      "rate": 1.0
+     },
+     "qa": {
+      "n": 30,
+      "rate": 1.0
+     }
+    },
+    "valid_n": 70,
+    "valid_rate": 1.0,
+    "t_success_median": 1.368,
+    "s_per_success": 1.301238888888889,
+    "tokens_per_run": 47.077777777777776,
+    "errors": 0
+   },
+   "auc": {
+    "auc": 0.9992770895061729,
+    "within": {
+     "0.25": 1.0,
+     "0.5": 1.0,
+     "0.75": 1.0,
+     "1": 1.0
+    }
+   }
+  },
+  "updated": {
+   "stats": {
+    "n": 90,
+    "ok": 90,
+    "rate": 1.0,
+    "lo": 0.9590629315783191,
+    "hi": 0.9999999999999999,
+    "kinds": {
+     "code_edit": {
+      "n": 40,
+      "rate": 1.0
+     },
+     "tool_call": {
+      "n": 35,
+      "rate": 1.0
+     },
+     "qa": {
+      "n": 15,
+      "rate": 1.0
+     }
+    },
+    "valid_n": 35,
+    "valid_rate": 1.0,
+    "t_success_median": 1.2505000000000002,
+    "s_per_success": 1.2481333333333333,
+    "tokens_per_run": 47.15555555555556,
+    "errors": 0
+   },
+   "auc": {
+    "auc": 0.9993065925925926,
+    "within": {
+     "0.25": 1.0,
+     "0.5": 1.0,
+     "0.75": 1.0,
+     "1": 1.0
+    }
+   },
+   "success_diff": {
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0,
+    "tasks": 18
+   },
+   "auc_diff": {
+    "diff": 2.950308641974036e-05,
+    "lo": -3.557098765431964e-05,
+    "hi": 8.875617283951896e-05
+   },
+   "success_verdict": "PASS",
+   "validity_diff": {
+    "diff": 0.0,
+    "lo": 0.0,
+    "hi": 0.0
+   },
+   "validity_verdict": "PASS",
+   "verdict": "PASS",
+   "task_flips": []
+  }
+ },
+ "margin": 0.05,
+ "validity_margin": 0.03,
+ "resample_tasks": true,
+ "resample_reps": true,
+ "warnings": [
+  "updated: foreign CPU load during the run: its times are unreliable (success rates are not affected)"
+ ],
+ "auc_horizon_s": 1800.0,
+ "base_noise": {
+  "diff": 0.0,
+  "lo": 0.0,
+  "hi": 0.0
+ }
+}

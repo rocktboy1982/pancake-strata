@@ -1,0 +1,9 @@
+rep 0 base                 short 76.0 short 103.2  foreign CPU 1% [('localsearch-3', 1), ('systemd-oomd', 0), ('gnome-shell', 0)]  gpu 2064/1249 MHz 56C 160W gtt 21M cpu 4416MHz 51C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                     89.6 +- 172.9  (n=2)
+                              drafts accepted 0.73
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)

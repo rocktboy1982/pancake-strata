@@ -1,0 +1,9 @@
+rep 0 rdna-mmvq-wave       short 111.9 short 112.5  foreign CPU 2% [('dbus-daemon', 1), ('localsearch-3', 1), ('claude', 0)]  gpu 2061/1249 MHz 58C 169W gtt 21M cpu 4375MHz 52C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  rdna-mmvq-wave          112.2 +-   3.8  (n=2)
+                              drafts accepted 0.71
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)

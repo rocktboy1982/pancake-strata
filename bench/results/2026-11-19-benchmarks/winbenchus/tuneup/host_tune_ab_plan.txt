@@ -1,0 +1,14 @@
+host A/B plan (nothing is changed); out dir /home/dan/auto-runs; spec bench/specs/125-host-tune-ab.json; idle wait 180s before every step
+  winH-baseline          no step (+ cold load nvme_ra)
+  winH-nvme_ra: skipped here (at target or n/a, probe exit 126) + cold pack load x3
+  winH-thp: skipped here (at target or n/a, probe exit 126)
+  winH-swappiness: skipped here (at target or n/a, probe exit 126)
+  winH-cpu_perf: skipped here (at target or n/a, probe exit 126)
+  winH-amd_pstate: skipped here (at target or n/a, probe exit 126)
+  winH-gpu_dpm: skipped here (at target or n/a, probe exit 126)
+  winH-aspm: skipped here (at target or n/a, probe exit 126)
+  winH-cstate: skipped here (at target or n/a, probe exit 126)
+  winH-all: every step not at target, together
+  winH-baseline-end      no step (drift of the session)
+estimate: about 20 minutes per step (3 idle + 2 arms x (engine start 40-65 s + cases) + revert + 3 idle), about 4 minutes more
+for each cold load, so 8 steps + all + 2 baselines = roughly 3.5 to 4 hours; the box is exclusive for that time.

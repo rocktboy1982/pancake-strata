@@ -1,0 +1,24 @@
+rep 0 plain-upstream       short 63.9 edit 82.3 short 74.7 edit 84.1 short 68.0 edit 81.4  foreign CPU 20% [('kcompactd0', 60), ('kworker/0:1-events_freezable', 5), ('kworker/9:2-events', 2)]  gpu 2024/1249 MHz 61C 146W gtt 25M cpu 3772MHz 63C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 0 updated              short 100.2 edit 180.6 short 101.8 edit 181.6 short 105.6 edit 179.9  foreign CPU 4% [('kcompactd0', 24), ('kworker/9:2-events', 5), ('kworker/9:3-events', 2)]  gpu 2046/1249 MHz 62C 165W gtt 21M cpu 4136MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 1 updated              short 97.6 edit 171.8 short 105.2 edit 179.8 short 101.8 edit 172.7  foreign CPU 4% [('kcompactd0', 21), ('kworker/0:3-mm_percpu_wq', 2), ('kworker/9:2-events_freezable', 2)]  gpu 2040/1249 MHz 62C 168W gtt 21M cpu 4279MHz 56C igpu 0%/vcn 0% fclk 1600
+rep 1 plain-upstream       short 66.7 edit 72.3 short 60.6 edit 64.3 short 26.9 edit 77.3  foreign CPU 17% [('kcompactd0', 61), ('kworker/0:1+events_freezable', 6), ('kworker/0:3+events_freezable', 3)]  gpu 1989/1249 MHz 61C 130W gtt 25M cpu 3442MHz 62C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 1 plain-upstream: slow start (more than 8.75% below the arm's other starts): run again
+rep 1 plain-upstream       short 71.6 edit 86.4 short 67.5 edit 84.0 short 69.0 edit 83.9  foreign CPU 23% [('kcompactd0', 64), ('kworker/8:1-events', 3), ('kworker/8:3-mm_percpu_wq', 3)]  gpu 2049/1249 MHz 63C 154W gtt 25M cpu 3728MHz 64C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+
+outlier rule robust: 1 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 0 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  plain-upstream       rep 1 attempt 0 slow start (means): short 51.4, edit 71.3
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  plain-upstream           69.1 +-   5.4  (n=6)
+                              drafts accepted 0.73
+  short  updated                 102.0 +-   4.4  (n=6)   vs plain-upstream: +47.6% +- 11.0%  -> better
+                              drafts accepted 0.68
+  edit   plain-upstream           83.7 +-   2.5  (n=6)
+                              drafts accepted 0.94
+  edit   updated                 177.7 +-   6.2  (n=6)   vs plain-upstream: +112.4% +-  9.6%  -> better
+                              drafts accepted 0.89
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  updated              DIFFERENT text -> lossy or placement-dependent: quality gate

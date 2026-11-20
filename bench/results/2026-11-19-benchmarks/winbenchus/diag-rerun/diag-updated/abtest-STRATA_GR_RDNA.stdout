@@ -1,0 +1,10 @@
+rep 0 STRATA_GR_RDNA       short 76.1 short 82.1  foreign CPU 8% [('kcompactd0', 27), ('kswapd0', 2), ('kworker/11:0-mm_percpu_wq', 2)]  gpu 2065/1249 MHz 58C 156W gtt 21M cpu 4207MHz 52C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 STRATA_GR_RDNA: every attempt noisy, keeping the quietest (8% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  STRATA_GR_RDNA           79.1 +-  38.1  (n=2)
+                              drafts accepted 0.69
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)

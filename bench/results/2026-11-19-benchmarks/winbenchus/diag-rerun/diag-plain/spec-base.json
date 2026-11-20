@@ -1,0 +1,13 @@
+{
+ "base": "/home/dan/auto-runs/winbenchus/diag-rerun/diag-plain-config.json",
+ "arms": {
+  "base": {}
+ },
+ "cases": [
+  "short"
+ ],
+ "reps": 1,
+ "lossy": true,
+ "prefill": false,
+ "note": "flag_diag.py: one arm, one engine start, case short (quick screen)"
+}

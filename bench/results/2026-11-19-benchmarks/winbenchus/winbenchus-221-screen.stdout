@@ -1,0 +1,52 @@
+case longdec10k: 32073 chars, sha1 35c546a8b467, target 10000 tokens (a unique run line is prepended to every request)
+case longdec32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+case longdec100k: 320073 chars, sha1 de7aa27b48cb, target 100000 tokens (a unique run line is prepended to every request)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+  longdec100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 plain-upstream       longdec10k 66.5/607p 10364t longdec32k 71.9/690p 31452t longdec64k 49.1/676p 65240t longdec100k 52.0/664p 101028t  foreign CPU 8% [('kcompactd0', 61), ('kworker/9:3-mm_percpu_wq', 3), ('kworker/1:2-mm_percpu_wq', 3)]  gpu 2026/1249 MHz 74C 191W gtt 25M cpu 3129MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+  longdec100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 plain-upstream       longdec10k 65.0/605p 10364t longdec32k 68.9/685p 31452t longdec64k 54.2/681p 65240t longdec100k 51.2/665p 101028t  foreign CPU 7% [('kcompactd0', 70), ('kworker/3:2-events_freezable', 3), ('kworker/11:3-events_freezable', 2)]  gpu 2005/1249 MHz 80C 195W gtt 25M cpu 3082MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+  longdec100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 plain-upstream       longdec10k 67.8/608p 10364t longdec32k 67.4/688p 31453t longdec64k 52.4/680p 65241t longdec100k 52.0/660p 101029t  foreign CPU 7% [('kcompactd0', 63), ('kworker/9:3-mm_percpu_wq', 3), ('kworker/1:1-mm_percpu_wq', 3)]  gpu 2008/1249 MHz 82C 198W gtt 25M cpu 3131MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plain-upstream: every attempt noisy, keeping the quietest (7% foreign CPU)
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+  longdec100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 updated              longdec10k 97.0/1575p 10365t longdec32k 91.1/2016p 31453t longdec64k 83.2/2596p 65241t longdec100k 79.8/2482p 101029t  foreign CPU 16% [('kcompactd0', 67), ('kworker/1:1-events', 14), ('kworker/1:0-events_freezable', 11)]  gpu 2006/1249 MHz 77C 205W gtt 25M cpu 3289MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+  longdec100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 updated              longdec10k 94.8/1551p 10365t longdec32k 92.2/2013p 31453t longdec64k 88.0/2614p 65241t longdec100k 68.9/2564p 101029t  foreign CPU 20% [('kcompactd0', 66), ('kworker/3:1-events_freezable', 7), ('kworker/3:0-mm_percpu_wq', 6)]  gpu 2024/1249 MHz 75C 212W gtt 25M cpu 3296MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec10k: 10338 prompt tokens by count_tokens (target 10000)
+  longdec32k: 31426 prompt tokens by count_tokens (target 32000)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+  longdec100k: 101002 prompt tokens by count_tokens (target 100000)
+rep 0 updated              longdec10k 66.7/1086p 10365t longdec32k 100.5/1580p 31453t longdec64k 63.1/2400p 65241t longdec100k 89.0/1996p 101029t  foreign CPU 13% [('kcompactd0', 51), ('kworker/0:0-events', 4), ('kworker/10:0-events_freezable', 4)]  gpu 2001/1249 MHz 72C 199W gtt 25M cpu 3311MHz 69C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (13% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  longdec10k plain-upstream           67.8 +-   nan  (n=1)
+  longdec10k updated                  66.7 +-   nan  (n=1)   vs plain-upstream:  -1.6% +-  nan%  -> no difference
+  longdec32k plain-upstream           67.4 +-   nan  (n=1)
+  longdec32k updated                 100.5 +-   nan  (n=1)   vs plain-upstream: +49.1% +-  nan%  -> no difference
+  longdec64k plain-upstream           52.4 +-   nan  (n=1)
+  longdec64k updated                  63.1 +-   nan  (n=1)   vs plain-upstream: +20.4% +-  nan%  -> no difference
+  longdec100k plain-upstream           52.0 +-   nan  (n=1)
+  longdec100k updated                  89.0 +-   nan  (n=1)   vs plain-upstream: +71.2% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  updated              identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  updated              longdec10k -1.6%  longdec32k +49.1%  longdec64k +20.4%  longdec100k +71.2%  -> PROMOTE to confirm

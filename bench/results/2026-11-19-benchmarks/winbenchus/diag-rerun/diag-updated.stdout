@@ -1,0 +1,12 @@
+arm base                         exit=0 71 s
+arm STRATA_RDNA_Q6K              exit=0 72 s
+arm STRATA_GR_RDNA               exit=0 69 s
+arm STRATA_RDNA_MMVQ_WAVE        exit=0 120 s
+arm STRATA_COMBINE_CPU           exit=0 120 s
+arm STRATA_VERIFY_ECAP           exit=0 120 s
+UNSUPPORTED STRATA_RDNA_Q6K                     claimed exact but the text differs from the default here
+UNSUPPORTED STRATA_GR_RDNA                      claimed exact but the text differs from the default here
+UNSUPPORTED STRATA_RDNA_MMVQ_WAVE               claimed exact but the text differs from the default here
+UNSUPPORTED STRATA_COMBINE_CPU                  claimed exact but the text differs from the default here
+NO-GAIN     STRATA_VERIFY_ECAP            -15.0 -15.0 % against a bar of 3 % and a noise floor of 0.0 %
+9.5 minutes; verdicts in /home/dan/auto-runs/winbenchus/diag-rerun/diag-updated/verdicts.json

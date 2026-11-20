@@ -1,0 +1,18 @@
+{
+ "base": "/home/dan/auto-runs/winbenchus/diag-rerun/diag-updated-config.json",
+ "arms": {
+  "STRATA_VERIFY_ECAP": {
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9"
+   }
+  }
+ },
+ "cases": [
+  "short"
+ ],
+ "reps": 1,
+ "lossy": true,
+ "prefill": false,
+ "note": "flag_diag.py: one arm, one engine start, case short (quick screen)"
+}

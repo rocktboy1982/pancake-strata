@@ -1,0 +1,34 @@
+rep 0 plain-upstream       short 73.7 short 76.7 edit 79.2 edit 85.2  foreign CPU 16% [('kcompactd0', 31), ('kworker/0:3-events', 3), ('kswapd0', 2)]  gpu 2033/1249 MHz 58C 155W gtt 25M cpu 3992MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plain-upstream       short 74.0 short 77.0 edit 79.6 edit 87.5  foreign CPU 17% [('kcompactd0', 33), ('kswapd0', 2), ('kworker/11:1-events_freezable', 2)]  gpu 2054/1249 MHz 59C 152W gtt 25M cpu 3974MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plain-upstream       short 71.6 short 79.3 edit 79.1 edit 85.7  foreign CPU 19% [('kcompactd0', 42), ('kworker/1:1-events_freezable', 2), ('pipewire', 1)]  gpu 2059/1249 MHz 59C 158W gtt 25M cpu 3861MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plain-upstream: every attempt noisy, keeping the quietest (16% foreign CPU)
+rep 0 updated              short 100.9 short 103.9 edit 161.1 edit 170.5  foreign CPU 11% [('kcompactd0', 16), ('kswapd0', 3), ('kworker/15:0-events', 2)]  gpu 2054/1249 MHz 60C 168W gtt 21M cpu 4200MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated              short 99.8 short 101.3 edit 153.1 edit 170.7  foreign CPU 13% [('kcompactd0', 20), ('kworker/13:1-events', 4), ('kswapd0', 2)]  gpu 2005/1249 MHz 60C 167W gtt 21M cpu 4124MHz 54C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated              short 99.6 short 100.1 edit 176.0 edit 182.0  foreign CPU 18% [('kcompactd0', 40), ('kworker/8:0-events_freezable', 3), ('kswapd0', 2)]  gpu 2056/1249 MHz 60C 164W gtt 21M cpu 4183MHz 55C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (11% foreign CPU)
+rep 0 base-late            short 73.2 short 76.7 edit 78.6 edit 86.4  foreign CPU 19% [('kcompactd0', 47), ('kworker/11:2-events_freezable', 4), ('kworker/9:2+events_freezable', 3)]  gpu 2029/1249 MHz 59C 149W gtt 25M cpu 3960MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late            short 69.3 short 75.6 edit 79.4 edit 96.4  foreign CPU 14% [('kcompactd0', 30), ('kswapd0', 3), ('kworker/9:3-events', 2)]  gpu 2062/1249 MHz 60C 154W gtt 25M cpu 4073MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late            short 71.7 short 77.8 edit 79.0 edit 82.3  foreign CPU 21% [('kcompactd0', 46), ('kworker/3:1-events_freezable', 5), ('kworker/3:2-events_freezable', 3)]  gpu 2062/1249 MHz 59C 155W gtt 25M cpu 3910MHz 61C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late: every attempt noisy, keeping the quietest (14% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  plain-upstream           75.2 +-  19.1  (n=2)
+                              drafts accepted 0.69
+  short  updated                 102.4 +-  19.1  (n=2)   vs plain-upstream: +36.2% +-  0.0%  -> better
+                              drafts accepted 0.70
+  short  base-late                72.4 +-  40.0  (n=2)   vs plain-upstream:  -3.7% +- 27.9%  -> no difference
+                              drafts accepted 0.66
+  edit   plain-upstream           82.2 +-  38.1  (n=2)
+                              drafts accepted 0.95
+  edit   updated                 165.8 +-  59.7  (n=2)   vs plain-upstream: +101.7% +- 26.3%  -> better
+                              drafts accepted 0.90
+  edit   base-late                87.9 +- 108.0  (n=2)   vs plain-upstream:  +6.9% +- 85.0%  -> no difference
+                              drafts accepted 0.93
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  updated              DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -3.7%  edit +6.9%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  updated              short +38.7%  edit +94.9%  -> PROMOTE to confirm

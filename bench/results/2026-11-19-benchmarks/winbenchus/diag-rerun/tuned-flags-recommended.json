@@ -1,0 +1,19 @@
+{
+ "schema": "strata.tuned-flags/1",
+ "profiles": [
+  {
+   "match": {
+    "gfx": "gfx1100",
+    "rocm": [
+     "10.0."
+    ],
+    "vram_gib": [
+     18,
+     22
+    ]
+   },
+   "source": "flag_diag.py, measured 2026-11-19",
+   "flags": []
+  }
+ ]
+}

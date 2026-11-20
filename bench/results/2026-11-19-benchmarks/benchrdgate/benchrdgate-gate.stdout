@@ -1,0 +1,32 @@
+plain#a: starting server (attempt 1)
+  plain#a rep 1/5: 18/18 ok, 32 s
+  plain#a rep 2/5: 18/18 ok, 21 s
+  plain#a rep 3/5: 18/18 ok, 21 s
+  plain#a rep 4/5: 18/18 ok, 21 s
+  plain#a rep 5/5: 18/18 ok, 21 s
+  plain#a: foreign CPU 27% [('kcompactd0', 70), ('kworker/0:1+events_freezable', 15), ('kworker/0:0-events_freezable', 7)]: times unreliable
+updated: starting server (attempt 1)
+  updated rep 1/5: 18/18 ok, 33 s
+  updated rep 2/5: 18/18 ok, 21 s
+  updated rep 3/5: 18/18 ok, 19 s
+  updated rep 4/5: 18/18 ok, 20 s
+  updated rep 5/5: 18/18 ok, 19 s
+  updated: foreign CPU 32% [('kcompactd0', 78), ('kworker/0:3-events', 10), ('kworker/11:3-mm_percpu_wq', 5)]: times unreliable
+plain#b: starting server (attempt 1)
+  plain#b rep 1/5: 18/18 ok, 32 s
+  plain#b rep 2/5: 18/18 ok, 22 s
+  plain#b rep 3/5: 18/18 ok, 22 s
+  plain#b rep 4/5: 18/18 ok, 21 s
+  plain#b rep 5/5: 18/18 ok, 21 s
+  plain#b: foreign CPU 43% [('kcompactd0', 68), ('kworker/11:2-events_freezable', 30), ('kworker/11:3-mm_percpu_wq', 25)]: times unreliable
+
+arm                     runs     success (95% Wilson) tool valid t_success med s/success  vs base
+plain                    180 100.0% [97.9, 100.0]     100.0%          1.4s      1.3s
+                       time-AUC 0.999 (horizon 1800 s; success within 25% / 50% / 75% / 100% of it: 100.0% / 100.0% / 100.0% / 100.0%)
+                       by kind: code_edit 100% (n=80)  tool_call 100% (n=70)  qa 100% (n=30)
+updated                   90 100.0% [95.9, 100.0]     100.0%          1.3s      1.2s  success  +0.0 pts [ +0.0,  +0.0] PASS; validity  +0.0 [ +0.0,  +0.0] PASS  => PASS
+                       time-AUC 0.999 (horizon 1800 s; success within 25% / 50% / 75% / 100% of it: 100.0% / 100.0% / 100.0% / 100.0%)  vs base +0.000 [-0.000, +0.000]
+                       by kind: code_edit 100% (n=40)  tool_call 100% (n=35)  qa 100% (n=15)
+base run 2 vs run 1: +0.0 pts [+0.0, +0.0]
+verdict: success non-inferior within 5 pts, tool-call validity within 3 pts; paired by task, bootstrap over tasks and repetitions
+WARNING: updated: foreign CPU load during the run: its times are unreliable (success rates are not affected)

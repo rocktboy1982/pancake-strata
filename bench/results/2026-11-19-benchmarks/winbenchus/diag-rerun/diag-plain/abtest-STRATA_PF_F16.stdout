@@ -1,0 +1,10 @@
+rep 0 STRATA_PF_F16        short 69.7 short 77.2  foreign CPU 14% [('kcompactd0', 45), ('kswapd0', 3), ('kworker/3:1-mm_percpu_wq', 3)]  gpu 2055/1249 MHz 58C 155W gtt 21M cpu 3957MHz 52C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 STRATA_PF_F16: every attempt noisy, keeping the quietest (14% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  STRATA_PF_F16            73.5 +-  47.7  (n=2)
+                              drafts accepted 0.70
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)

@@ -1,0 +1,23 @@
+{
+ "base": "/home/dan/auto-runs/benchRD/config-updated.json",
+ "lossy": true,
+ "prefill": false,
+ "cases": [
+  "short"
+ ],
+ "reps": 1,
+ "arms": {
+  "rdna-mmvq-wave": {
+   "env": {
+    "STRATA_KV_HOST_DMA": null,
+    "STRATA_PF_F16": null,
+    "STRATA_RDNA_MMVQ_WAVE": "3",
+    "STRATA_VERIFY_ECAP": null,
+    "STRATA_VERIFY_ECAP_MIN_ROWS": null,
+    "STRATA_POOL_FUSE_PHASES": null
+   },
+   "args": {}
+  }
+ },
+ "note": "flag_diag.py: one arm, one start, case short (screen)"
+}

@@ -1,0 +1,79 @@
+{
+ "base": "/home/dan/auto-runs/benchRD/config-updated.json",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "short",
+  "long3k"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "env": {
+    "STRATA_KV_HOST_DMA": null,
+    "STRATA_PF_F16": null,
+    "STRATA_RDNA_MMVQ_WAVE": null,
+    "STRATA_VERIFY_ECAP": null,
+    "STRATA_VERIFY_ECAP_MIN_ROWS": null,
+    "STRATA_POOL_FUSE_PHASES": null
+   },
+   "args": {}
+  },
+  "pool-fuse-phases": {
+   "env": {
+    "STRATA_KV_HOST_DMA": null,
+    "STRATA_PF_F16": null,
+    "STRATA_RDNA_MMVQ_WAVE": null,
+    "STRATA_VERIFY_ECAP": null,
+    "STRATA_VERIFY_ECAP_MIN_ROWS": null,
+    "STRATA_POOL_FUSE_PHASES": "1"
+   },
+   "args": {}
+  },
+  "verify-ecap": {
+   "env": {
+    "STRATA_KV_HOST_DMA": null,
+    "STRATA_PF_F16": null,
+    "STRATA_RDNA_MMVQ_WAVE": null,
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "6",
+    "STRATA_POOL_FUSE_PHASES": null
+   },
+   "args": {}
+  },
+  "pf-f16": {
+   "env": {
+    "STRATA_KV_HOST_DMA": null,
+    "STRATA_PF_F16": "1",
+    "STRATA_RDNA_MMVQ_WAVE": null,
+    "STRATA_VERIFY_ECAP": null,
+    "STRATA_VERIFY_ECAP_MIN_ROWS": null,
+    "STRATA_POOL_FUSE_PHASES": null
+   },
+   "args": {}
+  },
+  "rdna-mmvq-wave": {
+   "env": {
+    "STRATA_KV_HOST_DMA": null,
+    "STRATA_PF_F16": null,
+    "STRATA_RDNA_MMVQ_WAVE": "3",
+    "STRATA_VERIFY_ECAP": null,
+    "STRATA_VERIFY_ECAP_MIN_ROWS": null,
+    "STRATA_POOL_FUSE_PHASES": null
+   },
+   "args": {}
+  },
+  "kv-host-dma": {
+   "env": {
+    "STRATA_KV_HOST_DMA": "1",
+    "STRATA_PF_F16": null,
+    "STRATA_RDNA_MMVQ_WAVE": null,
+    "STRATA_VERIFY_ECAP": null,
+    "STRATA_VERIFY_ECAP_MIN_ROWS": null,
+    "STRATA_POOL_FUSE_PHASES": null
+   },
+   "args": {}
+  }
+ },
+ "note": "flag_diag.py: bare base (every candidate key removed) against one arm per flag; screen tier"
+}
