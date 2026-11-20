@@ -3,3 +3,9 @@ case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique 
 rep 0 updated              short 110.2 short 103.0 edit 163.0 edit 184.0 longdec64k 78.5/1859p 65240t  foreign CPU 2% [('kcompactd0', 4), ('systemd', 1), ('claude', 1)]  gpu 1962/1249 MHz 63C 190W gtt 25M cpu 3777MHz 65C igpu 0%/vcn 0% fclk 1600
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-GR_RDNA        short 77.1 short 85.0 edit 148.0 edit 162.3 longdec64k 53.2/1685p 65240t  foreign CPU 3% [('kcompactd0', 14), ('kworker/10:3-mm_percpu_wq', 1), ('kswapd0', 0)]  gpu 2007/1249 MHz 63C 176W gtt 25M cpu 3688MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-conversation-cache-min-tokens short 94.4 short 102.3 edit 163.6 edit 136.8 longdec64k 81.8/1459p 65240t  foreign CPU 5% [('kcompactd0', 14), ('kworker/0:1-events', 3), ('kworker/1:1-mm_percpu_wq', 3)]  gpu 1968/1249 MHz 63C 183W gtt 25M cpu 3605MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-conversation-cache-min-tokens: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 92.4 short 104.9 edit 171.3 edit 186.3 longdec64k 77.9/1613p 65240t  foreign CPU 4% [('kcompactd0', 8), ('kswapd0', 3), ('accounts-daemon', 0)]  gpu 2027/1249 MHz 63C 184W gtt 25M cpu 3686MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1613, pack load 0.42 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
