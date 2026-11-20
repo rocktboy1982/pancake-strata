@@ -1,0 +1,8 @@
+rep 0 smoke                short 81.9  foreign CPU 33% [('kcompactd0', 43), ('kworker/12:1-events_freezable', 8), ('kworker/0:2-events_freezable', 7)]  gpu 1792/1249 MHz 54C 150W gtt 21M cpu 4404MHz 53C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 smoke: every attempt noisy, keeping the quietest (33% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  smoke                    81.9 +-   nan  (n=1)
+                              drafts accepted 0.70
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)

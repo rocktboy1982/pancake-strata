@@ -1,0 +1,4 @@
+  warm16: short -2.6% edit -16.4%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  warm32: short -25.5% edit -11.5%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  warm64: short +1.0% edit +1.6%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> WIN (bar 1.5%), quality gate due (lossy / text differs)
+CONFIRM /home/dan/clone-of-d/src/Strata-win/bench/specs/202-ic-warm-prior-confirm.json base,warm64

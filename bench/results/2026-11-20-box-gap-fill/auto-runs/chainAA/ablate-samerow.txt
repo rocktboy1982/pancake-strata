@@ -1,0 +1,56 @@
+# warning: EXPDEC has no down kernel for pair 16/42: that phase runs the default
+# warning: EXPDEC has no down kernel for pair 17/42: that phase runs the default
+# warning: EXPDEC has no down kernel for pair 22/42: that phase runs the default
+# n_embd 2560, n_ff 640, 3 pair(s), choices: def dec(gu R 1 minb 4, down 0 R 4 iq4_nl 0, rb 0 drb 0, min blocks 800, F12 sign mask 0x0 (1: types 16, 17, 22), A37 IQ2_XXS codebook copies 0)
+# dev T shape gu/d choice all_us gu_us down_us GB/s pct identical|DIFFERENT
+# pair 16/42: gate/up IQ2_XXS, down Q2_0: blob 1.31 MB (gu_row 660, d_row 180), pool 104 MB
+# device 0: AMD Radeon RX 7900 XT (sm_110, 42 SMs, L2 6144 KB), 300 reps x 5 rounds, <= 20 groups, pool 80 blobs x 1.31 MB
+# device 0 peak DRAM bandwidth 99.9 GB/s (memory clock 1249000 kHz, bus 320 bit)
+# T=1 real: 10 groups, 10 entries, 13.1 MB of weights per call
+0 1 real 16/42 def 61.5 34.9 23.6 212.3 212.5% identical
+strata expdec: CUDA0 gate/up type 16: expdec_gu_kernel R 1 MINB 4, 16 rows per block, grid 80 x 10 (cap 10 groups)
+strata expdec: CUDA0 down type 42 (n_embd 2560, n_ff 640) not covered: the default kernel runs
+0 1 real 16/42 dec 58.4 34.3 23.8 223.7 223.9% DIFFERENT
+# T=2 real: 20 groups, 20 entries, 26.1 MB of weights per call
+0 2 real 16/42 def 102.7 56.4 40.3 254.3 254.5% identical
+0 2 real 16/42 dec 95.0 54.1 40.3 274.7 275.0% DIFFERENT
+# T=3 real: 20 groups, 30 entries, 26.1 MB of weights per call
+0 3 real 16/42 def 108.0 60.6 41.6 241.7 241.9% identical
+0 3 real 16/42 dec 100.3 58.7 41.6 260.2 260.4% DIFFERENT
+# T=4 real: 20 groups, 40 entries, 26.1 MB of weights per call
+0 4 real 16/42 def 113.8 64.6 43.4 229.4 229.6% identical
+0 4 real 16/42 dec 107.9 63.7 43.3 242.0 242.2% DIFFERENT
+# pair 17/42: gate/up IQ2_XS, down Q2_0: blob 1.41 MB (gu_row 740, d_row 180), pool 113 MB
+# device 0: AMD Radeon RX 7900 XT (sm_110, 42 SMs, L2 6144 KB), 300 reps x 5 rounds, <= 20 groups, pool 80 blobs x 1.41 MB
+# device 0 peak DRAM bandwidth 99.9 GB/s (memory clock 1249000 kHz, bus 320 bit)
+# T=1 real: 10 groups, 10 entries, 14.1 MB of weights per call
+0 1 real 17/42 def 63.7 36.7 23.7 221.0 221.1% identical
+strata expdec: CUDA0 gate/up type 17: expdec_gu_kernel R 1 MINB 4, 16 rows per block, grid 80 x 10 (cap 10 groups)
+0 1 real 17/42 dec 60.2 36.1 23.8 234.1 234.2% DIFFERENT
+# T=2 real: 20 groups, 20 entries, 28.2 MB of weights per call
+0 2 real 17/42 def 106.3 59.8 40.6 264.9 265.1% identical
+0 2 real 17/42 dec 97.8 56.8 40.7 288.0 288.2% DIFFERENT
+# T=3 real: 20 groups, 30 entries, 28.2 MB of weights per call
+0 3 real 17/42 def 111.6 65.3 41.7 252.3 252.5% identical
+0 3 real 17/42 dec 104.2 62.4 41.7 270.3 270.5% DIFFERENT
+# T=4 real: 20 groups, 40 entries, 28.2 MB of weights per call
+0 4 real 17/42 def 119.1 70.3 43.4 236.3 236.5% identical
+0 4 real 17/42 dec 112.7 67.6 43.5 249.9 250.1% DIFFERENT
+# pair 22/42: gate/up IQ2_S, down Q2_0: blob 1.51 MB (gu_row 820, d_row 180), pool 121 MB
+# device 0: AMD Radeon RX 7900 XT (sm_110, 42 SMs, L2 6144 KB), 300 reps x 5 rounds, <= 20 groups, pool 80 blobs x 1.51 MB
+# device 0 peak DRAM bandwidth 99.9 GB/s (memory clock 1249000 kHz, bus 320 bit)
+# T=1 real: 10 groups, 10 entries, 15.1 MB of weights per call
+0 1 real 22/42 def 66.6 40.0 23.8 226.7 226.9% identical
+strata expdec: CUDA0 gate/up type 22: expdec_gu_kernel R 1 MINB 4, 16 rows per block, grid 80 x 10 (cap 10 groups)
+0 1 real 22/42 dec 62.0 38.0 23.8 243.8 244.0% DIFFERENT
+# T=2 real: 20 groups, 20 entries, 30.2 MB of weights per call
+0 2 real 22/42 def 111.4 66.6 40.5 271.2 271.4% identical
+0 2 real 22/42 dec 101.7 61.0 40.6 296.9 297.2% DIFFERENT
+# T=3 real: 20 groups, 30 entries, 30.2 MB of weights per call
+0 3 real 22/42 def 118.7 71.4 41.7 254.6 254.8% identical
+0 3 real 22/42 dec 108.7 66.6 41.7 277.9 278.1% DIFFERENT
+# T=4 real: 20 groups, 40 entries, 30.2 MB of weights per call
+0 4 real 22/42 def 130.4 82.5 43.5 231.7 231.9% identical
+0 4 real 22/42 dec 117.9 72.3 43.5 256.1 256.3% DIFFERENT
+
+expdec_bench: FAILED (12 choice comparisons differ)

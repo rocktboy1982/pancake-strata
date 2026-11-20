@@ -1,0 +1,25 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 5,
+ "arms": {
+  "base": {},
+  "spec": {
+   "env": {
+    "STRATA_ADAPT_SPEC_COPY": "1"
+   }
+  },
+  "spec-small": {
+   "env": {
+    "STRATA_ADAPT_SPEC_COPY": "1",
+    "STRATA_ADAPT_SPEC_SLOTS": "2",
+    "STRATA_ADAPT_SPEC_MAX": "4"
+   }
+  }
+ },
+ "note": "Confirm of spec 216. LEADS.md B147 (owner idea 2026-11-18, MOD_PLAN.md section 6 item 60), coded 2026-11-18: STRATA_ADAPT_SPEC_COPY=1 predicts, at the end of every adaptive-tier round, the NEXT round's incoming experts on the CPU (the tier's own selection rule on decay x counts + this window's increment) and copies up to STRATA_ADAPT_SPEC_MAX of them into a bounded VRAM staging area (STRATA_ADAPT_ [chain T: arms cut to the screen winners spec,spec-small]",
+ "lossy": false
+}

@@ -1,0 +1,2 @@
+INERT-GATE   31-env-both-gpu.json arm(kv-grow): --kv-grow is off under --kv-resident 32768 (the elastic K/V needs the whole K/V in VRAM): the arm is the base
+INERT-GATE   31c-confirm-aux-kvgrow.json arm(kv-grow): --kv-grow is off under --kv-resident 32768 (the elastic K/V needs the whole K/V in VRAM): the arm is the base

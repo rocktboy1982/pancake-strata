@@ -1,0 +1,6 @@
+  ldsbar: short +16.6% long3k +15.7% long32k +50.8% long64k +9.6%  -> WIN (bar 1.5%), quality gate due (lossy / text differs)
+  lazy2: short +17.4% long3k +15.3% long32k +50.8% long64k +8.9%  -> WIN (bar 1.5%), quality gate due (lossy / text differs)
+  lazy2-noskip: short +16.8% long3k +16.2% long32k +47.2% long64k +11.0%  -> WIN (bar 1.5%), quality gate due (lossy / text differs)
+  lazy8: short +13.7% long3k +15.7% long32k +46.6% long64k +11.1%  -> WIN (bar 1.5%), quality gate due (lossy / text differs)
+  xlds: short +17.5% long3k +15.6% long32k +46.3% long64k +11.0%  -> WIN (bar 1.5%), quality gate due (lossy / text differs)
+CONFIRM /home/dan/clone-of-d/src/Strata-win/bench/specs/194-prompt-kernel-macros.json base,ldsbar,lazy2,lazy2-noskip,lazy8,xlds

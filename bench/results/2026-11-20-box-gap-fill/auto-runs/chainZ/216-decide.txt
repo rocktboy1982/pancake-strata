@@ -1,0 +1,4 @@
+  spec: short +4.6% edit +7.5%  -> WIN (bar 1%), exact
+  spec-small: short +5.1% edit +6.6%  -> WIN (bar 1%), exact
+  spec-big: short -2.3% edit -8.9%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+CONFIRM /home/dan/clone-of-d/src/Strata-win/bench/specs/217-adapt-spec-copy-confirm.json base,spec,spec-small

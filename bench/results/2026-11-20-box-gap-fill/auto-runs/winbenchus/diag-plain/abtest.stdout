@@ -1,0 +1,23 @@
+case long1k: 3273 chars, sha1 fcd4e9f10e0b, target 1000 tokens (a unique run line is prepended to every request)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 base                 short 68.4 short 77.7 edit 79.4 edit 87.8 long1k 56.3/352p 1032t  foreign CPU 20% [('kcompactd0', 49), ('kworker/0:1-events_freezable', 4), ('kworker/12:1-events', 3)]  gpu 1858/1249 MHz 56C 142W gtt 25M cpu 3746MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 base                 short 58.0 short 66.5 edit 75.6 edit 78.0 long1k 51.0/381p 1032t  foreign CPU 16% [('kcompactd0', 28), ('kswapd0', 2), ('kworker/11:1-mm_percpu_wq', 2)]  gpu 2040/1249 MHz 58C 148W gtt 25M cpu 3701MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 base                 short 62.4 short 76.2 edit 69.2 edit 82.0 long1k 24.4/374p 1032t  foreign CPU 19% [('kcompactd0', 43), ('kworker/1:3-events_freezable', 2), ('pipewire', 1)]  gpu 2059/1249 MHz 57C 146W gtt 25M cpu 3738MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base: every attempt noisy, keeping the quietest (16% foreign CPU)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 base-again           short 72.0 short 78.0 edit 79.0 edit 85.5 long1k 55.8/379p 1032t  foreign CPU 20% [('kcompactd0', 43), ('kworker/13:3-events_freezable', 4), ('kswapd0', 2)]  gpu 2056/1249 MHz 59C 158W gtt 25M cpu 3917MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 base-again           short 75.3 short 77.7 edit 80.0 edit 85.1 long1k 55.3/363p 1032t  foreign CPU 27% [('kcompactd0', 57), ('kworker/1:0-mm_percpu_wq', 3), ('kworker/8:0-events', 3)]  gpu 2047/1249 MHz 59C 155W gtt 25M cpu 3911MHz 61C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 base-again           short 72.7 short 79.4 edit 79.1 edit 86.6 long1k 55.1/370p 1032t  foreign CPU 21% [('kcompactd0', 42), ('kworker/8:0-events_freezable', 4), ('kswapd0', 3)]  gpu 2036/1249 MHz 60C 155W gtt 25M cpu 3934MHz 61C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-again: every attempt noisy, keeping the quietest (20% foreign CPU)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 STRATA_HIPBLASLT_TUNING short 69.3 short 65.8 edit 70.9 edit 86.5 long1k 52.0/280p 1032t  foreign CPU 19% [('kcompactd0', 42), ('kworker/3:2-mm_percpu_wq', 3), ('kworker/3:0-events', 2)]  gpu 2051/1249 MHz 59C 136W gtt 25M cpu 3923MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 STRATA_HIPBLASLT_TUNING short 54.9 short 58.8 edit 78.3 edit 91.0 long1k 54.1/364p 1032t  foreign CPU 17% [('kcompactd0', 45), ('kswapd0', 1), ('claude', 1)]  gpu 2048/1249 MHz 58C 131W gtt 25M cpu 3901MHz 59C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long1k: 1005 prompt tokens by count_tokens (target 1000)
+rep 0 STRATA_HIPBLASLT_TUNING short 73.5 short 76.1 edit 78.0 edit 82.5 long1k 54.9/366p 1032t  foreign CPU 31% [('kcompactd0', 60), ('kworker/9:3-mm_percpu_wq', 5), ('kworker/9:2-events', 4)]  gpu 1956/1249 MHz 58C 140W gtt 25M cpu 3903MHz 61C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 STRATA_HIPBLASLT_TUNING: every attempt noisy, keeping the quietest (17% foreign CPU)
+  long1k: 1005 prompt tokens by count_tokens (target 1000)

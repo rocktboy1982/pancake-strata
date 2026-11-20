@@ -1,0 +1,18 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 5,
+ "arms": {
+  "base": {},
+  "warm64": {
+   "env": {
+    "STRATA_IC_WARM_MB": "64"
+   }
+  }
+ },
+ "note": "Confirm of the previous spec (screen survivors only): LEADS.md Part L lead L14 (negative results as priors): STRATA_IC_WARM_MB=N reads the NEXT layer's pre-doorbell weights (mixer projections, router; the engine prints their MiB per layer at start) on a side stream while the fused CPU combine waits for the CPU rows, to keep them in the 80 MiB Infinity Cache; N = the cap in MiB per layer. It was ne [chain T: arms cut to the screen winners warm64]"
+}

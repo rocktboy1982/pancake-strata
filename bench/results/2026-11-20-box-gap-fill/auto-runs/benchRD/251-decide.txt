@@ -1,0 +1,6 @@
+  hipblaslt-100401: short +4.0% long32k -26.0%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  profile-pancake: short -6.4% long32k -39.8%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  draft-vocab-en: short -13.2% long32k -40.0%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  max-context-131072: short -10.8% long32k -35.1%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  conversation-cache-2048: short -14.3% long32k -36.2%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+NONE no screen winner

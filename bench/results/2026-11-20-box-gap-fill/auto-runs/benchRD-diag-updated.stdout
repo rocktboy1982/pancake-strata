@@ -1,0 +1,11 @@
+arm base                 exit=0 106 s
+arm pool-fuse-phases     exit=0 136 s
+arm verify-ecap          exit=0 136 s
+arm pf-f16               exit=0 132 s
+arm rdna-mmvq-wave       exit=0 74 s
+arm kv-host-dma          exit=0 71 s
+POOL_FUSE_PHASES   FAIL         a parity ctest of this flag failed
+VERIFY_ECAP        NO-GAIN      quality gate: T-589,T-591
+PF_F16             GAIN         quality gate: T-828
+RDNA_MMVQ_WAVE     GAIN         gain 27.3%
+KV_HOST_DMA        GAIN         claimed exact but the text differs: treated as lossy

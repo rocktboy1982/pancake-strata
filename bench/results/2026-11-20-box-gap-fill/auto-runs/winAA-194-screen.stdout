@@ -1,0 +1,122 @@
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+case long32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+case long64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base                 short 118.4 short 112.3 long3k 92.0/989p 2934t long32k 108.4/1776p 31451t long64k 54.6/2656p 65239t  foreign CPU 11% [('kcompactd0', 23), ('kswapd0', 8), ('kworker/11:2-events', 4)]  gpu 2029/1249 MHz 62C 185W gtt 25M cpu 3493MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base                 short 109.9 short 113.0 long3k 90.2/990p 2934t long32k 98.6/1787p 31451t long64k 82.5/2787p 65239t  foreign CPU 9% [('kcompactd0', 17), ('kworker/5:0-events_freezable', 3), ('kworker/1:2-events', 3)]  gpu 2002/1249 MHz 64C 190W gtt 25M cpu 3510MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base                 short 116.6 short 85.4 long3k 90.1/728p 2934t long32k 100.5/1212p 31451t long64k 77.0/2477p 65239t  foreign CPU 9% [('kcompactd0', 33), ('kworker/3:1-mm_percpu_wq', 2), ('kworker/1:1-events', 1)]  gpu 2003/1249 MHz 65C 191W gtt 25M cpu 3407MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base: every attempt noisy, keeping the quietest (9% foreign CPU)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 ldsbar               short 113.7 short 112.3 long3k 91.1/731p 2935t long32k 96.9/1110p 31452t long64k 54.5/2486p 65240t  foreign CPU 7% [('kcompactd0', 20), ('kworker/11:3-events', 2), ('kworker/14:0-mm_percpu_wq', 1)]  gpu 2014/1249 MHz 65C 198W gtt 25M cpu 3484MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 ldsbar               short 111.0 short 88.2 long3k 92.5/736p 2935t long32k 84.3/1567p 31452t long64k 70.0/2748p 65240t  foreign CPU 7% [('kcompactd0', 28), ('kworker/15:1-mm_percpu_wq', 2), ('pipewire', 1)]  gpu 1993/1249 MHz 65C 202W gtt 25M cpu 3472MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 ldsbar               short 111.2 short 120.8 long3k 90.8/995p 2935t long32k 104.7/1846p 31452t long64k 83.0/2768p 65240t  foreign CPU 5% [('kcompactd0', 16), ('kworker/9:3-events', 3), ('kworker/9:1-events_freezable', 2)]  gpu 2001/1249 MHz 66C 195W gtt 25M cpu 3566MHz 66C igpu 0%/vcn 0% fclk 1600
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 lazy2                short 94.9 short 88.7 long3k 91.5/731p 2935t long32k 75.1/1089p 31452t long64k 80.4/2627p 65240t  foreign CPU 6% [('kcompactd0', 15), ('kworker/1:0-events', 10), ('pipewire', 1)]  gpu 1942/1249 MHz 66C 181W gtt 25M cpu 3458MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 lazy2                short 110.8 short 113.3 long3k 84.2/731p 2935t long32k 95.5/1035p 31452t long64k 66.1/2457p 65240t  foreign CPU 5% [('kcompactd0', 20), ('pipewire', 1), ('kworker/1:2-mm_percpu_wq', 1)]  gpu 2030/1249 MHz 65C 209W gtt 25M cpu 3424MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 lazy2                short 121.1 short 112.6 long3k 96.3/992p 2935t long32k 90.0/1846p 31452t long64k 84.6/2750p 65240t  foreign CPU 5% [('kcompactd0', 16), ('kworker/0:2-events', 4), ('kworker/3:3-mm_percpu_wq', 2)]  gpu 2002/1249 MHz 67C 194W gtt 25M cpu 3437MHz 67C igpu 0%/vcn 0% fclk 1600
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 lazy2-noskip         short 120.8 short 111.6 long3k 90.5/999p 2935t long32k 107.4/1802p 31452t long64k 84.2/2804p 65240t  foreign CPU 5% [('kcompactd0', 17), ('claude', 1), ('pipewire', 1)]  gpu 2001/1249 MHz 66C 197W gtt 25M cpu 3539MHz 66C igpu 0%/vcn 0% fclk 1600
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 lazy8                short 121.0 short 112.2 long3k 105.6/998p 2935t long32k 102.3/1789p 31452t long64k 79.7/2807p 65240t  foreign CPU 5% [('kcompactd0', 19), ('kworker/9:2-events', 2), ('kworker/8:3-mm_percpu_wq', 1)]  gpu 1854/1249 MHz 66C 184W gtt 25M cpu 3276MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 lazy8                short 113.8 short 112.4 long3k 86.6/995p 2935t long32k 100.2/1795p 31452t long64k 88.1/2805p 65240t  foreign CPU 5% [('kcompactd0', 18), ('pipewire', 1), ('kworker/3:1-events', 1)]  gpu 1993/1249 MHz 67C 190W gtt 25M cpu 3479MHz 67C igpu 0%/vcn 0% fclk 1600
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 xlds                 short 121.4 short 112.4 long3k 98.9/994p 2935t long32k 87.4/1791p 31452t long64k 86.7/2804p 65240t  foreign CPU 5% [('kcompactd0', 15), ('kworker/14:0-mm_percpu_wq', 5), ('kworker/0:0-events', 4)]  gpu 1852/1249 MHz 67C 184W gtt 25M cpu 3351MHz 67C igpu 0%/vcn 0% fclk 1600
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 91.6 short 104.3 long3k 90.8/992p 2935t long32k 25.3/1237p 31452t long64k 74.7/2575p 65240t  foreign CPU 5% [('kcompactd0', 19), ('kworker/3:0-events', 2), ('pipewire', 1)]  gpu 2039/1249 MHz 66C 189W gtt 25M cpu 3326MHz 68C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 77.2 short 75.6 long3k 73.7/732p 2935t long32k 85.0/1183p 31452t long64k 73.0/2411p 65240t  foreign CPU 11% [('kcompactd0', 79), ('kworker/0:0-events', 21), ('kworker/3:0-events_freezable', 5)]  gpu 1923/1249 MHz 65C 171W gtt 25M cpu 3330MHz 69C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 90.3 short 110.7 long3k 87.2/583p 2935t long32k 105.1/1231p 31452t long64k 90.7/2600p 65240t  foreign CPU 11% [('kcompactd0', 60), ('kworker/9:2-events_freezable', 7), ('kworker/11:3-events_freezable', 6)]  gpu 1990/1249 MHz 65C 185W gtt 25M cpu 3242MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late: every attempt noisy, keeping the quietest (5% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    101.0 +- 198.3  (n=2)
+                              drafts accepted 0.74
+  short  ldsbar                  116.0 +-  61.0  (n=2)   vs base: +14.9% +- 256.7%  -> no difference
+                              drafts accepted 0.71
+  short  lazy2                   116.8 +-  54.0  (n=2)   vs base: +15.7% +- 142.8%  -> no difference
+                              drafts accepted 0.72
+  short  lazy2-noskip            116.2 +-  58.5  (n=2)   vs base: +15.0% +- 138.4%  -> no difference
+                              drafts accepted 0.72
+  short  lazy8                   113.1 +-   8.9  (n=2)   vs base: +12.0% +- 187.5%  -> no difference
+                              drafts accepted 0.72
+  short  xlds                    116.9 +-  57.2  (n=2)   vs base: +15.7% +- 139.7%  -> no difference
+                              drafts accepted 0.72
+  short  base-late                97.9 +-  80.7  (n=2)   vs base:  -3.0% +- 276.2%  -> no difference
+                              drafts accepted 0.71
+  long3k base                    728.1 +-   nan  (n=1)
+  long3k ldsbar                  994.9 +-   nan  (n=1)   vs base: +36.6% +-  nan%  -> no difference
+  long3k lazy2                   992.1 +-   nan  (n=1)   vs base: +36.3% +-  nan%  -> no difference
+  long3k lazy2-noskip            999.1 +-   nan  (n=1)   vs base: +37.2% +-  nan%  -> no difference
+  long3k lazy8                   995.0 +-   nan  (n=1)   vs base: +36.7% +-  nan%  -> no difference
+  long3k xlds                    994.5 +-   nan  (n=1)   vs base: +36.6% +-  nan%  -> no difference
+  long3k base-late               992.1 +-   nan  (n=1)   vs base: +36.3% +-  nan%  -> no difference
+  long32k base                   1211.9 +-   nan  (n=1)
+  long32k ldsbar                 1846.5 +-   nan  (n=1)   vs base: +52.4% +-  nan%  -> no difference
+  long32k lazy2                  1846.4 +-   nan  (n=1)   vs base: +52.4% +-  nan%  -> no difference
+  long32k lazy2-noskip           1802.0 +-   nan  (n=1)   vs base: +48.7% +-  nan%  -> no difference
+  long32k lazy8                  1795.1 +-   nan  (n=1)   vs base: +48.1% +-  nan%  -> no difference
+  long32k xlds                   1791.4 +-   nan  (n=1)   vs base: +47.8% +-  nan%  -> no difference
+  long32k base-late              1236.7 +-   nan  (n=1)   vs base:  +2.0% +-  nan%  -> no difference
+  long64k base                   2477.3 +-   nan  (n=1)
+  long64k ldsbar                 2767.5 +-   nan  (n=1)   vs base: +11.7% +-  nan%  -> no difference
+  long64k lazy2                  2750.0 +-   nan  (n=1)   vs base: +11.0% +-  nan%  -> no difference
+  long64k lazy2-noskip           2804.3 +-   nan  (n=1)   vs base: +13.2% +-  nan%  -> no difference
+  long64k lazy8                  2805.4 +-   nan  (n=1)   vs base: +13.2% +-  nan%  -> no difference
+  long64k xlds                   2803.9 +-   nan  (n=1)   vs base: +13.2% +-  nan%  -> no difference
+  long64k base-late              2575.1 +-   nan  (n=1)   vs base:  +3.9% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  ldsbar               DIFFERENT text -> lossy or placement-dependent: quality gate
+  lazy2                DIFFERENT text -> lossy or placement-dependent: quality gate
+  lazy2-noskip         DIFFERENT text -> lossy or placement-dependent: quality gate
+  lazy8                DIFFERENT text -> lossy or placement-dependent: quality gate
+  xlds                 DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -3.0%  long3k +36.3%  long32k +2.0%  long64k +3.9%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  ldsbar               short +16.6%  long3k +15.7%  long32k +50.8%  long64k +9.6%  -> PROMOTE to confirm
+  lazy2                short +17.5%  long3k +15.3%  long32k +50.8%  long64k +8.9%  -> PROMOTE to confirm
+  lazy2-noskip         short +16.8%  long3k +16.2%  long32k +47.2%  long64k +11.0%  -> PROMOTE to confirm
+  lazy8                short +13.7%  long3k +15.7%  long32k +46.6%  long64k +11.1%  -> PROMOTE to confirm
+  xlds                 short +17.5%  long3k +15.6%  long32k +46.3%  long64k +11.0%  -> PROMOTE to confirm

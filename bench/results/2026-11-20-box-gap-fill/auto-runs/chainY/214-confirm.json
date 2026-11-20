@@ -1,0 +1,18 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 5,
+ "arms": {
+  "base": {},
+  "direct": {
+   "env": {
+    "STRATA_ADAPT_DIRECT_SWAP": "1"
+   }
+  }
+ },
+ "note": "Confirm of spec 214. LEADS.md B145 / B146 (owner idea 2026-11-18, MOD_PLAN.md section 6 item 59), coded 2026-11-18: STRATA_ADAPT_VICTIM_UNUSED=1 makes the tier's victim an expert with no use in the last K=4 tier rounds (STRATA_ADAPT_VICTIM_K, never the previous round's; with too few unused residents the baseline victim rule fills the rest, STRATA_ADAPT_VICTIM_FALLBACK=skip would swap less); STRATA [chain T: arms cut to the screen winners direct]",
+ "lossy": false
+}

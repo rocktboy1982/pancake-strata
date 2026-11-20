@@ -1,0 +1,24 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit",
+  "long3k"
+ ],
+ "reps": 5,
+ "arms": {
+  "base": {},
+  "kvgrow-whole-zeroback": {
+   "args": {
+    "--kv-resident": null,
+    "--kv-grow": ""
+   },
+   "env": {
+    "STRATA_VMM_ZERO_BACK": "1"
+   }
+  }
+ },
+ "note": "CONFIRM of spec 165 (LEADS.md Part N, ovg-project/kvcached leads N1 and N6): the elastic K/V of this engine (--kv-grow, the authors' reserve-addresses / map-on-demand / hand-back design) running for the first time on gfx1100 with the whole K/V in VRAM. Edit the arm list to the screen's survivors before queueing. Run: python3 tools/pancake/abtest.py bench/specs/166-kvgrow-whole-confirm.json --block [chain T: arms cut to the screen winners kvgrow-whole-zeroback]"
+}

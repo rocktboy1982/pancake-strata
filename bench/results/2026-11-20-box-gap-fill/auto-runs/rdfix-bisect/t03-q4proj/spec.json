@@ -1,0 +1,14 @@
+{
+ "base": "/home/dan/auto-runs/rdfix-bisect/t03-q4proj/config.json",
+ "arms": {
+  "smoke": {
+   "exe": "/mnt/pancake/benchRD/build-plain/strata"
+  }
+ },
+ "cases": [
+  "short"
+ ],
+ "reps": 1,
+ "lossy": true,
+ "prefill": false
+}

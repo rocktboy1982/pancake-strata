@@ -1,0 +1,46 @@
+rep 0 base                 short 121.2 short 112.2 edit 171.6 edit 192.7  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('claude', 1)]  gpu 2027/1249 MHz 56C 160W gtt 21M cpu 4085MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 adapt-idle-copy-1m   short 122.1 short 113.2 edit 172.6 edit 196.8  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 1933/1249 MHz 57C 155W gtt 21M cpu 4093MHz 54C igpu 0%/vcn 0% fclk 1600
+rep 0 miss-skip-w02        short 115.1 short 87.7 edit 123.6 edit 176.7  foreign CPU 5% [('kcompactd0', 5), ('kworker/0:0-events', 2), ('pipewire', 1)]  gpu 2050/1249 MHz 58C 166W gtt 21M cpu 4338MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 miss-skip-w05        short 110.9 short 86.1 edit 108.5 edit 91.9  foreign CPU 5% [('kcompactd0', 7), ('kworker/0:0-mm_percpu_wq', 3), ('kworker/8:2-mm_percpu_wq', 2)]  gpu 2072/1249 MHz 56C 138W gtt 21M cpu 4108MHz 55C igpu 0%/vcn 0% fclk 1600
+rep 0 miss-skip-cum90      short 99.3 short 112.4 edit 153.6 edit 175.3  foreign CPU 3% [('pipewire', 1), ('gnome-remote-de', 1), ('dbus-daemon', 1)]  gpu 2048/1249 MHz 57C 170W gtt 21M cpu 4165MHz 53C igpu 0%/vcn 0% fclk 1600
+rep 0 miss-skip-cum95      short 118.2 short 112.5 edit 171.8 edit 192.3  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2031/1249 MHz 57C 161W gtt 21M cpu 4081MHz 53C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    116.7 +-  57.2  (n=2)
+                              drafts accepted 0.72
+  short  adapt-idle-copy-1m      117.7 +-  56.6  (n=2)   vs base:  +0.8% +-  0.5%  -> better
+                              drafts accepted 0.72
+  short  miss-skip-w02           101.4 +- 174.1  (n=2)   vs base: -13.1% +- 100.2%  -> no difference
+                              drafts accepted 0.71
+  short  miss-skip-w05            98.5 +- 157.6  (n=2)   vs base: -15.6% +- 86.0%  -> no difference
+                              drafts accepted 0.71
+  short  miss-skip-cum90         105.8 +-  83.3  (n=2)   vs base:  -9.3% +- 120.3%  -> no difference
+                              drafts accepted 0.72
+  short  miss-skip-cum95         115.3 +-  36.2  (n=2)   vs base:  -1.2% +- 18.0%  -> no difference
+                              drafts accepted 0.72
+  edit   base                    182.1 +- 134.1  (n=2)
+                              drafts accepted 0.90
+  edit   adapt-idle-copy-1m      184.7 +- 153.8  (n=2)   vs base:  +1.4% +- 10.8%  -> no difference
+                              drafts accepted 0.90
+  edit   miss-skip-w02           150.1 +- 337.5  (n=2)   vs base: -17.6% +- 111.6%  -> no difference
+                              drafts accepted 0.83
+  edit   miss-skip-w05           100.2 +- 105.5  (n=2)   vs base: -45.0% +- 131.5%  -> no difference
+                              drafts accepted 0.93
+  edit   miss-skip-cum90         164.4 +- 137.9  (n=2)   vs base:  -9.7% +-  2.1%  -> worse
+                              drafts accepted 0.88
+  edit   miss-skip-cum95         182.1 +- 130.3  (n=2)   vs base:  -0.1% +-  2.1%  -> no difference
+                              drafts accepted 0.90
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  adapt-idle-copy-1m   identical on every case -> exact
+  miss-skip-w02        DIFFERENT text -> lossy or placement-dependent: quality gate
+  miss-skip-w05        DIFFERENT text -> lossy or placement-dependent: quality gate
+  miss-skip-cum90      DIFFERENT text -> lossy or placement-dependent: quality gate
+  miss-skip-cum95      identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  adapt-idle-copy-1m   short +0.8%  edit +1.4%  -> PROMOTE to confirm
+  miss-skip-w02        short -13.1%  edit -17.6%  -> drop
+  miss-skip-w05        short -15.6%  edit -45.0%  -> drop
+  miss-skip-cum90      short -9.3%  edit -9.7%  -> drop
+  miss-skip-cum95      short -1.2%  edit -0.1%  -> drop

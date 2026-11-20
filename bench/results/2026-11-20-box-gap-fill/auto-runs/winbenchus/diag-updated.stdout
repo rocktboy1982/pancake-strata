@@ -1,0 +1,6 @@
+UNTESTED    STRATA_RDNA_Q6K                     the harness exited 3 before any measurement
+UNTESTED    STRATA_GR_RDNA                      the harness exited 3 before any measurement
+UNTESTED    STRATA_RDNA_MMVQ_WAVE               the harness exited 3 before any measurement
+UNTESTED    STRATA_COMBINE_CPU                  the harness exited 3 before any measurement
+UNTESTED    STRATA_VERIFY_ECAP                  the harness exited 3 before any measurement
+0.0 minutes; verdicts in /home/dan/auto-runs/winbenchus/diag-updated/verdicts.json

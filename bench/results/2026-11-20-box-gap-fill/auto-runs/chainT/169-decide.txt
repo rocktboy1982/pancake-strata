@@ -1,0 +1,5 @@
+  chain3: edit -4.3% short +0.0%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  chain3-copylane: edit -4.8% short +2.7%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  chain7-copylane: edit -4.1% short -0.2%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  chain7-copylane-min8: edit -30.7% short -18.6%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+NONE no screen winner

@@ -1,0 +1,4 @@
+  split-84: short +2.7% edit -2.1%  -> WIN (bar 1%), exact
+  split-168: short +2.1% edit -0.7%  -> WIN (bar 1%), exact
+  split-336: short +1.9% edit +1.0%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> WIN (bar 1.5%), quality gate due (lossy / text differs)
+CONFIRM /home/dan/clone-of-d/src/Strata-win/bench/specs/198-qsa-split-grid-confirm.json base,split-84,split-168,split-336

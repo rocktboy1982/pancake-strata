@@ -1,0 +1,3 @@
+  updated: short -21.1% edit +43.6% long10k -35.7% long32k -33.0% long64k -2.6% long100k +3.8%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  updated+pf16-1: short -12.2% edit +43.8% long10k -22.0% long32k -29.9% long64k -4.9% long100k -7.9%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+NONE no screen winner

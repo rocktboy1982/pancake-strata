@@ -1,0 +1,90 @@
+replay plan: 2026-11-09 16:15:06 - 2026-11-09 16:31:04 (window 2026-11-09T16:13/2026-11-09T16:43), from /home/dan/clone-of-d/src/Strata/pancake-turns.jsonl
+  75 requests: 34 agent turns, 41 side requests (20 decodes, 21 prefill probes, 9 of them repeat an earlier text); token counts: estimate, ~3.2 characters per token (FileNotFoundError: [Errno 2] No such file or directory: '<STRATA_DATA>/packs/iq2_xs/tokenizer/vocab.json')
+  conversation A: 3 turns, 70,082 -> 72,465 tokens; recorded cold re-reads 0 (0.0 s of prompt)
+  conversation B: 31 turns, 34,261 -> 62,943 tokens; recorded cold re-reads 7 (162.7 s of prompt)
+  side requests: 55-4,093 tokens, max_new 1-1000
+  prompt tokens sent: 1,805,560 (agent 1,728,525, side 77,035); output cap total 28,319
+  sizing check (estimate, placeholder replies): max |built - recorded| = 2 tokens over 75 requests (0.0 s)
+
+    #   gap   kind   conv turn  prompt  built  max_new think  rec.reused rec.prompt_s rec.wall_s  note
+    0   0.0 decode   s0    0      65     65       4 off          0        1.1        1.2  
+    1   2.0 agent     A    0   70082  70083    1397 on           0       39.3       55.0  new conversation (cold)
+    2   0.3 agent     A    1   71788  71788     273 on       71478        0.9        3.7  
+    3   0.2 agent     A    2   72465  72464     874 on       72060        1.0       11.2  
+    4   2.0 agent     B    0   34261  34261     484 on           0       17.1       28.9  new conversation (cold)
+    5   1.4 agent     B    1   34777  34777     191 on       34744        3.4        5.9  
+    6   0.1 agent     B    2   35254  35254     185 on       34967        1.0        3.2  
+    7   0.2 agent     B    3   38835  38833     468 on       35438        2.7        9.7  
+    8   0.2 agent     B    4   39536  39536     486 on       39302        0.9        7.7  
+    9   0.1 agent     B    5   41249  41247     909 on       40021        1.7       15.4  
+   10   0.7 agent     B    6   42287  42287     424 on       42157        0.7        4.7  
+   11   0.2 agent     B    7   42824  42824     514 on       42710        0.6        7.2  
+   12   0.3 agent     B    8   43375  43375     160 on       43337        0.4        2.2  
+   13   0.6 agent     B    9   43688  43688     395 on       43534        0.8        5.2  
+   14   2.0 agent     B   10   44170  44170     388 on       44082        0.6        5.2  
+   15   0.2 agent     B   11   44592  44592     175 on       44557        0.3        2.1  
+   16   0.1 agent     B   12   44796  44796    1127 on       44587        0.7       13.5  
+   17   0.1 agent     B   13   46137  46137     333 on       44791        1.4        5.1  
+   18   0.1 agent     B   14   47353  47352     535 on       46469        1.2        7.3  
+   19   0.1 agent     B   15   48428  48427     278 on       47887        1.0        3.6  
+   20   0.1 agent     B   16   49290  49289     717 on       48705        1.1        8.2  
+   21   0.1 agent     B   17   50774  50773     216 on       49285        1.5        3.5  
+   22   0.1 agent     B   18   51061  51061     241 on       50989        0.6        3.3  
+   23   0.2 agent     B   19   51970  51970     234 on       51301        1.1        3.3  
+   24   2.0 agent     B   20   52638  52638     326 on       52203        1.0        3.9  
+   25   0.1 agent     B   21   53137  53137     760 on       52963        0.7        7.1  
+   26   0.1 decode   s1    0      69     69     400 on           0        0.9        4.9  
+   27   0.0 decode   s1    0      69     69     400 on          64        0.2        3.6  repeat text
+   28   0.0 decode   s1    0      69     69     400 on          64        0.2        3.8  repeat text
+   29   0.0 probe    s2    0    3058   3057       1 on           0        2.0        2.1  
+   30   0.0 probe    s2    0    3058   3057       1 on        3053        0.2        0.2  repeat text
+   31   0.0 probe    s2    0    3058   3057       1 on        3053        0.2        0.3  repeat text
+   32   0.0 probe    s2    0    3058   3057       1 on        3053        0.3        0.3  repeat text
+   33   0.0 probe    s2    0    3058   3057       1 on        3053        0.3        0.3  repeat text
+   34   0.0 probe    s2    0    3058   3057       1 on        3053        0.3        0.3  repeat text
+   35   0.0 agent     B   22   54313  54313    1112 on           0       21.2       48.1  recorded COLD RE-READ
+   36   0.0 decode   s3    0      69     69      31 off          0        3.3        4.8  
+   37   0.0 probe    s4    0    4088   4087       1 on           0        3.0        3.0  
+   38   0.0 probe    s5    0    4091   4090       1 on           0        2.9        2.9  
+   39   0.0 probe    s6    0    4093   4093       1 on           0        2.7        2.8  
+   40   0.0 decode   s7    0      75     75    1000 on           0        0.9       12.6  
+   41   0.0 decode   s8    0      75     75    1000 on           0        0.7       18.0  
+   42   0.0 decode   s9    0      65     65      92 on           0        2.4        5.3  
+   43   0.0 decode  s10    0      75     75    1000 on           0        1.0       23.1  
+   44   0.0 decode  s11    0      75     75    1000 on           0        1.0       19.4  
+   45   0.0 decode  s12    0      75     75    1000 on           0        0.9       11.6  
+   46   0.2 agent     B   23   56264  56263    1141 on           0       22.5       35.1  recorded COLD RE-READ
+   47   0.0 decode  s13    0      73     73     158 off          0        0.7        3.7  
+   48   0.0 probe   s14    0    4087   4086       1 on           0        2.6        2.6  
+   49   0.0 decode  s13    0      71     71     380 on          66        0.2        4.6  repeat text
+   50   0.0 probe   s15    0    4089   4089       1 on           0        2.4        2.4  
+   51   0.0 probe   s16    0    4091   4090       1 on           0        2.5        2.5  
+   52   0.0 decode  s17    0      68     68     400 on           0        0.7        4.2  
+   53   0.0 decode  s18    0      68     68     400 on           0        0.6        3.3  
+   54   0.0 decode  s19    0      68     68     400 on           0        0.6        4.1  
+   55   0.0 decode  s20    0      68     68     400 on           0        0.9        6.5  
+   56   0.2 agent     B   24   57763  57763     793 on           0       22.9       63.9  recorded COLD RE-READ
+   57   0.2 probe   s21    0    4084   4084       1 on           0        3.6        3.7  
+   58   0.3 agent     B   25   58710  58710     589 on           0       24.6       37.3  recorded COLD RE-READ
+   59   0.2 probe   s21    0    4084   4084       1 on        4079        0.2        0.2  repeat text
+   60   0.1 probe   s22    0    4086   4085       1 on           0        2.6        2.6  
+   61   0.0 probe   s23    0    4088   4088       1 on           0        2.6        2.6  
+   62   0.1 probe   s24    0    4083   4082       1 on           0        2.7        2.7  
+   63   0.2 agent     B   26   59395  59395     400 on           0       23.3       27.7  recorded COLD RE-READ
+   64   0.1 probe   s25    0      55     56       2 on           0        0.8        0.8  
+   65   0.1 agent     B   27   60233  60233    1025 on           0       25.0       35.6  recorded COLD RE-READ
+   66   0.1 probe   s26    0    4084   4083       2 on           0        2.4        2.5  
+   67   0.0 probe   s27    0    4086   4085       2 on           0        2.5        2.5  
+   68   0.0 probe   s28    0    4088   4087       2 on           0        2.5        2.6  
+   69   0.0 decode  s29    0      71     71     400 on           0        0.7        4.8  
+   70   0.0 decode  s30    0      71     71     400 on           0        0.7        4.2  
+   71   0.0 decode  s31    0      71     71     400 on           0        0.6        3.8  
+   72   0.1 agent     B   28   61565  61565     463 on           0       23.3       29.0  recorded COLD RE-READ
+   73   0.1 agent     B   29   62572  62572     339 on       62027        1.0        4.6  
+   74   0.1 agent     B   30   62943  62943     677 on       62910        0.3        6.6  
+
+  recorded: prompt 303.0 s (agent 245.7, side 57.3), turn time 701.4 s, cold re-reads 7 (162.7 s), first reads 2 (56.4 s)
+  expected per arm: as recorded 11.7 min of requests + 0.3 min of gaps (capped at 2 s) + ~1.5 min server start = 13.5 min; with every agent turn warm (model) 8.7 min
+  expected total: 3 arm(s) x 1 rep(s) ~ 40 min (upper estimate)
+
+arms: ['base', 'sidx-4mib', 'sidx-16mib'], reps 1; plan written to /home/dan/auto-runs/chainT/dry-211/plan.json; dry run: no server started

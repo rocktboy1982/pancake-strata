@@ -1,0 +1,2 @@
+  updated: short +38.8% edit +94.9%  -> WIN (bar 1.5%), quality gate due (lossy / text differs)
+CONFIRM bench/specs/220-updated-vs-upstream-short.json plain-upstream,updated

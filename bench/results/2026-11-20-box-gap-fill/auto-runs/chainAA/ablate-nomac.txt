@@ -1,0 +1,56 @@
+# warning: EXPDEC has no down kernel for pair 16/42: that phase runs the default
+# warning: EXPDEC has no down kernel for pair 17/42: that phase runs the default
+# warning: EXPDEC has no down kernel for pair 22/42: that phase runs the default
+# n_embd 2560, n_ff 640, 3 pair(s), choices: def dec(gu R 1 minb 4, down 0 R 4 iq4_nl 0, rb 0 drb 0, min blocks 800, F12 sign mask 0x0 (1: types 16, 17, 22), A37 IQ2_XXS codebook copies 0)
+# dev T shape gu/d choice all_us gu_us down_us GB/s pct identical|DIFFERENT
+# pair 16/42: gate/up IQ2_XXS, down Q2_0: blob 1.31 MB (gu_row 660, d_row 180), pool 104 MB
+# device 0: AMD Radeon RX 7900 XT (sm_110, 42 SMs, L2 6144 KB), 300 reps x 5 rounds, <= 20 groups, pool 80 blobs x 1.31 MB
+# device 0 peak DRAM bandwidth 99.9 GB/s (memory clock 1249000 kHz, bus 320 bit)
+# T=1 real: 10 groups, 10 entries, 13.1 MB of weights per call
+0 1 real 16/42 def 61.5 34.9 23.8 212.2 212.4% identical
+strata expdec: CUDA0 gate/up type 16: expdec_gu_kernel R 1 MINB 4, 16 rows per block, grid 80 x 10 (cap 10 groups)
+strata expdec: CUDA0 down type 42 (n_embd 2560, n_ff 640) not covered: the default kernel runs
+0 1 real 16/42 dec 57.9 30.5 23.7 225.3 225.5% DIFFERENT
+# T=2 real: 20 groups, 20 entries, 26.1 MB of weights per call
+0 2 real 16/42 def 102.6 56.5 39.7 254.6 254.8% identical
+0 2 real 16/42 dec 93.6 47.6 39.8 278.9 279.1% DIFFERENT
+# T=3 real: 20 groups, 30 entries, 26.1 MB of weights per call
+0 3 real 16/42 def 107.6 60.6 41.4 242.6 242.8% identical
+0 3 real 16/42 dec 95.5 47.6 41.6 273.5 273.7% DIFFERENT
+# T=4 real: 20 groups, 40 entries, 26.1 MB of weights per call
+0 4 real 16/42 def 113.3 64.8 43.3 230.4 230.6% identical
+0 4 real 16/42 dec 98.5 47.8 43.2 265.2 265.4% DIFFERENT
+# pair 17/42: gate/up IQ2_XS, down Q2_0: blob 1.41 MB (gu_row 740, d_row 180), pool 113 MB
+# device 0: AMD Radeon RX 7900 XT (sm_110, 42 SMs, L2 6144 KB), 300 reps x 5 rounds, <= 20 groups, pool 80 blobs x 1.41 MB
+# device 0 peak DRAM bandwidth 99.9 GB/s (memory clock 1249000 kHz, bus 320 bit)
+# T=1 real: 10 groups, 10 entries, 14.1 MB of weights per call
+0 1 real 17/42 def 63.5 36.6 23.7 221.8 222.0% identical
+strata expdec: CUDA0 gate/up type 17: expdec_gu_kernel R 1 MINB 4, 16 rows per block, grid 80 x 10 (cap 10 groups)
+0 1 real 17/42 dec 59.1 31.4 23.6 238.1 238.3% DIFFERENT
+# T=2 real: 20 groups, 20 entries, 28.2 MB of weights per call
+0 2 real 17/42 def 106.1 59.9 40.0 265.3 265.5% identical
+0 2 real 17/42 dec 95.3 48.4 40.0 295.6 295.8% DIFFERENT
+# T=3 real: 20 groups, 30 entries, 28.2 MB of weights per call
+0 3 real 17/42 def 111.4 65.3 41.6 252.7 252.9% identical
+0 3 real 17/42 dec 97.5 48.7 41.7 288.8 289.1% DIFFERENT
+# T=4 real: 20 groups, 40 entries, 28.2 MB of weights per call
+0 4 real 17/42 def 119.1 70.4 43.4 236.5 236.7% identical
+0 4 real 17/42 dec 100.1 48.9 43.4 281.5 281.7% DIFFERENT
+# pair 22/42: gate/up IQ2_S, down Q2_0: blob 1.51 MB (gu_row 820, d_row 180), pool 121 MB
+# device 0: AMD Radeon RX 7900 XT (sm_110, 42 SMs, L2 6144 KB), 300 reps x 5 rounds, <= 20 groups, pool 80 blobs x 1.51 MB
+# device 0 peak DRAM bandwidth 99.9 GB/s (memory clock 1249000 kHz, bus 320 bit)
+# T=1 real: 10 groups, 10 entries, 15.1 MB of weights per call
+0 1 real 22/42 def 66.6 39.7 23.8 226.8 226.9% identical
+strata expdec: CUDA0 gate/up type 22: expdec_gu_kernel R 1 MINB 4, 16 rows per block, grid 80 x 10 (cap 10 groups)
+0 1 real 22/42 dec 62.8 34.9 23.7 240.5 240.6% DIFFERENT
+# T=2 real: 20 groups, 20 entries, 30.2 MB of weights per call
+0 2 real 22/42 def 111.2 66.4 39.9 271.6 271.8% identical
+0 2 real 22/42 dec 100.1 53.8 40.0 301.8 302.0% DIFFERENT
+# T=3 real: 20 groups, 30 entries, 30.2 MB of weights per call
+0 3 real 22/42 def 118.1 71.2 41.7 255.9 256.1% identical
+0 3 real 22/42 dec 102.4 53.7 41.6 294.9 295.1% DIFFERENT
+# T=4 real: 20 groups, 40 entries, 30.2 MB of weights per call
+0 4 real 22/42 def 130.2 82.4 43.3 232.0 232.2% identical
+0 4 real 22/42 dec 105.3 54.4 43.5 286.8 287.0% DIFFERENT
+
+expdec_bench: FAILED (12 choice comparisons differ)

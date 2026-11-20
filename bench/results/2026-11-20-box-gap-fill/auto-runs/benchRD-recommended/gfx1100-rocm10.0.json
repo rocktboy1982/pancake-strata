@@ -1,0 +1,56 @@
+{
+ "schema": 1,
+ "key": {
+  "gfx": "gfx1100",
+  "rocm": "10.0",
+  "vram_gib_min": 19
+ },
+ "hardware": {
+  "gfx": "gfx1100",
+  "rocm": "10.0",
+  "vram_gib": 20,
+  "pcie": "16.0 GT/s PCIe x16",
+  "cpu": "AMD Ryzen 7 5700G with Radeon Graphics",
+  "ram_gib": 58,
+  "vmm": true,
+  "hipblaslt": true
+ },
+ "env": {
+  "STRATA_PF_F16": "1",
+  "STRATA_RDNA_MMVQ_WAVE": "3"
+ },
+ "args": {},
+ "verdicts": {
+  "KV_HOST_DMA": {
+   "verdict": "GAIN",
+   "exact": false,
+   "gain_pct": 22.49,
+   "note": "claimed exact but the text differs: treated as lossy"
+  },
+  "PF_F16": {
+   "verdict": "GAIN",
+   "exact": false,
+   "gate_pass": true,
+   "gain_pct": 10.27,
+   "note": "quality gate: T-828"
+  },
+  "POOL_FUSE_PHASES": {
+   "verdict": "FAIL",
+   "exact": false,
+   "gain_pct": -5.97,
+   "note": "a parity ctest of this flag failed"
+  },
+  "RDNA_MMVQ_WAVE": {
+   "verdict": "GAIN",
+   "exact": true,
+   "gain_pct": 27.34
+  },
+  "VERIFY_ECAP": {
+   "verdict": "NO-GAIN",
+   "exact": false,
+   "gate_pass": true,
+   "gain_pct": -7.37,
+   "note": "quality gate: T-589,T-591"
+  }
+ }
+}

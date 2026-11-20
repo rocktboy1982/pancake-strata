@@ -1,0 +1,6 @@
+PHANTOM-ENV  110-coded-nospec-serve-replay.json arm(tool-idle-prewarm) STRATA_TOOL_IDLE_PREWARM: not in disk_env.def or src/include
+PHANTOM-ENV  148-knob-trial-serve.json arm(knob-trial) STRATA_KNOB_TRIAL_MIN_TOKENS: not in disk_env.def or src/include
+PHANTOM-ENV  148-knob-trial-serve.json arm(knob-trial) STRATA_KNOB_TRIAL_CANDIDATES: not in disk_env.def or src/include
+PHANTOM-ENV  162-replay-confirm-warmup-prewarm.json arm(tool-idle-prewarm) STRATA_TOOL_IDLE_PREWARM: not in disk_env.def or src/include
+INERT-GATE   31-env-both-gpu.json arm(kv-grow): --kv-grow is off under --kv-resident 32768 (the elastic K/V needs the whole K/V in VRAM): the arm is the base
+INERT-GATE   31c-confirm-aux-kvgrow.json arm(kv-grow): --kv-grow is off under --kv-resident 32768 (the elastic K/V needs the whole K/V in VRAM): the arm is the base

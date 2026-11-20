@@ -1,0 +1,11 @@
+loaded in 42.1s
+A1 (code): prompt 4394, 384 new, decode 220.5 tok/s, records to 19344
+B1 (prose): prompt 37, 384 new, decode 82.0 tok/s, records to 46560
+A2 (code): prompt 4807, 384 new, decode 212.6 tok/s, records to 66576
+C1 (tool): prompt 194, 53 new, decode 84.0 tok/s, records to 69552
+B2 (prose): prompt 452, 384 new, decode 213.5 tok/s, records to 89040
+D1 (code): prompt 2216, 384 new, decode 88.6 tok/s, records to 114144
+A3 (code): prompt 5218, 372 new, decode 219.1 tok/s, records to 132912
+C2 (tool): prompt 279, 47 new, decode 78.8 tok/s, records to 136704
+D2 (code): prompt 2626, 384 new, decode 95.1 tok/s, records to 160560
+wrote /mnt/pancake/chainAA/conv/real4.trace and /mnt/pancake/chainAA/conv/real4.requests.json

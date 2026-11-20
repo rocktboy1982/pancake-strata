@@ -1,0 +1,14 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-plain-upstream.json",
+ "arms": {
+  "smoke": {
+   "exe": "/mnt/pancake/benchus/build-up/strata"
+  }
+ },
+ "cases": [
+  "short"
+ ],
+ "reps": 1,
+ "lossy": true,
+ "prefill": false
+}

@@ -1,0 +1,5 @@
+set /home/dan/clone-of-d/src/Strata-win/bench/quality/set-v2.json: 48 requests (0 without continuation), prompts 321 / 1474 / 64155 tokens (min / median / max), 9410 scored tokens; kinds agent 4, code 4, deep32k 4, deep64k 2, docs 4, edit-ctx 6, edit-short 6, english 4, first 4, multilingual 4, toolres 6
+spec: base configs/pancake/flashnext-iq2_xs-fast-hip.json, arms ['base', 'dq-fast'] (the first is the stock, scored twice)
+plan: 3 engine starts, then scoring: base a, base b, dq-fast
+estimate: ~6 min of scoring per arm (prefill + decode, engine start not counted; an estimate), ~18 min for all arms
+dry run: ok

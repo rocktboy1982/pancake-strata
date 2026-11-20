@@ -1,0 +1,33 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "short",
+  "long3k",
+  "long32k",
+  "long64k"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "ldsbar": {
+   "exe": "/home/dan/clone-of-d/src/build-ldsbar/strata"
+  },
+  "lazy2": {
+   "exe": "/home/dan/clone-of-d/src/build-lazy2/strata"
+  },
+  "lazy2-noskip": {
+   "exe": "/home/dan/clone-of-d/src/build-lazy2ns/strata"
+  },
+  "lazy8": {
+   "exe": "/home/dan/clone-of-d/src/build-lazy8/strata"
+  },
+  "xlds": {
+   "exe": "/home/dan/clone-of-d/src/build-xlds/strata"
+  }
+ },
+ "note": "LEADS.md Part P leads L4 (lazy softmax rescale), L6 (LDS-only barrier) and L14 (double-buffered stage in the F16 prompt-expert kernel): three BUILD MACROS, so every arm is its own binary; CODED, HIP gfx1100 compile-checked (the default build's device code is identical to the previous source: the ISA diff is empty apart from the compilation-unit id), NOT RUN on a GPU. Build each next to build-win w [chain T: arms cut to the screen winners ldsbar,lazy2,lazy2-noskip,lazy8,xlds]"
+}

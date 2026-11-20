@@ -1,0 +1,4 @@
+rep 0 smoke: FAILED (server died before ready)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  smoke                no clean runs

@@ -1,0 +1,26 @@
+{
+ "base": "/home/dan/auto-runs/winbenchus/diag-plain-config.json",
+ "arms": {
+  "base": {},
+  "base-again": {},
+  "STRATA_HIPBLASLT_TUNING": {
+   "env": {
+    "STRATA_HIPBLASLT_TUNING": "/mnt/pancake/benchus/src-us/terminal/tools/hip/gfx1100-hipblaslt-100401.txt"
+   }
+  },
+  "STRATA_PF_F16": {
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit",
+  "long1k"
+ ],
+ "reps": 1,
+ "lossy": true,
+ "prefill": true,
+ "note": "flag_diag.py quick diagnostic: base twice (noise floor) and one arm per candidate"
+}

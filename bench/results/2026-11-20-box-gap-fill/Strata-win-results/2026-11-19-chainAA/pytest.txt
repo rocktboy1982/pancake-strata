@@ -1,0 +1,8 @@
+.........................                                                [100%]
+=============================== warnings summary ===============================
+conftest.py:2
+  /home/dan/clone-of-d/src/Strata-win/conftest.py:2: SyntaxWarning: "\S" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\S"? A raw string is also an option.
+    (%APPDATA%\Strata\settings.json, ~/.config/strata/settings.json) and can MOVE model files from a folder it finds there.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+25 passed, 1 warning in 0.24s

@@ -1,0 +1,2 @@
+  lanecell-w12: short -7.1% edit +27.1%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+NONE no screen winner

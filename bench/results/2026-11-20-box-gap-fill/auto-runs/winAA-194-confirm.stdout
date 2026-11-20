@@ -1,0 +1,139 @@
+case long3k: 9673 chars, sha1 8f6da3a2b99a, target 3000 tokens (a unique run line is prepended to every request)
+case long32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+case long64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base                 short 80.0 long3k 110.3/1318p 2936t long32k 33.8/2556p 31453t long64k 89.9/2714p 65241t short 101.5 long3k 102.1/1318p 2936t long32k 118.2/2750p 31453t long64k 80.0/2707p 65241t short 86.3 long3k 98.7/1298p 2937t long32k 118.4/2460p 31454t long64k 75.9/2738p 65242t  foreign CPU 10% [('kcompactd0', 46), ('kswapd0', 4), ('kworker/11:0-events_freezable', 4)]  gpu 1996/1249 MHz 71C 195W gtt 25M cpu 3338MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 ldsbar               short 87.8 long3k 106.9/1323p 2937t long32k 108.6/2753p 31454t long64k 93.8/2742p 65242t short 117.9 long3k 99.0/1322p 2937t long32k 113.2/2752p 31454t long64k 81.9/2770p 65242t short 116.2 long3k 102.5/1322p 2937t long32k 116.0/2746p 31454t long64k 86.6/2830p 65242t  foreign CPU 8% [('kcompactd0', 56), ('kworker/12:2-events', 4), ('kworker/15:2-events', 3)]  gpu 2025/1249 MHz 71C 202W gtt 25M cpu 3248MHz 67C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 lazy2                short 106.0 long3k 104.5/1314p 2937t long32k 112.9/2501p 31454t long64k 78.9/2827p 65242t short 84.9 long3k 80.5/1282p 2937t long32k 79.3/2748p 31454t long64k 87.3/2819p 65242t short 109.8 long3k 105.9/1319p 2937t long32k 106.7/2752p 31454t long64k 94.9/2769p 65242t  foreign CPU 11% [('kcompactd0', 77), ('pipewire', 1), ('gnome-remote-de', 1)]  gpu 2018/1249 MHz 74C 203W gtt 25M cpu 3335MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 lazy2-noskip         short 108.3 long3k 114.4/1317p 2937t long32k 105.7/2471p 31454t long64k 76.8/2824p 65242t short 88.8 long3k 104.3/1307p 2937t long32k 120.0/2752p 31454t long64k 77.3/2806p 65242t short 112.2 long3k 114.0/1314p 2937t long32k 115.5/2749p 31454t long64k 76.0/2701p 65242t  foreign CPU 10% [('kcompactd0', 74), ('kworker/11:3-mm_percpu_wq', 3), ('kworker/13:2-mm_percpu_wq', 2)]  gpu 2001/1249 MHz 75C 199W gtt 25M cpu 3277MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 lazy8                short 116.0 long3k 105.3/1323p 2937t long32k 107.8/2482p 31454t long64k 78.4/2825p 65242t short 88.0 long3k 95.1/1316p 2937t long32k 119.3/2751p 31454t long64k 87.0/2790p 65242t short 111.4 long3k 102.8/1318p 2937t long32k 116.7/2750p 31454t long64k 91.2/2701p 65242t  foreign CPU 9% [('kcompactd0', 48), ('kworker/11:3-mm_percpu_wq', 2), ('kworker/3:2-mm_percpu_wq', 2)]  gpu 2013/1249 MHz 76C 208W gtt 25M cpu 3316MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 xlds                 short 107.8 long3k 104.4/1316p 2937t long32k 84.1/2500p 31454t long64k 92.3/2824p 65242t short 104.1 long3k 105.1/941p 2937t long32k 117.4/2750p 31454t long64k 77.5/2796p 65242t short 110.7 long3k 101.0/1311p 2937t long32k 95.9/2750p 31454t long64k 84.3/2823p 65242t  foreign CPU 9% [('kcompactd0', 49), ('kworker/11:3-events_freezable', 5), ('kworker/3:2-events_freezable', 3)]  gpu 2019/1249 MHz 76C 208W gtt 25M cpu 3351MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 1 xlds                 short 106.1 long3k 99.4/1316p 2937t long32k 116.5/2504p 31454t long64k 84.9/2823p 65242t short 80.6 long3k 105.0/1320p 2937t long32k 36.8/2547p 31454t long64k 80.3/2808p 65242t short 93.6 long3k 99.4/1317p 2937t long32k 115.5/2750p 31454t long64k 93.4/2814p 65242t  foreign CPU 8% [('kcompactd0', 38), ('kworker/11:3-events_freezable', 2), ('kworker/10:1-mm_percpu_wq', 2)]  gpu 2012/1249 MHz 76C 196W gtt 25M cpu 3333MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 0 xlds: slow start (more than 8.75% below the arm's other starts): run again
+rep 1 xlds: slow start (more than 8.75% below the arm's other starts): run again
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 xlds                 short 87.1 long3k 111.0/1312p 2937t long32k 116.5/2750p 31454t long64k 69.5/2696p 65242t short 99.4 long3k 101.4/1313p 2937t long32k 115.6/2752p 31454t long64k 102.3/2708p 65242t short 105.1 long3k 105.1/1314p 2937t long32k 117.4/2526p 31454t long64k 80.8/2826p 65242t  foreign CPU 9% [('kcompactd0', 54), ('kworker/9:3-events', 8), ('kworker/11:0-events', 5)]  gpu 2013/1249 MHz 74C 200W gtt 25M cpu 3359MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 1 xlds                 short 88.2 long3k 100.2/1308p 2938t long32k 110.2/2458p 31455t long64k 93.6/2699p 65243t short 104.1 long3k 100.1/942p 2938t long32k 110.6/2752p 31455t long64k 105.5/2723p 65243t short 93.8 long3k 99.3/1312p 2938t long32k 108.3/2752p 31455t long64k 86.4/2694p 65243t  foreign CPU 10% [('kcompactd0', 76), ('kworker/11:1-mm_percpu_wq', 2), ('kworker/3:2-events', 2)]  gpu 2031/1249 MHz 72C 196W gtt 25M cpu 3377MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 1 xlds: slow start (more than 8.75% below the arm's other starts): run again
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 1 xlds                 short 106.4 long3k 106.8/1313p 2938t long32k 119.2/2457p 31455t long64k 101.6/2827p 65243t short 93.3 long3k 107.9/1096p 2938t long32k 112.4/2752p 31455t long64k 86.5/2807p 65243t short 111.0 long3k 109.8/1320p 2938t long32k 116.3/2752p 31455t long64k 91.0/2706p 65243t  foreign CPU 9% [('kcompactd0', 51), ('kworker/11:1-events_freezable', 11), ('kworker/9:3-events', 2)]  gpu 2027/1249 MHz 72C 205W gtt 25M cpu 3285MHz 67C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 1 lazy8                short 66.8 long3k 112.1/1317p 2938t long32k 90.7/2752p 31455t long64k 86.2/2739p 65243t short 105.9 long3k 103.2/1320p 2938t long32k 119.0/2752p 31455t long64k 87.8/2708p 65243t short 103.4 long3k 100.6/1314p 2938t long32k 91.4/2484p 31455t long64k 62.2/2830p 65243t  foreign CPU 9% [('kcompactd0', 57), ('kworker/11:0-events_freezable', 6), ('kworker/10:1-events_freezable', 4)]  gpu 2022/1249 MHz 74C 197W gtt 25M cpu 3300MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 1 lazy8: slow start (more than 8.75% below the arm's other starts): run again
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 1 lazy8                short 109.8 long3k 125.5/1318p 2938t long32k 122.9/2532p 31455t long64k 88.1/2828p 65243t short 103.2 long3k 114.5/1320p 2938t long32k 90.8/2753p 31455t long64k 87.5/2816p 65243t short 114.0 long3k 102.5/1315p 2938t long32k 117.1/2752p 31455t long64k 92.4/2746p 65243t  foreign CPU 8% [('kcompactd0', 46), ('kworker/11:0-events_freezable', 4), ('kworker/3:1-events_freezable', 3)]  gpu 2018/1249 MHz 75C 205W gtt 25M cpu 3233MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 1 lazy2-noskip         short 111.1 long3k 101.8/1319p 2938t long32k 111.7/2463p 31455t long64k 79.9/2826p 65243t short 84.4 long3k 105.7/1318p 2938t long32k 89.7/2751p 31455t long64k 92.7/2811p 65243t short 109.5 long3k 97.7/1320p 2938t long32k 110.3/2750p 31455t long64k 80.5/2714p 65243t  foreign CPU 10% [('kcompactd0', 52), ('kworker/10:0-mm_percpu_wq', 4), ('kworker/11:2-events_freezable', 3)]  gpu 2019/1249 MHz 76C 206W gtt 25M cpu 3322MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 1 lazy2                short 117.6 long3k 109.2/1315p 2938t long32k 113.9/2465p 31455t long64k 91.0/2828p 65243t short 85.3 long3k 101.4/1314p 2938t long32k 112.4/2751p 31455t long64k 85.5/2794p 65243t short 114.6 long3k 105.5/1319p 2938t long32k 116.9/2750p 31455t long64k 86.9/2694p 65243t  foreign CPU 8% [('kcompactd0', 53), ('kworker/8:2-mm_percpu_wq', 4), ('kworker/9:3-events', 3)]  gpu 2017/1249 MHz 76C 204W gtt 25M cpu 3392MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 1 ldsbar               short 111.0 long3k 101.4/1316p 2938t long32k 98.8/2488p 31455t long64k 101.3/2828p 65243t short 100.0 long3k 100.4/1033p 2938t long32k 92.7/2752p 31455t long64k 92.2/2792p 65243t short 107.7 long3k 103.8/1322p 2938t long32k 94.4/2751p 31455t long64k 87.2/2705p 65243t  foreign CPU 9% [('kcompactd0', 52), ('kworker/14:0-events', 7), ('kworker/4:0-mm_percpu_wq', 3)]  gpu 2022/1249 MHz 77C 209W gtt 25M cpu 3331MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 1 base                 short 112.5 long3k 107.9/1317p 2938t long32k 117.3/2492p 31455t long64k 82.1/2824p 65243t short 82.1 long3k 102.6/1317p 2938t long32k 96.3/2750p 31455t long64k 87.6/2796p 65243t short 111.0 long3k 102.2/1319p 2938t long32k 116.2/2750p 31455t long64k 75.7/2730p 65243t  foreign CPU 8% [('kcompactd0', 42), ('kworker/9:1-mm_percpu_wq', 3), ('kworker/11:0-mm_percpu_wq', 2)]  gpu 2014/1249 MHz 76C 205W gtt 25M cpu 3395MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+rep 0 base: slow start (more than 8.75% below the arm's other starts): run again
+  long3k: 2909 prompt tokens by count_tokens (target 3000)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+  long64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base                 short 110.3 long3k 103.6/1316p 2938t long32k 111.9/2500p 31455t long64k 77.0/2822p 65243t short 90.4 long3k 102.2/1318p 2938t long32k 116.5/2750p 31455t long64k 88.8/2804p 65243t short 107.8 long3k 97.7/1322p 2938t long32k 123.7/2747p 31455t long64k 88.1/2818p 65243t  foreign CPU 8% [('kcompactd0', 49), ('kworker/11:0-mm_percpu_wq', 6), ('kworker/9:1-events_freezable', 2)]  gpu 2020/1249 MHz 77C 210W gtt 25M cpu 3372MHz 68C igpu 0%/vcn 0% fclk 1600  noisy by the proxies: kept (outlier rule)
+
+outlier rule robust: 5 slow starts left out (more than 8.75% below the arm's reference start on a case; a robust run repeats them), 15 passes dropped (|x - median| > 3.5 x max(1.4826 MAD, 2.5% of the median) within arm, case and request slot, >= 3 values; the pass goes whole)
+  base                 rep 0 attempt 0 slow start (means): short 89.3, long3k 1311.2, long32k 2588.7, long64k 2719.5
+  xlds                 rep 0 attempt 0 slow start (means): short 107.5, long3k 1189.0, long32k 2666.7, long64k 2814.2
+  xlds                 rep 1 attempt 0 slow start (means): short 93.4, long3k 1317.7, long32k 2600.5, long64k 2815.1
+  xlds                 rep 1 attempt 1 slow start (means): short 95.4, long3k 1187.3, long32k 2654.2, long64k 2705.2
+  lazy8                rep 1 attempt 0 slow start (means): short 92.0, long3k 1317.1, long32k 2662.7, long64k 2758.6
+  base                 rep 0 attempt 1 pass 1: short 110.3, long3k 1316.3, long32k 2500.2 outside [2507.9, 2988.8], long64k 2822.2
+  base                 rep 0 attempt 1 pass 2: short 90.4 outside [95.0, 123.1], long3k 1317.8, long32k 2750.4, long64k 2804.3
+  base                 rep 1 attempt 0 pass 1: short 112.5, long3k 1316.8, long32k 2492.2 outside [2507.9, 2988.8], long64k 2823.9
+  base                 rep 1 attempt 0 pass 2: short 82.1 outside [95.0, 123.1], long3k 1316.9, long32k 2749.9, long64k 2795.7
+  ldsbar               rep 1 attempt 0 pass 1: short 111.0, long3k 1316.0, long32k 2488.4 outside [2510.8, 2992.3], long64k 2827.7
+  ldsbar               rep 1 attempt 0 pass 2: short 100.0, long3k 1032.8 outside [1206.0, 1437.2], long32k 2752.2, long64k 2792.3
+  lazy2                rep 0 attempt 0 pass 1: short 106.0, long3k 1314.1, long32k 2501.1 outside [2508.6, 2989.7], long64k 2826.6
+  lazy2                rep 1 attempt 0 pass 1: short 117.6, long3k 1315.2, long32k 2464.7 outside [2508.6, 2989.7], long64k 2828.2
+  lazy2-noskip         rep 0 attempt 0 pass 1: short 108.3, long3k 1316.7, long32k 2470.8 outside [2509.3, 2990.6], long64k 2823.6
+  lazy2-noskip         rep 0 attempt 0 pass 2: short 88.8 outside [94.6, 123.2], long3k 1307.3, long32k 2751.5, long64k 2805.6
+  lazy2-noskip         rep 1 attempt 0 pass 1: short 111.1, long3k 1319.4, long32k 2463.3 outside [2509.3, 2990.6], long64k 2825.7
+  lazy2-noskip         rep 1 attempt 0 pass 2: short 84.4 outside [94.6, 123.2], long3k 1317.9, long32k 2751.0, long64k 2810.6
+  lazy8                rep 0 attempt 0 pass 1: short 116.0, long3k 1322.7, long32k 2481.8 outside [2509.7, 2991.0], long64k 2825.3
+  xlds                 rep 1 attempt 2 pass 1: short 106.4, long3k 1313.3, long32k 2456.9 outside [2510.4, 2991.9], long64k 2827.4
+  xlds                 rep 1 attempt 2 pass 2: short 93.3, long3k 1096.0 outside [1198.4, 1428.2], long32k 2752.5, long64k 2807.3
+
+block of 3 passes per start: intervals widened by sqrt(design effect 1.90) (1 + (passes - 1) x 0.45, the start-shared share of the noise)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                    109.4 +-  28.0  (n=2)
+                              drafts accepted 0.71
+  short  ldsbar                  107.4 +-  30.3  (n=4)   vs base:  +2.3% +- 93.7%  -> no difference
+                              drafts accepted 0.73
+  short  lazy2                    98.7 +-  34.6  (n=4)   vs base:  +2.6% +- 12.8%  -> no difference
+                              drafts accepted 0.71
+  short  lazy2-noskip            110.8 +-  23.7  (n=2)   vs base:  +1.3% +- 47.2%  -> no difference
+                              drafts accepted 0.74
+  short  lazy8                   105.3 +-  17.9  (n=5)   vs base:  +3.0% +-  4.8%  -> no difference
+                              drafts accepted 0.72
+  short  xlds                    100.7 +-  22.4  (n=4)   vs base:  -1.2% +- 21.6%  -> no difference
+                              drafts accepted 0.70
+  long3k base                   1320.7 +-  29.8  (n=2)
+  long3k ldsbar                 1321.9 +-   1.2  (n=4)   vs base:  +0.1% +-  2.1%  -> no difference
+  long3k lazy2                  1308.6 +-  38.9  (n=4)   vs base:  -0.1% +-  2.6%  -> no difference
+  long3k lazy2-noskip           1316.9 +-  59.6  (n=2)   vs base:  -0.3% +-  6.8%  -> no difference
+  long3k lazy8                  1317.4 +-   3.9  (n=5)   vs base:  -0.3% +-  0.1%  -> worse
+  long3k xlds                   1315.1 +-   7.9  (n=4)   vs base:  -0.2% +-  6.1%  -> no difference
+  long32k base                   2748.5 +-  29.8  (n=2)
+  long32k ldsbar                 2750.7 +-   6.6  (n=4)   vs base:  +0.0% +-  0.4%  -> no difference
+  long32k lazy2                  2750.2 +-   3.6  (n=4)   vs base:  +0.1% +-  1.6%  -> no difference
+  long32k lazy2-noskip           2749.9 +-   9.6  (n=2)   vs base:  +0.1% +-  0.7%  -> no difference
+  long32k lazy8                  2707.5 +- 168.5  (n=5)   vs base:  +0.1% +-  0.3%  -> no difference
+  long32k xlds                   2695.1 +- 247.2  (n=4)   vs base:  -4.0% +- 70.9%  -> no difference
+  long64k base                   2773.9 +- 774.4  (n=2)
+  long64k ldsbar                 2761.6 +- 115.2  (n=4)   vs base:  -0.2% +- 11.5%  -> no difference
+  long64k lazy2                  2769.1 +- 118.7  (n=4)   vs base:  -1.5% +-  4.1%  -> no difference
+  long64k lazy2-noskip           2707.4 +- 113.0  (n=2)   vs base:  -2.4% +- 32.0%  -> no difference
+  long64k lazy8                  2776.4 +-  89.8  (n=5)   vs base:  -1.8% +- 42.0%  -> no difference
+  long64k xlds                   2734.2 +- 135.4  (n=4)   vs base:  -0.3% +- 10.1%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  ldsbar               DIFFERENT text -> lossy or placement-dependent: quality gate
+  lazy2                DIFFERENT text -> lossy or placement-dependent: quality gate
+  lazy2-noskip         DIFFERENT text -> lossy or placement-dependent: quality gate
+  lazy8                DIFFERENT text -> lossy or placement-dependent: quality gate
+  xlds                 DIFFERENT text -> lossy or placement-dependent: quality gate

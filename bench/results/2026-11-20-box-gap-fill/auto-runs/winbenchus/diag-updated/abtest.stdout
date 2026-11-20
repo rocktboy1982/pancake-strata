@@ -1,0 +1,4 @@
+abtest: another test or engine is already running on this machine: not starting (a second run would disturb it, and its numbers would be wrong).  Running:
+  pid 2202533: /home/dan/clone-of-d/src/Strata-win/.venv/bin/python3 /home/dan/clone-of-d/src/Strata-win/tools/pancake/abtest.py /home/dan/auto-runs/winbenchus/diag-plain/spec.json --tier screen --out /home/dan/auto
+  pid 2210195: /home/dan/clone-of-d/src/Strata-win/.venv/bin/python serve/server.py --engine strata --config /home/dan/auto-runs/winbenchus/diag-plain/abtest/STRATA_PF_F16.json --port 8080
+Wait for it, or stop it yourself if it is a leftover of a crashed run (abtest never stops what it did not start).  --force-busy starts anyway (fake-engine tests only).

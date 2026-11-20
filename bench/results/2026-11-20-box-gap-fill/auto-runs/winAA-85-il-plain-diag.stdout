@@ -1,0 +1,23 @@
+rep 0 base                 short 98.6 short 98.6 edit 148.0 edit 166.2  foreign CPU 3% [('pipewire', 1), ('claude', 1), ('gnome-remote-de', 1)]  gpu 2051/1249 MHz 55C 155W gtt 21M cpu 4263MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 il-build             short 99.3 short 95.8 edit 142.8 edit 157.9  foreign CPU 4% [('udisksd', 2), ('pipewire', 1), ('claude', 1)]  gpu 1895/1249 MHz 55C 147W gtt 21M cpu 3745MHz 51C igpu 0%/vcn 0% fclk 1600
+rep 0 il-plain             short 32.2 short 24.7 edit 20.8 edit 32.4  foreign CPU 4% [('pipewire', 1), ('gnome-remote-de', 1), ('localsearch-3', 1)]  gpu 2010/1249 MHz 53C 148W gtt 21M cpu 3715MHz 52C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  base                     98.6 +-   0.0  (n=2)
+                              drafts accepted 0.69
+  short  il-build                 97.5 +-  22.2  (n=2)   vs base:  -1.1% +- 22.6%  -> no difference
+                              drafts accepted 0.71
+  short  il-plain                 28.5 +-  47.7  (n=2)   vs base: -71.1% +- 48.3%  -> worse
+  edit   base                    157.1 +- 115.7  (n=2)
+                              drafts accepted 0.91
+  edit   il-build                150.4 +-  96.0  (n=2)   vs base:  -4.3% +- 12.5%  -> no difference
+                              drafts accepted 0.89
+  edit   il-plain                 26.6 +-  73.7  (n=2)   vs base: -83.1% +- 26.7%  -> worse
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  il-build             DIFFERENT text -> lossy or placement-dependent: quality gate
+  il-plain             DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  il-build             short -1.1%  edit -4.3%  -> drop
+  il-plain             short -71.1%  edit -83.1%  -> drop

@@ -1,0 +1,42 @@
+{
+ "base": "/home/dan/auto-runs/winbenchus/diag-updated-config.json",
+ "arms": {
+  "base": {},
+  "base-again": {},
+  "STRATA_RDNA_Q6K": {
+   "env": {
+    "STRATA_RDNA_Q6K": "1"
+   }
+  },
+  "STRATA_GR_RDNA": {
+   "env": {
+    "STRATA_GR_RDNA": "1"
+   }
+  },
+  "STRATA_RDNA_MMVQ_WAVE": {
+   "env": {
+    "STRATA_RDNA_MMVQ_WAVE": "3"
+   }
+  },
+  "STRATA_COMBINE_CPU": {
+   "env": {
+    "STRATA_COMBINE_CPU": "1",
+    "STRATA_WAIT_FUSE": "1"
+   }
+  },
+  "STRATA_VERIFY_ECAP": {
+   "env": {
+    "STRATA_VERIFY_ECAP": "0",
+    "STRATA_VERIFY_ECAP_MIN_ROWS": "9"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 1,
+ "lossy": true,
+ "prefill": false,
+ "note": "flag_diag.py quick diagnostic: base twice (noise floor) and one arm per candidate"
+}

@@ -1,0 +1,43 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_SUFFIX_INDEX": null
+   }
+  },
+  "sidx-4mib": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_SUFFIX_INDEX": "1",
+    "STRATA_SUFFIX_INDEX_MB": "4",
+    "STRATA_SUFFIX_INDEX_FILE": "/home/dan/clone-of-d/src/d4-replay-4mib-r1.sxi"
+   }
+  },
+  "sidx-16mib": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_SUFFIX_INDEX": "1",
+    "STRATA_SUFFIX_INDEX_MB": "16",
+    "STRATA_SUFFIX_INDEX_FILE": "/home/dan/clone-of-d/src/d4-replay-16mib-r1.sxi"
+   }
+  }
+ },
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "/home/dan/clone-of-d/src/Strata/pancake-turns.jsonl",
+  "arms": [
+   "base",
+   "sidx-4mib",
+   "sidx-16mib"
+  ],
+  "reps": 1
+ },
+ "note": "D4 suffix index (STRATA_SUFFIX_INDEX=1, _MB = 4 / 16, _FILE = the persistent log) on the live replay of the 2026-11-09 16:13-16:43 agent session (same traffic as specs 110 / 162), instead of abtest's three repeats of one prompt: spec 121's confirm (TEST_LEDGER.md T-823, edit +18.9% / +17.9%) is contaminated because the log lives across starts and the prompt repeats. Here each rep of each arm starts from a NEW, empty index file (the chain writes one spec copy per rep with the file name suffixed -r1 / -r2 / -r3 under /home/dan/clone-of-d/src/, outside the repository), so the index only ever holds text from earlier turns of the same replayed session. Reads total prompt time and decode per turn (replay_turns.py). Run one rep: python3 tools/pancake/replay_turns.py <spec copy> --out DIR --reps 1 --arms <order>. The quality gate of these arms is spec 121b (T-902, PASS). NOT RUN."
+}

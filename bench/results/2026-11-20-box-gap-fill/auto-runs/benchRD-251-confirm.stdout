@@ -1,0 +1,79 @@
+case long32k: 102473 chars, sha1 378b3e8c2bbb, target 32000 tokens (a unique run line is prepended to every request)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 103.4 long32k 91.3/1523p 31411t  foreign CPU 17% [('kcompactd0', 38), ('kworker/11:0-mm_percpu_wq', 5), ('kworker/3:0-events', 4)]  gpu 1948/1249 MHz 61C 189W gtt 25M cpu 3220MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 110.2 long32k 93.5/1516p 31411t  foreign CPU 13% [('kcompactd0', 41), ('kworker/9:0-mm_percpu_wq', 4), ('kworker/1:1-mm_percpu_wq', 4)]  gpu 2026/1249 MHz 62C 189W gtt 25M cpu 3180MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 updated              short 103.5 long32k 94.5/1451p 31411t  foreign CPU 19% [('kcompactd0', 27), ('kworker/0:1-events', 11), ('kworker/11:0-mm_percpu_wq', 2)]  gpu 1879/1249 MHz 62C 174W gtt 25M cpu 3615MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (13% foreign CPU)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 hipblaslt-100401     short 107.5 long32k 92.8/1599p 31411t  foreign CPU 15% [('kcompactd0', 23), ('kworker/0:1-events', 4), ('kworker/3:0-events_freezable', 2)]  gpu 1906/1249 MHz 62C 179W gtt 25M cpu 3238MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 hipblaslt-100401     short 103.3 long32k 80.2/1056p 31411t  foreign CPU 13% [('kcompactd0', 40), ('kworker/13:3-mm_percpu_wq', 4), ('kworker/4:0-events', 2)]  gpu 2021/1249 MHz 61C 199W gtt 25M cpu 3152MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 hipblaslt-100401     short 88.3 long32k 77.5/947p 31411t  foreign CPU 13% [('kcompactd0', 30), ('kworker/11:3-events', 3), ('kswapd0', 2)]  gpu 2032/1249 MHz 61C 194W gtt 25M cpu 3398MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 hipblaslt-100401: every attempt noisy, keeping the quietest (13% foreign CPU)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 profile-pancake      short 66.1 long32k 94.5/952p 31411t  foreign CPU 7% [('kcompactd0', 21), ('kworker/7:0-events', 5), ('kworker/0:1-events', 5)]  gpu 2025/1249 MHz 60C 191W gtt 25M cpu 3544MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 profile-pancake      short 87.0 long32k 92.6/954p 31411t  foreign CPU 7% [('kcompactd0', 34), ('kworker/3:3-mm_percpu_wq', 5), ('kswapd0', 2)]  gpu 2039/1249 MHz 60C 172W gtt 25M cpu 3306MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 0 profile-pancake      short 89.0 long32k 95.3/1053p 31411t  foreign CPU 8% [('kcompactd0', 22), ('kworker/5:2-mm_percpu_wq', 3), ('kworker/0:1-events', 2)]  gpu 1950/1249 MHz 60C 186W gtt 25M cpu 3151MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 profile-pancake: every attempt noisy, keeping the quietest (7% foreign CPU)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 profile-pancake      short 111.2 long32k 96.0/1535p 31412t  foreign CPU 9% [('kcompactd0', 12), ('kworker/0:1-events', 4), ('kworker/11:2-events', 3)]  gpu 2004/1249 MHz 61C 186W gtt 25M cpu 3238MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 profile-pancake      short 112.4 long32k 91.1/1535p 31412t  foreign CPU 10% [('kcompactd0', 29), ('kworker/0:1-mm_percpu_wq', 5), ('kworker/1:3-mm_percpu_wq', 2)]  gpu 1958/1249 MHz 61C 178W gtt 25M cpu 3424MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 profile-pancake      short 113.1 long32k 94.7/1511p 31412t  foreign CPU 12% [('kcompactd0', 22), ('kworker/5:2-events_freezable', 3), ('kworker/11:1-events', 3)]  gpu 2020/1249 MHz 62C 188W gtt 25M cpu 3255MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 1 profile-pancake: every attempt noisy, keeping the quietest (9% foreign CPU)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 hipblaslt-100401     short 102.0 long32k 94.8/1607p 31412t  foreign CPU 15% [('kcompactd0', 26), ('kworker/9:3-events_freezable', 4), ('kworker/11:3-mm_percpu_wq', 2)]  gpu 1707/1249 MHz 62C 168W gtt 25M cpu 3159MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 hipblaslt-100401     short 108.8 long32k 99.0/1627p 31412t  foreign CPU 8% [('kcompactd0', 18), ('kworker/0:0-events', 6), ('kworker/11:1-events', 4)]  gpu 2041/1249 MHz 63C 188W gtt 25M cpu 3459MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 hipblaslt-100401     short 109.0 long32k 94.2/1606p 31412t  foreign CPU 10% [('kcompactd0', 20), ('kworker/0:0-events', 4), ('kworker/0:1-events', 2)]  gpu 1899/1249 MHz 62C 178W gtt 25M cpu 3148MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 1 hipblaslt-100401: every attempt noisy, keeping the quietest (8% foreign CPU)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 updated              short 103.2 long32k 95.6/1518p 31412t  foreign CPU 13% [('kcompactd0', 27), ('kworker/11:0-events', 4), ('kworker/11:1-events', 2)]  gpu 1987/1249 MHz 62C 195W gtt 25M cpu 3191MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 updated              short 105.1 long32k 100.9/1515p 31412t  foreign CPU 11% [('kcompactd0', 20), ('kworker/0:1-events', 6), ('kworker/0:2-mm_percpu_wq', 2)]  gpu 2023/1249 MHz 62C 194W gtt 25M cpu 3319MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 1 updated              short 107.3 long32k 92.5/1504p 31412t  foreign CPU 19% [('kcompactd0', 43), ('kworker/11:0-mm_percpu_wq', 4), ('kworker/0:1-events', 3)]  gpu 2018/1249 MHz 63C 197W gtt 25M cpu 3272MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 1 updated: every attempt noisy, keeping the quietest (11% foreign CPU)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 2 updated              short 105.1 long32k 94.8/1508p 31412t  foreign CPU 17% [('kcompactd0', 27), ('kworker/3:2-mm_percpu_wq', 3), ('kworker/9:1-mm_percpu_wq', 2)]  gpu 1947/1249 MHz 63C 195W gtt 25M cpu 3220MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 2 updated              short 106.1 long32k 97.8/1166p 31412t  foreign CPU 11% [('kcompactd0', 29), ('kworker/1:0-mm_percpu_wq', 3), ('kworker/0:2-events', 2)]  gpu 2006/1249 MHz 63C 202W gtt 25M cpu 3158MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 2 updated              short 99.9 long32k 84.6/907p 31412t  foreign CPU 12% [('kcompactd0', 27), ('kworker/0:0-events_freezable', 5), ('kworker/3:2-events_freezable', 4)]  gpu 1782/1249 MHz 62C 171W gtt 25M cpu 3311MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 2 updated: every attempt noisy, keeping the quietest (11% foreign CPU)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 2 hipblaslt-100401     short 81.6 long32k 99.2/1043p 31412t  foreign CPU 12% [('kcompactd0', 29), ('kworker/0:0-events', 4), ('kswapd0', 4)]  gpu 1997/1249 MHz 61C 181W gtt 25M cpu 3381MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 2 hipblaslt-100401     short 104.8 long32k 94.1/1114p 31412t  foreign CPU 12% [('kcompactd0', 28), ('kworker/0:2-events', 6), ('kworker/3:3-mm_percpu_wq', 3)]  gpu 1950/1249 MHz 60C 177W gtt 25M cpu 3474MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 2 hipblaslt-100401     short 109.4 long32k 81.4/1042p 31412t  foreign CPU 8% [('kcompactd0', 21), ('kworker/0:2-mm_percpu_wq', 5), ('kworker/11:1-mm_percpu_wq', 3)]  gpu 2021/1249 MHz 59C 192W gtt 25M cpu 3123MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 2 hipblaslt-100401: every attempt noisy, keeping the quietest (8% foreign CPU)
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 2 profile-pancake      short 89.0 long32k 94.5/948p 31412t  foreign CPU 9% [('kcompactd0', 31), ('kworker/0:2-events', 6), ('kswapd0', 2)]  gpu 2037/1249 MHz 60C 184W gtt 25M cpu 3243MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 2 profile-pancake      short 106.8 long32k 95.6/1074p 31412t  foreign CPU 12% [('kcompactd0', 18), ('kworker/0:2-events_freezable', 6), ('kswapd0', 2)]  gpu 1969/1249 MHz 60C 193W gtt 25M cpu 3374MHz 60C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  long32k: 31426 prompt tokens by count_tokens (target 32000)
+rep 2 profile-pancake      short 110.8 long32k 100.2/1529p 31412t  foreign CPU 10% [('kcompactd0', 13), ('kworker/0:1-events', 5), ('kworker/5:0-events', 2)]  gpu 2006/1249 MHz 61C 179W gtt 25M cpu 3299MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 2 profile-pancake: every attempt noisy, keeping the quietest (9% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.1 +-   6.7  (n=3)
+                              drafts accepted 0.67
+  short  hipblaslt-100401        102.2 +-  29.8  (n=3)   vs updated:  -4.6% +- 34.0%  -> no difference
+                              drafts accepted 0.68
+  short  profile-pancake          95.7 +-  33.3  (n=3)   vs updated: -10.6% +- 35.8%  -> no difference
+                              drafts accepted 0.69
+  long32k updated                1398.8 +- 501.7  (n=3)
+  long32k hipblaslt-100401       1205.3 +- 914.5  (n=3)   vs updated: -13.8% +- 61.5%  -> no difference
+  long32k profile-pancake        1145.8 +- 836.8  (n=3)   vs updated: -18.1% +- 52.0%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  hipblaslt-100401     DIFFERENT text -> lossy or placement-dependent: quality gate
+  profile-pancake      DIFFERENT text -> lossy or placement-dependent: quality gate

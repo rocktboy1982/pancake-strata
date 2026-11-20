@@ -1,0 +1,6 @@
+  adapt-idle-copy-1m: short +0.9% edit +1.4%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  miss-skip-w02: short -13.1% edit -17.6%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  miss-skip-w05: short -15.6% edit -45.0%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  miss-skip-cum90: short -9.3% edit -9.7%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  miss-skip-cum95: short -1.2% edit +0.0%  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+NONE no screen winner

@@ -1,0 +1,5 @@
+  direct: short +1.8% edit +0.6%  -> WIN (bar 1%), exact
+  unused: short -1.6% edit -1.7%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  both: short -3.3% edit -6.9%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+  both-ff70: short -2.3% edit -0.7%  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]  -> no (bar 1.5%, floor -3%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)
+CONFIRM /home/dan/clone-of-d/src/Strata-win/bench/specs/215-adapt-victim-direct-confirm.json base,direct

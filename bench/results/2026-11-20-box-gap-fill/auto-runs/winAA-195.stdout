@@ -1,0 +1,20 @@
+scoring base (a) ...
+scoring base (b) ...
+scoring lazy2 ...
+scoring lazy8 ...
+lazy2                    PASS
+      0
+     ],
+     "events_p": 1.0,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+    near-tie: top-1 agreement 98.502%, 141 differences, 120 near-ties (margin <= 0.75): FAIL
+lazy8                    PASS
+      0
+     ],
+     "events_p": 1.0,
+     "event_rule": "PASS",
+     "verdict": "PASS"
+    }
+    near-tie: top-1 agreement 98.374%, 153 differences, 130 near-ties (margin <= 0.75): FAIL

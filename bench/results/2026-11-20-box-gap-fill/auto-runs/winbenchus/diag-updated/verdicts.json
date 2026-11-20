@@ -1,0 +1,69 @@
+{
+ "schema": "strata.flag-diag/1",
+ "hardware": {
+  "gfx": "gfx1100",
+  "rocm": "10.0.0",
+  "vram_gib": 20.0,
+  "pcie_link": "16.0 GT/s PCIe x16",
+  "cpu": "AMD Ryzen 7 5700G with Radeon Graphics",
+  "ram_gib": 57.7,
+  "hipblaslt": true,
+  "wave": 32,
+  "kfd": true,
+  "vmm": "kfd-present (the engine's own check decides at start)"
+ },
+ "minutes": 0.0,
+ "config": "/home/dan/auto-runs/winbenchus/diag-updated-config.json",
+ "verdicts": [
+  {
+   "name": "STRATA_RDNA_Q6K",
+   "kind": "env",
+   "value": "1",
+   "exact": true,
+   "ledger": "T-009, T-079",
+   "metric": "decode",
+   "verdict": "UNTESTED",
+   "reason": "the harness exited 3 before any measurement"
+  },
+  {
+   "name": "STRATA_GR_RDNA",
+   "kind": "env",
+   "value": "1",
+   "exact": true,
+   "ledger": "T-009 (kernel bundle)",
+   "metric": "decode",
+   "verdict": "UNTESTED",
+   "reason": "the harness exited 3 before any measurement"
+  },
+  {
+   "name": "STRATA_RDNA_MMVQ_WAVE",
+   "kind": "env",
+   "value": "3",
+   "exact": true,
+   "ledger": "T-009, T-072 (mode 1 is 4.5% slower than 3)",
+   "metric": "decode",
+   "verdict": "UNTESTED",
+   "reason": "the harness exited 3 before any measurement"
+  },
+  {
+   "name": "STRATA_COMBINE_CPU",
+   "kind": "env",
+   "value": "1",
+   "exact": true,
+   "ledger": "T-009",
+   "metric": "decode",
+   "verdict": "UNTESTED",
+   "reason": "the harness exited 3 before any measurement"
+  },
+  {
+   "name": "STRATA_VERIFY_ECAP",
+   "kind": "env",
+   "value": "0",
+   "exact": false,
+   "ledger": "T-588, T-589, T-591",
+   "metric": "decode",
+   "verdict": "UNTESTED",
+   "reason": "the harness exited 3 before any measurement"
+  }
+ ]
+}
