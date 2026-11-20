@@ -15,3 +15,8 @@ rep 0 base-m1              short 105.6 short 98.9 edit 164.6 edit 183.5 longdec6
 REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1343, pack load 0.45 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
   WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 88.9 short 99.4 edit 97.9 edit 86.9 longdec64k 80.0/1601p 65240t  foreign CPU 2% [('udisksd', 3), ('claude', 2), ('localsearch-3', 1)]  gpu 1978/1249 MHz 62C 174W gtt 25M cpu 3695MHz 66C igpu 0%/vcn 0% fclk 1600
+REGIME-STILL-SLOW base-m1: first start prefill 1343 / load 0.45 GiB/s (paused 14:52:48), second start prefill 1601 / load 0.7 GiB/s
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-KV_HOST_DMA    short 79.9 short 82.4 edit 126.3 edit 138.5 longdec64k 76.7/1537p 65240t  foreign CPU 2% [('kcompactd0', 5), ('kworker/5:2-mm_percpu_wq', 1), ('systemd-journal', 0)]  gpu 2049/1249 MHz 62C 179W gtt 25M cpu 3564MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
