@@ -6,3 +6,56 @@ rep 0 minus-HEAD_MIX_MULTI short 109.7 short 102.9 edit 166.8 edit 167.3 longdec
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-KV_HOST_DMA    short 109.3 short 103.4 edit 166.9 edit 170.2 longdec64k 82.2/2179p 65242t  foreign CPU 3% [('kcompactd0', 8), ('kswapd0', 3), ('claude', 1)]  gpu 2044/1249 MHz 64C 186W gtt 25M cpu 3639MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-KV_HOST_DMA: every attempt noisy, keeping the quietest (3% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 105.0 short 102.8 edit 161.4 edit 183.2 longdec64k 78.3/2189p 65242t  foreign CPU 4% [('kcompactd0', 6), ('kswapd0', 4), ('localsearch-3', 1)]  gpu 2043/1249 MHz 64C 187W gtt 25M cpu 3684MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-FUSE_CONVAB    short 108.0 short 102.6 edit 169.1 edit 170.1 longdec64k 85.2/2185p 65242t  foreign CPU 4% [('kcompactd0', 7), ('kswapd0', 3), ('kworker/1:2-events', 1)]  gpu 2026/1249 MHz 65C 185W gtt 25M cpu 3652MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-FUSE_CONVAB: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.5 short 103.7 edit 169.6 edit 171.9 longdec64k 84.0/2188p 65242t  foreign CPU 4% [('localsearch-3', 13), ('kswapd0', 2), ('dbus-daemon', 0)]  gpu 2002/1249 MHz 65C 184W gtt 25M cpu 3610MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.0 +-  45.1  (n=2)
+                              drafts accepted 0.71
+  short  minus-HEAD_MIX_MULTI    106.3 +-  43.2  (n=2)   vs updated:  -0.7% +-  1.8%  -> no difference
+                              drafts accepted 0.71
+  short  minus-KV_HOST_DMA       106.3 +-  37.5  (n=2)   vs updated:  -0.7% +-  7.1%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 103.9 +-  14.0  (n=2)   vs updated:  -2.9% +- 29.1%  -> no difference
+                              drafts accepted 0.70
+  short  minus-FUSE_CONVAB       105.3 +-  34.3  (n=2)   vs updated:  -1.6% +- 10.1%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               107.1 +-  43.2  (n=2)   vs updated:  +0.0% +-  1.8%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 169.3 +-   3.2  (n=2)
+                              drafts accepted 0.89
+  edit   minus-HEAD_MIX_MULTI    167.1 +-   3.2  (n=2)   vs updated:  -1.4% +-  0.0%  -> worse
+                              drafts accepted 0.90
+  edit   minus-KV_HOST_DMA       168.6 +-  21.0  (n=2)   vs updated:  -0.5% +- 10.5%  -> no difference
+                              drafts accepted 0.90
+  edit   base-m1                 172.3 +- 138.5  (n=2)   vs updated:  +1.7% +- 79.9%  -> no difference
+                              drafts accepted 0.88
+  edit   minus-FUSE_CONVAB       169.6 +-   6.4  (n=2)   vs updated:  +0.1% +-  1.9%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               170.8 +-  14.6  (n=2)   vs updated:  +0.8% +-  6.8%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  85.1 +-   nan  (n=1)
+  longdec64k minus-HEAD_MIX_MULTI     80.5 +-   nan  (n=1)   vs updated:  -5.4% +-  nan%  -> no difference
+  longdec64k minus-KV_HOST_DMA        82.2 +-   nan  (n=1)   vs updated:  -3.4% +-  nan%  -> no difference
+  longdec64k base-m1                  78.3 +-   nan  (n=1)   vs updated:  -8.0% +-  nan%  -> no difference
+  longdec64k minus-FUSE_CONVAB        85.2 +-   nan  (n=1)   vs updated:  +0.1% +-  nan%  -> no difference
+  longdec64k base-late                84.0 +-   nan  (n=1)   vs updated:  -1.3% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-HEAD_MIX_MULTI DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-KV_HOST_DMA    DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-FUSE_CONVAB    identical on every case -> exact
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.0%  edit +0.8%  longdec64k -1.3%
+  minus-HEAD_MIX_MULTI short -0.7%  edit -1.8%  longdec64k -4.8%  -> drop
+  minus-KV_HOST_DMA    short -0.7%  edit -0.9%  longdec64k -2.8%  -> drop
+  base-m1              short -3.0%  edit +1.3%  longdec64k -7.4%  -> drop
+  minus-FUSE_CONVAB    short -1.7%  edit -0.3%  longdec64k +0.8%  -> PROMOTE to confirm
