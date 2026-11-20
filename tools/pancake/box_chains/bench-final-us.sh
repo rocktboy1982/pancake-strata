@@ -7,6 +7,7 @@
 # Marker WINBENCHFINALUS_DONE (the line before it is WINBENCHFINALUS_ABORTED after an abort or a signal).  Log: <script name without .sh>.log in
 # /home/dan/clone-of-d/src (bench-final-us.v1.sh -> bench-final-us.v1.log).  The file name has no "win-chain", "redo-chain", "tail-chain" or bench-(exact|...):
 # no busy() pattern of another chain sees it.
+# FINAL_PREFIX=prelim FINAL_REPS=3 FINAL_NO_TRIAGE=1 FINAL_GATE=1 runs the PRELIMINARY headline comparison (T-1005: arms of specs 220 / 222 as shipped now, 3 reps).
 # Steps (estimate, sweep.py final-specs prints it):
 #   1 harness sync (pinned by SWEEP_HARNESS_SHA), service down, idle, prerequisites
 #   2 sweep.py final-specs: final-short.json, final-long.json, final-gate.json + the list of flag changes (FINALARM / FINALSHIPPED / FINALVERDICTS lines in the log)
@@ -18,6 +19,7 @@
 # quality_gate run in its own session under a watchdog (run_group) and reaped; results in /home/dan/auto-runs/benchsweep/ (final-short.jsonl, final-long.jsonl,
 # final-gate/), nothing is overwritten (the chain refuses to run when they exist).  Started by run-queue-us.sh through bench-sched.v8.sh
 # (BENCH_ONLY=EXTRA BENCH_EXTRA=./bench-final-us.v1.sh BENCH_NO_RESUME=1).  No RD arm, no RD file is read.
+FP=${FINAL_PREFIX:-final}; FR=${FINAL_REPS:-5}   # FINAL_PREFIX=prelim FINAL_REPS=3 FINAL_NO_TRIAGE=1: the PRELIMINARY comparison (arms of specs 220 / 222 as shipped now, no triage); FINAL_GATE=0 skips the gate
 S=/home/dan/clone-of-d/src; R=$S/Strata-win; L=${FINAL_LOG:-$S/$(basename "$0" .sh).log}; O=/home/dan/auto-runs/benchsweep; T=$O/work; PM=/mnt/pancake/benchsweep; HN=$PM/harness
 USB=/mnt/pancake/benchus; 
 DATA=/home/dan/clone-of-d/Strata-data; ROCM=/opt/rocm/core-10.0; REPO_URL=https://github.com/rocktboy1982/pancake-strata.git
@@ -116,10 +118,10 @@ ab() {  # ab NAME LIMIT SPEC flags...: one abtest run from the synced harness, i
 sw() { "$HPY" $HN/tools/pancake/box_chains/sweep.py "$@"; }
 
 # ------------------------------------------------------------------ 0. service down, idle, prerequisites
-for f in $O/final-short.jsonl $O/final-long.jsonl $O/final-short.stdout $O/final-long.stdout $O/final-gate $O/final-gate.stdout; do
-  [ -e "$f" ] && abort "the final comparison was run before ($f exists): nothing is overwritten"
+for f in $O/$FP-short.jsonl $O/$FP-long.jsonl $O/$FP-short.stdout $O/$FP-long.stdout $O/$FP-gate $O/$FP-gate.stdout; do
+  [ -e "$f" ] && abort "the comparison $FP was run before ($f exists): nothing is overwritten"
 done
-[ -f $O/us-triage.v2.json ] || abort "no $O/us-triage.v2.json: the US retest / sweep slices have not written a triage"
+[ -n "$FINAL_NO_TRIAGE" ] || [ -f $O/us-triage.v2.json ] || abort "no $O/us-triage.v2.json: the US retest / sweep slices have not written a triage"
 if [ "${BENCH_SCHED:-0}" != 1 ]; then say "standalone start $(date +%T)"; else say "started by the scheduler: the AA shell is frozen, the box was idle $(date +%T)"; fi
 if [ "${BENCH_SCHED:-0}" != 1 ]; then say "standalone start $(date +%T)"; else say "started by the scheduler: the AA shell is frozen, the box was idle $(date +%T)"; fi
 if systemctl --user is-active --quiet pancake.service; then
@@ -151,23 +153,26 @@ grep -q ABTEST_PYTHON $HN/tools/pancake/abtest.py || abort "PREREQ harness: $HN/
 e=$(cd $HN && PYTHONDONTWRITEBYTECODE=1 "$HPY" -B -c 'import serve.server' 2>&1) || abort "PREREQ harness: $HPY cannot import serve.server from $HN: $(echo "$e" | tail -n 1 | cut -c1-240)"
 
 # ------------------------------------------------------------------ 2. the final specs from the shipped flags (apply_triage's rules on the merged US triage)
-sw final-specs --triage $O/us-triage.v2.json --us-arm-spec $HN/bench/specs/220-updated-vs-upstream-short.json --us-exact-spec $HN/bench/specs/222-updated-exact-vs-upstream-short.json    --shipped $USB/src-us/terminal/data/tuned-flags.json --out-dir $T > $T/final-specs.txt 2>&1 || abort "SPEC: sweep.py final-specs failed: $(tail -n 1 $T/final-specs.txt)"
-for f in final-short final-long final-gate; do [ -s $T/$f.json ] || abort "SPEC: $T/$f.json was not written"; done
+sw final-specs --triage ${FINAL_NO_TRIAGE:-$O/us-triage.v2.json} --us-arm-spec $HN/bench/specs/220-updated-vs-upstream-short.json --us-exact-spec $HN/bench/specs/222-updated-exact-vs-upstream-short.json    --shipped $USB/src-us/terminal/data/tuned-flags.json --out-dir $T --reps $FR --prefix $FP ${FINAL_NO_TRIAGE:+--no-triage} > $T/final-specs.txt 2>&1 || abort "SPEC: sweep.py final-specs failed: $(tail -n 1 $T/final-specs.txt)"
+for f in $FP-short $FP-long $FP-gate; do [ -s $T/$f.json ] || abort "SPEC: $T/$f.json was not written"; done
 grep -E '^(FINAL|ESTIMATE)' $T/final-specs.txt | cut -c1-700 >> $L
-cp $T/final-short.json $T/final-long.json $T/final-gate.json $O/ 2>/dev/null; say "SPECS copied to $O/final-*.json (the exact arms of this run)"
+cp $T/$FP-short.json $T/$FP-long.json $T/$FP-gate.json $O/ 2>/dev/null; say "SPECS copied to $O/$FP-*.json (the exact arms of this run)"
 
 # ------------------------------------------------------------------ 3-5. short, long, gate
-CONF="--tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5 --no-early-stop"
+CONF="--tier confirm --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps $FR --no-early-stop"
 rcs=0; rcl=0; rcg=0
 summ() { grep -E "vs .*(better|worse|no difference)|verdict|PROMOTE|DRIFT|ORDER EFFECT" $O/$1.stdout | cut -c1-240 >> $L; grep -A8 "generated text vs base" $O/$1.stdout | cut -c1-200 >> $L; }
-wait_idle; ab final-short 14400 $O/final-short.json $CONF; rcs=$?; summ final-short
-wait_idle; ab final-long 36000 $O/final-long.json $CONF; rcl=$?; summ final-long
+wait_idle; ab $FP-short 14400 $O/$FP-short.json $CONF; rcs=$?; summ $FP-short
+wait_idle; ab $FP-long 36000 $O/$FP-long.json $CONF; rcl=$?; summ $FP-long
+rcg=-
+if [ "${FINAL_GATE:-1}" = 1 ]; then
 wait_idle
-nm=final-gate
+nm=$FP-gate
 say "START $nm $(date +%F_%T) (quality_gate.py, set bench/quality/set-v2.json, --near-tie, plain-upstream scored twice, limit 7200 s)"
-run_group $nm 7200 $O/$nm.stdout sh -c 'cd "$1" && shift && exec "$HPY" tools/pancake/quality_gate.py "$@"' qg $HN $O/final-gate.json --out $O/$nm --set bench/quality/set-v2.json --near-tie; rcg=$?
+run_group $nm 7200 $O/$nm.stdout sh -c 'cd "$1" && shift && exec "$HPY" tools/pancake/quality_gate.py "$@"' qg $HN $O/$FP-gate.json --out $O/$nm --set bench/quality/set-v2.json --near-tie; rcg=$?
 say "END $nm exit=$rcg $(date +%T)"
 [ $rcg -eq 0 ] || say "ERROR $nm exit=$rcg: $(errline $O/$nm.stdout $O/$nm)"
 grep -E "PASS|REJECT|INCONCLUSIVE|FAILED|not scored|near-tie|mismatch|events" $O/$nm.stdout | cut -c1-220 >> $L
+fi
 say "SUMMARY final comparison (US only): final-short exit=$rcs, final-long exit=$rcl, final-gate exit=$rcg; box time $(elapsed) s; results in $O (final-*.jsonl, final-*.stdout, final-gate/)"
 finish

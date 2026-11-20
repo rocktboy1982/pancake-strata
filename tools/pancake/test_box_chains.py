@@ -3460,3 +3460,29 @@ def test_bench_retest_no_rd_reads_no_rd_config_and_runs_a_us_only_slice(tmp_path
     assert len(be_calls(box, "abtest.py")) == 5
     assert (box.tmp / "auto-runs" / "benchsweep" / "us-triage-rt-usT-3.v2.json").exists()
     assert not (box.tmp / "auto-runs" / "benchsweep" / "rd-triage-rt-usT-3.v2.json").exists()
+
+
+def test_run_queue_us2_runs_the_preliminary_first_and_the_final_right_after_the_retest_stage():
+    q = (CHAINS / "run-queue-us2.sh").read_text()
+    assert "sweep rd" not in q and "carry-rd" not in q and "N=15" in q and "SWEEP_HARNESS_SHA:?" in q
+    tail = q[q.index("final preliminary"):]
+    order = [tail.index(x) for x in ("final preliminary FINAL_PREFIX=prelim FINAL_REPS=3 FINAL_NO_TRIAGE=1", "for s in usT-2 usT-3 usT-4", "final final FINAL_PREFIX=final FINAL_REPS=5",
+                                     "sweep us $k/9", "retest carry-us", "QUEUE_US2_DONE")]
+    assert order == sorted(order) and "usT-1" not in tail                      # usT-1 is the running slice of run-queue-us.sh
+
+
+def test_bench_final_us_prelim_mode_uses_the_shipped_arms_3_reps_and_its_own_file_names(tmp_path):
+    box = Box(tmp_path)
+    prepare_be(box, rd=False)
+    sw_dir = box.tmp / "auto-runs" / "benchsweep"
+    sw_dir.mkdir(parents=True, exist_ok=True)
+    env = be_env(FINAL_LOG=(box.S / "bench-final-us.log").as_posix(), FINAL_PREFIX="prelim", FINAL_REPS="3", FINAL_NO_TRIAGE="1", FINAL_GATE="0")
+    box.finish(box.start("bench-final-us.sh", env=env), timeout=240)
+    text = "\n".join(box.log("bench-final-us.log"))
+    assert "WINBENCHFINALUS_DONE" in text and "ABORTED" not in text and "ERROR" not in text, text
+    ab = be_calls(box, "abtest.py")
+    assert len(ab) == 2 and all("--reps 3 --no-early-stop" in x and "prelim-" in x for x in ab), ab
+    assert not any("quality_gate.py" in c for c in box.calls() if c.startswith("PY"))
+    sp = json.loads((sw_dir / "prelim-short.json").read_text())
+    s220 = json.loads((SPECS / "220-updated-vs-upstream-short.json").read_text())["arms"]["updated"]
+    assert sp["reps"] == 3 and sp["arms"]["updated"]["env"] == s220["env"] and not (sw_dir / "final-short.json").exists()

@@ -17,7 +17,7 @@ retest, don't keep low performers").
                    --us-exact-spec S --us-src D] [--carry C.json...] [--drop-env K]... [--set-env K=V]...   the blocks of a RETEST slice
   sweep.py retest-triage --blocks BLOCKS.json --run BID=ROWS.jsonl... --out-dir DIR   per-flag verdicts of a RETEST slice (one v2 file per
                    branch: DIR/<branch>-triage-rt-<slice>.v2.json)
-  sweep.py final-specs --triage us-triage.v2.json --us-arm-spec S220 --us-exact-spec S222 --out-dir DIR [--shipped tuned-flags.json]   the FINAL
+  sweep.py final-specs --triage us-triage.v2.json --us-arm-spec S220 --us-exact-spec S222 --out-dir DIR [--shipped tuned-flags.json] [--reps N --prefix P --no-triage]   the FINAL
                    COMPARISON of the US-only queue: stock upstream against updated-strata with the shipped flags AFTER apply_triage (final-short.json,
                    final-long.json, final-gate.json, final-plan.txt; ESTIMATE line)
   sweep.py paired-drift --rows ROWS.jsonl --base NAME --arm NAME [--cases a,b]   the base drift of one paired block (exit 0 clean, 4 drift, 5 none)
@@ -764,7 +764,7 @@ def final_arms(tri, s220, s222):
     return doc["arms"], changes, actions
 
 
-def final_specs(tri, s220_doc, s222_doc, shipped=None):
+def final_specs(tri, s220_doc, s222_doc, shipped=None, reps=FINAL_REPS):
     """{name: spec} of the final comparison: final-short (short + edit), final-long (10K / 32K / 64K / 100K), final-gate (the quality-gate spec: plain-upstream
     first = scored twice as the noise, updated-exact, updated); each with the three arms stock plain-upstream, updated (lossy), updated-exact; plus the plan lines."""
     arms, changes, actions = final_arms(tri, s220_doc["arms"], s222_doc["arms"])
@@ -774,11 +774,11 @@ def final_specs(tri, s220_doc, s222_doc, shipped=None):
             "its own default flags) against updated-strata with the final shipped flags: `updated` (lossy variant: the shipped flags after apply_triage on the US "
             "triage) and `updated-exact` (exact variant: the 11 lossy switches out). Confirm standard: abtest.py --tier confirm --block 3 --warmup 1 --outlier robust "
             "--reclaim-max 3 --reps %d --no-early-stop. Built by tools/pancake/box_chains/bench-final-us.sh (sweep.py final-specs) from specs 220 / 222 and the merged "
-            "US triage; the flag changes are listed in the chain log." % FINAL_REPS)
+            "US triage; the flag changes are listed in the chain log." % reps)
     base = s220_doc["base"]
     mk = lambda cases, prefill, reps: {"base": base, "lossy": True, "prefill": prefill, "cases": list(cases), "reps": reps,
                                        "arms": json.loads(json.dumps(three)), "note": note}
-    specs = {"final-short": mk(FINAL_SHORT, False, FINAL_REPS), "final-long": mk(FINAL_LONG, True, FINAL_REPS)}
+    specs = {"final-short": mk(FINAL_SHORT, False, reps), "final-long": mk(FINAL_LONG, True, reps)}
     gate = mk(FINAL_SHORT, False, 1)
     gate["arms"] = {k: json.loads(json.dumps(three[k])) for k in ("plain-upstream", "updated-exact", "updated")}     # the order of spec 222
     gate["note"] = "QUALITY GATE of the final comparison: " + note
@@ -795,11 +795,11 @@ def final_specs(tri, s220_doc, s222_doc, shipped=None):
     return specs, lines
 
 
-def final_estimate(specs):
+def final_estimate(specs, reps=FINAL_REPS):
     """seconds: short = 15 starts + 2 warm-ups per block of 3 reps, long = the same for the four long cases (one start holds the cases of a rep), gate = quality_gate.py (T-1003 bench-retest: 2700 s)."""
     n_arms = 3
-    blocks = -(-FINAL_REPS // 3)
-    starts = n_arms * FINAL_REPS + blocks * n_arms * 1
+    blocks = -(-reps // 3)
+    starts = n_arms * reps + blocks * n_arms * 1
     return {"final-short": starts * start_s(FINAL_SHORT), "final-long": starts * start_s(FINAL_LONG), "final-gate": 2700}
 
 
@@ -891,6 +891,9 @@ def main(argv=None):
     fs.add_argument("--us-exact-spec", required=True)
     fs.add_argument("--shipped", help="terminal/data/tuned-flags.json (a copy is changed in memory only: the FINALSHIPPED lines)")
     fs.add_argument("--out-dir", required=True)
+    fs.add_argument("--reps", type=int, default=FINAL_REPS)
+    fs.add_argument("--prefix", default="final", help="file name prefix (prelim: the PRELIMINARY comparison)")
+    fs.add_argument("--no-triage", action="store_true", help="PRELIMINARY: apply no triage, the arms of specs 220 / 222 as shipped now")
     pd = sub.add_parser("paired-drift")
     pd.add_argument("--rows", required=True)
     pd.add_argument("--base", required=True)
@@ -1046,15 +1049,16 @@ def main(argv=None):
                 print("%-12s %-36s %s  [%s]" % (rc["verdict"], fl, json.dumps(rc.get("pass2") or rc.get("pass1")), rc["reason"]))
             print("TRIAGEFILE %s %s" % (br, path))
     elif a.cmd == "final-specs":
-        tri = json.load(open(a.triage, encoding="utf-8"))
+        tri = json.load(open(a.triage, encoding="utf-8")) if not a.no_triage else {"schema": "pancake.sweep-triage/2", "branch": "us", "protected": {}, "flags": {}}
         if tri.get("schema") != "pancake.sweep-triage/2" or tri.get("branch") not in (None, "us"):
             raise SystemExit("sweep final-specs: %s is not a v2 triage of branch us" % a.triage)
         sh = json.load(open(a.shipped, encoding="utf-8")) if a.shipped and os.path.exists(a.shipped) else None
-        specs, lines = final_specs(tri, json.load(open(a.us_arm_spec, encoding="utf-8")), json.load(open(a.us_exact_spec, encoding="utf-8")), sh)
-        est = final_estimate(specs)
+        specs, lines = final_specs(tri, json.load(open(a.us_arm_spec, encoding="utf-8")), json.load(open(a.us_exact_spec, encoding="utf-8")), sh, a.reps)
+        est = final_estimate(specs, a.reps)
         for name, sp in specs.items():
-            json.dump(sp, open(os.path.join(a.out_dir, name + ".json"), "w"), indent=1)
-            print("FINALSPEC %s %s arms %s cases %s reps %s estimate %d s" % (name, os.path.join(a.out_dir, name + ".json"), ",".join(sp["arms"]),
+            fn = os.path.join(a.out_dir, name.replace("final", a.prefix, 1) + ".json")
+            json.dump(sp, open(fn, "w"), indent=1)
+            print("FINALSPEC %s %s arms %s cases %s reps %s estimate %d s" % (name, fn, ",".join(sp["arms"]),
                                                                               ",".join(sp["cases"]), sp["reps"], est[name]))
         for ln in lines:
             print(ln[:600])
