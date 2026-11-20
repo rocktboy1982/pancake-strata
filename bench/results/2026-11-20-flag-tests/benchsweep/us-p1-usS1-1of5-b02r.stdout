@@ -18,3 +18,68 @@ rep 0 minus-SH_STREAM: every attempt noisy, keeping the quietest (6% foreign CPU
 rep 0 minus-PF_GROUP_SCRATCH short 104.4 short 106.4 edit 161.8 edit 170.9 longdec64k 82.8/2176p 65239t  foreign CPU 6% [('kcompactd0', 19), ('kswapd0', 3), ('claude', 1)]  gpu 2035/1249 MHz 64C 184W gtt 25M cpu 3645MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-PF_GROUP_SCRATCH: every attempt noisy, keeping the quietest (6% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-QFUSE          short 99.1 short 98.8 edit 162.0 edit 182.1 longdec64k 88.8/2177p 65239t  foreign CPU 8% [('kcompactd0', 16), ('kswapd0', 2), ('kworker/1:2-mm_percpu_wq', 2)]  gpu 2044/1249 MHz 64C 189W gtt 25M cpu 3731MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-QFUSE: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 101.8 short 99.5 edit 162.1 edit 175.9 longdec64k 86.5/2172p 65239t  foreign CPU 6% [('kcompactd0', 11), ('kworker/1:0-events_freezable', 4), ('kswapd0', 3)]  gpu 1979/1249 MHz 64C 189W gtt 25M cpu 3555MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late: every attempt noisy, keeping the quietest (6% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 100.4 +-   8.3  (n=2)
+                              drafts accepted 0.67
+  short  minus-STAGER_RING       105.6 +-  23.5  (n=2)   vs updated:  +5.1% +- 31.6%  -> no difference
+                              drafts accepted 0.70
+  short  minus-VERIFY_QDEDUP      99.8 +-   7.0  (n=2)   vs updated:  -0.6% +-  1.3%  -> no difference
+                              drafts accepted 0.67
+  short  minus-SELECT_WMMA       100.9 +-  14.6  (n=2)   vs updated:  +0.5% +-  6.3%  -> no difference
+                              drafts accepted 0.67
+  short  minus-SH_STREAM         100.0 +-   0.6  (n=2)   vs updated:  -0.5% +-  7.6%  -> no difference
+                              drafts accepted 0.67
+  short  minus-PF_GROUP_SCRATCH    105.4 +-  12.7  (n=2)   vs updated:  +4.9% +- 20.9%  -> no difference
+                              drafts accepted 0.69
+  short  minus-QFUSE              98.9 +-   1.9  (n=2)   vs updated:  -1.5% +-  6.3%  -> no difference
+                              drafts accepted 0.66
+  short  base-late               100.7 +-  14.6  (n=2)   vs updated:  +0.2% +-  6.3%  -> no difference
+                              drafts accepted 0.67
+  edit   updated                 174.3 +-  87.7  (n=2)
+                              drafts accepted 0.89
+  edit   minus-STAGER_RING       162.4 +- 104.9  (n=2)   vs updated:  -6.8% +-  9.8%  -> no difference
+                              drafts accepted 0.88
+  edit   minus-VERIFY_QDEDUP     173.6 +-  68.0  (n=2)   vs updated:  -0.4% +- 11.3%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-SELECT_WMMA       166.8 +- 104.9  (n=2)   vs updated:  -4.3% +-  9.8%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-SH_STREAM         167.9 +-  63.5  (n=2)   vs updated:  -3.7% +- 13.9%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-PF_GROUP_SCRATCH    166.4 +-  57.8  (n=2)   vs updated:  -4.6% +- 17.1%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-QFUSE             172.1 +- 127.7  (n=2)   vs updated:  -1.3% +- 23.0%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               169.0 +-  87.7  (n=2)   vs updated:  -3.0% +-  0.0%  -> worse
+                              drafts accepted 0.89
+  longdec64k updated                  81.9 +-   nan  (n=1)
+  longdec64k minus-STAGER_RING        85.5 +-   nan  (n=1)   vs updated:  +4.4% +-  nan%  -> no difference
+  longdec64k minus-VERIFY_QDEDUP      80.8 +-   nan  (n=1)   vs updated:  -1.3% +-  nan%  -> no difference
+  longdec64k minus-SELECT_WMMA        86.9 +-   nan  (n=1)   vs updated:  +6.1% +-  nan%  -> no difference
+  longdec64k minus-SH_STREAM          83.1 +-   nan  (n=1)   vs updated:  +1.5% +-  nan%  -> no difference
+  longdec64k minus-PF_GROUP_SCRATCH     82.8 +-   nan  (n=1)   vs updated:  +1.1% +-  nan%  -> no difference
+  longdec64k minus-QFUSE              88.8 +-   nan  (n=1)   vs updated:  +8.4% +-  nan%  -> no difference
+  longdec64k base-late                86.5 +-   nan  (n=1)   vs updated:  +5.6% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-STAGER_RING    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-VERIFY_QDEDUP  identical on every case -> exact
+  minus-SELECT_WMMA    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-SH_STREAM      DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-PF_GROUP_SCRATCH DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-QFUSE          DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.2%  edit -3.0%  longdec64k +5.6%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  minus-STAGER_RING    short +5.0%  edit -5.4%  longdec64k +1.5%  -> drop
+  minus-VERIFY_QDEDUP  short -0.7%  edit +1.1%  longdec64k -4.0%  -> drop
+  minus-SELECT_WMMA    short +0.4%  edit -2.8%  longdec64k +3.2%  -> PROMOTE to confirm
+  minus-SH_STREAM      short -0.6%  edit -2.2%  longdec64k -1.3%  -> drop
+  minus-PF_GROUP_SCRATCH short +4.8%  edit -3.1%  longdec64k -1.7%  -> drop
+  minus-QFUSE          short -1.6%  edit +0.2%  longdec64k +5.5%  -> PROMOTE to confirm
