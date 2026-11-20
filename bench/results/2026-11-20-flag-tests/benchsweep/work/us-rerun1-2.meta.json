@@ -1,0 +1,175 @@
+{
+ "schema": "pancake.sweep-select/1",
+ "verdicts": [
+  "INCONCLUSIVE",
+  "UNTESTED"
+ ],
+ "flags": {
+  "minus-ENGINE_NICE": {
+   "flag": "STRATA_ENGINE_NICE",
+   "kind": "minus",
+   "keys": [
+    "STRATA_ENGINE_NICE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_ENGINE_NICE": "0"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-ENGINE_NICE",
+   "slice": "usS1-2of5",
+   "pass1": {
+    "short": 8.21,
+    "edit": 0.67,
+    "longdec64k": 2.53,
+    "longdec64k-prompt": 11.02
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-2of5-b02",
+   "drift1": {
+    "short": 3.9,
+    "edit": 6.32,
+    "longdec64k": 1.15
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-2of5-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-2of5-b02 base drift edit +6.3 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "minus-adapt-every": {
+   "flag": "--adapt-every",
+   "kind": "minus",
+   "keys": [
+    "--adapt-every"
+   ],
+   "exact": true,
+   "env": {},
+   "args": {
+    "--adapt-every": "1"
+   },
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-adapt-every",
+   "slice": "usS1-2of5",
+   "pass1": {
+    "short": 17.62,
+    "edit": -5.93,
+    "longdec64k": 0.83,
+    "longdec64k-prompt": 10.48
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-2of5-b02",
+   "drift1": {
+    "short": 3.9,
+    "edit": 6.32,
+    "longdec64k": 1.15
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-2of5-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (short +17.6 %): reported, the confirm decides",
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-2of5-b02 base drift edit +6.3 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "plus-AMD_COMMUNITY_TUNING": {
+   "flag": "STRATA_AMD_COMMUNITY_TUNING",
+   "kind": "plus",
+   "keys": [
+    "STRATA_AMD_COMMUNITY_TUNING"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_AMD_COMMUNITY_TUNING": "0"
+   },
+   "args": {},
+   "why": "ported / named switch not in the updated arm; no gfx1100 ledger row, no box verdict",
+   "source": "owner list 2026-11-20 + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-AMD_COMMUNITY_TUNING",
+   "slice": "usS1-2of5",
+   "pass1": {
+    "short": 3.0,
+    "edit": 8.25,
+    "longdec64k": 8.51,
+    "longdec64k-prompt": 15.58
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-2of5-b03",
+   "drift1": {
+    "short": 3.69,
+    "edit": -25.66,
+    "longdec64k": -9.77
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-2of5-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-2of5-b03 base drift edit -25.7 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "minus-lookup-max-t": {
+   "flag": "--lookup-max-t",
+   "kind": "minus",
+   "keys": [
+    "--lookup-max-t"
+   ],
+   "exact": true,
+   "env": {},
+   "args": {
+    "--lookup-max-t": "12"
+   },
+   "why": "removed from the US shipped file on a whole-arm gate REJECT; out of the shipped file until this decides",
+   "source": "owner list (stage 1: the named retest flags that are not in the untested registry)",
+   "run1": null,
+   "run1_best": null,
+   "arm": "minus-lookup-max-t",
+   "slice": "usS1-2of5",
+   "pass1": {
+    "short": -0.22,
+    "edit": 12.47,
+    "longdec64k": 20.8,
+    "longdec64k-prompt": -13.46
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-2of5-b03",
+   "drift1": {
+    "short": 3.69,
+    "edit": -25.66,
+    "longdec64k": -9.77
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-2of5-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k +20.8 %): reported, the confirm decides",
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-2of5-b03 base drift edit -25.7 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  }
+ }
+}
