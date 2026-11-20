@@ -11,12 +11,14 @@ PROT = {"STRATA_VERIFY_ECAP": ["edit"], "STRATA_RDNA_Q6K": ["short", "edit", "lo
         "STRATA_RDNA_MMVQ_WAVE": ["short", "edit", "longdec32k"]}
 
 
-def rec(verdict, kind="minus", env=None, args=None, p1=None, p2=None):
-    return {"verdict": verdict, "kind": kind, "env": env or {}, "args": args or {}, "pass1": p1 or {"short": 0.1}, "pass2": p2, "reason": "r"}
+def rec(verdict, kind="minus", env=None, args=None, p1=None, p2=None, clean2=True):
+    """clean2: the pass-2 base drift was within the limit (sweep.py "pass2_clean"); only set when there is a pass 2."""
+    return {"verdict": verdict, "kind": kind, "env": env or {}, "args": args or {}, "pass1": p1 or {"short": 0.1}, "pass2": p2, "reason": "r",
+            "pass2_clean": (clean2 if p2 else None)}
 
 
 def tri(branch, flags):
-    return {"branch": branch, "protected": PROT, "flags": flags}
+    return {"schema": "pancake.sweep-triage/2", "branch": branch, "protected": PROT, "flags": flags}
 
 
 US_SHIPPED = {"schema": "strata.tuned-flags/1", "profiles": [{"match": {"gfx": "gfx1100"}, "flags": [
@@ -55,8 +57,8 @@ def run(tmp, t, branch, shipped, preset=None, spec=None, dry=False):
 def test_us_drop_removes_with_evidence_keep_plus_adds_and_the_kernels_are_protected(tmp_path):
     sh, pr = write(tmp_path, "s.json", US_SHIPPED), write(tmp_path, "p.json", US_PRESET)
     t = tri("us", {
-        "--pcie-frac": rec("DROP", args={"--pcie-frac": "0"}, p1={"short": -0.5}),
-        "STRATA_KV_PREFETCH": rec("DROP", env={"STRATA_KV_PREFETCH": "1"}),
+        "--pcie-frac": rec("DROP", args={"--pcie-frac": "0"}, p1={"short": -0.5}, p2={"short": -1.0, "edit": 0.5}),
+        "STRATA_KV_PREFETCH": rec("DROP", env={"STRATA_KV_PREFETCH": "1"}, p2={"short": 0.4, "edit": 0.2}),     # below the bar in a clean pass 2
         "STRATA_RDNA_Q6K": rec("DROP", env={"STRATA_RDNA_Q6K": "1"}),                                          # pass-1 low performer, no pass 2: protected
         "STRATA_GR_RDNA": rec("DROP", env={"STRATA_GR_RDNA": "1"}, p2={"short": -2.0, "edit": -1.0, "longdec32k": 0.5}),   # negative on decode: dropped
         "STRATA_AMD_COMMUNITY_TUNING": rec("KEEP", kind="plus", env={"STRATA_AMD_COMMUNITY_TUNING": "0"}, p2={"short": 2.5}),
@@ -74,7 +76,7 @@ def test_us_drop_removes_with_evidence_keep_plus_adds_and_the_kernels_are_protec
 def test_rd_drop_prunes_verdicts_and_preset_exactly_ecap_protected_unless_edit_negative_theirs_untouched(tmp_path):
     sh, sp = write(tmp_path, "s.json", RD_SHIPPED), write(tmp_path, "sp.json", SPEC)
     t = tri("rd", {
-        "STRATA_EXPDEC": rec("DROP", env={"STRATA_EXPDEC": "1"}),
+        "STRATA_EXPDEC": rec("DROP", env={"STRATA_EXPDEC": "1"}, p2={"short": -2.0}),
         "STRATA_VERIFY_ECAP": rec("DROP", env={"STRATA_VERIFY_ECAP": "0", "STRATA_VERIFY_ECAP_MIN_ROWS": "9"}, p2={"short": -4.0, "edit": 3.0}),
         "STRATA_HIPBLASLT_TUNING": rec("DROP", kind="plus", env={"STRATA_HIPBLASLT_TUNING": "x"}),          # a value of theirs: never written
         "--grammar": rec("UNTESTED", args={"--grammar": "on"}),
@@ -118,3 +120,40 @@ def test_branch_mismatch_stops(tmp_path):
     sh = write(tmp_path, "s.json", US_SHIPPED)
     with pytest.raises(SystemExit):
         run(tmp_path, tri("rd", {}), "us", sh)
+
+
+def test_pass1_only_drifted_inconclusive_and_retest_never_remove_a_shipped_or_preset_flag(tmp_path):
+    """The 2026-11-20 sweep: pass-1 DROPs from a run whose base drifted up to 44 % (TEST_LEDGER.md).  A DROP needs a clean pass 2."""
+    sh, pr, sp = write(tmp_path, "s.json", US_SHIPPED), write(tmp_path, "p.json", US_PRESET), write(tmp_path, "sp.json", SPEC)
+    t = tri("us", {
+        "--pcie-frac": rec("DROP", args={"--pcie-frac": "0"}, p1={"short": -9.0}),                                  # pass 1 only: HOLD
+        "STRATA_KV_PREFETCH": rec("DROP", env={"STRATA_KV_PREFETCH": "1"}, p2={"short": -5.0}, clean2=False),       # drifted pass 2: HOLD
+        "STRATA_GR_RDNA": rec("INCONCLUSIVE", env={"STRATA_GR_RDNA": "1"}, p2={"short": -6.0}),
+        "STRATA_RDNA_Q6K": rec("RETEST", env={"STRATA_RDNA_Q6K": "1"}),
+        "STRATA_AMD_COMMUNITY_TUNING": rec("KEEP", kind="plus", env={"STRATA_AMD_COMMUNITY_TUNING": "0"}, p2={"short": 4.0}, clean2=False),
+    })
+    run(tmp_path, t, "us", sh, pr, sp)
+    assert json.loads(sh.read_text()) == US_SHIPPED and json.loads(pr.read_text()) == US_PRESET and json.loads(sp.read_text()) == SPEC
+    acts = {f: a for f, a, _ in at.plan(t)}
+    assert acts == {"--pcie-frac": "hold", "STRATA_KV_PREFETCH": "hold", "STRATA_GR_RDNA": "none", "STRATA_RDNA_Q6K": "none",
+                    "STRATA_AMD_COMMUNITY_TUNING": "hold"}
+    # an rd file the same way
+    rs = write(tmp_path, "rs.json", RD_SHIPPED)
+    run(tmp_path, tri("rd", {"STRATA_EXPDEC": rec("DROP", env={"STRATA_EXPDEC": "1"}, p1={"edit": -39.3}),
+                             "--grammar": rec("INCONCLUSIVE", args={"--grammar": "on"})}), "rd", rs)
+    assert json.loads(rs.read_text()) == RD_SHIPPED
+
+
+def test_v2_copy_is_read_and_a_v1_file_is_refused(tmp_path):
+    import pytest
+    sh = write(tmp_path, "s.json", US_SHIPPED)
+    v1 = {"schema": "pancake.sweep-triage/1", "branch": "us", "protected": PROT,
+          "flags": {"--pcie-frac": rec("DROP", args={"--pcie-frac": "0"}, p2={"short": -2.0})}}
+    write(tmp_path, "us-triage.json", v1)
+    with pytest.raises(SystemExit):
+        at.main(["--triage", str(tmp_path / "us-triage.json"), "--branch", "us", "--shipped", str(sh)])
+    assert json.loads(sh.read_text()) == US_SHIPPED
+    write(tmp_path, "us-triage.v2.json", tri("us", {"--pcie-frac": rec("DROP", args={"--pcie-frac": "0"}, p2={"short": -2.0})}))
+    assert at.v2_path(str(tmp_path / "us-triage.json")) == str(tmp_path / "us-triage.v2.json")
+    assert at.main(["--triage", str(tmp_path / "us-triage.json"), "--branch", "us", "--shipped", str(sh)]) == 0
+    assert "--pcie-frac" not in [f["name"] for f in json.loads(sh.read_text())["profiles"][0]["flags"]]

@@ -83,12 +83,19 @@ if name == "abtest.py":
         print("rep 0 " + arms[0] + ": FAILED (server died before ready)")
         print("ABORT: the server died twice before ready (fix the machine first)")
         sys.exit(2)
-    if out and os.environ.get("STUB_ARM_DECODE"):     # {arm: {case: tok/s}}: one record per arm of the spec, as a full run writes
+    if out and os.environ.get("STUB_ARM_DECODE"):     # {arm: {case: tok/s}}: one record per arm of the spec (and rep), as a full run writes
         dec = json.loads(os.environ["STUB_ARM_DECODE"])
-        for arm in arms:
-            d = dec.get(arm, dec.get("*", {}))
-            open(out, "a").write(json.dumps({"arm": arm, "rows": [{"case": c, "decode_tps": d.get(c, 100.0), "prompt_tps": d.get(c + "-prompt", 1000.0)}
-                                                                    for c in spec.get("cases", ["short", "edit"])]}) + "\n")
+        late = json.loads(os.environ.get("STUB_LATE_DRIFT", "{}"))   # {out-file substring: factor}: the late base (base-late / last rep) of that run
+        drift = ("--drift-check" in args or spec.get("drift_check")) and "--tier" in args and opt("--tier") == "screen"
+        reps = int(opt("--reps", "1")) if opt("--tier") == "confirm" else 1
+        fac = next((v for k, v in late.items() if k in out), 1.0)
+        for r in range(reps):
+            for arm in arms + (["base-late"] if drift and "base-late" not in arms else []):
+                d = dec.get(arm, dec.get(arms[0], dec.get("*", {})) if arm == "base-late" else dec.get("*", {}))
+                f = fac if (arm == "base-late" or (reps > 1 and arm == arms[0] and r == reps - 1)) else 1.0
+                open(out, "a").write(json.dumps({"arm": arm, "rep": r, "rows": [{"case": c, "decode_tps": d.get(c, 100.0) * f,
+                                                                                   "prompt_tps": d.get(c + "-prompt", 1000.0)}
+                                                                                  for c in spec.get("cases", ["short", "edit"])]}) + "\n")
     elif out:
         open(out, "a").write(json.dumps({"arm": arms[0], "rows": [{"case": "short", "decode_tps": 12.5, "prompt_tps": 100.0}]}) + "\n")
     print("abtest stub", joined)
@@ -2534,12 +2541,13 @@ def test_sweep_us_arms_minus_the_untested_switches_of_the_updated_arm_plus_the_o
     assert k not in spec["arms"][m]["env"] and len(spec["arms"][m]["env"]) == len(arm["env"]) - 1 and spec["arms"][m]["args"] == arm["args"]
     pl = next(n for n, f in flags.items() if f["kind"] == "plus")
     assert spec["arms"][pl]["env"] == {**arm["env"], **flags[pl]["env"]}
-    # one run would be over 2.5 h: 5 slices fit, together they are the whole list
+    # one run would be over 2.5 h: the blocked design (blocks of <= 6, each with 2 base runs, one re-run budgeted) fits in 9 even slices of 17
     n = len(flags)
     assert n == len(unt) and sum(mod.estimate(n)) > 9000
-    parts = [mod.build_spec("us", "/x/plain.json", arm, reg, "/s", "%d/5" % k, plain={"env": {}, "args": []})[1]["flags"] for k in (1, 2, 3, 4, 5)]
-    assert set().union(*map(set, parts)) == set(flags) and sum(len(x) for x in parts) == n
+    parts = [mod.build_spec("us", "/x/plain.json", arm, reg, "/s", "%d/9" % k, plain={"env": {}, "args": []}, split="even")[1]["flags"] for k in range(1, 10)]
+    assert set().union(*map(set, parts)) == set(flags) and sum(len(x) for x in parts) == n and [len(x) for x in parts] == [17] * 9
     assert all(sum(mod.estimate(len(x))) <= 9000 for x in parts)
+    assert mod.estimate(17) == ((17 + 6) * 150, 8 * 150, 7 * 3 * 150)
 
 
 def test_sweep_rd_arm_is_what_config_updated_adds_and_a_plus_value_theirs_already_run_gets_no_arm(tmp_path):
@@ -2554,7 +2562,11 @@ def test_sweep_rd_arm_is_what_config_updated_adds_and_a_plus_value_theirs_alread
     assert same and not plus & same                                                                # e.g. GR_INJ_UP=1: their setup runs it
     assert plus == {c["name"] for c in reg["untested"]["rd"]} - same - {f["flag"] for f in meta["flags"].values() if f["kind"] == "minus"}
     parts = [mod.build_spec("rd", "/p.json", arm, reg, "/s", "%d/3" % k, plain=plain)[1]["flags"] for k in (1, 2, 3)]
-    assert all(sum(mod.estimate(len(x))) <= 9000 for x in parts) and sum(len(x) for x in parts) == len(meta["flags"])
+    assert sum(len(x) for x in parts) == len(meta["flags"])
+    rest = [mod.build_spec("rd", "/p.json", arm, reg, "/s", "%d/4" % k, plain=plain, split="even", exclude=list(parts[0]))[1]["flags"] for k in (1, 2, 3, 4)]
+    redo = [mod.build_spec("rd", "/p.json", arm, reg, "/s", "%d/2" % k, plain=plain, split="even", only=list(parts[0]))[1]["flags"] for k in (1, 2)]
+    assert set().union(*map(set, rest)) == set(meta["flags"]) - set(parts[0]) and set().union(*map(set, redo)) == set(parts[0])
+    assert all(sum(mod.estimate(len(x))) <= 9000 for x in rest + redo) and all(len(x) <= 18 for x in rest + redo)
     # priority order: every [arm] and [named] arm is in slice 1, ahead of its [code] arms
     first = [f for f in parts[0].values()]
     assert {f["flag"] for f in meta["flags"].values() if mod.priority(f) < 2} <= {f["flag"] for f in first}
@@ -2565,7 +2577,8 @@ def test_sweep_priority_order_slice_1_is_all_arm_and_named_switches_then_the_cod
     mod, reg = sweep_mod(), sweep_registry()
     arm = json.loads((SPECS / "220-updated-vs-upstream-short.json").read_text())["arms"]["updated"]
     parts = [list(mod.build_spec("us", "/x/plain.json", arm, reg, "/s", "%d/5" % k, plain={"env": {}, "args": []})[1]["flags"].values()) for k in range(1, 6)]
-    assert [len(x) for x in parts] == [36, 30, 30, 30, 27] and all(sum(mod.estimate(len(x))) <= 9000 for x in parts)
+    assert [len(x) for x in parts] == [36, 30, 30, 30, 27]
+    assert mod.take_slice(list(range(10)), "1/3", 0) == [0, 1, 2, 3] and mod.take_slice(list(range(10)), "3/3", 0) == [7, 8, 9]
     assert [mod.priority(f) for f in parts[0]].count(0) == 35 and [f["flag"] for f in parts[0] if mod.priority(f) == 1] == ["STRATA_AMD_COMMUNITY_TUNING"]
     assert all(mod.priority(f) == 2 for x in parts[1:] for f in x)
     names = {c["name"] for c in reg["untested"]["rd"] if mod.priority(c) == 1}
@@ -2595,9 +2608,9 @@ def test_sweep_triage_thresholds_promising_then_keep_drop_retest_gate():
         "plus-F": {"flag": "F", "kind": "plus", "exact": True}, "plus-N": {"flag": "N", "kind": "plus", "exact": True},
         "plus-U": {"flag": "U", "kind": "plus", "exact": True}}}
 
-    def rows(vals):
-        return [json.dumps({"arm": a, "rows": [{"case": c, "decode_tps": v[c], "prompt_tps": v.get(c + "-prompt")} for c in ("short", "edit", "longdec32k")]})
-                for a, v in vals.items()]
+    def rows(vals, reps=None):
+        return [json.dumps({"arm": a, "rep": r, "rows": [{"case": c, "decode_tps": v[c], "prompt_tps": v.get(c + "-prompt")} for c in ("short", "edit", "longdec32k")]})
+                for r in range(reps or 1) for a, v in vals.items()]
     b = {"short": 100.0, "edit": 100.0, "longdec32k": 100.0, "longdec32k-prompt": 1000.0}
     p1 = rows({"updated": b, "base-late": b,
                "plus-A": {**b, "short": 101.2},                 # exact +1.2 % >= 1.0: promising
@@ -2614,12 +2627,97 @@ def test_sweep_triage_thresholds_promising_then_keep_drop_retest_gate():
     spec = {"arms": {"updated": {}, "plus-A": {}, "plus-L": {}, "minus-M": {}, "plus-W": {}, "plus-F": {}, "plus-N": {}, "plus-U": {}}}
     s2, names = mod.pass2_spec(spec, t1, max_flags=3)
     assert names == ["M", "F", "N"] and list(s2["arms"]) == ["updated", "minus-M", "plus-F", "plus-N"] and s2["reps"] == 3 and s2["drift_check"] is False
-    p2 = rows({"updated": b, "plus-A": {**b, "short": 102.5}, "minus-M": {**b, "edit": 96.0}, "plus-F": {**b, "short": 100.5}})
+    p2 = rows({"updated": b, "plus-A": {**b, "short": 102.5}, "minus-M": {**b, "edit": 96.0}, "plus-F": {**b, "short": 100.5}}, reps=3)
     lossy = dict(meta, flags={**meta["flags"], "minus-M": {"flag": "M", "kind": "minus", "exact": False}})
     t2 = mod.triage(lossy, p1, p2)
     v2 = {k: r["verdict"] for k, r in t2["flags"].items()}
     assert v2["A"] == "KEEP" and v2["M"] == "RETEST-GATE" and v2["F"] == "DROP" and v2["N"] == "RETEST" and v2["L"] == "DROP"
-    assert t2["flags"]["A"]["pass2"]["short"] == 2.5
+    assert t2["flags"]["A"]["pass2"]["short"] == 2.5 and t2["flags"]["A"]["pass2_clean"] is True and t2["schema"] == "pancake.sweep-triage/2"
+
+
+def sweep_rows(vals, rep=0, late=None):
+    """abtest jsonl lines of one block: {arm: {case: tok/s}}; late = the base-late values (default: as updated)."""
+    vals = dict(vals)
+    if "base-late" not in vals:
+        vals["base-late"] = late or vals["updated"]
+    return [json.dumps({"arm": a, "rep": rep, "rows": [{"case": c, "decode_tps": v[c], "prompt_tps": v.get(c + "-prompt")} for c in ("short", "edit", "longdec32k")]})
+            for a, v in vals.items()]
+
+
+def test_sweep_blocks_are_at_most_6_arms_base_first_random_order_and_cover_the_slice():
+    mod = sweep_mod()
+    spec = {"base": "/p.json", "drift_check": True, "arms": {"updated": {"env": {}}, **{"plus-%02d" % i: {"env": {"K": str(i)}} for i in range(17)}}}
+    bl = mod.block_specs(spec, 6, "s1")
+    assert [len(o) for _, _, o in bl] == [6, 6, 5] and [b for b, _, _ in bl] == ["b01", "b02", "b03"]
+    assert sorted(a for _, _, o in bl for a in o) == sorted(a for a in spec["arms"] if a != "updated")
+    for bid, sp, order in bl:
+        assert list(sp["arms"]) == ["updated"] + order and sp["drift_check"] is True and sp["arms"]["updated"] == spec["arms"]["updated"]
+    assert [o for _, _, o in bl] == [o for _, _, o in mod.block_specs(spec, 6, "s1")]           # the seed fixes the order
+    assert any(o != sorted(o) for _, _, o in bl)                                                 # and it is not the spec order
+    assert mod.block_sizes(13, 6) == [5, 4, 4] and mod.block_sizes(6, 6) == [6] and mod.block_sizes(0, 6) == []
+
+
+def test_sweep_triage_guard_drifted_block_is_inconclusive_a_clean_rerun_is_used_pass2_drift_keeps_retest():
+    mod = sweep_mod()
+    meta = {"branch": "us", "slice": "x", "protected": {}, "flags": {
+        "plus-A": {"flag": "A", "kind": "plus", "exact": True}, "minus-B": {"flag": "B", "kind": "minus", "exact": True},
+        "plus-C": {"flag": "C", "kind": "plus", "exact": True}, "plus-D": {"flag": "D", "kind": "plus", "exact": True}}}
+    b = {"short": 100.0, "edit": 100.0, "longdec32k": 100.0, "longdec32k-prompt": 1000.0}
+    slow = {**b, "edit": 80.0}                                                                   # the late base 20 % down on edit
+    b1 = sweep_rows({"updated": b, "plus-A": {**b, "short": 99.0}, "minus-B": {**b, "short": 99.0}}, late=slow)       # drifted
+    b1r = sweep_rows({"updated": b, "plus-A": {**b, "short": 99.0}, "minus-B": {**b, "short": 99.0}})                 # its clean re-run
+    b2 = sweep_rows({"updated": b, "plus-C": {**b, "short": 99.0}, "plus-D": {**b, "short": 104.0}}, late=slow)       # drifted twice
+    b2r = sweep_rows({"updated": b, "plus-C": {**b, "short": 99.0}, "plus-D": {**b, "short": 104.0}}, late={**b, "short": 93.0})
+    t = mod.triage(meta, [("b01", b1), ("b01r", b1r), ("b02", b2), ("b02r", b2r)])
+    v = {k: r["verdict"] for k, r in t["flags"].items()}
+    assert v == {"A": "DROP", "B": "RETEST", "C": "INCONCLUSIVE", "D": "INCONCLUSIVE"}, v
+    assert t["flags"]["A"]["block"] == "b01r" and t["flags"]["A"]["clean1"] is True and t["flags"]["A"]["blocks_run"] == ["b01", "b01r"]
+    assert t["flags"]["D"]["promising"] is False and "drift" in t["flags"]["D"]["reason"]          # promising numbers, drifted block: no pass 2
+    spec = {"arms": {"updated": {}, "plus-A": {}, "minus-B": {}, "plus-C": {}, "plus-D": {}}}
+    assert mod.pass2_spec(spec, t)[1] == ["B"]
+    # pass 2: a drifting base rep keeps B at RETEST; a clean pass 2 decides
+    p2 = sweep_rows({"updated": b, "minus-B": {**b, "short": 97.0}}, 0) + sweep_rows({"updated": b, "minus-B": {**b, "short": 97.0}}, 1) + \
+        sweep_rows({"updated": {**b, "edit": 90.0}, "minus-B": {**b, "short": 97.0}}, 2)
+    p2 = [l for l in p2 if '"base-late"' not in l]
+    t2 = mod.triage(meta, [("b01", b1), ("b01r", b1r), ("b02", b2), ("b02r", b2r)], p2)
+    assert t2["flags"]["B"]["verdict"] == "RETEST" and t2["flags"]["B"]["pass2_clean"] is False and t2["flags"]["B"]["pass2_drift"]["edit"] == -10.0
+    p2c = [l.replace('"decode_tps": 90.0', '"decode_tps": 100.0') for l in p2]
+    t3 = mod.triage(meta, [("b01", b1), ("b01r", b1r)], p2c)
+    assert t3["flags"]["B"]["verdict"] == "KEEP" and t3["flags"]["B"]["pass2_clean"] is True
+    assert mod.clean({"short": 4.9}) and not mod.clean({"short": -5.1}) and not mod.clean({})
+
+
+def test_sweep_remark_one_run_triage_drifted_becomes_inconclusive_retest_stays_clean_pass2_stays():
+    mod = sweep_mod()
+    b = {"short": 100.0, "edit": 100.0, "longdec32k": 100.0}
+    tri = {"schema": "pancake.sweep-triage/1", "branch": "rd", "slices": ["1/3"], "protected": {}, "flags": {
+        "A": {"verdict": "DROP", "pass1": {"short": -1.0}, "pass2": None, "promising": False},
+        "B": {"verdict": "RETEST", "pass1": {"short": 3.0}, "pass2": None, "promising": True},
+        "C": {"verdict": "KEEP", "pass1": {"short": 9.0}, "pass2": {"short": 7.5}, "promising": True},
+        "D": {"verdict": "DROP", "pass1": {"short": 2.0}, "pass2": {"short": 0.5}, "promising": True}}}
+    p1 = sweep_rows({"updated": b}, late={**b, "edit": 78.1})                                   # the RD slice 1 drift: edit -21.9 %
+    p2bad = sweep_rows({"updated": b}, 0)[:1] + sweep_rows({"updated": {**b, "edit": 52.5}}, 1)[:1]
+    r = mod.remark(tri, p1, p2bad)
+    assert {k: x["verdict"] for k, x in r["flags"].items()} == {"A": "INCONCLUSIVE", "B": "RETEST", "C": "INCONCLUSIVE", "D": "INCONCLUSIVE"}
+    assert r["flags"]["C"]["prior_verdict"] == "KEEP" and r["schema"] == "pancake.sweep-triage/2" and r["flags"]["A"]["drift1"]["edit"] == -21.9
+    p2ok = sweep_rows({"updated": b}, 0)[:1] + sweep_rows({"updated": b}, 1)[:1]
+    r2 = mod.remark(tri, p1, p2ok)
+    assert {k: x["verdict"] for k, x in r2["flags"].items()} == {"A": "INCONCLUSIVE", "B": "RETEST", "C": "KEEP", "D": "DROP"}
+    clean1 = mod.remark(tri, sweep_rows({"updated": b}), None)
+    assert clean1["flags"]["A"]["verdict"] == "DROP" and clean1["flags"]["C"]["verdict"] == "INCONCLUSIVE"   # a pass-2 verdict without pass-2 rows
+
+
+def test_sweep_merge_inconclusive_never_replaces_a_decided_verdict(tmp_path):
+    mod = sweep_mod()
+    old = {"schema": "pancake.sweep-triage/2", "branch": "rd", "slices": ["1of3"], "protected": {"X": ["edit"]}, "flags": {
+        "A": {"verdict": "RETEST"}, "B": {"verdict": "INCONCLUSIVE"}, "C": {"verdict": "KEEP"}, "D": {"verdict": "RETEST"}}}
+    new = {"schema": "pancake.sweep-triage/2", "branch": "rd", "slices": ["rdR-1of2"], "protected": {}, "flags": {
+        "A": {"verdict": "INCONCLUSIVE"}, "B": {"verdict": "DROP"}, "C": {"verdict": "UNTESTED"}, "D": {"verdict": "KEEP"}, "E": {"verdict": "INCONCLUSIVE"}}}
+    (tmp_path / "o.json").write_text(json.dumps(old))
+    (tmp_path / "n.json").write_text(json.dumps(new))
+    m = mod.merge([str(tmp_path / "o.json"), str(tmp_path / "n.json")])
+    assert {k: r["verdict"] for k, r in m["flags"].items()} == {"A": "RETEST", "B": "DROP", "C": "KEEP", "D": "KEEP", "E": "INCONCLUSIVE"}
+    assert m["slices"] == ["1of3", "rdR-1of2"] and m["protected"] == {"X": ["edit"]}
 
 
 def sweep_rd_configs(box, tmp_path):
@@ -2639,29 +2737,36 @@ def test_bench_sweep_rd_full_flow_pass1_triage_pass2_and_the_triage_file(tmp_pat
     plain = json.loads((box.tmp / "auto-runs" / "benchRD" / "config-plain.json").read_text())
     upd = json.loads((box.tmp / "auto-runs" / "benchRD" / "config-updated.json").read_text())
     mod = sweep_mod()
-    _, meta = mod.build_spec("rd", "/p.json", mod.arm_from_configs(plain, upd), sweep_registry(), "/s", "1/3", plain=plain)
+    _, meta = mod.build_spec("rd", "/p.json", mod.arm_from_configs(plain, upd), sweep_registry(), "/s", "1/6", plain=plain, split="even")
     win = next(n for n, f in meta["flags"].items() if f["kind"] == "plus" and f["exact"])
     wflag = meta["flags"][win]["flag"]
     n1 = len(meta["flags"])
     dec = {"*": b, win: {**b, "short": 104.0}}
-    box.finish(box.start(SW, env=be_env(SWEEP_BRANCH="rd", SWEEP_SLICE="1/3", STUB_ARM_DECODE=json.dumps(dec))), timeout=240)
+    box.finish(box.start(SW, env=be_env(SWEEP_BRANCH="rd", SWEEP_SLICE="1/6", SWEEP_SPLIT="even", STUB_ARM_DECODE=json.dumps(dec))), timeout=240)
     lines = box.log("bench-sweep.log")
     text = "\n".join(lines)
     assert lines[-1] == "WINBENCHSWEEP_DONE" and "ERROR" not in text and "ABORTED" not in text, text
     assert_start_end_pairs(lines)
-    order = ["PREREQ ok (rd)", "SYNC harness", "PREREQ harness ok", "ARMFIX ", "SWEEP rd slice 1/3: %d flag arms" % n1, "BUDGET ",
-             "START rd-p1-1of3", "END rd-p1-1of3 exit=0", "PASS2 1 flag(s): " + wflag, "START rd-p2-1of3", "END rd-p2-1of3 exit=0",
-             "TRIAGE KEEP", "TRIAGE file", "SUMMARY branch rd slice 1/3: pass 1 exit=0, pass 2 exit=0", "service stays down"]
+    nb = len(mod.block_sizes(n1))
+    order = ["PREREQ ok (rd)", "SYNC harness", "PREREQ harness ok", "ARMFIX ", "SWEEP rd slice 1of6: %d flag arms" % n1, "BUDGET ", "BLOCK b01 ",
+             "START rd-p1-1of6-b01", "END rd-p1-1of6-b01 exit=0", "DRIFT b01 (block 1", "START rd-p1-1of6-b%02d" % nb, "DRIFT b%02d" % nb,
+             "PASS2 1 flag(s): " + wflag, "START rd-p2-1of6", "END rd-p2-1of6 exit=0", "DRIFT2 pass 2", "TRIAGE KEEP", "TRIAGE file",
+             "SUMMARY branch rd slice 1of6 (1/6): %d blocks (%d clean, 0 re-run, 0 INCONCLUSIVE), pass 1 exit=0, pass 2 exit=0" % (nb, nb), "service stays down"]
     pos = [text.index(k) for k in order]
     assert pos == sorted(pos), order
+    assert "RERUN" not in text and text.count("-> CLEAN") == nb + 1
     ab = be_calls(box, "abtest.py")
-    assert len(ab) == 2 and "--tier screen" in ab[0] and "--drift-check" in ab[0] and "--retries 0" in ab[0], ab
-    assert "--tier confirm" in ab[1] and "--reps 3" in ab[1] and "rd-p2-1of3.json" in ab[1]
-    tri = json.loads((box.tmp / "auto-runs" / "benchsweep" / "rd-triage.json").read_text())
-    assert tri["flags"][wflag]["verdict"] == "KEEP" and tri["flags"][wflag]["pass2"]["short"] == 4.0
-    assert all(r["verdict"] == "DROP" for f, r in tri["flags"].items() if f != wflag) and tri["slices"] == ["1/3"]
-    assert (box.tmp / "auto-runs" / "benchsweep" / "rd-triage-1of3.json").exists()
-    assert sum(1 for c in box.calls() if c.startswith("SETSID")) == 2                    # each abtest run in its own session
+    assert len(ab) == nb + 1 and all("--tier screen" in x and "--drift-check" in x and "--retries 0" in x for x in ab[:nb]), ab
+    assert "--tier confirm" in ab[nb] and "--reps 3" in ab[nb] and "rd-p2-1of6.json" in ab[nb]
+    sw_dir = box.tmp / "auto-runs" / "benchsweep"
+    tri = json.loads((sw_dir / "rd-triage.v2.json").read_text())
+    assert tri["flags"][wflag]["verdict"] == "KEEP" and tri["flags"][wflag]["pass2"]["short"] == 4.0 and tri["flags"][wflag]["pass2_clean"] is True
+    assert all(r["verdict"] == "DROP" and r["clean1"] for f, r in tri["flags"].items() if f != wflag) and tri["slices"] == ["1of6"]
+    assert (sw_dir / "rd-triage-1of6.v2.json").exists() and not (sw_dir / "rd-triage.json").exists()
+    for k in range(1, nb + 1):                                                            # each block: updated, <= 6 arms, base-late
+        rows = [json.loads(l)["arm"] for l in (sw_dir / ("rd-p1-1of6-b%02d.jsonl" % k)).read_text().splitlines()]
+        assert rows[0] == "updated" and rows[-1] == "base-late" and len(rows) - 2 <= 6
+    assert sum(1 for c in box.calls() if c.startswith("SETSID")) == nb + 1               # each abtest run in its own session
     assert not any(c.startswith("SIG") for c in box.calls())
     assert not any(c.startswith("SYSTEMCTL") and (" start " in c or " stop " in c) for c in box.calls())
 
@@ -2674,17 +2779,21 @@ def test_bench_sweep_us_whole_branch_over_2h30_stops_before_any_start_and_names_
     f.write_text("x")
     box.finish(box.start(SW, env=be_env(SWEEP_BRANCH="us")), timeout=240)
     text = "\n".join(box.log("bench-sweep.log"))
-    assert "SWEEP us slice 1/1: %d flag arms" % len(sweep_registry()["untested"]["us"]) in text and "ERROR BUDGET" in text and "split it" in text and "WINBENCHSWEEP_ABORTED" in text, text
+    assert "SWEEP us slice 1of1: %d flag arms" % len(sweep_registry()["untested"]["us"]) in text and "ERROR BUDGET" in text and "split it" in text and "WINBENCHSWEEP_ABORTED" in text, text
     assert not be_calls(box, "abtest.py")
     box2 = Box(tmp_path / "b") if (tmp_path / "b").mkdir() is None else None
     prepare_be(box2, rd=False)
     f = box2.tmp / "mnt" / "benchus" / "src-us" / "data" / "expert-profile-pancake.bin"
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text("x")
-    box2.finish(box2.start(SW, env=be_env(SWEEP_BRANCH="us", SWEEP_SLICE="2/5")), timeout=240)
+    box2.finish(box2.start(SW, env=be_env(SWEEP_BRANCH="us", SWEEP_SLICE="2/9", SWEEP_SPLIT="even", SWEEP_TAG="usB-2of9")), timeout=240)
     t2 = "\n".join(box2.log("bench-sweep.log"))
-    assert "SWEEP us slice 2/5: 30 flag arms" in t2 and "START us-p1-2of5" in t2 and "ERROR" not in t2, t2
-    assert (box2.tmp / "auto-runs" / "benchsweep" / "us-triage-2of5.json").exists() and (box2.tmp / "auto-runs" / "benchsweep" / "us-triage.json").exists()
+    assert "SWEEP us slice usB-2of9: 17 flag arms" in t2 and "in 3 blocks of <= 6 (6/6/5)" in t2 and "START us-p1-usB-2of9-b03" in t2 and "ERROR" not in t2, t2
+    assert (box2.tmp / "auto-runs" / "benchsweep" / "us-triage-usB-2of9.v2.json").exists() and (box2.tmp / "auto-runs" / "benchsweep" / "us-triage.v2.json").exists()
+    # the same slice name again: refused before anything runs, nothing overwritten
+    n_ab = len(be_calls(box2, "abtest.py"))
+    box2.finish(box2.start(SW, env=be_env(SWEEP_BRANCH="us", SWEEP_SLICE="2/9", SWEEP_SPLIT="even", SWEEP_TAG="usB-2of9")), timeout=240)
+    assert "was used before" in "\n".join(box2.log("bench-sweep.log")) and len(be_calls(box2, "abtest.py")) == n_ab
 
 
 def test_bench_sweep_bad_branch_and_missing_builds_abort_before_any_download(tmp_path):
@@ -2705,13 +2814,13 @@ def test_bench_sweep_pass1_over_its_limit_is_stopped_reaped_and_the_triage_still
     box = Box(tmp_path)
     prepare_be(box, us=False)
     sweep_rd_configs(box, tmp_path)
-    box.finish(box.start(SW, env=be_env(SWEEP_BRANCH="rd", SWEEP_SLICE="3/3", AB_HANG="30", BENCH_BUDGET_S="80")), timeout=300)
+    box.finish(box.start(SW, env=be_env(SWEEP_BRANCH="rd", SWEEP_SLICE="6/6", SWEEP_SPLIT="even", SWEEP_BLOCK="99", AB_HANG="30", BENCH_BUDGET_S="80")), timeout=300)
     lines = box.log("bench-sweep.log")
     text = "\n".join(lines)
-    assert any(l.startswith("TIMEOUT rd-p1-3of3") for l in lines), lines
+    assert any(l.startswith("TIMEOUT rd-p1-6of6-b01") for l in lines), lines
     assert any(c.startswith("REAP -TERM") for c in box.calls())
-    assert "END rd-p1-3of3 exit=124" in text and "PASS2 none" in text and lines[-1] == "WINBENCHSWEEP_DONE"
-    tri = json.loads((box.tmp / "auto-runs" / "benchsweep" / "rd-triage.json").read_text())
+    assert "END rd-p1-6of6-b01 exit=124" in text and "SKIP rerun b01: budget" in text and "PASS2 none" in text and lines[-1] == "WINBENCHSWEEP_DONE"
+    tri = json.loads((box.tmp / "auto-runs" / "benchsweep" / "rd-triage.v2.json").read_text())
     assert all(r["verdict"] == "UNTESTED" for r in tri["flags"].values())
 
 
@@ -2971,3 +3080,36 @@ def test_sched_runs_bench_rdgate_as_extra_with_its_own_log_and_marker(tmp_path):
     assert "END EXTRA exit=0 last-log-line=WINBENCHRDGATE_DONE" in text and "ERROR" not in text, text
     idle = next(l for l in (CHAINS / SCHED).read_text().splitlines() if "if busy || pgrep" in l)
     assert "rdgate" in idle and "exact" in idle
+
+
+def test_bench_sweep_drifting_block_runs_once_more_a_clean_rerun_counts_a_second_drift_is_inconclusive(tmp_path):
+    """The 2026-11-20 failure (TEST_LEDGER.md): the late base 22-44 % below the early one.  Block b01 drifts once (its re-run is clean), b02 drifts
+    in both runs: its arms are INCONCLUSIVE; every DRIFT line is in the log; the v1 triage of the old design gets its v2 copy and is not touched."""
+    box = Box(tmp_path)
+    prepare_be(box, us=False)
+    sweep_rd_configs(box, tmp_path)
+    sw_dir = box.tmp / "auto-runs" / "benchsweep"
+    sw_dir.mkdir(parents=True, exist_ok=True)
+    b = {"short": 100.0, "edit": 140.0, "longdec32k": 30.0}
+    v1 = {"schema": "pancake.sweep-triage/1", "branch": "rd", "slices": ["1/3"], "protected": {}, "flags": {
+        "STRATA_OLD": {"verdict": "DROP", "pass1": {"short": -1.0}, "pass2": None, "promising": False}}}
+    (sw_dir / "rd-triage-1of3.json").write_text(json.dumps(v1))
+    (sw_dir / "rd-p1-1of3.jsonl").write_text("\n".join(sweep_rows({"updated": b}, late={**b, "edit": 109.3})) + "\n")
+    late = {"-b01.jsonl": 0.8, "-b02": 0.9}
+    box.finish(box.start(SW, env=be_env(SWEEP_BRANCH="rd", SWEEP_SLICE="1/6", SWEEP_SPLIT="even", SWEEP_TAG="rdB-1of6",
+                                        STUB_ARM_DECODE=json.dumps({"*": b}), STUB_LATE_DRIFT=json.dumps(late))), timeout=300)
+    lines = box.log("bench-sweep.log")
+    text = "\n".join(lines)
+    assert lines[-1] == "WINBENCHSWEEP_DONE" and "ERROR" not in text, text
+    order = ["REMARK ", "BLOCK b01 ", "DRIFT b01 (block 1", "RERUN b01", "START rd-p1-rdB-1of6-b01r", "DRIFT b01r (re-run of block 1", "DRIFT b02 (block 2",
+             "RERUN b02", "DRIFT b02r", "INCONCLUSIVE b02: still above 5 %", "DRIFT b03 (block 3", "TRIAGE file"]
+    pos = [text.index(k) for k in order]
+    assert pos == sorted(pos), order
+    assert "DRIFT b03r" not in text and "SUMMARY branch rd slice rdB-1of6 (1/6): 3 blocks (2 clean, 2 re-run, 1 INCONCLUSIVE)" in text
+    blk = {json.loads(l)["arm"] for l in (sw_dir / "rd-p1-rdB-1of6-b02.jsonl").read_text().splitlines()} - {"updated", "base-late"}
+    tri = json.loads((sw_dir / "rd-triage.v2.json").read_text())
+    by_arm = {r["arm"]: r for r in tri["flags"].values() if "arm" in r}
+    assert blk and all(by_arm[a]["verdict"] == "INCONCLUSIVE" for a in blk)
+    assert all(r["verdict"] == "DROP" for a, r in by_arm.items() if a not in blk)
+    assert tri["flags"]["STRATA_OLD"]["verdict"] == "INCONCLUSIVE" and tri["flags"]["STRATA_OLD"]["prior_verdict"] == "DROP"
+    assert json.loads((sw_dir / "rd-triage-1of3.json").read_text()) == v1 and (sw_dir / "rd-triage-1of3.v2.json").exists()

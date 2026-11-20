@@ -2,8 +2,17 @@
 # bench-sweep.sh - FULL FLAG SWEEP of one updated branch (owner order 2026-11-20, autonomy: "test all the coded flags once, then triage which to retest,
 # don't keep low performers").  The file name has no "win-chain", "redo-chain" or "tail-chain": no busy() pattern of another chain sees it (T-944).
 # Log /home/dan/clone-of-d/src/bench-sweep.log, last line WINBENCHSWEEP_DONE (also after an abort or a signal; the line before it is then
-# WINBENCHSWEEP_ABORTED).  Results: /home/dan/auto-runs/benchsweep/ (<branch>-p1-<slice>.jsonl, <branch>-p2-<slice>.jsonl, <branch>-triage-<slice>.json and
-# the merged <branch>-triage.json: per flag the pass-1 and pass-2 effects and KEEP / DROP / RETEST-GATE / RETEST / UNTESTED).
+# WINBENCHSWEEP_ABORTED).  Results: /home/dan/auto-runs/benchsweep/ (<branch>-p1-<slice>-bNN.jsonl per block, -bNNr.jsonl its re-run, <branch>-p2-<slice>.jsonl,
+# <branch>-triage-<slice>.v2.json and the merged <branch>-triage.v2.json: per flag the pass-1 and pass-2 effects, the base drift of its block and
+# KEEP / DROP / RETEST-GATE / RETEST / INCONCLUSIVE / UNTESTED).
+# BLOCKED DESIGN (2026-11-20, TEST_LEDGER.md: the first slices ran 33-36 arms in ONE abtest run of ~1.5 h, base at the start and at the end; the late base
+#   was 6-7 % (short) and 22-44 % (edit) below the early one): pass 1 runs as blocks of <= SWEEP_BLOCK (6) arms, each its own abtest run: base, the
+#   block's arms in a random order (seed SWEEP_SEED, default the slice name), base again.  Every block's drift is logged (DRIFT line); a block above
+#   SWEEP_DRIFT_MAX (5 %) on any case runs once more (-bNNr; when the budget still holds pass 2 at its cap); still above: its arms are INCONCLUSIVE.
+#   Pass 2's drift (the base reps) is logged too; the triage (sweep.py) turns every verdict from drifted data into INCONCLUSIVE (RETEST stays RETEST).
+#   A triage file of the old one-run design (<branch>-triage-KofN.json) gets its v2 copy (sweep.py remark) before the merge; nothing is overwritten.
+# SLICES: SWEEP_SLICE=K/N, SWEEP_SPLIT=priority (slice 1 = all [arm] + [named]) or even; SWEEP_ONLY_META / SWEEP_EXCLUDE_META = a meta file (e.g.
+#   work/rd-p1-1of3.json.meta.json) whose arms are the only ones / are left out; SWEEP_TAG = the slice name in the file names (default KofN).
 #
 # SWEEP_BRANCH=us|rd picks the branch (one branch per run), SWEEP_SLICE=K/N one part of its flag list (default 1/1).  No build, no engine-source download:
 #   us: base = the pancake harness's configs/pancake/flashnext-iq2_xs-plain-upstream.json, arm `updated` = spec 220's updated arm (build
@@ -25,10 +34,11 @@
 # PASS 2: the promising flags only (at most SWEEP_PASS2_MAX, default 6, the strongest first): abtest --tier confirm, 3 reps; KEEP >= 2 % (exact),
 #   RETEST-GATE >= 3 % (lossy: a quality gate is due), else DROP.  The triage file is what tools/pancake/apply_triage.py applies to the shipped files.
 # BUDGET: 150 s per engine start (sweep.py estimate); a run must stay <= SWEEP_MAX_S (9000 s, 2.5 h) or it stops before any start and names the
-#   slice count it needs.  us: 153 untested switches = 5 runs (SWEEP_SLICE=1/5 .. 5/5: 36 / 30 / 30 / 30 / 27 arms, <= 8850 s each); rd: 109 untested
-#   switches, the ones Strata-rdna3's own setup already runs at that value get no arm (98 arms with the box's config-updated.json of 2026-11-19) = 3 runs
-#   (1/3 .. 3/3: 33 / 33 / 32 arms, <= 8400 s each).  8 runs, at most about 18 h of box time (pass 2 at its cap in every run).  BENCH_BUDGET_S overrides
-#   the computed budget (estimate + 900 s); pass 2 starts only when its estimate fits the budget left.
+#   slice count it needs.  Blocked design (TEST_LEDGER.md T-1002): estimate = pass 1 (arms + 2 base runs per block) + one block re-run + pass 2 at its
+#   cap; 17 arms = 3450 + 1200 + 3150 = 7800 s.  us: 153 untested switches = 9 even runs of 17 (SWEEP_SPLIT=even SWEEP_SLICE=1/9 .. 9/9); rd: 109
+#   untested switches, the ones Strata-rdna3's own setup already runs at that value get no arm (98 arms with the box's config-updated.json of
+#   2026-11-19).  (The one-run design's priority slices 1/5 and 1/3 of 36 / 33 arms no longer fit.)  BENCH_BUDGET_S overrides the computed budget
+#   (estimate + 900 s); a block re-run starts only while the budget still holds it and pass 2 at its cap; pass 2 only when its estimate fits.
 # THE CANDIDATES (tools/pancake/box_chains/sweep_candidates.json, generated 2026-11-20 from the branch trees; why untested: no pancake TEST_LEDGER.md
 #   measurement row naming it on the box and no 2026-11-19 box verdict; the MOD_PLAN.md section 6 items 24 / 25 / 38 / 42 / 44 / 46 / 47 / 48 / 50 / 51 / 53
 #   name no switch either branch's engine reads except STRATA_DENSE_MMQ, which is measured (T-615)):
@@ -95,14 +105,15 @@
 # quick idle before each step; pancake.service stays DOWN (never started; stopped only after 3 minutes without a client); AA stays frozen (no signal is
 # ever sent to it); nothing is deleted; every abtest run is in its OWN SESSION under a watchdog (run_group: TERM at the limit, KILL 100 s later, REAP of
 # every process it had): no orphan engine survives a step.  The harness runs with the box's venv python (ABTEST_PYTHON).
-# Start: /home/dan/clone-of-d/src/run-queue-sweep.sh runs the 8 slices (rd 1/3, us 1/5, rd 2/3, rd 3/3, us 2/5 .. 5/5) one after the other; by hand:
+# Start: /home/dan/clone-of-d/src/run-queue-sweep2.sh runs the blocked-design queue (the old run-queue-sweep.sh ran the one-run design); by hand:
 #   cd /home/dan/clone-of-d/src && SWEEP_BRANCH=rd SWEEP_SLICE=1/3 BENCH_ONLY=EXTRA BENCH_EXTRA=./bench-sweep.sh BENCH_NO_RESUME=1 setsid nohup sh ./bench-sched.sh > /dev/null 2>&1 &
 #   (then SWEEP_SLICE=2/3, 3/3; then SWEEP_BRANCH=us SWEEP_SLICE=1/5 .. 5/5; each run merges its slice into <branch>-triage.json)
 S=/home/dan/clone-of-d/src; R=$S/Strata-win; L=$S/bench-sweep.log; O=/home/dan/auto-runs/benchsweep; T=$O/work; PM=/mnt/pancake/benchsweep; HN=$PM/harness
 USB=/mnt/pancake/benchus; RDB=/mnt/pancake/benchRD; RDC=/home/dan/auto-runs/benchRD/config-plain.json; RDU=/home/dan/auto-runs/benchRD/config-updated.json
 DATA=/home/dan/clone-of-d/Strata-data; ROCM=/opt/rocm/core-10.0; REPO_URL=https://github.com/rocktboy1982/pancake-strata.git
 T0=$(date +%s); BUDGET=${BENCH_BUDGET_S:-9900}; POLL=5; MAXS=${SWEEP_MAX_S:-9000}; P2MAX=${SWEEP_PASS2_MAX:-6}
-B=${SWEEP_BRANCH:-}; SL=${SWEEP_SLICE:-1/1}; SLN=$(echo "$SL" | tr / o | sed 's/o/of/')
+BS=${SWEEP_BLOCK:-6}; DMAX=${SWEEP_DRIFT_MAX:-5}; SPLIT=${SWEEP_SPLIT:-priority}
+B=${SWEEP_BRANCH:-}; SL=${SWEEP_SLICE:-1/1}; SLN=${SWEEP_TAG:-$(echo "$SL" | tr / o | sed 's/o/of/')}; SEED=${SWEEP_SEED:-$SLN}
 export PATH=$ROCM/bin:$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
 HPY=${BENCH_HARNESS_PY:-$R/.venv/bin/python}
 export HPY ABTEST_PYTHON=$HPY
@@ -196,7 +207,12 @@ sw() { "$HPY" $HN/tools/pancake/box_chains/sweep.py "$@"; }
 
 # ------------------------------------------------------------------ 0. branch, (standalone: wait for its benchmark), service down, idle, prerequisites
 case "$B" in us|rd) ;; *) abort "SWEEP_BRANCH must be us or rd (got '${B}')";; esac
-case "$SL" in [1-9]/[1-9]) ;; *) abort "SWEEP_SLICE must be K/N (got '$SL')";; esac
+case "$SL" in [1-9]/[1-9]|[1-9]/[1-9][0-9]|[1-9][0-9]/[1-9][0-9]) ;; *) abort "SWEEP_SLICE must be K/N (got '$SL')";; esac
+case "$SPLIT" in priority|even) ;; *) abort "SWEEP_SPLIT must be priority or even (got '$SPLIT')";; esac
+case "$SLN" in *[!A-Za-z0-9_-]*|'') abort "SWEEP_TAG may hold only letters, digits, _ and - (got '$SLN')";; esac
+for m in ${SWEEP_ONLY_META:-} ${SWEEP_EXCLUDE_META:-}; do [ -f "$m" ] || abort "PREREQ the meta file $m (SWEEP_ONLY_META / SWEEP_EXCLUDE_META) is missing"; done
+if [ -f $O/$B-triage-$SLN.v2.json ] || ls $O/$B-p1-$SLN-b[0-9][0-9].jsonl >/dev/null 2>&1; then
+  abort "the slice name $B $SLN was used before ($O/$B-triage-$SLN.v2.json or its block rows exist): pick another SWEEP_TAG; nothing is overwritten"; fi
 if [ "${BENCH_SCHED:-0}" != 1 ]; then
   if [ $B = us ]; then mk=WINBENCHUS_DONE; ml=$S/bench-updatedAA.log; else mk=WINBENCHRD_DONE; ml=$S/bench-updatedRD.log; fi
   until grep -q $mk $ml 2>/dev/null; do sleep 300; done
@@ -232,37 +248,72 @@ grep -q ABTEST_PYTHON $HN/tools/pancake/abtest.py || abort "PREREQ harness: $HN/
 e=$(cd $HN && PYTHONDONTWRITEBYTECODE=1 "$HPY" -B -c 'import serve.server' 2>&1) || abort "PREREQ harness: $HPY cannot import serve.server from $HN: $(echo "$e" | tail -n 1 | cut -c1-240)"
 say "PREREQ harness ok: $HPY imports serve.server from $HN $(date +%T)"
 
-# ------------------------------------------------------------------ 2. the pass-1 spec and the estimate (stop before any start when the run does not fit 2.5 h)
+# ------------------------------------------------------------------ 1b. the old one-run triage files (<branch>-triage-KofN.json) get their drift-guarded v2 copy
+# once, before this slice is triaged (the originals stay as they are; their v2 parts merge first, see 3.)
+for f in $O/$B-triage-[1-9]of[1-9].json; do
+  [ -f "$f" ] || continue; k=${f##*-triage-}; k=${k%.json}; v=$O/$B-triage-$k.v2.json; [ -f $v ] && continue
+  p2o=; [ -f $O/$B-p2-$k.jsonl ] && p2o="--pass2 $O/$B-p2-$k.jsonl"
+  sw remark --triage $f --pass1 $O/$B-p1-$k.jsonl $p2o --drift-max $DMAX --out $v >> $L 2>&1 || say "ERROR remark of $f failed"
+done
+# ------------------------------------------------------------------ 2. the pass-1 spec, its blocks and the estimate (stop before any start when the run does not fit 2.5 h)
 P1=$T/$B-p1-$SLN.json
+sel="--slice $SL --split $SPLIT --tag $SLN --block-size $BS"
+[ -n "${SWEEP_ONLY_META:-}" ] && sel="$sel --only-meta $SWEEP_ONLY_META"
+for m in ${SWEEP_EXCLUDE_META:-}; do sel="$sel --exclude-meta $m"; done
 if [ $B = us ]; then sw spec --branch us --plain $HN/configs/pancake/flashnext-iq2_xs-plain-upstream.json --arm-from $HN/bench/specs/220-updated-vs-upstream-short.json --arm-name updated \
-                       --src $SRC --slice $SL --pass2-max $P2MAX --out $P1 > $T/$B-spec-$SLN.txt 2>&1 || abort "SPEC: sweep.py spec failed: $(tail -n 1 $T/$B-spec-$SLN.txt)"
+                       --src $SRC $sel --pass2-max $P2MAX --out $P1 > $T/$B-spec-$SLN.txt 2>&1 || abort "SPEC: sweep.py spec failed: $(tail -n 1 $T/$B-spec-$SLN.txt)"
 else fx=; for k in ${SWEEP_RD_DROP-STRATA_POOL_FUSE_PHASES}; do fx="$fx --drop-env $k"; done
   for kv in ${SWEEP_RD_SET-STRATA_VERIFY_ECAP=0 STRATA_VERIFY_ECAP_MIN_ROWS=9}; do fx="$fx --set-env $kv"; done
-  sw spec --branch rd --plain $RDC --updated-config $RDU $fx --src $SRC --slice $SL --pass2-max $P2MAX --out $P1 > $T/$B-spec-$SLN.txt 2>&1 || abort "SPEC: sweep.py spec failed: $(tail -n 1 $T/$B-spec-$SLN.txt)"; fi
+  sw spec --branch rd --plain $RDC --updated-config $RDU $fx --src $SRC $sel --pass2-max $P2MAX --out $P1 > $T/$B-spec-$SLN.txt 2>&1 || abort "SPEC: sweep.py spec failed: $(tail -n 1 $T/$B-spec-$SLN.txt)"; fi
 grep -E '^(ARMFIX|SWEEP)' $T/$B-spec-$SLN.txt >> $L
-set -- $(grep '^ESTIMATE' $T/$B-spec-$SLN.txt); E1=${2:-0}; E2=${3:-0}
-[ "$E1" -gt 0 ] || abort "SPEC: no estimate from sweep.py"
-if [ $((E1 + E2)) -gt $MAXS ]; then
-  n=${SL#*/}; need=$(( (E1 + E2) * n / MAXS + 1 ))
-  abort "BUDGET: this run's estimate $((E1 + E2)) s is over $MAXS s (2.5 h): split it (SWEEP_SLICE=1/$((need * 1)) ... at least $need parts of this slice); nothing was started"
+set -- $(grep '^ESTIMATE' $T/$B-spec-$SLN.txt); E1=${2:-0}; E2=${3:-0}; ER=${4:-0}
+[ "$E1" -gt 0 ] || abort "SPEC: no estimate from sweep.py (no flag arm in this slice?)"
+if [ $((E1 + ER + E2)) -gt $MAXS ]; then
+  n=${SL#*/}; need=$(( (E1 + ER + E2) * n / MAXS + 1 ))
+  abort "BUDGET: this run's estimate $((E1 + ER + E2)) s is over $MAXS s (2.5 h): split it (SWEEP_SLICE=1/$need ... at least $need parts); nothing was started"
 fi
-[ -n "${BENCH_BUDGET_S:-}" ] || BUDGET=$((E1 + E2 + 900))
-say "BUDGET $BUDGET s (estimate pass 1 $E1 s + pass 2 <= $E2 s + 900 s overhead)"
+[ -n "${BENCH_BUDGET_S:-}" ] || BUDGET=$((E1 + ER + E2 + 900))
+say "BUDGET $BUDGET s (estimate pass 1 $E1 s + one block re-run $ER s + pass 2 <= $E2 s + 900 s overhead)"
+sw blocks --spec $P1 --prefix $T/$B-p1-$SLN --size $BS --seed "$SEED" > $T/$B-blocks-$SLN.txt 2>&1 || abort "SPEC: sweep.py blocks failed: $(tail -n 1 $T/$B-blocks-$SLN.txt)"
+cut -c1-400 $T/$B-blocks-$SLN.txt >> $L
 
-# ------------------------------------------------------------------ 3. pass 1, triage, pass 2 for the promising flags, the final triage
-wait_idle
-ab $B-p1-$SLN $((E1 + 600)) $P1 --tier screen --drift-check --retries 0; rc1=$?
-sw triage --meta $P1.meta.json --pass1 $O/$B-p1-$SLN.jsonl --out $T/$B-tri1-$SLN.json > $T/$B-tri1-$SLN.txt 2>&1 || say "ERROR triage of pass 1 failed: $(tail -n 1 $T/$B-tri1-$SLN.txt)"
+# ------------------------------------------------------------------ 3. pass 1 block by block (a drifting block runs once more), triage, pass 2, the final triage
+nb=0; nclean=0; nrr=0; nbad=0; rc1=0
+for bid in $(awk '/^BLOCK /{print $2}' $T/$B-blocks-$SLN.txt); do
+  nb=$((nb + 1)); est=$(awk -v b=$bid '$1 == "BLOCK" && $2 == b {print $3}' $T/$B-blocks-$SLN.txt); bsp=$T/$B-p1-$SLN-$bid.json
+  wait_idle
+  ab $B-p1-$SLN-$bid $((est + 600)) $bsp --tier screen --drift-check --retries 0 || rc1=$?
+  d=$(sw drift --rows $O/$B-p1-$SLN-$bid.jsonl --max $DMAX); drc=$?
+  say "DRIFT $bid (block $nb, base late vs early): $d"
+  if [ $drc -ne 0 ]; then
+    if left_ok $((est + E2)); then
+      say "RERUN $bid: base drift above $DMAX % (or no base rows on both ends): the block runs once more"
+      wait_idle
+      ab $B-p1-$SLN-${bid}r $((est + 600)) $bsp --tier screen --drift-check --retries 0 || rc1=$?
+      nrr=$((nrr + 1))
+      d=$(sw drift --rows $O/$B-p1-$SLN-${bid}r.jsonl --max $DMAX); drc=$?
+      say "DRIFT ${bid}r (re-run of block $nb): $d"
+      if [ $drc -eq 0 ]; then nclean=$((nclean + 1)); else nbad=$((nbad + 1)); say "INCONCLUSIVE $bid: still above $DMAX % after its re-run: its arms get no verdict"; fi
+    else nbad=$((nbad + 1)); say "SKIP rerun $bid: budget: $(left) s left (< $((est + E2)) s, block + pass 2 at its cap): its arms are INCONCLUSIVE"; fi
+  else nclean=$((nclean + 1)); fi
+done
+p1f=$(ls $O/$B-p1-$SLN-b[0-9][0-9].jsonl $O/$B-p1-$SLN-b[0-9][0-9]r.jsonl 2>/dev/null | sort | tr '\n' ' ')
+[ -n "$p1f" ] || p1f=$O/$B-p1-$SLN-none.jsonl
+sw triage --meta $P1.meta.json --pass1 $p1f --drift-max $DMAX --out $T/$B-tri1-$SLN.json > $T/$B-tri1-$SLN.txt 2>&1 || say "ERROR triage of pass 1 failed: $(tail -n 1 $T/$B-tri1-$SLN.txt)"
 rc2=-
 if sw pass2 --spec $P1 --triage $T/$B-tri1-$SLN.json --max $P2MAX --out $T/$B-p2-$SLN.json > $T/$B-p2-$SLN.txt 2>&1; then
-  cat $T/$B-p2-$SLN.txt >> $L
-  if left_ok "$E2"; then
-    wait_idle; ab $B-p2-$SLN $((E2 + 600)) $T/$B-p2-$SLN.json --tier confirm --reps 3 --no-early-stop --warmup 1 --outlier robust --retries 0; rc2=$?
-  else say "SKIP pass 2: budget: $(left) s left (< $E2 s); the promising flags stay RETEST"; fi
+  grep -v '^ESTIMATE2' $T/$B-p2-$SLN.txt >> $L
+  set -- $(grep '^ESTIMATE2' $T/$B-p2-$SLN.txt); E2N=${2:-$E2}
+  if left_ok "$E2N"; then
+    wait_idle; ab $B-p2-$SLN $((E2N + 600)) $T/$B-p2-$SLN.json --tier confirm --reps 3 --no-early-stop --warmup 1 --outlier robust --retries 0; rc2=$?
+    say "DRIFT2 pass 2 (largest base rep deviation from the first): $(sw drift --pass2 --rows $O/$B-p2-$SLN.jsonl --max $DMAX)"
+  else say "SKIP pass 2: budget: $(left) s left (< $E2N s); the promising flags stay RETEST"; fi
 else cat $T/$B-p2-$SLN.txt >> $L; fi
-if [ -f $O/$B-p2-$SLN.jsonl ]; then sw triage --meta $P1.meta.json --pass1 $O/$B-p1-$SLN.jsonl --pass2 $O/$B-p2-$SLN.jsonl --out $O/$B-triage-$SLN.json > $T/$B-tri-$SLN.txt 2>&1
-else sw triage --meta $P1.meta.json --pass1 $O/$B-p1-$SLN.jsonl --out $O/$B-triage-$SLN.json > $T/$B-tri-$SLN.txt 2>&1; fi || say "ERROR final triage failed: $(tail -n 1 $T/$B-tri-$SLN.txt)"
-sed 's/^/TRIAGE /' $T/$B-tri-$SLN.txt | cut -c1-260 >> $L
-sw merge --out $O/$B-triage.json $O/$B-triage-*of*.json 2>> $L && say "TRIAGE file $O/$B-triage.json (slices: $(ls $O/$B-triage-*of*.json 2>/dev/null | wc -l))"
-say "SUMMARY branch $B slice $SL: pass 1 exit=$rc1, pass 2 exit=$rc2 (- = not run); box time $(elapsed) s of $BUDGET s; results in $O"
+TV=$O/$B-triage-$SLN.v2.json
+if [ -f $O/$B-p2-$SLN.jsonl ]; then sw triage --meta $P1.meta.json --pass1 $p1f --pass2 $O/$B-p2-$SLN.jsonl --drift-max $DMAX --out $TV > $T/$B-tri-$SLN.txt 2>&1
+else sw triage --meta $P1.meta.json --pass1 $p1f --drift-max $DMAX --out $TV > $T/$B-tri-$SLN.txt 2>&1; fi || say "ERROR final triage failed: $(tail -n 1 $T/$B-tri-$SLN.txt)"
+sed 's/^/TRIAGE /' $T/$B-tri-$SLN.txt | cut -c1-300 >> $L
+parts="$(ls -tr $O/$B-triage-[1-9]of[1-9].v2.json 2>/dev/null) $(ls -tr $O/$B-triage-*.v2.json 2>/dev/null | grep -v -e '-triage-[1-9]of[1-9]\.v2\.json$')"
+sw merge --out $O/$B-triage.v2.json $parts 2>> $L && say "TRIAGE file $O/$B-triage.v2.json (slices: $(ls $O/$B-triage-*.v2.json 2>/dev/null | wc -l), the old one-run parts first, then the blocked ones oldest first; INCONCLUSIVE never replaces a decided verdict)"
+say "SUMMARY branch $B slice $SLN ($SL): $nb blocks ($nclean clean, $nrr re-run, $nbad INCONCLUSIVE), pass 1 exit=$rc1, pass 2 exit=$rc2 (- = not run); box time $(elapsed) s of $BUDGET s; results in $O"
 finish

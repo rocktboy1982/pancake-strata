@@ -6,10 +6,14 @@ retest, don't keep low performers").
                    [--slice K/N] [--registry sweep_candidates.json]          the pass-1 spec (+ SPEC1.json.meta.json); prints arms and the estimate
                    [--drop-env KEY]... [--set-env KEY=VALUE]...                 (with --updated-config) fix the updated config first; each change is
                                                                                  printed as an ARMFIX line
-  sweep.py triage  --meta SPEC1.json.meta.json --pass1 ROWS1.jsonl [--pass2 ROWS2.jsonl] --out TRIAGE.json
+                   [--split priority|even] [--only-meta META.json] [--exclude-meta META.json] [--tag NAME] [--block-size B]
+  sweep.py blocks  --spec SPEC1.json --prefix OUT [--size B] [--seed S]      the pass-1 blocks: OUT-b01.json ... (prints one BLOCK line each)
+  sweep.py drift   --rows ROWS.jsonl [--pass2] [--max PCT]                    the base drift of one run (exit 0 clean, 4 drift, 5 no base rows)
+  sweep.py triage  --meta SPEC1.json.meta.json --pass1 ROWS1.jsonl... [--pass2 ROWS2.jsonl] --out TRIAGE.json [--drift-max PCT]
+  sweep.py remark  --triage OLD.json --pass1 ROWS1.jsonl [--pass2 ROWS2.jsonl] --out NEW.v2.json     the drift guard on a one-run (v1) triage
   sweep.py pass2   --spec SPEC1.json --triage TRIAGE.json --out SPEC2.json [--max N]   the 3-rep confirm spec of the promising flags (exit 3: none)
-  sweep.py merge   --out BRANCH-triage.json PART.json...                                  one triage file of all slices of a branch
-  sweep.py estimate --arms N [--pass2-max P]
+  sweep.py merge   --out BRANCH-triage.v2.json PART.json...                               one triage file of all slices of a branch (oldest first)
+  sweep.py estimate --arms N [--pass2-max P] [--block-size B]
 
 PASS 1: base = the plain config of the branch; arm `updated` = the updated arm (US: spec 220's `updated`; RD: config-updated.json against
 config-plain.json, i.e. only what the updated config adds); one arm per NEVER-TESTED coded switch of the branch (sweep_candidates.json
@@ -26,11 +30,21 @@ PRIORITY ORDER (owner order 2026-11-20): the arms run in this order: first the [
 (source "owner list ..."), then the [code] ones; slice 1 of a branch holds ALL [arm] + [named] arms (filled up with [code] arms to the even slice
 size when they are fewer), the other slices split the rest evenly.  Every slice is triaged, confirmed (pass 2) and merged on its own, so the
 results of slice 1 are usable before the other slices run.
-Estimate: 150 s per engine start (the 2026-11-19 box runs: ~1.5 min per start of short + edit + long32k, plus the 32K decode)."""
+Estimate: 150 s per engine start (the 2026-11-19 box runs: ~1.5 min per start of short + edit + long32k, plus the 32K decode).
+BLOCKED PASS 1 (2026-11-20, TEST_LEDGER.md: the first sweep slices ran 33-36 arms in ONE abtest run of ~1.5 h with one base at the start and one
+at the end; the box slowed down during the run and the late base was up to 44 % below the early one on edit, so every arm late in the run was
+judged against the wrong base): pass 1 runs as blocks of at most 6 arms; each block is its own abtest run (base `updated`, the block's arms in a
+random order, the base again: `base-late`), so every arm is judged against the two base runs of its own block (<= ~20 min apart).  A block whose
+base drift (late vs early) is above 5 % on any case is run once more; still above 5 %: its arms are INCONCLUSIVE (never DROP / KEEP / RETEST).
+TRIAGE GUARD (schema pancake.sweep-triage/2): a verdict computed on data with a base drift above 5 % is INCONCLUSIVE (pass 1: the block's late vs
+early base; pass 2: the largest deviation of a base rep from the first one).  A pass-1-clean promising flag whose pass 2 drifted stays RETEST.
+A flag with a clean pass 2 keeps its pass-2 verdict.  `remark` applies the same guard to a triage file of the old one-run design (RETEST stays
+RETEST).  apply_triage.py ignores INCONCLUSIVE and RETEST and removes a shipped flag only on a clean pass-2 result."""
 import argparse
 import json
 import math
 import os
+import random
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -38,6 +52,9 @@ REGISTRY = os.path.join(HERE, "sweep_candidates.json")
 CASES = ["short", "edit", "longdec32k"]
 METRICS = ["short", "edit", "longdec32k", "longdec32k-prompt"]
 START_S = 150
+BLOCK = 6                                 # arms per pass-1 block (owner order 2026-11-20: <= 6)
+DRIFT_MAX = 5.0                           # % base drift above which a verdict is INCONCLUSIVE
+WEAK = ("INCONCLUSIVE", "UNTESTED")       # a merge never lets these replace a decided verdict
 PROMISE = {True: 1.0, False: 1.5}        # exact / lossy: pass-1 bar
 KEEP = {True: 2.0, False: 3.0}           # exact / lossy: pass-2 bar
 FLOOR = -3.0
@@ -142,32 +159,80 @@ def fix_config(upd, drop=(), sets=()):
     return upd, notes
 
 
-def estimate(n_arms, pass2_max=6):
-    p1 = (n_arms + 2) * START_S                         # + updated + base-late
+def block_sizes(n, size=BLOCK):
+    """Balanced block sizes: ceil(n / size) blocks, none larger than size, sizes differ by at most 1."""
+    if n <= 0:
+        return []
+    nb = math.ceil(n / size)
+    return [n // nb + (1 if i < n % nb else 0) for i in range(nb)]
+
+
+def estimate(n_arms, pass2_max=6, block=BLOCK):
+    """(pass 1, one block re-run, pass 2) in seconds: every block = its arms + updated + base-late; one re-run of the largest block is budgeted."""
+    bs = block_sizes(n_arms, block)
+    p1 = (n_arms + 2 * len(bs)) * START_S
+    rr = ((max(bs) + 2) * START_S) if bs else 0
     p2 = (min(pass2_max, n_arms) + 1) * 3 * START_S     # 3 starts per arm, the base included
-    return p1, p2
+    return p1, rr, p2
 
 
-def build_spec(branch, plain_path, arm, registry, src, sl="1/1", plain=None):
+def block_specs(spec, size=BLOCK, seed="0"):
+    """[(block id, spec, arm order)]: the flag arms of a pass-1 spec in blocks of <= size (spec order), each block's arms shuffled (a seeded
+    random order: the same seed gives the same order); every block spec = updated, the block's arms, then abtest's base-late (drift_check)."""
+    names = [a for a in spec["arms"] if a != "updated"]
+    sizes = block_sizes(len(names), size)
+    out, i = [], 0
+    for k, n in enumerate(sizes, 1):
+        part = names[i:i + n]
+        i += n
+        bid = "b%02d" % k
+        random.Random("%s:%s" % (seed, bid)).shuffle(part)
+        arms = {"updated": spec["arms"]["updated"]}
+        arms.update({a: spec["arms"][a] for a in part})
+        note = "%s; block %s of %d: %d arms, random order, base again at the end" % (spec.get("note", ""), bid, len(sizes), n)
+        out.append((bid, {**spec, "arms": arms, "drift_check": True, "note": note.lstrip("; ")}, part))
+    return out
+
+
+def build_spec(branch, plain_path, arm, registry, src, sl="1/1", plain=None, split="priority", only=None, exclude=None, tag=None, block=BLOCK):
+    """only / exclude: arm names (e.g. the arms of an earlier slice's meta): keep only those / leave those out, before the slice is cut.
+    split="even": the slices split the list evenly (no priority-first slice 1)."""
     if plain is None and os.path.exists(plain_path):
         plain = json.load(open(plain_path, encoding="utf-8"))
     items = flags_of(arm, registry, registry.get("untested", {}).get(branch, []), src, plain)
     items.sort(key=lambda it: priority(it[1]))                 # stable: [arm], then [named], then [code], registry order inside each
-    items = take_slice(items, sl, sum(priority(m) < 2 for _, m, _ in items))
+    if only is not None:
+        items = [it for it in items if it[0] in set(only)]
+    if exclude:
+        items = [it for it in items if it[0] not in set(exclude)]
+    items = take_slice(items, sl, 0 if split == "even" else sum(priority(m) < 2 for _, m, _ in items))
     arms = {"updated": arm}
-    meta = {"branch": branch, "slice": sl, "flags": {}, "protected": registry.get("protected", {}),
-            "measured": registry.get("measured", {}).get(branch, {})}
+    meta = {"branch": branch, "slice": tag or sl, "flags": {}, "protected": registry.get("protected", {}),
+            "measured": registry.get("measured", {}).get(branch, {}), "design": "blocked", "block_size": block}
     for name, m, a in items:
         arms[name] = a
         meta["flags"][name] = m
     spec = {"base": plain_path, "drift_check": True, "lossy": True, "prefill": True, "cases": CASES, "reps": 1, "arms": arms,
-            "note": "bench-sweep.sh pass 1 (%s, slice %s): the updated arm, then one arm per flag (minus-X: taken out, plus-X: added); "
-                    "tools/pancake/box_chains/sweep.py" % (branch, sl)}
+            "note": "bench-sweep.sh pass 1 (%s, slice %s): the updated arm, then one arm per flag (minus-X: taken out, plus-X: added), run as "
+                    "blocks of <= %d arms (sweep.py blocks); tools/pancake/box_chains/sweep.py" % (branch, tag or sl, block)}
     return spec, meta
 
 
-def metrics(lines):
-    """{arm: {metric: mean}} from abtest jsonl lines."""
+def records(lines):
+    out = []
+    for ln in lines:
+        ln = ln.strip()
+        if not ln.startswith("{"):
+            continue
+        try:
+            out.append(json.loads(ln))
+        except ValueError:
+            continue
+    return out
+
+
+def metrics(lines, rep=None):
+    """{arm: {metric: mean}} from abtest jsonl lines (rep: only the records of that rep)."""
     acc = {}
     for ln in lines:
         ln = ln.strip()
@@ -178,6 +243,8 @@ def metrics(lines):
         except ValueError:
             continue
         arm = rec.get("arm")
+        if rep is not None and rec.get("rep", 0) != rep:
+            continue
         for r in rec.get("rows") or []:
             c = r.get("case")
             if not arm or c not in CASES:
@@ -210,33 +277,116 @@ def judge(eff, bar):
     return bool(eff) and max(eff.values()) >= bar and min(eff.values()) >= FLOOR
 
 
-def triage(meta, pass1_lines, pass2_lines=None):
-    m1 = metrics(pass1_lines)
+def drift1(lines):
+    """Pass 1 (one block): {case: % of the late base run (base-late) against the early one (updated)}; {} without both."""
+    m = metrics(lines)
+    e, l = m.get("updated", {}), m.get("base-late", {})
+    return {c: round(l[c] / e[c] * 100.0 - 100.0, 2) for c in CASES if e.get(c) and l.get(c)}
+
+
+def drift2(lines):
+    """Pass 2 (confirm, A B B A over the reps): {case: the largest deviation (signed, %) of a later base rep from the first one}; {} with < 2 reps."""
+    reps = sorted({r.get("rep", 0) for r in records(lines) if r.get("arm") == "updated"})
+    if len(reps) < 2:
+        return {}
+    first = metrics(lines, reps[0]).get("updated", {})
+    later = [metrics(lines, k).get("updated", {}) for k in reps[1:]]
+    out = {}
+    for c in CASES:
+        devs = [x[c] / first[c] * 100.0 - 100.0 for x in later if x.get(c) and first.get(c)]
+        if devs:
+            out[c] = round(max(devs, key=abs), 2)
+    return out
+
+
+def clean(d, mx=DRIFT_MAX):
+    """True when the drift is known (base rows on both ends) and no case is beyond mx %."""
+    return bool(d) and max(abs(v) for v in d.values()) <= mx
+
+
+def worst(d):
+    return ("%s %+.1f %%" % max(d.items(), key=lambda kv: abs(kv[1]))) if d else "no base rows on both ends"
+
+
+def _sets(pass1):
+    """[(label, lines)]: the lines of one run (one-run design) or the blocks [(label, lines), ...] (oldest first)."""
+    if pass1 and isinstance(pass1[0], str):
+        return [("p1", pass1)]
+    return list(pass1 or [])
+
+
+def pass2_verdict(rec, f, m2, d2, mx):
+    """(verdict, reason) from the pass-2 rows of this arm, or None without them."""
+    e2 = effects(m2, rec["arm"], f["kind"])
+    rec["pass2"] = e2 or None
+    if not e2:
+        return None
+    if not clean(d2, mx):
+        if rec.get("clean1"):
+            return "RETEST", "promising; pass 2 base drift %s > %.0f %%: not judged" % (worst(d2), mx)
+        return "INCONCLUSIVE", "pass-1 and pass-2 base drift > %.0f %% (pass 2 %s)" % (mx, worst(d2))
+    if judge(e2, KEEP[f["exact"]]):
+        return ("KEEP" if f["exact"] else "RETEST-GATE",
+                "confirmed >= %.0f %%%s (clean pass 2)" % (KEEP[f["exact"]], "" if f["exact"] else " (lossy: a quality gate is due before it ships)"))
+    return "DROP", "not confirmed in pass 2 (bar %.0f %%, floor %.0f %%; clean pass 2)" % (KEEP[f["exact"]], FLOOR)
+
+
+def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX):
+    """pass1: the lines of one run, or [(block label, lines)] of the blocks, oldest first (a block's re-run after its first run: per arm the
+    latest clean run is used, else the latest run)."""
+    sets = [(lab, metrics(ls), drift1(ls)) for lab, ls in _sets(pass1)]
     m2 = metrics(pass2_lines) if pass2_lines is not None else None
+    d2 = drift2(pass2_lines) if pass2_lines is not None else {}
+    ok2 = clean(d2, drift_max) if pass2_lines is not None else None
     flags = {}
     for name, f in meta["flags"].items():
+        have = [(lab, m, d) for lab, m, d in sets if m.get(name)]
+        lab, m1, d1 = ([x for x in have if clean(x[2], drift_max)] or have or [(None, {}, {})])[-1]
         e1 = effects(m1, name, f["kind"])
+        ok1 = clean(d1, drift_max)
         promising = judge(e1, PROMISE[f["exact"]])
-        rec = {**f, "arm": name, "pass1": e1, "promising": promising, "pass2": None}
+        rec = {**f, "arm": name, "pass1": e1, "promising": promising and ok1, "pass2": None, "block": lab, "drift1": d1, "clean1": ok1,
+               "blocks_run": [x[0] for x in have], "pass2_drift": d2 or None, "pass2_clean": ok2}
+        v = pass2_verdict(rec, f, m2, d2, drift_max) if m2 is not None else None
         if not e1:
-            rec["verdict"], rec["reason"] = "UNTESTED", "no pass-1 rows for this arm"
+            v = ("UNTESTED", "no pass-1 rows for this arm")
+        elif v is not None:
+            pass                                    # a pass-2 verdict (RETEST / INCONCLUSIVE when pass 2 drifted)
+        elif not ok1:
+            v = ("INCONCLUSIVE", "pass-1 block %s base drift %s > %.0f %% (after its re-run): no verdict" % (lab, worst(d1), drift_max))
         elif not promising:
-            rec["verdict"], rec["reason"] = "DROP", "low performer in pass 1 (bar %.1f %%, floor %.0f %%)" % (PROMISE[f["exact"]], FLOOR)
-        elif m2 is None:
-            rec["verdict"], rec["reason"] = "RETEST", "promising; pass 2 not run (budget or no rows)"
+            v = ("DROP", "low performer in pass 1 (bar %.1f %%, floor %.0f %%; clean block %s)" % (PROMISE[f["exact"]], FLOOR, lab))
         else:
-            e2 = effects(m2, name, f["kind"])
-            rec["pass2"] = e2
-            if not e2:
-                rec["verdict"], rec["reason"] = "RETEST", "promising; no pass-2 rows for this arm"
-            elif judge(e2, KEEP[f["exact"]]):
-                rec["verdict"] = "KEEP" if f["exact"] else "RETEST-GATE"
-                rec["reason"] = "confirmed >= %.0f %%%s" % (KEEP[f["exact"]], "" if f["exact"] else " (lossy: a quality gate is due before it ships)")
-            else:
-                rec["verdict"], rec["reason"] = "DROP", "not confirmed in pass 2 (bar %.0f %%, floor %.0f %%)" % (KEEP[f["exact"]], FLOOR)
+            v = ("RETEST", "promising; pass 2 not run (budget or no rows)" if m2 is None else "promising; no pass-2 rows for this arm")
+        rec["verdict"], rec["reason"] = v
         flags[f["flag"]] = rec
-    return {"schema": "pancake.sweep-triage/1", "branch": meta["branch"], "slices": [meta["slice"]], "protected": meta.get("protected", {}),
-            "flags": flags}
+    return {"schema": "pancake.sweep-triage/2", "branch": meta["branch"], "slices": [meta["slice"]], "protected": meta.get("protected", {}),
+            "drift_max": drift_max, "flags": flags}
+
+
+def remark(tri, pass1_lines, pass2_lines=None, drift_max=DRIFT_MAX):
+    """The drift guard on a triage file of the one-run design (pass 1 = one abtest run, the base once at the start and once at the end): a
+    verdict from drifted data becomes INCONCLUSIVE; RETEST stays RETEST; a pass-2 verdict stays only when pass 2 was clean.  The old verdict is
+    kept as prior_verdict."""
+    d1 = drift1(pass1_lines or [])
+    d2 = drift2(pass2_lines) if pass2_lines else {}
+    ok1, ok2 = clean(d1, drift_max), clean(d2, drift_max)
+    out = {**tri, "schema": "pancake.sweep-triage/2", "drift_max": drift_max, "remarked": "sweep.py remark (one-run design, drift guard)",
+           "flags": {}}
+    for flag, r in tri["flags"].items():
+        v = r.get("verdict")
+        r = {**r, "prior_verdict": v, "block": "one-run", "drift1": d1, "clean1": ok1, "pass2_drift": d2 or None,
+             "pass2_clean": ok2 if pass2_lines else None}
+        if v in ("RETEST", "UNTESTED", "INCONCLUSIVE"):
+            pass
+        elif r.get("pass2"):
+            if not ok2:
+                r["verdict"], r["reason"] = "INCONCLUSIVE", "was %s: pass 2 base drift %s > %.0f %% (pass 1 %s)" % (v, worst(d2), drift_max, worst(d1))
+        elif not ok1:
+            r["verdict"], r["reason"] = "INCONCLUSIVE", "was %s: pass-1 base drift %s > %.0f %% (one run, ORDER EFFECT)" % (v, worst(d1), drift_max)
+        r["promising"] = bool(r.get("promising")) and ok1
+        out["flags"][flag] = r
+    return out
 
 
 def pass2_spec(spec, tri, max_flags=6):
@@ -252,14 +402,31 @@ def pass2_spec(spec, tri, max_flags=6):
 
 
 def merge(parts):
+    """Oldest first: a later verdict replaces an earlier one, except that INCONCLUSIVE / UNTESTED never replace a decided one (KEEP, DROP,
+    RETEST-GATE, RETEST)."""
     out = None
     for p in parts:
         d = json.load(open(p, encoding="utf-8"))
         if out is None:
-            out = {**d, "flags": {}, "slices": []}
-        out["flags"].update(d["flags"])
+            out = {**d, "flags": {}, "slices": [], "protected": {}}
+        out["protected"].update(d.get("protected", {}))
+        for fl, r in d["flags"].items():
+            old = out["flags"].get(fl)
+            if old is not None and r.get("verdict") in WEAK and old.get("verdict") not in WEAK:
+                continue
+            out["flags"][fl] = r
         out["slices"] += d.get("slices", [])
+    if out is not None:
+        out["schema"] = "pancake.sweep-triage/2"
     return out
+
+
+def read_lines(f):
+    return open(f, encoding="utf-8").read().splitlines() if f and os.path.exists(f) else None
+
+
+def meta_arms(path):
+    return list(json.load(open(path, encoding="utf-8"))["flags"])
 
 
 def main(argv=None):
@@ -278,11 +445,32 @@ def main(argv=None):
     s.add_argument("--pass2-max", type=int, default=6)
     s.add_argument("--drop-env", action="append", default=[])
     s.add_argument("--set-env", action="append", default=[])
+    s.add_argument("--split", choices=["priority", "even"], default="priority")
+    s.add_argument("--only-meta", help="only the arms of this (earlier slice's) meta file")
+    s.add_argument("--exclude-meta", action="append", default=[], help="leave out the arms of this meta file")
+    s.add_argument("--tag", help="the slice name in the meta and the file names (default: --slice)")
+    s.add_argument("--block-size", type=int, default=BLOCK)
+    b = sub.add_parser("blocks")
+    b.add_argument("--spec", required=True)
+    b.add_argument("--prefix", required=True)
+    b.add_argument("--size", type=int, default=BLOCK)
+    b.add_argument("--seed", default="0")
+    d = sub.add_parser("drift")
+    d.add_argument("--rows", required=True)
+    d.add_argument("--pass2", action="store_true")
+    d.add_argument("--max", type=float, default=DRIFT_MAX)
     t = sub.add_parser("triage")
     t.add_argument("--meta", required=True)
-    t.add_argument("--pass1", required=True)
+    t.add_argument("--pass1", required=True, nargs="+", help="one jsonl (one-run design) or the block jsonl files, oldest first")
     t.add_argument("--pass2")
     t.add_argument("--out", required=True)
+    t.add_argument("--drift-max", type=float, default=DRIFT_MAX)
+    r = sub.add_parser("remark")
+    r.add_argument("--triage", required=True)
+    r.add_argument("--pass1", required=True)
+    r.add_argument("--pass2")
+    r.add_argument("--out", required=True)
+    r.add_argument("--drift-max", type=float, default=DRIFT_MAX)
     p = sub.add_parser("pass2")
     p.add_argument("--spec", required=True)
     p.add_argument("--triage", required=True)
@@ -294,6 +482,7 @@ def main(argv=None):
     e = sub.add_parser("estimate")
     e.add_argument("--arms", type=int, required=True)
     e.add_argument("--pass2-max", type=int, default=6)
+    e.add_argument("--block-size", type=int, default=BLOCK)
     a = ap.parse_args(argv)
     if a.cmd == "spec":
         plain = json.load(open(a.plain, encoding="utf-8"))
@@ -306,22 +495,51 @@ def main(argv=None):
             arm = arm_from_configs(plain, upd)
         else:
             raise SystemExit("sweep spec: --arm-from or --updated-config")
-        spec, meta = build_spec(a.branch, a.plain, arm, json.load(open(a.registry, encoding="utf-8")), a.src, a.slice)
+        only = meta_arms(a.only_meta) if a.only_meta else None
+        excl = [x for m in a.exclude_meta for x in meta_arms(m)]
+        spec, meta = build_spec(a.branch, a.plain, arm, json.load(open(a.registry, encoding="utf-8")), a.src, a.slice, split=a.split, only=only,
+                                exclude=excl, tag=a.tag, block=a.block_size)
         json.dump(spec, open(a.out, "w"), indent=1)
         json.dump(meta, open(a.out + ".meta.json", "w"), indent=1)
-        p1, p2 = estimate(len(meta["flags"]), a.pass2_max)
+        n = len(meta["flags"])
+        p1, rr, p2 = estimate(n, a.pass2_max, a.block_size)
         pr = [priority(f) for f in meta["flags"].values()]
-        print("SWEEP %s slice %s: %d flag arms (%d minus, %d plus; %d arm, %d named, %d code) + updated + base-late; estimate pass 1 %d s, pass 2 <= %d s, total <= %d s"
-              % (a.branch, a.slice, len(meta["flags"]), sum(f["kind"] == "minus" for f in meta["flags"].values()),
-                 sum(f["kind"] == "plus" for f in meta["flags"].values()), pr.count(0), pr.count(1), pr.count(2), p1, p2, p1 + p2))
-        print("ESTIMATE %d %d" % (p1, p2))
+        print("SWEEP %s slice %s: %d flag arms (%d minus, %d plus; %d arm, %d named, %d code) in %d blocks of <= %d (%s), each with updated + base-late; "
+              "estimate pass 1 %d s, one block re-run %d s, pass 2 <= %d s, total <= %d s"
+              % (a.branch, a.tag or a.slice, n, sum(f["kind"] == "minus" for f in meta["flags"].values()),
+                 sum(f["kind"] == "plus" for f in meta["flags"].values()), pr.count(0), pr.count(1), pr.count(2), len(block_sizes(n, a.block_size)),
+                 a.block_size, "/".join(map(str, block_sizes(n, a.block_size))), p1, rr, p2, p1 + rr + p2))
+        print("ESTIMATE %d %d %d" % (p1, p2, rr))
+    elif a.cmd == "blocks":
+        spec = json.load(open(a.spec, encoding="utf-8"))
+        for bid, sp, order in block_specs(spec, a.size, a.seed):
+            path = "%s-%s.json" % (a.prefix, bid)
+            json.dump(sp, open(path, "w"), indent=1)
+            print("BLOCK %s %d %s order: %s" % (bid, (len(order) + 2) * START_S, path, " ".join(order)))
+    elif a.cmd == "drift":
+        lines = read_lines(a.rows) or []
+        dd = drift2(lines) if a.pass2 else drift1(lines)
+        ok = clean(dd, a.max)
+        print("DRIFT %s max %s -> %s" % ("  ".join("%s %+.1f%%" % kv for kv in dd.items()) or "no base rows on both ends",
+                                          ("%.1f%%" % max(abs(v) for v in dd.values())) if dd else "-",
+                                          "CLEAN" if ok else ("DRIFT (> %g%%)" % a.max if dd else "UNKNOWN")))
+        return 0 if ok else 4 if dd else 5
     elif a.cmd == "triage":
         meta = json.load(open(a.meta, encoding="utf-8"))
-        rd = lambda f: open(f, encoding="utf-8").read().splitlines() if f and os.path.exists(f) else None
-        tri = triage(meta, rd(a.pass1) or [], rd(a.pass2) if a.pass2 else None)
+        sets = [(os.path.basename(f).rsplit(".", 1)[0], read_lines(f)) for f in a.pass1]
+        sets = [(lab, ls) for lab, ls in sets if ls is not None]
+        tri = triage(meta, sets, read_lines(a.pass2) if a.pass2 else None, a.drift_max)
         json.dump(tri, open(a.out, "w"), indent=1)
-        for fl, r in sorted(tri["flags"].items(), key=lambda kv: kv[1]["verdict"]):
-            print("%-12s %-36s pass1 %s%s" % (r["verdict"], fl, json.dumps(r["pass1"]), "  pass2 " + json.dumps(r["pass2"]) if r["pass2"] else ""))
+        for fl, rc in sorted(tri["flags"].items(), key=lambda kv: kv[1]["verdict"]):
+            print("%-12s %-36s pass1 %s%s  [%s]" % (rc["verdict"], fl, json.dumps(rc["pass1"]), "  pass2 " + json.dumps(rc["pass2"]) if rc["pass2"] else "",
+                                                 rc["reason"]))
+    elif a.cmd == "remark":
+        tri = remark(json.load(open(a.triage, encoding="utf-8")), read_lines(a.pass1) or [], read_lines(a.pass2) if a.pass2 else None, a.drift_max)
+        json.dump(tri, open(a.out, "w"), indent=1)
+        cnt = {}
+        for rc in tri["flags"].values():
+            cnt[rc["verdict"]] = cnt.get(rc["verdict"], 0) + 1
+        print("REMARK %s -> %s: %s" % (a.triage, a.out, ", ".join("%s %d" % kv for kv in sorted(cnt.items()))))
     elif a.cmd == "pass2":
         tri = json.load(open(a.triage, encoding="utf-8"))
         spec2, names = pass2_spec(json.load(open(a.spec, encoding="utf-8")), tri, a.max)
@@ -330,11 +548,12 @@ def main(argv=None):
             return 3
         json.dump(spec2, open(a.out, "w"), indent=1)
         print("PASS2 %d flag(s): %s" % (len(names), ", ".join(names)))
+        print("ESTIMATE2 %d" % ((len(names) + 1) * 3 * START_S))
     elif a.cmd == "merge":
         json.dump(merge(a.parts), open(a.out, "w"), indent=1)
     else:
-        p1, p2 = estimate(a.arms, a.pass2_max)
-        print("ESTIMATE %d %d" % (p1, p2))
+        p1, rr, p2 = estimate(a.arms, a.pass2_max, a.block_size)
+        print("ESTIMATE %d %d %d" % (p1, p2, rr))
     return 0
 
 
