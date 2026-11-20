@@ -5,3 +5,10 @@ rep 0 updated              short 103.5 short 100.2 edit 162.9 edit 176.3 longdec
 rep 0 plus-LM_HIP          short 100.0 short 99.6 edit 162.9 edit 176.2 longdec64k 84.0/2145p 65239t  foreign CPU 7% [('kcompactd0', 17), ('kworker/8:0-mm_percpu_wq', 6), ('kworker/5:0-mm_percpu_wq', 4)]  gpu 1977/1249 MHz 65C 183W gtt 25M cpu 3574MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-LM_HIP: every attempt noisy, keeping the quietest (7% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-MMVQ_IL         short 110.5 short 103.6 edit 167.7 edit 168.8 longdec64k 81.7/2189p 65239t  foreign CPU 4% [('kcompactd0', 8), ('kswapd0', 3), ('claude', 1)]  gpu 2015/1249 MHz 65C 184W gtt 25M cpu 3677MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MMVQ_IL: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 106.0 short 103.0 edit 162.2 edit 182.9 longdec64k 78.5/2173p 65239t  foreign CPU 6% [('kcompactd0', 7), ('kworker/1:1-mm_percpu_wq', 5), ('kswapd0', 3)]  gpu 2043/1249 MHz 66C 184W gtt 25M cpu 3622MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-LFUSE_PAIR      short 105.4 short 107.3 edit 153.9 edit 170.1 longdec64k 83.7/2191p 65239t  foreign CPU 4% [('kcompactd0', 9), ('kswapd0', 3), ('kworker/1:1-events', 1)]  gpu 2048/1249 MHz 66C 182W gtt 25M cpu 3467MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-LFUSE_PAIR: every attempt noisy, keeping the quietest (4% foreign CPU)
