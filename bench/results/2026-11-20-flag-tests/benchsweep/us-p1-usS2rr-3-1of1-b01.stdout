@@ -22,3 +22,10 @@ rep 0 plus-LM_HIP          short 103.6 short 99.9 edit 162.6 edit 176.0 longdec6
 rep 0 plus-LM_HIP: every attempt noisy, keeping the quietest (4% foreign CPU)
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 14.80 143.2 s (0.10 GiB/s; capped; waited 14.8 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 91.8 short 108.1 edit 163.3 edit 156.3 longdec64k 77.6/1504p 65239t  foreign CPU 4% [('kcompactd0', 6), ('kswapd0', 3), ('kworker/1:1-events', 2)]  gpu 1984/1249 MHz 61C 185W gtt 25M cpu 3499MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1504, pack load 0.11 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.45 34.3 s (1.06 GiB/s; stopped; waited 12.0 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 104.1 short 100.3 edit 163.3 edit 175.6 longdec64k 83.0/2181p 65239t  foreign CPU 2% [('kcompactd0', 3), ('localsearch-3', 1), ('kworker/0:1-events', 1)]  gpu 1911/1249 MHz 61C 187W gtt 25M cpu 3685MHz 64C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-m1: first start prefill 1504 / load 0.11 GiB/s (paused 00:50:43), second start prefill 2181 / load 1.07 GiB/s
