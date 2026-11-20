@@ -1,2 +1,5 @@
 case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 110.2 short 103.0 edit 163.0 edit 184.0 longdec64k 78.5/1859p 65240t  foreign CPU 2% [('kcompactd0', 4), ('systemd', 1), ('claude', 1)]  gpu 1962/1249 MHz 63C 190W gtt 25M cpu 3777MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-GR_RDNA        short 77.1 short 85.0 edit 148.0 edit 162.3 longdec64k 53.2/1685p 65240t  foreign CPU 3% [('kcompactd0', 14), ('kworker/10:3-mm_percpu_wq', 1), ('kswapd0', 0)]  gpu 2007/1249 MHz 63C 176W gtt 25M cpu 3688MHz 65C igpu 0%/vcn 0% fclk 1600
