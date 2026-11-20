@@ -6,3 +6,9 @@ rep 0 updated              short 104.3 short 99.6 edit 172.9 edit 178.8 longdec6
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-EXCHANGE_ROTATE short 103.6 short 99.1 edit 162.3 edit 175.7 longdec64k 87.7/2180p 65240t  foreign CPU 5% [('kcompactd0', 18), ('localsearch-3', 1), ('claude', 0)]  gpu 2007/1249 MHz 62C 193W gtt 25M cpu 3474MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-EXCHANGE_ROTATE: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-ROUTE_TAIL_SKIP short 109.8 short 104.0 edit 169.4 edit 168.4 longdec64k 82.6/2169p 65240t  foreign CPU 6% [('kcompactd0', 12), ('kworker/11:0-events', 4), ('kswapd0', 3)]  gpu 2046/1249 MHz 63C 186W gtt 25M cpu 3663MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-ROUTE_TAIL_SKIP: every attempt noisy, keeping the quietest (6% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 97.0 short 99.3 edit 157.7 edit 152.6 longdec64k 76.2/1528p 65240t  foreign CPU 6% [('kcompactd0', 13), ('kworker/1:2-events', 3), ('kworker/1:1-events', 3)]  gpu 2011/1249 MHz 62C 181W gtt 25M cpu 3577MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1528, pack load 0.66 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
