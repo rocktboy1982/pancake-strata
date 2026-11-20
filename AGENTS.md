@@ -20,7 +20,7 @@ Qwen3.6-35B-A3B; see README §8 and `docs/MODELS.md`.
    night results, analyses, plans, design notes or summaries (no `*_REPORT.md`, `NIGHT_RESULTS_*.md`, `pancake-docs/*.md`,
    `docs/*` fork notes). If you are about to write one, put its content into the right one of the three files instead.
 3. **Allowed besides the three:** `AGENTS.md` (these rules), `README.md` (reader-facing summary that points to the three
-   files), specs in `bench/specs/`, raw machine output in `bench/results/<date>-<name>/` and
+   files), `README-PANCAKE.md` (on `updated-strata` and `main` only: the contribution text), specs in `bench/specs/`, raw machine output in `bench/results/<date>-<name>/` and
    `pancake-docs/research/bench/` (files the tools write: jsonl, json, stdout, summaries; no hand-written prose), and code
    comments. Inherited upstream `docs/` stays as upstream has it. One generated view is allowed: `plan.html` (the
    filterable plan board: plan items by status, every test by verdict, the full plan). Never edit it by hand; rebuild it
@@ -63,13 +63,35 @@ Qwen3.6-35B-A3B; see README §8 and `docs/MODELS.md`.
   (inherited).
 - `configs/pancake/` - serving presets; `bench/specs/` + `bench/results/` - A/B specs and evidence.
 - `tools/pancake/` - the measurement suite (A/B, quality gates, night queue, TTFT, profiling).
+- `tools/pancake/box_chains/` - the Linux-box chains and their tools: `sweep.py` (arms, triage, two-run rule),
+  `sweep_candidates.json` (registry: measured / untested / backlog / pruned), `retest_groups.json`, `bench-sweep.sh`
+  (screen and rescreen), `bench-retest.sh` (gates), `bench-final-us.sh` (stock against updated), `bench-sched.sh`
+  (scheduler: freezes the AA shell, runs one chain), `run-queue-us*.sh` (sequencers; the highest number is current),
+  `bench-updatedAA.sh` (first upstream benchmark), `bench-exact.sh`, `bench-diagUS.sh`, `chainT-decide.py` (two-pass
+  decision), older `win-chain*.sh` / `*tail-chain*.sh`. Strata-rdna3 files (`bench-updatedRD.sh`,
+  `bench_updatedRD_conf.py`, `bench-rdgate.sh`, specs 250-252) are history: RD is paused.
+- `tools/pancake/apply_triage.py`, `flag_diag.sh` / `flag_diag.py`, `host_tune*.sh`, `os_tune.sh` - apply per-flag
+  verdicts to the shipped tuned-flags files, per-flag hardware diagnostics, host tuning (read-only checks).
+- Shipped per-hardware flags: `terminal/data/tuned-flags.json` (read by `terminal/strata_control/tuned_flags.py`;
+  applied at start; `STRATA_TUNED_FLAGS=0` or `--no-tuned-flags` turns it off); status page `/status`
+  (`terminal/serve/status_page.py`, `terminal/serve/web/status.html`).
+- On the branches `updated-strata` and `main` the upstream layout applies (`engine/` for the C++ engine, `terminal/`
+  for serve, CLI and web); the paths above (`src/`, `serve/`) are the pancake line's. `README-PANCAKE.md` (branch root,
+  per ported item: what, files, ledger ids, credits) lives on `updated-strata` and `main` only.
 
 ## Branches
 
-`main` is the default/release line. Engine work lives on topic branches (`dev/*`, `work/*`, `feat/*`, for example
-`dev/p17/integration`). New work starts from the base named by the active MOD_PLAN phase (Phase 18 workers branch from
-`port/rdna3-decode` and merge back there), not blindly from `main`. Run `git branch -r` and read `MOD_PLAN.md`
-before assuming a switch or feature exists.
+- `port/rdna3-decode` - OUR WORK LINE (the pancake tree: engine work, specs, raw results in `bench/results/`, the
+  three docs, `plan.html`). New work starts here and merges back here. The name is historical; it is not the
+  Strata-rdna3 repo.
+- `main` (fork rocktboy1982/pancake-strata) = `updated-strata` (upstream Strata v0.2.16 plus our hand-ported commits)
+  plus MOD_PLAN.md, TEST_LEDGER.md, LEADS.md, plan.html, README.md (stock-against-updated comparison) and
+  README-PANCAKE.md. It holds no `bench/results/`: ledger archive paths resolve on `port/rdna3-decode`. Only normal
+  fast-forward commits, never force. The previous main is kept as `main-backup-2026-11-20`.
+- `updated-strata` - the upstream-Strata port (worktree on the PC, push origin). `updated-strata-rdna3` - the
+  Strata-rdna3 port, published and paused. `NetworkPancake` is never deleted.
+- Topic branches (`dev/*`, `work/*`, `feat/*`) as before. Run `git branch -r` and read `MOD_PLAN.md` before assuming a
+  switch or feature exists. The push token has no `workflow` scope: keep `.github/workflows` as on the remote.
 
 ## Build
 
@@ -137,10 +159,11 @@ python -m pytest tests/terminal
   machine, marks noisy runs and repeats them; it refuses to start beside a running engine/server (exit 3).
 - Judge speed changes only by paired A/B, never one run:
   `python tools/pancake/abtest.py SPEC.json --out bench/results/<day>-<name>.jsonl`. Run 1 is warm-up and is
-  discarded; keep the second pass. Screen: promote from 0% up, drop if any case is below -3% (owner rule 2026-11-13); decide at confirm with the bar
-  >= 2% end to end (>= 3% for lossy). Start with `--tier screen`;
-  confirm with `--block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5` (owner, 2026-11-16: 5 reps, not 9;
-  9 reps made the night confirm round 10+ hours).
+  discarded; keep the second pass. Screen and rescreen of single flags follow the FLAG TESTING PROTOCOL below (owner,
+  2026-11-20; it replaces the old rule 'drop if any case is below -3%': that rule dropped flags that had a big gain on
+  one case). Whole-set confirms (stock against shipped set) use the bar >= 2% end to end (>= 3% for lossy), start with
+  `--tier screen`, confirm with `--block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5` (owner, 2026-11-16:
+  5 reps, not 9; 9 reps made the night confirm round 10+ hours).
 - Lossy arms also need `tools/pancake/quality_gate.py` (token forcing); for close variants use
   `tools/pancake/task_gate.py` (KLD/top-1 agreement alone does not predict task score).
 - Before any A/B, run `python tools/pancake/spec_lint.py` against `bench/specs/`: it flags arm `STRATA_*` env keys and
@@ -154,6 +177,65 @@ python -m pytest tests/terminal
   `tools/pancake/test_phase.sh` on a quiet night, not during the day.
 - The tools parse the engine's own log lines (prompt/decode tok/s, park/restore/skip). Do not remove or reword them
   without updating `tools/pancake/`.
+
+## Flag testing protocol (owner, 2026-11-20) - applies to every flag test
+
+Why: on 2026-11-19/20 flags were dropped on one noisy run, on text differences and as part of a bundle (ledger T-1002,
+T-1003). These rules came out of that. Each flag is judged on its own numbers.
+
+1. **Individual, never batches.** One arm per flag (`minus-X` for a flag the preset sets, `plus-X` for an off-by-default
+   one; a flag whose preset value equals the engine default still gets the arm that flips it). A bundle result (whole
+   preset, spec 250 `updated`, a whole-arm gate) never adds or removes a flag; it only triggers per-flag arms.
+2. **Screen = run 1 of every flag**, one rep, cases short, edit and long 64K (prompt and decode). Blocks of at most 8
+   arms: base before, arms, base after; one warm-up start per slice; drift judged on the LAST request of each case of
+   the counted base runs; drift > 5% = one re-run of the block, then INCONCLUSIVE (never DROP or KEEP). The box slows
+   during long runs (memory compaction, `kcompactd`): never judge arms against a base from the other end of a 1.5 h run.
+3. **Classify by per-case effect (gain of having the flag ON):** HIGH = any case >= +2% even if another case is
+   negative (short -1% with long +10% is a big gain on a case); LOW = best case above 0% and below 2%: not retested this
+   round, goes to the backlog file; NEGATIVE = every case <= 0%: an off-by-default flag is NO-GAIN and dropped, a preset
+   flag (having it ON hurts) is rescreened once before anything is removed.
+4. **Rescreen = run 2, only for HIGH (and HURTS preset flags).** Independent (other seed, other block neighbours). The
+   verdict comes from runs 1 and 2 together (effect = mean, spread = difference): KEEP (benefit above 0% in both runs on
+   the carrying case), OPTIONAL (a case >= +10% and a case <= -3% in both runs: opt-in, listed under `optional` in the
+   tuned-flags file, not default), MIXED (gain repeats but a case lost >= 3% in both: nothing ships), RETEST-GATE (lossy,
+   two-run mean >= 3%: quality gate before it ships), DROP (run 2 does not repeat the benefit, or both runs <= 0%),
+   INCONCLUSIVE (drift only). There is no separate 3-rep confirm stage. One run 1 below the bar is never a reason to
+   remove a shipped flag.
+5. **Priority:** highest gain first; low-gain flags wait in the backlog (`us-backlog-low.json`, `us-backlog.json`).
+   Switches that cannot act in this build (hardware this box does not have, aliases) are the only ones never tested;
+   everything else is tested or in the backlog, never judged by reading (rule 8).
+6. **Exactness is not judged by text.** On this model plain Strata against itself gives different text in every run:
+   'text differs' is never UNSUPPORTED. Judge exactness with the bitwise parity ctests; no result if they are 'Not Run'.
+7. **Arms = their flags + ours added, never override.** When benchmarking a project's own default config (stock Strata,
+   Strata-rdna3), the arm starts from that config exactly (all env and args, their values, their sampling); only what
+   they do not set is added. Where our value differs it runs as a separate arm. Substitutions forced by a model file
+   (IQ2_XS instead of IQ3_S, `--mtp-q4 proj` for a small head) are logged as `CONFIG SUBST` with the reason.
+8. **Stock Strata appears only in the final comparison** (5 reps, `--block 3 --warmup 1 --outlier robust
+   --reclaim-max 3`, exact and lossy, short / edit and long 10K / 32K / 64K / 100K, with the quality gate). No stock arm
+   inside flag screens. Strata-rdna3 tests are stopped (owner, 2026-11-20); its branch stays published, paused.
+9. **Gates:** `quality_gate.py` for lossy arms, `task_gate.py` for close variants; a gate that rejects a whole arm does
+   not remove a flag; attribute with per-flag arms. A gate result is 'no measurable loss', not proof: the default task
+   set scores 100% on our base (T-819).
+10. **Save results as they come.** Commit and push the raw rows of every flag block (a loop copies new result files from
+    the box to `bench/results/<date>-flag-tests/` every 5 min and pushes); results also live on the box under
+    `/home/dan/auto-runs/`. Every run still gets a ledger row; large files (> 1.5 MB, engine logs, traces, build logs)
+    stay on the box and the row names their path.
+
+## Box operations (Linux box 192.168.100.82, RX 7900 XT)
+
+- One measured job at a time, everything serialized; no CPU work beside it. Every chain waits until the box is idle
+  (30 s quick idle between steps, 3 min before a chain's first step), stops `pancake.service` only when no client is
+  connected and restarts it at the end, and ends with a DONE marker line.
+- `pancake.service` is never stopped while it serves. Box files are never deleted; scripts are never edited while they
+  run (deploy a new versioned copy: `tmp` file + `mv`). Never edit sudoers or permissions.
+- Start background work with `ssh -n host 'cd dir && setsid -f sh ./script >/dev/null 2>&1 < /dev/null'`: a leftover
+  `bash -c` wrapper whose command line holds a chain name blocks the schedulers' busy checks.
+- A chain must check build exit codes and stop with an `ERROR` line; a failed link must never delete the previous
+  binary (back it up first). The harness python on the box is `Strata-win/.venv/bin/python` (`ABTEST_PYTHON`);
+  `ctest` is `/home/linuxbrew/.linuxbrew/bin/ctest`; builds go outside `/` (`/mnt/pancake`), stop under 2 GB free.
+- The AA chain (`redo-chainAA.sh`) is frozen with SIGSTOP by owner order: only benchmarks run; never resume it without
+  the owner. A running job is stopped only on an owner order.
+- Always check processes (CPU, memory, load), not only the log, when reporting status.
 
 ## Switches, presets and credits
 
