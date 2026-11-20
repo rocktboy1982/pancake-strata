@@ -60,3 +60,51 @@ PREREAD native_experts.txt 0.00 0.0 s: skipped, 100% of 0.00 GiB already cached
 PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.53 13.1 s (2.78 GiB/s; was 43% cached)
 PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf 0.00 0.0 s: skipped, 26.82 GiB would take the planned 64.8 GiB over the 46.2 GiB the page cache can hold
   WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.4 short 103.2 edit 169.7 edit 168.9 longdec64k 83.6/2184p 65239t  foreign CPU 2% [('kcompactd0', 3), ('localsearch-3', 1), ('claude', 0)]  gpu 2010/1249 MHz 64C 183W gtt 25M cpu 3664MHz 65C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 106.6 +-  48.3  (n=2)
+                              drafts accepted 0.71
+  short  plus-EMB_REUSE_ACCOUNT     95.4 +-  21.6  (n=2)   vs updated: -10.5% +- 25.0%  -> no difference
+                              drafts accepted 0.67
+  short  plus-GDN_TC              90.2 +-  89.6  (n=2)   vs updated: -15.4% +- 38.8%  -> no difference
+                              drafts accepted 0.65
+  short  base-m1                 106.9 +-  44.5  (n=2)   vs updated:  +0.3% +-  3.6%  -> no difference
+                              drafts accepted 0.71
+  short  plus-EMBED_VRAM         101.2 +-  19.1  (n=2)   vs updated:  -5.1% +- 63.2%  -> no difference
+                              drafts accepted 0.66
+  short  base-late               106.8 +-  45.8  (n=2)   vs updated:  +0.2% +-  2.4%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 175.1 +- 106.8  (n=2)
+                              drafts accepted 0.91
+  edit   plus-EMB_REUSE_ACCOUNT    115.9 +- 214.8  (n=2)   vs updated: -33.8% +- 183.6%  -> no difference
+                              drafts accepted 0.92
+  edit   plus-GDN_TC             144.7 +- 298.7  (n=2)   vs updated: -17.4% +- 109.6%  -> no difference
+                              drafts accepted 0.87
+  edit   base-m1                 168.8 +-   9.5  (n=2)   vs updated:  -3.6% +- 66.4%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-EMBED_VRAM         166.4 +-  38.8  (n=2)   vs updated:  -5.0% +- 38.8%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               169.3 +-   5.1  (n=2)   vs updated:  -3.3% +- 63.9%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  81.3 +-   nan  (n=1)
+  longdec64k plus-EMB_REUSE_ACCOUNT     78.0 +-   nan  (n=1)   vs updated:  -4.1% +-  nan%  -> no difference
+  longdec64k plus-GDN_TC              63.1 +-   nan  (n=1)   vs updated: -22.4% +-  nan%  -> no difference
+  longdec64k base-m1                  86.7 +-   nan  (n=1)   vs updated:  +6.6% +-  nan%  -> no difference
+  longdec64k plus-EMBED_VRAM          78.8 +-   nan  (n=1)   vs updated:  -3.1% +-  nan%  -> no difference
+  longdec64k base-late                83.6 +-   nan  (n=1)   vs updated:  +2.8% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-EMB_REUSE_ACCOUNT DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-GDN_TC          DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-EMBED_VRAM      DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.2%  edit -3.3%  longdec64k +2.8%
+  plus-EMB_REUSE_ACCOUNT short -10.6%  edit -32.7%  longdec64k -5.4%  -> drop
+  plus-GDN_TC          short -15.5%  edit -16.0%  longdec64k -23.5%  -> drop
+  base-m1              short +0.2%  edit -2.0%  longdec64k +5.2%  -> PROMOTE to confirm
+  plus-EMBED_VRAM      short -5.2%  edit -3.4%  longdec64k -4.4%  -> drop

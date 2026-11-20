@@ -1,0 +1,17 @@
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+PREREAD conversions.json 0.00 0.0 s (0.00 GiB/s; was 0% cached)
+PREREAD dense.bin 1.43 0.9 s (1.60 GiB/s; was 17% cached)
+PREREAD index.txt 0.00 0.0 s: skipped, 100% of 0.00 GiB already cached
+PREREAD native_experts.txt 0.00 0.0 s (0.02 GiB/s; was 0% cached)
+PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.53 17.6 s (2.08 GiB/s; was 44% cached)
+PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf 0.00 0.0 s: skipped, 26.82 GiB would take the planned 64.8 GiB over the 46.2 GiB the page cache can hold
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 110.8 short 103.7 edit 169.7 edit 169.0 longdec64k 83.5/2186p 65241t  foreign CPU 2% [('kcompactd0', 2), ('claude', 1), ('localsearch-3', 1)]  gpu 2007/1249 MHz 63C 184W gtt 25M cpu 3631MHz 65C igpu 0%/vcn 0% fclk 1600
+PREREAD conversions.json 0.00 0.0 s (0.01 GiB/s; was 0% cached)
+PREREAD dense.bin 1.43 0.8 s (1.86 GiB/s; was 0% cached)
+PREREAD index.txt 0.00 0.0 s (0.16 GiB/s; was 0% cached)
+PREREAD native_experts.txt 0.00 0.0 s (0.02 GiB/s; was 0% cached)
+PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.53 12.4 s (2.94 GiB/s; was 46% cached)
+PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf 0.00 0.0 s: skipped, 26.82 GiB would take the planned 64.8 GiB over the 46.2 GiB the page cache can hold
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
