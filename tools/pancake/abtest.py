@@ -483,6 +483,8 @@ def stop_servers(wait=120):
     OWN.clear()
     while time.time() - t0 < wait and any(running(pid) for pid in below):
         time.sleep(2)
+    if servers:
+        diag_at_stop()   # T-1006: the run's length for the settle and the next STARTDIAG
     for pid in sorted(x for x in below if running(x)):
         print(f"  WARNING: engine pid {pid} of this abtest's server still running {wait} s after it", flush=True)
 
@@ -895,11 +897,146 @@ def start_prefetch(cfg_path, srv_pid, say=None):
         return None, None
 
 
+# ---- T-1006: settle after a long run + one STARTDIAG / STARTLOAD line pair per engine start (reads of /proc and /sys only, nothing here may stop a test)
+SETTLE_RUN_S = 130.0   # ABTEST_SETTLE_RUN_S: a previous engine run (start to stop) of at least this long (the runs that hold the 64K long-decode case) triggers the settle
+DIAG = {"start": None, "stop": None, "run_s": None, "snap": None}   # time of the last engine start / stop, the run's length, the diag snapshot taken at that start
+_LOADED = re.compile(r"loaded ([0-9.]+) GiB at ([0-9.]+) GiB/s")
+
+
+def settle_after_long(say=print, sleep=time.sleep, env=None):
+    """ABTEST_SETTLE_AFTER_LONG_S (default 0 = off): when the previous engine run of this process lasted >= ABTEST_SETTLE_RUN_S (130) s, idle this many seconds
+    BEFORE the next engine start (called before the pre-read and the quiet gate; no process of ours runs: stop_servers() has ended the engine, the prefetch
+    thread is joined).  Logs `SETTLE <s> after a <run> s run`.  Returns the seconds waited (0: nothing)."""
+    try:
+        env = os.environ if env is None else env
+        s = float(env.get("ABTEST_SETTLE_AFTER_LONG_S", "0") or 0)
+        run = DIAG["run_s"]
+        if s <= 0 or run is None or run < float(env.get("ABTEST_SETTLE_RUN_S", str(SETTLE_RUN_S))):
+            return 0.0
+        say(f"SETTLE {s:g} after a {run:.0f} s run")
+        sleep(s)
+        return s
+    except (ValueError, TypeError, OSError):
+        return 0.0
+
+
+def _kv(path, keys):
+    out = {}
+    with open(path) as f:
+        for line in f:
+            p = line.split()
+            if len(p) > 1 and p[0].rstrip(":") in keys:
+                out[p[0].rstrip(":")] = int(p[1])
+    return out
+
+
+def diag_snapshot(proc="/proc", sysd="/sys", dev="nvme0n1"):
+    """The numbers of one STARTDIAG line, each None when unreadable: nvme sectors read / written and io_ticks (ms) from diskstats, meminfo Cached /
+    Mlocked / MemAvailable (kB), the nvme hwmon temperature (C), compact_stall from vmstat.  Reads of /proc and /sys only."""
+    d = {"rd": None, "wr": None, "io": None, "cached": None, "mlocked": None, "avail": None, "temp": None, "stall": None}
+    try:
+        for line in Path(f"{proc}/diskstats").read_text().splitlines():
+            p = line.split()
+            if len(p) > 12 and p[2] == dev:
+                d["rd"], d["wr"], d["io"] = int(p[5]), int(p[9]), int(p[12])
+    except (OSError, ValueError):
+        pass
+    try:
+        m = _kv(f"{proc}/meminfo", ("Cached", "Mlocked", "MemAvailable"))
+        d["cached"], d["mlocked"], d["avail"] = m.get("Cached"), m.get("Mlocked"), m.get("MemAvailable")
+    except (OSError, ValueError):
+        pass
+    try:
+        d["stall"] = _kv(f"{proc}/vmstat", ("compact_stall",)).get("compact_stall")
+    except (OSError, ValueError):
+        pass
+    try:
+        cands = sorted(Path(sysd).glob("class/nvme/nvme0/hwmon*/temp1_input")) or sorted(Path(sysd).glob("class/hwmon/hwmon*/temp1_input"))
+        for c in cands:
+            if "nvme" in str(c) or "nvme" in c.parent.joinpath("name").read_text().strip():
+                d["temp"] = int(c.read_text()) / 1000.0
+                break
+    except (OSError, ValueError):
+        pass
+    return d
+
+
+def startdiag_line(snap, prev, prev_run_s, gap_s, now):
+    """`STARTDIAG <ts> prev_run_s=.. gap_s=.. rd_sect=.. wr_sect=.. io_ticks_ms=.. d_rd_sect=.. d_wr_sect=.. d_io_ticks_ms=.. cached_kb=.. mlocked_kb=..
+    memavail_kb=.. nvme_temp_c=.. compact_stall_d=..` (deltas since the previous engine start of this process; NA where unknown)."""
+    def f(v, fmt="{}"):
+        return "NA" if v is None else fmt.format(v)
+
+    def dl(k):
+        return None if snap.get(k) is None or not prev or prev.get(k) is None else snap[k] - prev[k]
+    return (f"STARTDIAG {time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(now))} prev_run_s={f(prev_run_s, '{:.0f}')} gap_s={f(gap_s, '{:.0f}')} "
+            f"rd_sect={f(snap['rd'])} wr_sect={f(snap['wr'])} io_ticks_ms={f(snap['io'])} d_rd_sect={f(dl('rd'))} d_wr_sect={f(dl('wr'))} "
+            f"d_io_ticks_ms={f(dl('io'))} cached_kb={f(snap['cached'])} mlocked_kb={f(snap['mlocked'])} memavail_kb={f(snap['avail'])} "
+            f"nvme_temp_c={f(snap['temp'], '{:.0f}')} compact_stall_d={f(dl('stall'))}")
+
+
+def startload_line(text, now):
+    """`STARTLOAD <ts> loaded X GiB at Y GiB/s rate=Y` from the last 'loaded X GiB at Y GiB/s' of `text` (NA when there is none)."""
+    m = _LOADED.findall(text or "")
+    body = f"loaded {m[-1][0]} GiB at {m[-1][1]} GiB/s rate={m[-1][1]}" if m else "loaded NA GiB at NA GiB/s rate=NA"
+    return f"STARTLOAD {time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(now))} {body}"
+
+
+def diag_at_start(say=print, now=time.time, snapshot=diag_snapshot):
+    """Called right before an engine starts: prints the STARTDIAG line and records this start.  Never raises."""
+    try:
+        t = now()
+        snap = snapshot()
+        gap = None if DIAG["start"] is None else t - DIAG["start"]
+        say(startdiag_line(snap, DIAG["snap"], DIAG["run_s"], gap, t))
+        DIAG.update(start=t, stop=None, snap=snap)
+    except Exception as e:   # noqa: BLE001 - the diag never stops a test
+        try:
+            say(f"STARTDIAG failed ({type(e).__name__}): carrying on")
+        except Exception:   # noqa: BLE001
+            pass
+
+
+def diag_at_stop(now=time.time):
+    """Called when stop_servers() ended at least one server: the length of the run that just ended (start to stop).  Never raises."""
+    try:
+        if DIAG["start"] is not None and DIAG["stop"] is None:
+            DIAG["stop"] = now()
+            DIAG["run_s"] = DIAG["stop"] - DIAG["start"]
+    except Exception:   # noqa: BLE001
+        pass
+
+
+def diag_load(log_out, cfg_path, log_size, say=print, now=time.time):
+    """Called when the engine is ready: the STARTLOAD line from the server's output, else from what the engine log gained since `log_size`."""
+    try:
+        text = Path(log_out).read_text(errors="replace")
+        if not _LOADED.search(text):
+            try:
+                log = json.loads(Path(cfg_path).read_text()).get("log")
+                with open(log, "rb") as fh:
+                    fh.seek(log_size or 0)
+                    text = fh.read().decode("utf-8", "replace")
+            except (OSError, ValueError, TypeError):
+                pass
+        say(startload_line(text, now()))
+    except Exception as e:   # noqa: BLE001 - the diag never stops a test
+        try:
+            say(f"STARTLOAD failed ({type(e).__name__}): carrying on")
+        except Exception:   # noqa: BLE001
+            pass
+
+
 def start_server(cfg_path, log_out, port, ready_wait=900):
     """Starts the engine server for a config and waits for its "ready: http" line.  Returns (process, None), or
     (None, "server died before ready" / "server not ready ...") - the caller stops the servers."""
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
     preread_for_config(cfg_path, once=True)   # T-1006: a no-op when the caller did it already, or ABTEST_PREREAD is off
+    try:
+        log_size = os.path.getsize(json.loads(Path(cfg_path).read_text()).get("log"))   # STARTLOAD: the engine log is appended to
+    except (OSError, ValueError, TypeError):
+        log_size = 0
+    diag_at_start(lambda s: print(s, flush=True))   # T-1006: STARTDIAG, one line per engine start
     with open(log_out, "w") as lf:
         srv = subprocess.Popen([str(ROOT / "tools/pancake/capped.sh"), PY, "serve/server.py", "--engine", "strata", "--config",
                                 cfg_path, "--port", str(port)], cwd=ROOT, stdout=lf, stderr=subprocess.STDOUT, env=env)
@@ -911,6 +1048,7 @@ def start_server(cfg_path, log_out, port, ready_wait=900):
         while time.time() - t0 < ready_wait:
             txt = Path(log_out).read_text(errors="replace")
             if "ready: http" in txt:
+                diag_load(log_out, cfg_path, log_size, lambda s: print(s, flush=True))   # T-1006: STARTLOAD, the load rate of this start
                 return srv, None
             if srv.poll() is not None or "EngineDied" in txt:
                 return None, "server died before ready"
@@ -1491,6 +1629,7 @@ def main():
         for attempt in range(next_attempt(r, arm), a.retries + 1 + (1 if regime_arm else 0)):
             cfg_path = str(work / f"{arm}.json")
             cfg = make_config(base, spec["arms"][arm], cfg_path)
+            settle_after_long(lambda s: print(s, flush=True))   # T-1006: ABTEST_SETTLE_AFTER_LONG_S, idle before anything of ours runs
             preread_for_config(cfg)   # T-1006: BEFORE the quiet gate, so its CPU / IO is not sampled as foreign noise
             quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)
             ROT[1] = r

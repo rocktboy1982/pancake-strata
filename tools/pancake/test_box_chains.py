@@ -4016,6 +4016,155 @@ def test_run_queue_us12_waits_for_the_usS2r3_rescreen_exports_prefetch_mode_2_an
     assert subprocess.run([SH, "-n", str(CHAINS / "run-queue-us12.sh")]).returncode == 0 and b"\x01" not in (CHAINS / "run-queue-us12.sh").read_bytes()
 
 
+def test_abtest_settle_after_long_run_idles_only_after_a_run_of_130_s_and_only_when_set():
+    ab = _abtest_mod()
+    said, slept = [], []
+    old = dict(ab.DIAG)
+    try:
+        ab.DIAG.update(run_s=215.4)
+        assert ab.settle_after_long(said.append, slept.append, env={}) == 0.0 and slept == []                        # default 0: off everywhere
+        assert ab.settle_after_long(said.append, slept.append, env={"ABTEST_SETTLE_AFTER_LONG_S": "0"}) == 0.0
+        assert ab.settle_after_long(said.append, slept.append, env={"ABTEST_SETTLE_AFTER_LONG_S": "120"}) == 120.0
+        assert slept == [120.0] and said == ["SETTLE 120 after a 215 s run"]
+        ab.DIAG.update(run_s=129.9)
+        assert ab.settle_after_long(said.append, slept.append, env={"ABTEST_SETTLE_AFTER_LONG_S": "120"}) == 0.0     # a short run: no settle
+        ab.DIAG.update(run_s=130.0)
+        assert ab.settle_after_long(said.append, slept.append, env={"ABTEST_SETTLE_AFTER_LONG_S": "60"}) == 60.0     # exactly 130 s counts
+        ab.DIAG.update(run_s=None)
+        assert ab.settle_after_long(said.append, slept.append, env={"ABTEST_SETTLE_AFTER_LONG_S": "120"}) == 0.0     # no previous run
+        assert ab.settle_after_long(said.append, slept.append, env={"ABTEST_SETTLE_AFTER_LONG_S": "x"}) == 0.0       # a bad value never stops a test
+        assert slept == [120.0, 60.0]
+    finally:
+        ab.DIAG.update(old)
+    text = (HERE / "abtest.py").read_text()
+    assert text.index("settle_after_long(lambda s: print(s, flush=True))") < text.index("preread_for_config(cfg)   # T-1006") \
+        < text.index("quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)\n            ROT[1] = r")                 # before the pre-read and the quiet gate
+
+
+def _fake_proc(root, rd=1000, wr=500, io=70, cached=2000, mlocked=300, avail=4000, stall=10, temp=41000):
+    (root / "proc").mkdir(exist_ok=True)
+    (root / "proc/diskstats").write_text(f"   8  0 sda 1 0 9 0 1 0 9 0 0 5 5\n 259  0 nvme0n1 11 0 {rd} 5 22 0 {wr} 6 0 {io} 9\n")
+    (root / "proc/meminfo").write_text(f"MemTotal: 60000 kB\nMemAvailable:   {avail} kB\nCached:   {cached} kB\nMlocked:  {mlocked} kB\n")
+    (root / "proc/vmstat").write_text(f"nr_free_pages 1\ncompact_stall {stall}\ncompact_fail 0\n")
+    h = root / "sys/class/nvme/nvme0/hwmon3"
+    h.mkdir(parents=True, exist_ok=True)
+    (h / "temp1_input").write_text(f"{temp}\n")
+    return str(root / "proc"), str(root / "sys")
+
+
+def test_abtest_startdiag_reads_proc_and_sys_prints_deltas_and_never_stops_a_test(tmp_path):
+    ab = _abtest_mod()
+    proc, sysd = _fake_proc(tmp_path)
+    s1 = ab.diag_snapshot(proc, sysd)
+    assert s1 == {"rd": 1000, "wr": 500, "io": 70, "cached": 2000, "mlocked": 300, "avail": 4000, "temp": 41.0, "stall": 10}
+    proc, sysd = _fake_proc(tmp_path, rd=1600, wr=530, io=95, stall=14, temp=43000)
+    s2 = ab.diag_snapshot(proc, sysd)
+    line = ab.startdiag_line(s2, s1, 215.0, 247.0, 0)
+    assert line.startswith("STARTDIAG 19") and " prev_run_s=215 gap_s=247 rd_sect=1600 wr_sect=530 io_ticks_ms=95 d_rd_sect=600 d_wr_sect=30 d_io_ticks_ms=25 " in line
+    assert line.endswith("cached_kb=2000 mlocked_kb=300 memavail_kb=4000 nvme_temp_c=43 compact_stall_d=4")
+    first = ab.startdiag_line(s1, None, None, None, 0)                                                              # the first start: no previous
+    assert "prev_run_s=NA gap_s=NA" in first and "d_rd_sect=NA" in first and first.endswith("compact_stall_d=NA")
+    empty = ab.diag_snapshot(str(tmp_path / "nothing"), str(tmp_path / "nothing"))                                  # nothing readable: all None
+    assert set(empty.values()) == {None} and "rd_sect=NA" in ab.startdiag_line(empty, None, None, None, 0)
+    # sequencing with a fake clock: gap = start to start, prev_run_s = start to stop of the run in between, the delta against the previous start
+    old = dict(ab.DIAG)
+    try:
+        ab.DIAG.update(start=None, stop=None, run_s=None, snap=None)
+        clock, said, snaps = [1000.0], [], [s1, s2]
+        ab.diag_at_start(said.append, lambda: clock[0], lambda: snaps.pop(0))
+        clock[0] = 1200.0
+        ab.diag_at_stop(lambda: clock[0])
+        ab.diag_at_stop(lambda: 9999.0)                                                                             # a second stop is not a second run
+        assert ab.DIAG["run_s"] == 200.0
+        clock[0] = 1230.0
+        ab.diag_at_start(said.append, lambda: clock[0], lambda: snaps.pop(0))
+        assert "prev_run_s=NA gap_s=NA" in said[0] and " prev_run_s=200 gap_s=230 " in said[1] and "d_rd_sect=600" in said[1] and "compact_stall_d=4" in said[1]
+        ab.diag_at_start(said.append, lambda: clock[0], lambda: 1 / 0)                                              # a failing diag: a note, no exception
+        assert said[-1].startswith("STARTDIAG failed")
+        ab.diag_at_start(lambda s: 1 / 0, lambda: clock[0], lambda: s1)                                             # even a failing print
+    finally:
+        ab.DIAG.update(old)
+    # STARTLOAD: the rate of the last 'loaded X GiB at Y GiB/s'; NA without one; the engine log is the fallback
+    assert ab.startload_line("x\nstrata generate: loaded 33.02 GiB at 0.41 GiB/s\n", 0).endswith("loaded 33.02 GiB at 0.41 GiB/s rate=0.41")
+    assert ab.startload_line("nothing", 0).endswith("rate=NA")
+    out = tmp_path / "srv.out"
+    out.write_text("ready: http\n")
+    elog = tmp_path / "engine.log"
+    elog.write_text("old\nloaded 1.00 GiB at 9.00 GiB/s\n")
+    cfg = tmp_path / "cfg.json"
+    cfg.write_text(json.dumps({"log": str(elog)}))
+    size = elog.stat().st_size
+    with open(elog, "a") as fh:
+        fh.write("strata generate: loaded 33.80 GiB at 1.25 GiB/s\n")
+    said = []
+    ab.diag_load(str(out), str(cfg), size, said.append)
+    assert said[0].startswith("STARTLOAD ") and said[0].endswith("loaded 33.80 GiB at 1.25 GiB/s rate=1.25")      # only what this start added
+    ab.diag_load(str(tmp_path / "missing.out"), str(cfg), size, said.append)
+    assert said[1].startswith("STARTLOAD failed")
+    text = (HERE / "abtest.py").read_text()
+    body = text[text.index("def start_server"):text.index("def token_check")]
+    assert body.index("diag_at_start(") < body.index("subprocess.Popen") and body.index("diag_load(") > body.index("\"ready: http\" in txt")
+    stop = text[text.index("def stop_servers"):text.index("SAMPLING = ")]
+    assert "diag_at_stop()" in stop
+    diag = text[text.index("def diag_snapshot"):text.index("def startdiag_line")]
+    assert "subprocess" not in diag and "sudo" not in diag and "abtest.py" not in diag                              # reads of /proc and /sys only
+
+
+def _report_mod():
+    spec = importlib.util.spec_from_file_location("startdiag_report_t", CHAINS / "startdiag_report.py")
+    m = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(m)
+    return m
+
+
+def test_startdiag_report_groups_slow_share_by_gap_bucket_and_settle_and_correlates_the_diag(tmp_path):
+    rp = _report_mod()
+
+    def start(gap, rate, rd, run="100"):
+        g = "NA" if gap is None else str(gap)
+        return (f"STARTDIAG 2026-11-21T01:00:00 prev_run_s={run} gap_s={g} rd_sect=1 wr_sect=2 io_ticks_ms=3 d_rd_sect={rd} d_wr_sect=0 d_io_ticks_ms=5 "
+                f"cached_kb=10 mlocked_kb=20 memavail_kb=30 nvme_temp_c=40 compact_stall_d=0\n"
+                f"STARTLOAD 2026-11-21T01:01:00 loaded 33.0 GiB at {rate} GiB/s rate={rate}\n")
+    a = (start(None, 1.2, "NA") + start(100, 1.2, 10) + start(100, 0.4, 90) + start(150, 0.5, 80, "200") + start(150, 0.3, 70, "200")
+         + "SETTLE 120 after a 200 s run\n" + start(150, 1.1, 20, "200") + start(250, 1.3, 5, "120") + "STARTDIAG broken line\n")
+    (tmp_path / "x.out").write_text(a)
+    (tmp_path / "y.log").write_text(start(100, 1.0, 12))
+    (tmp_path / "skip.txt").write_text(start(100, 0.1, 99))                                                         # only *.out / *.log of a directory
+    starts = []
+    for f in rp.files_of([str(tmp_path)]):
+        starts += rp.parse_text(Path(f).read_text(), f)
+    assert len(starts) == 9 and sum(1 for s in starts if s["rate"] is None) == 1
+    rated = [s for s in starts if s["rate"] is not None]
+    assert [s["settle"] for s in rated].count(True) == 1 and rp.bucket_of(None).startswith("first") and rp.bucket_of(129.9) == "gap < 130 s" \
+        and rp.bucket_of(130) == "gap 130-199 s" and rp.bucket_of(199) == "gap 130-199 s" and rp.bucket_of(200) == "gap >= 200 s"
+    assert rp.share([s for s in rated if rp.bucket_of(s.get("gap_s")) == "gap 130-199 s"], 0.8) == (3, 2)
+    out = []
+    rp.report(starts, 0.8, 20, out.append)
+    text = "\n".join(out)
+    assert "   2 of    3 slow ( 66.7%)" in text and "SETTLE on" in text and "settle on  " in text and "n < 20: not conclusive" in text
+    r = rp.pearson([10, 90, 80, 70, 20, 5, 12], [1.2, 0.4, 0.5, 0.3, 1.1, 1.3, 1.0])
+    assert r is not None and r < -0.9 and "d_rd_sect" in text and f"{r:.2f}" in text
+    assert rp.pearson([1, 1, 1], [1, 2, 3]) is None and rp.pearson([1], [1]) is None
+    assert subprocess.run([sys.executable, str(CHAINS / "startdiag_report.py"), str(tmp_path / "x.out")], capture_output=True, text=True).returncode == 0
+
+
+def test_run_queue_us13_waits_for_the_slice2_rerun_exports_settle_and_prefetch_and_keeps_the_order():
+    t = (CHAINS / "run-queue-us13.sh").read_text()
+    head = t.split("# ---- the interleaved steps")[0].split("\n", 12)[-1]
+    assert "export ABTEST_SETTLE_AFTER_LONG_S=${ABTEST_SETTLE_AFTER_LONG_S:-120}" in t and "export ABTEST_PREREAD=${ABTEST_PREREAD:-2}" in t
+    assert "run-queue-us13.log" in t and "us12.log" not in head and ": ${SWEEP_HARNESS_SHA:?" in t
+    tail = t[t.index("# ---- us13"):]
+    assert "\nrescreen usS2rr-3 " not in tail and "\nrerun1 2" not in tail and "\ncycle 2\n" not in tail and "\nrescreen usS2r-3 " not in tail   # steps us12 did / is doing
+    assert tail.index("\nwhile pgrep") < tail.index("\ncheck bench-sweep.log WINBENCHSWEEP_DONE \"screen usS1-2of5x\"") < tail.index("\nrescreen usS2r-2 ") \
+        < tail.index("\nrescreen usS2rr-2 ") < tail.index("\nfor k in 4 5; do") < tail.index("\ngates\n") < tail.index("\nfinal final")
+    assert tail.count("final final") == 1 and "QUEUE_US13_DONE" in t and t.count("\nfinal final") == 1
+    # the same definitions and settings as us12 (only the log name, the settle export and the tail differ)
+    old = (CHAINS / "run-queue-us12.sh").read_text()
+    for lo, hi in (("export SWEEP_HARNESS_SHA", "n=0\n"), ("check() {", "# ---- us1")):
+        assert t[t.index(lo):t.index(hi)] == old[old.index(lo):old.index(hi)]
+    assert subprocess.run([SH, "-n", str(CHAINS / "run-queue-us13.sh")]).returncode == 0 and b"\x01" not in (CHAINS / "run-queue-us13.sh").read_bytes()
+
+
 def test_sweep_minus_arm_of_a_flag_whose_default_equals_the_preset_sets_the_opposite_and_an_inert_one_is_left_out():
     mod, reg = sweep_mod(), sweep_registry()
     arm = json.loads((SPECS / "220-updated-vs-upstream-short.json").read_text())["arms"]["updated"]
