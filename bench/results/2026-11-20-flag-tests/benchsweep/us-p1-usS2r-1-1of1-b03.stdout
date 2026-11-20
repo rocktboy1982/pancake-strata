@@ -20,3 +20,60 @@ rep 0 minus-HC_UPMIX       short 102.8 short 96.6 edit 122.5 edit 139.5 longdec6
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-late            short 80.2 short 82.3 edit 173.7 edit 182.7 longdec64k 79.3/1539p 65240t  foreign CPU 2% [('kcompactd0', 7), ('kswapd0', 3), ('migration/4', 0)]  gpu 1997/1249 MHz 63C 181W gtt 25M cpu 3775MHz 65C igpu 0%/vcn 0% fclk 1600
 REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1539, pack load 0.47 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 111.1 short 103.9 edit 169.3 edit 168.9 longdec64k 85.4/2185p 65240t  foreign CPU 2% [('kcompactd0', 2), ('localsearch-3', 1), ('kworker/u65:14-KFD IH', 1)]  gpu 2003/1249 MHz 62C 182W gtt 25M cpu 3759MHz 66C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 1539 / load 0.47 GiB/s (paused 17:35:57), second start prefill 2185 / load 1.29 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.0 +-  43.8  (n=2)
+                              drafts accepted 0.71
+  short  minus-PF_GEMM           100.2 +-   8.3  (n=2)   vs updated:  -6.4% +- 48.7%  -> no difference
+                              drafts accepted 0.69
+  short  minus-PF_HCDOWN          83.4 +-  34.3  (n=2)   vs updated: -22.1% +-  8.9%  -> worse
+                              drafts accepted 0.70
+  short  base-m1                 107.0 +-  45.1  (n=2)   vs updated:  +0.0% +-  1.2%  -> no difference
+                              drafts accepted 0.71
+  short  minus-PF_PAD            107.1 +-  45.8  (n=2)   vs updated:  +0.0% +-  1.8%  -> no difference
+                              drafts accepted 0.71
+  short  minus-HC_UPMIX           99.7 +-  39.4  (n=2)   vs updated:  -6.9% +-  4.2%  -> worse
+                              drafts accepted 0.70
+  short  base-late                81.2 +-  13.3  (n=2)   vs updated: -24.1% +- 53.4%  -> no difference
+                              drafts accepted 0.66
+  edit   updated                 169.1 +-   2.5  (n=2)
+                              drafts accepted 0.90
+  edit   minus-PF_GEMM           149.8 +- 395.9  (n=2)   vs updated: -11.4% +- 235.6%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-PF_HCDOWN         142.2 +- 360.3  (n=2)   vs updated: -15.9% +- 214.6%  -> no difference
+                              drafts accepted 0.86
+  edit   base-m1                 169.4 +-   4.4  (n=2)   vs updated:  +0.2% +-  1.1%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-PF_PAD            141.2 +- 336.2  (n=2)   vs updated: -16.5% +- 197.3%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-HC_UPMIX          131.0 +- 108.0  (n=2)   vs updated: -22.5% +- 65.4%  -> no difference
+                              drafts accepted 0.86
+  edit   base-late               178.2 +-  57.2  (n=2)   vs updated:  +5.4% +- 35.3%  -> no difference
+                              drafts accepted 0.92
+  longdec64k updated                  84.9 +-   nan  (n=1)
+  longdec64k minus-PF_GEMM            79.6 +-   nan  (n=1)   vs updated:  -6.2% +-  nan%  -> no difference
+  longdec64k minus-PF_HCDOWN          77.3 +-   nan  (n=1)   vs updated:  -9.0% +-  nan%  -> no difference
+  longdec64k base-m1                  85.5 +-   nan  (n=1)   vs updated:  +0.7% +-  nan%  -> no difference
+  longdec64k minus-PF_PAD             74.1 +-   nan  (n=1)   vs updated: -12.7% +-  nan%  -> no difference
+  longdec64k minus-HC_UPMIX           77.1 +-   nan  (n=1)   vs updated:  -9.2% +-  nan%  -> no difference
+  longdec64k base-late                79.3 +-   nan  (n=1)   vs updated:  -6.6% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-PF_GEMM        DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-PF_HCDOWN      DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              identical on every case -> exact
+  minus-PF_PAD         identical on every case -> exact
+  minus-HC_UPMIX       DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -24.1%  edit +5.4%  longdec64k -6.6%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  minus-PF_GEMM        short +6.5%  edit -13.8%  longdec64k -3.0%  -> drop
+  minus-PF_HCDOWN      short -11.4%  edit -18.1%  longdec64k -5.8%  -> drop
+  base-m1              short +13.7%  edit -2.4%  longdec64k +4.1%  -> PROMOTE to confirm
+  minus-PF_PAD         short +13.8%  edit -18.7%  longdec64k -9.7%  -> drop
+  minus-HC_UPMIX       short +5.9%  edit -24.6%  longdec64k -6.1%  -> drop
