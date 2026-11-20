@@ -16,3 +16,9 @@ rep 0 base-m1              short 97.1 short 99.9 edit 96.9 edit 161.4 longdec64k
 REGIME-STILL-SLOW base-m1: first start prefill 1535 / load 0.43 GiB/s (paused 18:14:52), second start prefill 1490 / load 0.63 GiB/s
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-adapt-every    short 101.1 short 73.7 edit 152.8 edit 165.9 longdec64k 78.4/1664p 65242t  foreign CPU 2% [('snapd', 12), ('kcompactd0', 7), ('kworker/9:2-mm_percpu_wq', 2)]  gpu 2040/1249 MHz 64C 177W gtt 25M cpu 3598MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-ENGINE_NICE    short 103.4 short 86.6 edit 163.2 edit 134.6 longdec64k 77.1/1656p 65242t  foreign CPU 3% [('kcompactd0', 6), ('kswapd0', 3), ('kworker/11:1-events', 1)]  gpu 1985/1249 MHz 63C 184W gtt 25M cpu 3607MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-ENGINE_NICE: every attempt noisy, keeping the quietest (3% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 101.1 short 98.1 edit 122.5 edit 142.0 longdec64k 78.7/1620p 65242t  foreign CPU 4% [('kcompactd0', 8), ('kswapd0', 3), ('kworker/10:3-events', 2)]  gpu 2039/1249 MHz 63C 190W gtt 25M cpu 3614MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1620, pack load 0.41 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
