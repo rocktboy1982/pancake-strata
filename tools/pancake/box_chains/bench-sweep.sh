@@ -31,8 +31,12 @@
 #   start per arm, abtest --tier screen --drift-check (the base again at the end), cases short, edit, longdec32k; minus-X for an untested switch the
 #   updated arm turns on, plus-X for any other at its non-default value.  TRIAGE (sweep.py triage): promising = >= 1.0 % (exact) / >= 1.5 % (lossy) on a
 #   metric and none below -3 %; the rest DROP (low performers).
-# PASS 2: the promising flags only (at most SWEEP_PASS2_MAX, default 6, the strongest first): abtest --tier confirm, 3 reps; KEEP >= 2 % (exact),
-#   RETEST-GATE >= 3 % (lossy: a quality gate is due), else DROP.  The triage file is what tools/pancake/apply_triage.py applies to the shipped files.
+#   (2026-11-20 restated: ANY metric >= the bar earns pass 2, a metric below -3 % does not block it; no benefit in a clean block = NO-GAIN-P1, which
+#   changes nothing; DROP only from a clean pass 2.)
+# PASS 2 (owner order 2026-11-20: confirm the flags ONE BY ONE, no cap): every promising flag gets its own paired block (base, flag, base, flag, base,
+#   flag, base; ~17 min), the strongest first, while the 2.5 h budget holds; the rest is carried ($O/$B-carry-<slice>.json) to bench-retest.sh's carry
+#   slices.  KEEP >= 2 % (exact), RETEST-GATE >= 3 % (lossy), OPTIONAL (a metric >= +10 % and one <= -3 %: opt-in, not default), else DROP; a block
+#   above 5 % drift runs once more, then INCONCLUSIVE.  The triage file is what tools/pancake/apply_triage.py applies to the shipped files, per flag.
 # BUDGET: 150 s per engine start (sweep.py estimate); a run must stay <= SWEEP_MAX_S (9000 s, 2.5 h) or it stops before any start and names the
 #   slice count it needs.  Blocked design (TEST_LEDGER.md T-1002): estimate = pass 1 (arms + 2 base runs per block) + one block re-run + pass 2 at its
 #   cap; 17 arms = 3450 + 1200 + 3150 = 7800 s.  us: 153 untested switches = 9 even runs of 17 (SWEEP_SPLIT=even SWEEP_SLICE=1/9 .. 9/9); rd: 109
@@ -268,12 +272,14 @@ else fx=; for k in ${SWEEP_RD_DROP-STRATA_POOL_FUSE_PHASES}; do fx="$fx --drop-e
 grep -E '^(ARMFIX|SWEEP)' $T/$B-spec-$SLN.txt >> $L
 set -- $(grep '^ESTIMATE' $T/$B-spec-$SLN.txt); E1=${2:-0}; E2=${3:-0}; ER=${4:-0}
 [ "$E1" -gt 0 ] || abort "SPEC: no estimate from sweep.py (no flag arm in this slice?)"
-if [ $((E1 + ER + E2)) -gt $MAXS ]; then
-  n=${SL#*/}; need=$(( (E1 + ER + E2) * n / MAXS + 1 ))
-  abort "BUDGET: this run's estimate $((E1 + ER + E2)) s is over $MAXS s (2.5 h): split it (SWEEP_SLICE=1/$need ... at least $need parts); nothing was started"
+# pass 1 + its re-run + at least one paired confirm block must fit 2.5 h; pass 2 takes what is left of the 2.5 h, the rest is carried
+P2ONE=$((7 * 150))
+if [ $((E1 + ER + P2ONE)) -gt $MAXS ]; then
+  n=${SL#*/}; need=$(( (E1 + ER + P2ONE) * n / MAXS + 1 ))
+  abort "BUDGET: this run's pass 1 ($E1 s) + one block re-run ($ER s) + one paired confirm block ($P2ONE s) is over $MAXS s (2.5 h): split it (SWEEP_SLICE=1/$need ... at least $need parts); nothing was started"
 fi
-[ -n "${BENCH_BUDGET_S:-}" ] || BUDGET=$((E1 + ER + E2 + 900))
-say "BUDGET $BUDGET s (estimate pass 1 $E1 s + one block re-run $ER s + pass 2 <= $E2 s + 900 s overhead)"
+[ -n "${BENCH_BUDGET_S:-}" ] || BUDGET=$MAXS
+say "BUDGET $BUDGET s (2.5 h: pass 1 $E1 s + one block re-run $ER s budgeted; pass 2 = one paired block of $P2ONE s per promising flag while the budget holds it, the rest carried; plan for $P2MAX flags $E2 s)"
 sw blocks --spec $P1 --prefix $T/$B-p1-$SLN --size $BS --seed "$SEED" > $T/$B-blocks-$SLN.txt 2>&1 || abort "SPEC: sweep.py blocks failed: $(tail -n 1 $T/$B-blocks-$SLN.txt)"
 cut -c1-400 $T/$B-blocks-$SLN.txt >> $L
 
@@ -286,7 +292,7 @@ for bid in $(awk '/^BLOCK /{print $2}' $T/$B-blocks-$SLN.txt); do
   d=$(sw drift --rows $O/$B-p1-$SLN-$bid.jsonl --max $DMAX); drc=$?
   say "DRIFT $bid (block $nb, base late vs early): $d"
   if [ $drc -ne 0 ]; then
-    if left_ok $((est + E2)); then
+    if left_ok $((est + P2ONE)); then
       say "RERUN $bid: base drift above $DMAX % (or no base rows on both ends): the block runs once more"
       wait_idle
       ab $B-p1-$SLN-${bid}r $((est + 600)) $bsp --tier screen --drift-check --retries 0 || rc1=$?
@@ -294,26 +300,41 @@ for bid in $(awk '/^BLOCK /{print $2}' $T/$B-blocks-$SLN.txt); do
       d=$(sw drift --rows $O/$B-p1-$SLN-${bid}r.jsonl --max $DMAX); drc=$?
       say "DRIFT ${bid}r (re-run of block $nb): $d"
       if [ $drc -eq 0 ]; then nclean=$((nclean + 1)); else nbad=$((nbad + 1)); say "INCONCLUSIVE $bid: still above $DMAX % after its re-run: its arms get no verdict"; fi
-    else nbad=$((nbad + 1)); say "SKIP rerun $bid: budget: $(left) s left (< $((est + E2)) s, block + pass 2 at its cap): its arms are INCONCLUSIVE"; fi
+    else nbad=$((nbad + 1)); say "SKIP rerun $bid: budget: $(left) s left (< $((est + P2ONE)) s, block + one paired block): its arms are INCONCLUSIVE"; fi
   else nclean=$((nclean + 1)); fi
 done
 p1f=$(ls $O/$B-p1-$SLN-b[0-9][0-9].jsonl $O/$B-p1-$SLN-b[0-9][0-9]r.jsonl 2>/dev/null | sort | tr '\n' ' ')
 [ -n "$p1f" ] || p1f=$O/$B-p1-$SLN-none.jsonl
 sw triage --meta $P1.meta.json --pass1 $p1f --drift-max $DMAX --out $T/$B-tri1-$SLN.json > $T/$B-tri1-$SLN.txt 2>&1 || say "ERROR triage of pass 1 failed: $(tail -n 1 $T/$B-tri1-$SLN.txt)"
-rc2=-
-if sw pass2 --spec $P1 --triage $T/$B-tri1-$SLN.json --max $P2MAX --out $T/$B-p2-$SLN.json > $T/$B-p2-$SLN.txt 2>&1; then
-  grep -v '^ESTIMATE2' $T/$B-p2-$SLN.txt >> $L
-  set -- $(grep '^ESTIMATE2' $T/$B-p2-$SLN.txt); E2N=${2:-$E2}
-  if left_ok "$E2N"; then
-    wait_idle; ab $B-p2-$SLN $((E2N + 600)) $T/$B-p2-$SLN.json --tier confirm --reps 3 --no-early-stop --warmup 1 --outlier robust --retries 0; rc2=$?
-    say "DRIFT2 pass 2 (largest base rep deviation from the first): $(sw drift --pass2 --rows $O/$B-p2-$SLN.jsonl --max $DMAX)"
-  else say "SKIP pass 2: budget: $(left) s left (< $E2N s); the promising flags stay RETEST"; fi
+# PASS 2 (owner order 2026-11-20: confirm the flags ONE BY ONE): every promising flag gets its OWN paired block (base, flag, base, flag, base, flag,
+# base: abtest --tier screen --drift-check on sweep.py's paired spec), the strongest first, while the budget holds a block; a block above the drift
+# limit runs once more when the budget holds it; the flags the budget leaves out are carried (sweep.py carry -> $O/$B-carry-$SLN.json, run by
+# bench-retest.sh's carry slices).  No cap on the number of flags.
+rc2=-; p2args=; np2=0
+if sw pass2 --spec $P1 --triage $T/$B-tri1-$SLN.json --out $T/$B-p2-$SLN.json > $T/$B-p2-$SLN.txt 2>&1; then
+  grep -v -E '^(ESTIMATE2|PAIR )' $T/$B-p2-$SLN.txt >> $L
+  rc2=0; tr -d '\r' < $T/$B-p2-$SLN.txt > $T/$B-p2-$SLN.lst
+  while read -r tag an est psp; do
+    [ "$tag" = PAIR ] || continue
+    if ! left_ok "$est"; then say "CARRY $an: budget: $(left) s left (< $est s, one paired block): carried to the follow-up RETEST slice"; continue; fi
+    wait_idle
+    ab $B-p2-$SLN-$an $((est + 600)) $psp --tier screen --drift-check --retries 0 || rc2=$?
+    p2args="$p2args --pass2-run $an=$O/$B-p2-$SLN-$an.jsonl"; np2=$((np2 + 1))
+    d=$(sw paired-drift --rows $O/$B-p2-$SLN-$an.jsonl --base updated --arm $an --max $DMAX); drc=$?
+    say "DRIFT2 $an (paired block, base runs vs the first): $d"
+    if [ $drc -ne 0 ] && left_ok $((est + 60)); then
+      say "RERUN2 $an: base drift above $DMAX %: the paired block runs once more"; wait_idle
+      ab $B-p2-$SLN-${an}r $((est + 600)) $psp --tier screen --drift-check --retries 0 || rc2=$?
+      p2args="$p2args --pass2-run $an=$O/$B-p2-$SLN-${an}r.jsonl"
+      say "DRIFT2 ${an}r: $(sw paired-drift --rows $O/$B-p2-$SLN-${an}r.jsonl --base updated --arm $an --max $DMAX)"
+    fi
+  done < $T/$B-p2-$SLN.lst
 else cat $T/$B-p2-$SLN.txt >> $L; fi
 TV=$O/$B-triage-$SLN.v2.json
-if [ -f $O/$B-p2-$SLN.jsonl ]; then sw triage --meta $P1.meta.json --pass1 $p1f --pass2 $O/$B-p2-$SLN.jsonl --drift-max $DMAX --out $TV > $T/$B-tri-$SLN.txt 2>&1
-else sw triage --meta $P1.meta.json --pass1 $p1f --drift-max $DMAX --out $TV > $T/$B-tri-$SLN.txt 2>&1; fi || say "ERROR final triage failed: $(tail -n 1 $T/$B-tri-$SLN.txt)"
+sw triage --meta $P1.meta.json --pass1 $p1f $p2args --drift-max $DMAX --out $TV > $T/$B-tri-$SLN.txt 2>&1 || say "ERROR final triage failed: $(tail -n 1 $T/$B-tri-$SLN.txt)"
 sed 's/^/TRIAGE /' $T/$B-tri-$SLN.txt | cut -c1-300 >> $L
+sw carry --spec $P1 --meta $P1.meta.json --triage $TV --tag $SLN --out $O/$B-carry-$SLN.json >> $L 2>&1 || say "ERROR carry file of $SLN failed"
 parts="$(ls -tr $O/$B-triage-[1-9]of[1-9].v2.json 2>/dev/null) $(ls -tr $O/$B-triage-*.v2.json 2>/dev/null | grep -v -e '-triage-[1-9]of[1-9]\.v2\.json$')"
 sw merge --out $O/$B-triage.v2.json $parts 2>> $L && say "TRIAGE file $O/$B-triage.v2.json (slices: $(ls $O/$B-triage-*.v2.json 2>/dev/null | wc -l), the old one-run parts first, then the blocked ones oldest first; INCONCLUSIVE never replaces a decided verdict)"
-say "SUMMARY branch $B slice $SLN ($SL): $nb blocks ($nclean clean, $nrr re-run, $nbad INCONCLUSIVE), pass 1 exit=$rc1, pass 2 exit=$rc2 (- = not run); box time $(elapsed) s of $BUDGET s; results in $O"
+say "SUMMARY branch $B slice $SLN ($SL): $nb blocks ($nclean clean, $nrr re-run, $nbad INCONCLUSIVE), pass 1 exit=$rc1, pass 2: $np2 paired block(s), exit=$rc2 (- = none); box time $(elapsed) s of $BUDGET s; results in $O"
 finish

@@ -5,8 +5,9 @@ confirm run and write the confirm spec.  Stdlib only; reads text, starts nothing
   python3 chainT-decide.py SCREEN.stdout SCREEN_SPEC.json OUT_CONFIRM_SPEC.json [--confirm-spec SIBLING.json] [--ref ARM] [--bar 1.0]
                            [--lossy-bar 1.5] [--floor -3.0] [--exclude a,b]
 
-Rule (thresholds: PASS2_* constants below; two-pass rule): an arm is a screen winner when, against the reference arm (default: the spec's first arm; with a base-late arm the reference mean
-is taken over both), its mean is >= bar % better on at least one case and not worse than floor % on any case, AND its generated text is identical
+Rule (thresholds: PASS2_* constants below; two-pass rule, restated by the owner 2026-11-20): an arm is a screen winner when, against the reference arm
+(default: the spec's first arm; with a base-late arm the reference mean is taken over both), its mean is >= bar % better on at least one case -- a case
+worse than floor % does NOT block the confirm (it is logged; the confirm decides; a DROP comes only from a clean 3-rep confirm) -- AND its generated text is identical
 to base (abtest's "generated text vs base" block) -- or the spec is lossy / the text differs, then the bar is lossy-bar and the arm is flagged
 "quality gate due".  A spec that is not lossy whose arm shows DIFFERENT text is held to the lossy bar and flagged (a bug, or the short case's own run-to-run text noise).
 Output: one line "CONFIRM <spec> <arm,arm>" on stdout and OUT written (arms: first arm, the reference, the winners; the arm definitions come from the
@@ -81,12 +82,13 @@ def decide(text, spec, ref=None, bar=PASS2_BAR, lossy_bar=PASS2_LOSSY_BAR, floor
         row = " ".join(f"{c} {d:+.1f}%" for c, d in deltas.items())
         if not spec.get("lossy") and not exact_text:
             row += "  [TEXT DIFFERS in a spec flagged exact: bug or run-to-run noise, held to the lossy bar]"
-        if best >= need and worst > floor:
+        if best >= need:            # owner 2026-11-20: ANY case >= the bar earns the confirm; a case below the floor does not block it
             note = "quality gate due (lossy / text differs)" if lossy else "exact"
-            log.append(f"{a}: {row}  -> WIN (bar {need:g}%), {note}")
+            fl = f"; a case below the {floor:g}% floor ({worst:+.1f}%): reported, the confirm decides" if worst <= floor else ""
+            log.append(f"{a}: {row}  -> WIN (bar {need:g}%), {note}{fl}")
             winners.append((a, deltas, note))
         else:
-            log.append(f"{a}: {row}  -> no (bar {need:g}%, floor {floor:g}%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)")
+            log.append(f"{a}: {row}  -> no (bar {need:g}%): dropped after pass 1: no benefit observed (n=1 pass, not a refutation)")
     return winners, log
 
 

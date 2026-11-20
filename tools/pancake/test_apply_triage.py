@@ -157,3 +157,51 @@ def test_v2_copy_is_read_and_a_v1_file_is_refused(tmp_path):
     assert at.v2_path(str(tmp_path / "us-triage.json")) == str(tmp_path / "us-triage.v2.json")
     assert at.main(["--triage", str(tmp_path / "us-triage.json"), "--branch", "us", "--shipped", str(sh)]) == 0
     assert "--pcie-frac" not in [f["name"] for f in json.loads(sh.read_text())["profiles"][0]["flags"]]
+
+
+# ------------------------------------------------------------------------------------------------ owner rules 2026-11-20
+def test_a_bundle_result_changes_no_flag_even_a_clean_drop(tmp_path):
+    """Flags are judged one by one: a whole-arm result (spec 250 `updated` against plain, a whole-preset gate REJECT) never removes a flag."""
+    sh, pr, sp = write(tmp_path, "s.json", RD_SHIPPED), write(tmp_path, "p.json", {"env": {"STRATA_EXPDEC": "1"}, "args": []}), write(tmp_path, "sp.json", SPEC)
+    b = rec("DROP", kind="plus", env={"STRATA_EXPDEC": "1", "STRATA_PF_F16": "1"}, args={"--lookup-max-t": "12"}, p2={"short": -21.0, "edit": 1.0})
+    b["bundle"] = True
+    t = tri("rd", {"BUNDLE BUNDLE-250-updated": b, "BUNDLE x": {**rec("OPTIONAL", p2={"edit": 43.6, "short": -21.0}), "bundle": True}})
+    run(tmp_path, t, "rd", sh, pr, sp)
+    assert json.loads(sh.read_text()) == RD_SHIPPED and json.loads(sp.read_text()) == SPEC
+    assert json.loads(pr.read_text()) == {"env": {"STRATA_EXPDEC": "1"}, "args": []}
+    assert [x for x, act, _ in at.plan(t)] == ["BUNDLE BUNDLE-250-updated", "BUNDLE x"] and {act for _, act, _ in at.plan(t)} == {"bundle"}
+
+
+def test_optional_leaves_the_defaults_and_is_listed_with_its_cases_and_in_the_readme(tmp_path):
+    sh, pr, rd = write(tmp_path, "s.json", RD_SHIPPED), write(tmp_path, "p.json", {"env": {"STRATA_EXPDEC": "1"}, "args": []}), tmp_path / "README-PANCAKE.md"
+    rd.write_text("# x\n\ntext\n")
+    t = tri("rd", {"STRATA_EXPDEC": rec("OPTIONAL", env={"STRATA_EXPDEC": "1"}, p2={"longdec32k": 12.0, "short": -4.0, "edit": 0.5}),
+                   "STRATA_KV_PREFETCH": rec("OPTIONAL", env={"STRATA_KV_PREFETCH": "1"}, p2={"edit": 15.0, "short": -5.0}, clean2=False)})
+    run(tmp_path, t, "rd", sh, pr)
+    at.main(["--triage", str(tmp_path / "t.json"), "--branch", "rd", "--shipped", str(sh), "--readme", str(rd)])
+    doc = json.loads(sh.read_text())
+    assert "STRATA_EXPDEC" not in doc["env"] and doc["optional"]["STRATA_EXPDEC"]["helps"] == {"longdec32k": 12.0, "edit": 0.5}
+    assert doc["optional"]["STRATA_EXPDEC"]["hurts"] == {"short": -4.0} and "STRATA_KV_PREFETCH" not in doc.get("optional", {})   # drifted: HOLD
+    assert "STRATA_EXPDEC" not in json.loads(pr.read_text())["env"]
+    txt = rd.read_text()
+    assert "<!-- optional-flags:begin -->" in txt and "STRATA_EXPDEC=1" in txt and "longdec32k +12.0 %" in txt and "short -4.0 %" in txt
+    us = write(tmp_path, "u.json", US_SHIPPED)
+    run(tmp_path, tri("us", {"STRATA_GR_RDNA": rec("OPTIONAL", env={"STRATA_GR_RDNA": "1"}, p2={"edit": 11.0, "short": -3.5})}), "us", us)
+    d = json.loads(us.read_text())
+    assert "STRATA_GR_RDNA" not in [f["name"] for f in d["profiles"][0]["flags"]] and d["optional"][0]["flag"] == "STRATA_GR_RDNA"
+
+
+def test_keep_of_a_flag_out_pending_retest_puts_it_back_and_ship_values_replace_box_paths(tmp_path):
+    us = write(tmp_path, "u.json", US_SHIPPED)
+    run(tmp_path, tri("us", {"--lookup-max-t": rec("KEEP", kind="minus", args={"--lookup-max-t": "12"}, p2={"edit": 8.0})}), "us", us)
+    assert {"name": "--lookup-max-t", "value": "12"}.items() <= next(f for f in json.loads(us.read_text())["profiles"][0]["flags"] if f["name"] == "--lookup-max-t").items()
+    sh = write(tmp_path, "s.json", RD_SHIPPED)
+    r = rec("KEEP", kind="plus", args={"--expert-profile": "/mnt/pancake/benchRD/src-updated/data/expert-profile-pancake.bin"}, p2={"short": 4.0})
+    r["ship"] = {"args": {"--expert-profile": "<ROOT>/data/expert-profile-pancake.bin"}}
+    run(tmp_path, tri("rd", {"--expert-profile": r}), "rd", sh)
+    assert json.loads(sh.read_text())["args"]["--expert-profile"] == "<ROOT>/data/expert-profile-pancake.bin"
+    # a NO-GAIN-P1 (pass 1 without a benefit) and an INCONCLUSIVE never change anything
+    sh2 = write(tmp_path, "s2.json", RD_SHIPPED)
+    run(tmp_path, tri("rd", {"STRATA_EXPDEC": rec("NO-GAIN-P1", env={"STRATA_EXPDEC": "1"}), "--grammar": rec("INCONCLUSIVE", args={"--grammar": "on"},
+                                                                                                           p2={"short": -9.0}, clean2=False)}), "rd", sh2)
+    assert json.loads(sh2.read_text()) == RD_SHIPPED
