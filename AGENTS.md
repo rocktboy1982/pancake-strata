@@ -245,9 +245,9 @@ T-1003). These rules came out of that. Each flag is judged on its own numbers.
 - The AA chain (`redo-chainAA.sh`) is frozen with SIGSTOP by owner order: only benchmarks run; never resume it without
   the owner. A running job is stopped only on an owner order.
 - Always check processes (CPU, memory, load), not only the log, when reporting status.
-- The page cache cannot hold the model files (36.5 + 26.8 GiB gguf) beside a 40 GB engine: `ABTEST_PREREAD=1` (abtest.py, exported by `run-queue-us11.sh`) reads them sequentially before every
-  engine start (O_RDONLY, 16 MiB blocks, `PREREAD <file> <GiB> <seconds>` log line, 90 s cap, skipped at >= 95% cached); never read the files by hand beside a running benchmark; check cache state read-only
-  with `fincore`; no sudo, no drop_caches.
+- The page cache cannot hold the model files (36.5 + 26.8 GiB gguf) beside a 40 GB engine (the engine pins its 33 GiB arena before it reads the file), so every start reads them from the NVMe. `ABTEST_PREREAD=2` (abtest.py, exported by `run-queue-us13.sh`) runs a prefetch thread beside the engine's own load
+  (`PREFETCH <file> <GiB> <seconds>` log line, never more than 4 GiB ahead of the engine's reads, stops at `ready: http`; mode 1, a pre-read before the start, was evicted by the arena and does not help). It does not fix the slow starts either (T-1006). `ABTEST_SETTLE_AFTER_LONG_S=120` (exported by `run-queue-us13.sh`, default 0): after an engine run of >= 130 s the harness idles that long before the next engine start (`SETTLE <s> after a <run> s run`; nothing of ours runs meanwhile); REGIME-PAUSE stays the fallback.
+  Every engine start prints `STARTDIAG` (nvme0n1 sectors and io_ticks, meminfo Cached / Mlocked / MemAvailable, nvme temperature, compact_stall delta, previous run length, gap) and `STARTLOAD` (the load rate); read them with `python3 tools/pancake/box_chains/startdiag_report.py <stdout files>` (slow share by gap bucket and SETTLE on / off, diag correlations). Never read the files by hand beside a running benchmark; check cache state read-only with `fincore`; no sudo, no drop_caches.
 
 ## Switches, presets and credits
 
