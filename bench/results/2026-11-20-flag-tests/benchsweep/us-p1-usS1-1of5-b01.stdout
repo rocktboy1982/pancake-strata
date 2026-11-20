@@ -15,3 +15,9 @@ rep 0 minus-EXCHANGE_ROTATE: every attempt noisy, keeping the quietest (6% forei
 rep 0 minus-PIN_BY_NEED    short 101.2 short 99.9 edit 166.4 edit 181.5 longdec64k 78.2/2127p 65241t  foreign CPU 9% [('kcompactd0', 27), ('kworker/3:2-mm_percpu_wq', 8), ('kworker/11:1-events', 7)]  gpu 1943/1249 MHz 63C 178W gtt 25M cpu 3585MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-PIN_BY_NEED: every attempt noisy, keeping the quietest (9% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-EXPDEC         short 95.6 short 100.5 edit 155.0 edit 93.3 longdec64k 78.9/1619p 65241t  foreign CPU 5% [('kcompactd0', 20), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 2045/1249 MHz 63C 181W gtt 25M cpu 3600MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-EXPDEC: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-KV_PREFETCH    short 96.4 short 87.7 edit 119.8 edit 143.7 longdec64k 83.3/1505p 65241t  foreign CPU 4% [('kcompactd0', 13), ('kswapd0', 3), ('kworker/0:0-events', 3)]  gpu 1980/1249 MHz 62C 174W gtt 25M cpu 3574MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-KV_PREFETCH: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
