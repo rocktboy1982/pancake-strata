@@ -4007,6 +4007,15 @@ def test_run_queue_us11_waits_for_the_slice3_rerun_exports_the_preread_and_keeps
     assert subprocess.run([SH, "-n", str(CHAINS / "run-queue-us11.sh")]).returncode == 0 and b"\x01" not in (CHAINS / "run-queue-us11.sh").read_bytes()
 
 
+def test_run_queue_us12_waits_for_the_usS2r3_rescreen_exports_prefetch_mode_2_and_keeps_the_order():
+    t = (CHAINS / "run-queue-us12.sh").read_text()
+    assert "export ABTEST_PREREAD=${ABTEST_PREREAD:-2}" in t and "run-queue-us12.log" in t and "us11.log" not in t.split("# ---- the interleaved steps")[0].split("\n", 6)[-1]
+    tail = t[t.index("# ---- us12"):]
+    assert "\nrescreen usS2r-3 " not in tail and tail.index("\nwhile pgrep") < tail.index("\nrescreen usS2rr-3 ") < tail.index("\ncycle 2\n") < tail.index("\nfor k in 4 5; do")
+    assert tail.count("final final") == 1 and "QUEUE_US12_DONE" in t and t.count("\nfinal final") == 1
+    assert subprocess.run([SH, "-n", str(CHAINS / "run-queue-us12.sh")]).returncode == 0 and b"\x01" not in (CHAINS / "run-queue-us12.sh").read_bytes()
+
+
 def test_sweep_minus_arm_of_a_flag_whose_default_equals_the_preset_sets_the_opposite_and_an_inert_one_is_left_out():
     mod, reg = sweep_mod(), sweep_registry()
     arm = json.loads((SPECS / "220-updated-vs-upstream-short.json").read_text())["arms"]["updated"]
