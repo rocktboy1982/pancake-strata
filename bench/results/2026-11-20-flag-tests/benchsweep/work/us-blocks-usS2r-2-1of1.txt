@@ -1,0 +1,5 @@
+BLOCK b01 1520 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-2-1of1-b01.json order: minus-GR_RDNA_A8 minus-QSA_ROWS minus-GR_INJ_UP minus-GR_RDNA_Q8
+BLOCK b02 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-2-1of1-b02.json order: minus-adapt-every minus-conversation-cache-min-tokens minus-ENGINE_NICE minus-expert-profile
+BLOCK b03 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-2-1of1-b03.json order: minus-lookup-max-t minus-RDNA_Q6K minus-GR_RDNA plus-AMD_COMMUNITY_TUNING
+BLOCK b04 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-2-1of1-b04.json order: plus-ATTN_LANECELL plus-ATTN_MERGE_V2 plus-ADAPT_NOWAIT minus-HIPBLASLT_TUNING
+BLOCK b05 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-2-1of1-b05.json order: plus-DEQUANT_SIDE plus-ATTN_V3 plus-CVEC_FUSE plus-DOWN_WS

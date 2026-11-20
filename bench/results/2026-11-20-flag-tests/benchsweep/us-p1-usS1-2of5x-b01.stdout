@@ -36,3 +36,58 @@ REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 2174, pack load 0.23 Gi
   WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.48 34.8 s (1.05 GiB/s; stopped; waited 12.5 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.8 short 103.6 edit 168.9 edit 169.0 longdec64k 83.0/2178p 65242t  foreign CPU 3% [('kcompactd0', 7), ('systemd', 2), ('dbus-daemon', 1)]  gpu 2034/1249 MHz 61C 183W gtt 25M cpu 3662MHz 64C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 2174 / load 0.23 GiB/s (paused 01:23:10), second start prefill 2178 / load 1.07 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 100.4 +-   2.5  (n=2)
+                              drafts accepted 0.67
+  short  minus-adapt-every       106.6 +-  46.4  (n=2)   vs updated:  +6.1% +- 48.7%  -> no difference
+                              drafts accepted 0.72
+  short  plus-AMD_COMMUNITY_TUNING    106.9 +-  40.0  (n=2)   vs updated:  +6.5% +- 37.3%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 106.6 +-  48.3  (n=2)   vs updated:  +6.2% +- 45.6%  -> no difference
+                              drafts accepted 0.70
+  short  minus-ENGINE_NICE       103.6 +-   8.9  (n=2)   vs updated:  +3.2% +-  6.3%  -> no difference
+                              drafts accepted 0.70
+  short  minus-lookup-max-t       86.8 +- 258.0  (n=2)   vs updated: -13.5% +- 254.5%  -> no difference
+                              drafts accepted 0.74
+  short  base-late               107.2 +-  45.8  (n=2)   vs updated:  +6.8% +- 43.0%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 169.1 +-  82.6  (n=2)
+                              drafts accepted 0.89
+  edit   minus-adapt-every       166.2 +- 148.1  (n=2)   vs updated:  -1.7% +- 38.7%  -> no difference
+                              drafts accepted 0.91
+  edit   plus-AMD_COMMUNITY_TUNING    169.4 +-   9.5  (n=2)   vs updated:  +0.2% +- 54.5%  -> no difference
+                              drafts accepted 0.90
+  edit   base-m1                 173.3 +- 129.0  (n=2)   vs updated:  +2.5% +- 27.4%  -> no difference
+                              drafts accepted 0.88
+  edit   minus-ENGINE_NICE       172.4 +- 140.4  (n=2)   vs updated:  +2.0% +- 34.2%  -> no difference
+                              drafts accepted 0.88
+  edit   minus-lookup-max-t      116.2 +- 200.2  (n=2)   vs updated: -31.3% +- 69.5%  -> no difference
+                              drafts accepted 0.94
+  edit   base-late               168.9 +-   0.6  (n=2)   vs updated:  -0.1% +- 48.5%  -> no difference
+                              drafts accepted 0.90
+  longdec64k updated                  80.5 +-   nan  (n=1)
+  longdec64k minus-adapt-every        89.3 +-   nan  (n=1)   vs updated: +10.9% +-  nan%  -> no difference
+  longdec64k plus-AMD_COMMUNITY_TUNING     82.6 +-   nan  (n=1)   vs updated:  +2.6% +-  nan%  -> no difference
+  longdec64k base-m1                  79.5 +-   nan  (n=1)   vs updated:  -1.2% +-  nan%  -> no difference
+  longdec64k minus-ENGINE_NICE        59.4 +-   nan  (n=1)   vs updated: -26.2% +-  nan%  -> no difference
+  longdec64k minus-lookup-max-t      100.9 +-   nan  (n=1)   vs updated: +25.3% +-  nan%  -> no difference
+  longdec64k base-late                83.0 +-   nan  (n=1)   vs updated:  +3.1% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-adapt-every    DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-AMD_COMMUNITY_TUNING DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-ENGINE_NICE    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-lookup-max-t   DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +6.8%  edit -0.1%  longdec64k +3.1%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  minus-adapt-every    short +2.6%  edit -1.7%  longdec64k +9.2%  -> PROMOTE to confirm
+  plus-AMD_COMMUNITY_TUNING short +3.0%  edit +0.3%  longdec64k +1.0%  -> PROMOTE to confirm
+  base-m1              short +2.7%  edit +2.6%  longdec64k -2.8%  -> PROMOTE to confirm
+  minus-ENGINE_NICE    short -0.2%  edit +2.0%  longdec64k -27.3%  -> drop
+  minus-lookup-max-t   short -16.4%  edit -31.2%  longdec64k +23.4%  -> drop
