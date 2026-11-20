@@ -81,10 +81,13 @@ chain's first step builds it on the box.
 
 The fork's prompt-path table `gfx1100-hipblaslt-100401.txt` is the same file upstream already ships under `terminal/tools/hip/`
 (upstream commit by miskahm, 2026-10-04). The fork measured it as: 11.7K-token prompt read 1,345 -> 1,850-1,920 tok/s (+38 %,
-"provisional, noisy machine", T-096, no raw archive). This branch adds nothing here. The tuned-flags profile for gfx1100 set
-`STRATA_HIPBLASLT_TUNING` to that file until 2026-11-20; the box diagnostics of this branch found it UNSUPPORTED (section 2.4a), so the
-profile no longer sets it. The benchmark preset still uses it (`<REPO>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt`). The engine
-checks the table's version header against the installed hipBLASLt and ignores a mismatch.
+"provisional, noisy machine", T-096, no raw archive). This branch adds nothing here. The tuned-flags profile for gfx1100 sets
+`STRATA_HIPBLASLT_TUNING` to that file. It was taken out on 2026-11-20 for a text-identity UNSUPPORTED and put back the same day by owner
+decision (section 2.4a, T-1001). On the benchmark machine's ROCm 10.0 the hipBLASLt runtime is version 100401, so this is the table that
+matches: the engine logs `prefill gemm: hipBLASLt tuning enabled (43 rows, gfx1100, version 100401)`, while a 100200 table (the one the
+Strata-rdna3 setups name) is refused with `hipBLASLt version mismatch: file=100200 runtime=100401; using hipBLASEx` (engine logs of
+T-998). The benchmark preset uses it too (`<REPO>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt`). The engine checks the table's
+version header against the installed hipBLASLt and ignores a mismatch, so other ROCm versions fall back safely.
 
 ### 2.3 Learned expert profile (data file)
 
@@ -116,7 +119,7 @@ Rules:
    flag with another verdict.
 5. Unknown hardware (no profile matches, or no card could be read) keeps the plain defaults and prints one line saying so.
 
-The shipped profile holds four flags since 2026-11-20: `STRATA_RDNA_Q6K=1` (section 2.1), `STRATA_GR_RDNA=1` and `STRATA_RDNA_MMVQ_WAVE=3`
+The shipped profile holds five flags since 2026-11-20: `STRATA_HIPBLASLT_TUNING` = the 100401 table (section 2.2, T-096), `STRATA_RDNA_Q6K=1` (section 2.1), `STRATA_GR_RDNA=1` and `STRATA_RDNA_MMVQ_WAVE=3`
 (2.8, 2.9: the T-009 kernel bundle, 3.0 % is the bundle's bound 104 against 101 tok/s, not a per-flag figure) and `--pcie-frac 0` (+6 % short,
 +13 % edit, one run each, T-197; 0.15 / 0.3 / 0.55 were all slower, T-268). It held six before; two were removed after the box
 measurements of this branch (section 2.4a).
@@ -124,7 +127,7 @@ measurements of this branch (section 2.4a).
 reason in the ledger: `STRATA_GR_RDNA_Q8` / `_A8` / `GR_INJ_UP` / `GR_FUSED` (lossy, no passing quality gate on record),
 `STRATA_ROUTE_PUBLISH` (21.60 to 21.51 ms per window, 0.4 %), `STRATA_WAIT_FUSE` (+1.2 %), `STRATA_COMBINE_CPU` (no single number),
 `STRATA_POOL_FUSE_PHASES` (+2.5 % +-1.7, short -1.3 %), `STRATA_VERIFY_ECAP` (its gates ran with a grammar guard v0.2.16 lacks).
-None of the four has a valid single-flag verdict on a HIP build of this branch yet; regenerate the profile from the benchmark's verdicts
+None of the five has a valid single-flag verdict on a HIP build of this branch yet; regenerate the profile from the benchmark's verdicts
 (`flag_diag.sh --write-recommended`) before relying on it; `STRATA_TUNED_FLAGS=0` removes it.
 
 ### 2.4a Flags removed from the shipped profile (2026-11-20) and the data files the settings use
@@ -135,15 +138,15 @@ profile. Each removal is also recorded in `terminal/data/tuned-flags.json` (key 
 
 | flag | verdict on this branch | evidence |
 |---|---|---|
-| `STRATA_HIPBLASLT_TUNING` (100401 table) | UNSUPPORTED | flag_diag rerun, plain upstream build (`.../diag-rerun/diag-plain/verdicts.json`): text differs |
 | `--lookup-max-t 12` | lossy, gate did not pass | quality gate of this branch (`/home/dan/auto-runs/benchexact/gate-us`, spec 222, 48 requests, token forcing against plain upstream v0.2.16): `updated-exact` (keeps `--lookup-max-t 12`) REJECT on the rate rule, mismatch 3.379 % against 1.562 % / 1.360 % for two stock runs, +1.92 points, 90 % interval [+1.23, +2.74]; `updated` REJECT (3.964 %, +2.50 points); event rule PASS for both. AGENTS rule of the pancake line: never lossy without a passing gate |
 
-Restored the same day (owner decision 2026-11-20): `STRATA_RDNA_Q6K=1`, `STRATA_GR_RDNA=1`, `STRATA_RDNA_MMVQ_WAVE=3`. The rerun
+Restored the same day (owner decision 2026-11-20): `STRATA_RDNA_Q6K=1`, `STRATA_GR_RDNA=1`, `STRATA_RDNA_MMVQ_WAVE=3`, and
+`STRATA_HIPBLASLT_TUNING` (the 100401 table; it matches the ROCm 10.0 runtime, section 2.2). The rerun
 (`/home/dan/auto-runs/winbenchus/diag-rerun/diag-updated/verdicts.json`) called them UNSUPPORTED because their text differed from the
 default, but on this model plain upstream against itself (`base-late`) also gave different text in every run that day, so text
 identity cannot judge exactness here. Their parity ctests (`rdna_mmvq_parity`, `rdna_gr_parity`; both bounded by a tolerance, not
-bitwise, by their own description) are the judge; they have not run on the box yet. `STRATA_HIPBLASLT_TUNING` was removed for the
-same text-identity reason and stays out pending an owner decision. `tools/pancake/flag_diag.py` now starts the default a second time
+bitwise, by their own description) are the judge; they have not run on the box yet. `STRATA_HIPBLASLT_TUNING` had been removed for the
+same text-identity reason and is back as well (T-1001). `tools/pancake/flag_diag.py` now starts the default a second time
 when a claimed-exact flag's text differs: if the repeat differs too, the flag keeps its speed verdict with exactness
 "EXACT-UNVERIFIED (base vs base also differs)"; `--ctest BUILD_DIR` runs the flag's parity ctest (FAIL is the verdict, PASS is
 recorded; "Not Run" is no result). A text difference alone never gives UNSUPPORTED.
@@ -286,15 +289,15 @@ policy) is not ported.
 | host tuning | `python -m pytest -q tools/pancake/test_host_tune.py tools/pancake/test_pcie_link.py` | 24 passed |
 | settings register | `python tools/test_settings_register.py` | 8 passed |
 | CUDA path compile | `nvcc -arch=sm_75 ... native_mmvq.cu`, `rdna_stub.cpp` | compiled (CUDA 12.8) |
-| RDNA kernel parity | `rdna_mmvq_parity`, `rdna_gr_parity` (five variants) (build with `-DSTRATA_BUILD_TESTS=ON`, HIP) | TO BE MEASURED on the box (not run: no gfx1100 card in the PC that prepared the change) |
-| per-flag diagnostics on gfx1100 | `flag_diag.sh run ...` (step 3 of the benchmark chain) | TO BE MEASURED |
+| RDNA kernel parity | `rdna_mmvq_parity`, `rdna_gr_parity` (five variants) (build with `-DSTRATA_BUILD_TESTS=ON`, HIP) | NOT RUN yet: the 2026-11-19 box chain built without tests; no result |
+| per-flag diagnostics on gfx1100 | `flag_diag.sh run ...` (step 3 of the benchmark chain) | ran 2026-11-19 (T-993), one start per flag, short case only: plain build `HIPBLASLT_TUNING` UNSUPPORTED (text differs: void on this model, restored), `PF_F16` NO-GAIN -21.2 %; updated build `RDNA_Q6K`, `GR_RDNA`, `RDNA_MMVQ_WAVE`, `COMBINE_CPU` UNSUPPORTED (text differs: void), `VERIFY_ECAP` NO-GAIN -15.0 %. The tool now repeats the default and uses parity ctests instead of text identity |
 
 `terminal/tests/tuning/test_preset_persistence.py` has 3 failures on the Windows PC used for this change, with and without these
 changes (checked by stashing the edit); it was not investigated further.
 
 ## 4. Benchmark: plain upstream release against updated-strata
 
-Plan (not yet run): `tools/pancake/box_chains/bench-updatedAA.sh`. It builds (a) the plain `v0.2.16` release with its own
+Ran 2026-11-19 on the benchmark machine: `tools/pancake/box_chains/bench-updatedAA.sh` (specs 220 / 221) and `bench-exact.sh` (specs 222 / 223, quality gate). It builds (a) the plain `v0.2.16` release with its own
 default flags (the documented HIP command of `docs/AMD_HIP.md`, nothing else) and (b) this branch with `build_updated.sh`, both on
 `/mnt/pancake`; runs `flag_diag.sh` on both builds; then the same workloads on both through `abtest.py` (screen first, then `--tier confirm --block 3
 --warmup 1 --outlier robust --reclaim-max 3 --reps 3 --no-early-stop` for an arm that earned it), serialized, with no other job on the machine:
@@ -306,16 +309,56 @@ The plain arm gets the model arguments only (`--pack`, `--native`, `--ple-gguf`,
 gets the same plus the adopted preset (`configs/pancake/flashnext-iq2_xs-updated-hip.json`: the fork's daily fast-hip preset without
 `STRATA_AGENT_COUNTERS` (log only), `STRATA_PREFILL_EQUAL_TAIL` (a trial under the 2 % bar), `--grammar` and `--mtp-draft-vocab`). Estimated box time about 2 hours (short plan: screen first, confirm 3 reps only for an arm with a screen benefit, tune-up included, budget 7200 s; `bench-sched.sh` runs it before the rest of the box queue).
 
-Results (RX 7900 XT 20 GB, Qwen3.8-Flash-Next IQ2_XS): **TO BE MEASURED**
+Results. Hardware: RX 7900 XT 20 GB (gfx1100), Ryzen 7 5700G, 58 GB RAM, PCIe 4.0 x16, ROCm 10.0, Linux. Model: Qwen3.8-Flash-Next
+`GSQ-RCO-IQ2_XS`, MTP head, `--spec 4`. Plain = the release with the model arguments only; updated = this branch with
+`configs/pancake/flashnext-iq2_xs-updated-hip.json` (lossy arm) or that preset without its lossy switches (exact arm, `updated-exact`,
+spec 222: it keeps `--lookup-max-t 12`). Numbers are mean +- 95 % interval in tok/s; n = measured requests per case. Ledger rows are
+pancake-strata `TEST_LEDGER.md`; raw files in its `bench/results/2026-11-19-benchmarks/`.
 
-| case | plain upstream v0.2.16 | updated-strata | difference | text identical |
-|---|---|---|---|---|
-| short, decode tok/s | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED |
-| edit, decode tok/s | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED |
-| 10K, prompt / decode tok/s | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED | not compared |
-| 32K, prompt / decode tok/s | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED | not compared |
-| 64K, prompt / decode tok/s | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED | not compared |
-| 100K, prompt / decode tok/s | TO BE MEASURED | TO BE MEASURED | TO BE MEASURED | not compared |
+**Noise caveat.** Every start of these runs was flagged noisy: foreign CPU load 7-23 % (the kernel's memory compaction thread
+`kcompactd0` at the top), so the harness kept the quietest attempt in the screens. The confirm of spec 220 is the only measurement with
+a tight interval. The long-prompt rows are single requests (n = 1, no interval): they show a direction, not a size.
+
+Lossy arm `updated` (text differs from plain; quality gate REJECT, below):
+
+| case | plain upstream v0.2.16 | updated-strata (lossy) | difference | n, tier | ledger |
+|---|---|---|---|---|---|
+| short, decode tok/s | 69.1 +-5.4 | 102.0 +-4.4 | +47.6 % +-11.0 (better) | n = 6 each, confirm | T-991 |
+| edit, decode tok/s | 83.7 +-2.5 | 177.7 +-6.2 | +112.4 % +-9.6 (better) | n = 6 each, confirm | T-991 |
+| 10K tokens, prompt / decode tok/s | 608 / 67.8 | 1,086 / 66.7 | +78.6 % / -1.6 % | n = 1, screen | T-992 |
+| 32K tokens, prompt / decode tok/s | 688 / 67.4 | 1,580 / 100.5 | +129.7 % / +49.1 % | n = 1, screen | T-992 |
+| 64K tokens, prompt / decode tok/s | 680 / 52.4 | 2,400 / 63.1 | +252.9 % / +20.4 % | n = 1, screen | T-992 |
+| 100K tokens, prompt / decode tok/s | 660 / 52.0 | 1,996 / 89.0 | +202.4 % / +71.2 % | n = 1, screen | T-992 |
+
+Over all three (noisy) attempts of spec 221 the updated prompt speed was 1,086-1,575 / 1,580-2,016 / 2,400-2,614 / 1,996-2,564 tok/s
+against plain 605-608 / 685-690 / 676-681 / 660-665 at 10K / 32K / 64K / 100K tokens: faster on every attempt.
+
+Exact arm `updated-exact` (the lossy switches off; spec 222 short / edit screen, spec 223 long screen cut off before its end):
+
+| case | plain upstream v0.2.16 | updated-exact | difference | n, tier | ledger |
+|---|---|---|---|---|---|
+| short, decode tok/s | 74.1 +-39.4 | 101.8 +-62.9 | +37.4 % +-31.7 (better) | n = 2, screen | T-994 |
+| edit, decode tok/s | 86.1 +-99.8 | 135.8 +-195.1 | +57.8 % +-110.8 (no difference) | n = 2, screen | T-994 |
+| 10K tokens, prompt / decode tok/s | 542 / 47.3 | 1,294 / 88.1 | +138.7 % / +86 % | n = 1, partial screen | T-996 |
+| 32K tokens, prompt / decode tok/s | 690 / 69.3 | 2,035 / 82.0 | +194.9 % / +18 % | n = 1, partial screen | T-996 |
+| 64K tokens, prompt / decode tok/s | 680 / 48.5 | 1,934 / 64.3 | +184.4 % / +33 % | n = 1, partial screen | T-996 |
+| 100K tokens, prompt / decode tok/s | 662 / 66.5 | 1,831 / 84.7 | +176.6 % / +27 % | n = 1, partial screen | T-996 |
+
+In the same spec 222 screen the lossy arm gave short 105.5 +-20.3 (+42.4 % +-25.7) and edit 162.7 +-103.6 (+89.0 % +-4.4); plain against
+itself (`base-late`) +2.8 % / +1.3 %.
+
+Text and quality. All arms, the plain release run a second time included, produced text that differs from the first plain run, so text
+identity cannot tell exact from lossy on this model. Token-forcing quality gate (`quality_gate.py`, 48 requests, 9,410 forced tokens,
+plain run twice: mismatch 1.562 % / 1.360 %; T-995):
+
+| arm | mismatch | difference vs stock, 90 % interval | rate rule (limit 2.625 points) | event rule | verdict |
+|---|---|---|---|---|---|
+| updated-exact | 3.379 % | +1.92 points [+1.23, +2.74] | REJECT | PASS (2 events vs 0 / 0, p 0.11) | REJECT |
+| updated (lossy) | 3.964 % | +2.50 points [+1.67, +3.43] | REJECT | PASS (2 events vs 0 / 0, p 0.11) | REJECT |
+
+So neither arm passes the gate: the decode gain is real (T-991 confirm), but both presets change the output more than the release
+changes against itself, and by the fork's rules neither may be shipped as a default until a variant passes. `--lookup-max-t 12` (lossy,
+in both arms) is already out of the shipped tuned-flags profile (section 2.4a).
 
 After the run the recommended-flags profile is regenerated from the measured verdicts
 (`flag_diag.sh --write-recommended`), and the shipped profile is replaced by it where the verdicts differ.

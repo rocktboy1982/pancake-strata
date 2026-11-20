@@ -114,9 +114,12 @@ class Apply(unittest.TestCase):
         self.assertIn("--pcie-frac", out["args"])
         # the three RDNA kernels stay (owner decision 2026-11-20: text identity cannot judge exactness on this model, the parity ctests do)
         self.assertEqual((out["env"]["STRATA_RDNA_Q6K"], out["env"]["STRATA_GR_RDNA"], out["env"]["STRATA_RDNA_MMVQ_WAVE"]), ("1", "1", "3"))
-        # removed 2026-11-20 (owner order 2026-11-19 23:05): HIPBLASLT_TUNING (UNSUPPORTED) and --lookup-max-t 12 (lossy, gate-us REJECT)
+        # the 100401 hipBLASLt table is back (owner decision 2026-11-20: its text-identity UNSUPPORTED is void here; it matches the ROCm 10.0 runtime)
+        self.assertTrue(out["env"]["STRATA_HIPBLASLT_TUNING"].endswith("gfx1100-hipblaslt-100401.txt"))
+        self.assertNotIn("<ROOT>", out["env"]["STRATA_HIPBLASLT_TUNING"])
+        # removed 2026-11-20 (owner order 2026-11-19 23:05): --lookup-max-t 12 (lossy, gate-us REJECT)
         gone = {r["name"]: r for r in raw["removed"]}
-        self.assertEqual(set(gone), {"STRATA_HIPBLASLT_TUNING", "--lookup-max-t"})
+        self.assertEqual(set(gone), {"--lookup-max-t"})
         for name, r in gone.items():
             self.assertNotIn(name, out["env"])
             self.assertNotIn(name, out["args"])

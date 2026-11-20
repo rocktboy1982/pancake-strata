@@ -12,8 +12,19 @@
      24
     ]
    },
-   "source": "shipped default: the adopted pancake flags that are ported to this branch (ledger ids from pancake-strata TEST_LEDGER.md), minus every flag the 2026-11-19 box measurements of this branch found FAIL / NO-GAIN / UNSUPPORTED (except the text-identity UNSUPPORTED of the three RDNA kernels, restored by owner decision 2026-11-20) or lossy without a passing gate (top-level \"removed\", owner order 2026-11-19 23:05); regenerate with tools/pancake/flag_diag.sh --write-recommended after the box benchmark",
+   "source": "shipped default: the adopted pancake flags that are ported to this branch (ledger ids from pancake-strata TEST_LEDGER.md), minus every flag the 2026-11-19 box measurements of this branch found FAIL / NO-GAIN / UNSUPPORTED (except the text-identity UNSUPPORTED of the three RDNA kernels and of STRATA_HIPBLASLT_TUNING, restored by owner decision 2026-11-20) or lossy without a passing gate (top-level \"removed\", owner order 2026-11-19 23:05); regenerate with tools/pancake/flag_diag.sh --write-recommended after the box benchmark",
    "flags": [
+    {
+     "kind": "env",
+     "name": "STRATA_HIPBLASLT_TUNING",
+     "value": "<ROOT>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt",
+     "verdict": "GAIN",
+     "exact": true,
+     "gain_pct": 38.0,
+     "ledger": "T-096 (11.7K-token prompt 1,345 -> 1,850-1,920 tok/s, provisional, noisy machine); restored 2026-11-20 (pancake TEST_LEDGER.md T-991..)",
+     "exactness": "EXACT-UNVERIFIED on this model (owner decision 2026-11-20): it was removed only for 'claimed exact but the text differs' (diag rerun, plain build), which the owner ruled invalid here because plain upstream against itself (base-late) also gave DIFFERENT text in every run of 2026-11-19",
+     "runtime_note": "on the box's ROCm 10.0 the hipBLASLt runtime is version 100401, so this table is the one that matches (engine log: 'prefill gemm: hipBLASLt tuning enabled (43 rows, gfx1100, version 100401)'); a 100200 table (Strata-rdna3's setups) is refused there ('hipBLASLt version mismatch: file=100200 runtime=100401; using hipBLASEx'). The engine checks the header and ignores a mismatching table, so other ROCm versions fall back safely"
+    },
     {
      "kind": "env",
      "name": "STRATA_RDNA_Q6K",
@@ -58,19 +69,6 @@
  ],
  "removed": [
   {
-   "kind": "env",
-   "name": "STRATA_HIPBLASLT_TUNING",
-   "value": "<ROOT>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt",
-   "was": {
-    "verdict": "GAIN",
-    "exact": true,
-    "gain_pct": 38.0,
-    "ledger": "T-096"
-   },
-   "verdict": "UNSUPPORTED",
-   "evidence": "flag_diag rerun on the box 2026-11-19 (/home/dan/auto-runs/winbenchus/diag-rerun/diag-plain/verdicts.json, the plain upstream build): UNSUPPORTED, \"claimed exact but the text differs from the default here\". Note 2026-11-20: the same text-identity reason the owner ruled invalid for the RDNA kernels; it stays out pending an owner decision"
-  },
-  {
    "kind": "arg",
    "name": "--lookup-max-t",
    "value": "12",
@@ -85,5 +83,5 @@
    "evidence": "lossy (exact false); the quality gate of this branch did not pass: /home/dan/auto-runs/benchexact/gate-us (spec 222, 48 requests, token forcing against plain upstream v0.2.16): updated-exact (which keeps --lookup-max-t 12) REJECT on the rate rule, mismatch 3.379% against 1.562% / 1.360% for two stock runs, +1.92 points, 90% interval [+1.23, +2.74]; updated REJECT (3.964%, +2.50 points); event rule PASS for both. AGENTS.md: never lossy without a passing gate. The pancake-base PASS (T-126/T-127) does not carry over."
   }
  ],
- "removed_note": "Taken out of the gfx1100 profile 2026-11-20 (owner order 2026-11-19 23:05: remove what did not work): every flag with a FAIL / NO-GAIN / UNSUPPORTED verdict on this branch, and every lossy flag whose quality gate did not pass. Not measured as a single flag here and kept: --pcie-frac 0 (exact). Restored 2026-11-20 by owner decision: STRATA_RDNA_Q6K, STRATA_GR_RDNA, STRATA_RDNA_MMVQ_WAVE (their UNSUPPORTED came from text identity, which the default fails against itself on this model). The specs 220-223 measure the whole updated preset (configs/pancake/flashnext-iq2_xs-updated-hip.json), not this file."
+ "removed_note": "Taken out of the gfx1100 profile 2026-11-20 (owner order 2026-11-19 23:05: remove what did not work): every flag with a FAIL / NO-GAIN / UNSUPPORTED verdict on this branch, and every lossy flag whose quality gate did not pass. Not measured as a single flag here and kept: --pcie-frac 0 (exact). Restored 2026-11-20 by owner decision: STRATA_RDNA_Q6K, STRATA_GR_RDNA, STRATA_RDNA_MMVQ_WAVE and STRATA_HIPBLASLT_TUNING (100401 table) (their UNSUPPORTED came from text identity, which the default fails against itself on this model; the 100401 table also matches the ROCm 10.0 runtime). The specs 220-223 measure the whole updated preset (configs/pancake/flashnext-iq2_xs-updated-hip.json), not this file."
 }
