@@ -1,0 +1,4 @@
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 103.6 short 69.9 edit 145.7 edit 174.5 longdec64k 80.6/1510p 65241t  foreign CPU 2% [('snapd', 14), ('claude', 1), ('localsearch-3', 1)]  gpu 1984/1249 MHz 62C 174W gtt 25M cpu 3469MHz 64C igpu 0%/vcn 0% fclk 1600
+REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1510, pack load 0.64 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
