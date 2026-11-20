@@ -16,3 +16,7 @@ REGIME-RECOVERED base-m1: first start prefill 2106 / load 0.41 GiB/s (paused 17:
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-PF_PAD         short 110.7 short 103.5 edit 167.6 edit 114.7 longdec64k 74.1/1468p 65240t  foreign CPU 2% [('kcompactd0', 6), ('localsearch-3', 1), ('rcu_preempt', 0)]  gpu 1942/1249 MHz 63C 189W gtt 25M cpu 3575MHz 64C igpu 0%/vcn 0% fclk 1600
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-HC_UPMIX       short 102.8 short 96.6 edit 122.5 edit 139.5 longdec64k 77.1/1602p 65240t  foreign CPU 2% [('kcompactd0', 5), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1944/1249 MHz 64C 183W gtt 25M cpu 3614MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 80.2 short 82.3 edit 173.7 edit 182.7 longdec64k 79.3/1539p 65240t  foreign CPU 2% [('kcompactd0', 7), ('kswapd0', 3), ('migration/4', 0)]  gpu 1997/1249 MHz 63C 181W gtt 25M cpu 3775MHz 65C igpu 0%/vcn 0% fclk 1600
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1539, pack load 0.47 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
