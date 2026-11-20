@@ -1560,7 +1560,7 @@ bool up75_on() {
         cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, dev);
         cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, dev);
         // Turing (STRATA_SM75_PERF=1), and a 12.0 card (sm120_series.hpp: RTX PRO 5000, a 4-token verify round -1.7%)
-        per_dev[dev] = strata::sm75_default(major, minor) || strata::sm120_default(major, minor) ? 2 : 1;
+        per_dev[dev] = strata::sm75_default(major, minor) || strata::sm12x_default(major, minor, strata::kGb10GrUp75) ? 2 : 1;
     }
     return per_dev[dev] == 2;
 #endif
@@ -1585,7 +1585,7 @@ int down_tg(int ct) {
         cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, dev);
         cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, dev);
         cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, dev);
-        per_dev[dev] = strata::sm75_default(major, minor) ? 2 : strata::sm120_default(major, minor) ? (sms >= 80 ? 3 : 4) : 1;   // Turing, STRATA_SM75_PERF=1
+        per_dev[dev] = strata::sm75_default(major, minor) ? 2 : strata::sm12x_default(major, minor, strata::kGb10GrDownTg) ? (sms >= 80 ? 3 : 4) : 1;   // Turing, STRATA_SM75_PERF=1
     }
     // a 12.0 card (sm120_series.hpp) with 80+ SMs: one token a block row for every launch of 2+ tokens (RTX PRO 5000, fixed
     // rounds against token pairs: 2 tokens -2.1%, 3 -2.3%, 4 -0.2%, 5 -2.5%; pairs against no split at 4 tokens -2.4%); a
@@ -2833,7 +2833,7 @@ static bool fused_gr_read_multi_slice(const FusedGrArgs* a, int n_tok, float* xn
     for (int t = 0; t < n_tok; ++t) {
         m.a[t] = a[t];
         const FusedGrArgs& x = a[t];
-        if (!x.R || !x.w_norm || !(((x.w_down || x.r8_down) && (x.w_up || x.r8_up)) || (x.q8_down && x.q8_up)) || !x.lo || !x.rs || !x.mixed || (x.w_inject && !x.inject_out) ||
+        if (!x.R || !x.w_norm || !((x.w_down && x.w_up) || (x.q8_down && x.q8_up)) || !x.lo || !x.rs || !x.mixed || (x.w_inject && !x.inject_out) ||
             (x.apply && (!x.bo_prev || !x.inj_prev || !x.R_out)) || x.w_down != a[0].w_down || x.w_up != a[0].w_up ||
             x.w_inject != a[0].w_inject || x.w_norm != a[0].w_norm || x.q8_down != a[0].q8_down ||
             x.q8_up != a[0].q8_up || x.q8_inject != a[0].q8_inject) {
@@ -2855,15 +2855,6 @@ static bool fused_gr_read_multi_slice(const FusedGrArgs* a, int n_tok, float* xn
     m.xn = xn_scratch;
     m.T = n_tok;
     cudaStream_t st = (cudaStream_t) stream;
-    if (rdna_gr_enabled() && a[0].q8_down == nullptr) {   // STRATA_GR_RDNA=1 (rdna_gr.cu): the read in another summation order
-        rdna_gr_read_multi(m.a, n_tok, xn_scratch, stream, stamp_buf, stamp_i0);   // m.a: q8_mixed set only when all are
-        const cudaError_t er = cudaGetLastError();
-        if (er != cudaSuccess) {
-            std::fprintf(stderr, "rdna_gr_read_multi: %s\n", cudaGetErrorString(er));
-            std::exit(1);
-        }
-        return q8;   // false: the caller quantizes
-    }
     if (a[0].q8_down != nullptr && a[0].q8_up != nullptr) {   // inject: Q8_0 copy, or the BF16 rows
         launch_q8(m, xn_scratch, st, stamp_buf, stamp_i0);   // S23 experiment: STRATA_HC_Q8=1
         const cudaError_t eq = cudaGetLastError();

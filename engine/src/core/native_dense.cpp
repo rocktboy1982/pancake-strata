@@ -93,11 +93,6 @@ bool hc_q8_inject_env() {
     static const bool on = [] { const char* v = std::getenv("STRATA_HC_Q8_INJECT"); return v && v[0] == '1'; }();
     return on;
 }
-// STRATA_GR_RDNA_Q8=1 (rdna_gr.cu): int8 + fp16-scale copies of the hyper-connection down / up projections, the RDNA read's layout
-bool gr_rdna_q8_env() {
-    static const bool on = [] { const char* v = std::getenv("STRATA_GR_RDNA_Q8"); return v != nullptr && v[0] == '1'; }();
-    return on;
-}
 bool hc_q8_name(const std::string& name) {
     if (name == "output_hc_down.weight" || name == "output_hc_up.weight") return true;   // S25: the final mixer too
     if (name.rfind("blk.", 0) != 0) return false;
@@ -128,16 +123,6 @@ uint16_t half_bits(float f) {
     const uint32_t rem = m & 0x1fffu;
     if (rem > 0x1000u || (rem == 0x1000u && (h & 1u))) ++h;
     return (uint16_t) (sign | h);
-}
-float half_to_float(uint16_t h) {
-    const uint32_t sign = (uint32_t) (h & 0x8000u) << 16;
-    uint32_t e = (h >> 10) & 0x1fu, m = h & 0x3ffu, x;
-    if (e == 0) {
-        if (m == 0) x = sign;
-        else { int s = -1; do { m <<= 1; ++s; } while (!(m & 0x400u)); x = sign | ((uint32_t) (127 - 15 - s) << 23) | ((m & 0x3ffu) << 13); }
-    } else if (e == 31) x = sign | 0x7f800000u | (m << 13);
-    else x = sign | ((e - 15 + 127) << 23) | (m << 13);
-    float f; std::memcpy(&f, &x, 4); return f;
 }
 std::vector<uint8_t> q8_0_of(const float* x, uint64_t n) {
     std::vector<uint8_t> out((size_t) (n / 32 * 34));
@@ -236,7 +221,7 @@ bool NativeDense::weight_bytes_for(const std::vector<std::string>& shards, Weigh
                                    int64_t lb, int64_t le, uint64_t& out, std::string& err) {
     out = 0;
     try {
-        std::set<std::string> seen, hc_seen, r8_seen;
+        std::set<std::string> seen, hc_seen;
         uint64_t total = 0;
         auto in_stage = [&](const std::string& name) {   // a blk.<l>. tensor of layers [lb, le); the rest belongs to every stage
             if (name.rfind("blk.", 0) != 0) return true;
@@ -256,16 +241,6 @@ bool NativeDense::weight_bytes_for(const std::vector<std::string>& shards, Weigh
                         if (found != table.table_.end() && found->second.ne0 % 32 == 0 &&
                             tensor.shape[0] == (uint64_t) found->second.ne0 && tensor.shape[1] == (uint64_t) found->second.ne1)
                             total += alloc_bytes((uint64_t) found->second.ne0 / 32 * 34 * (uint64_t) found->second.ne1);
-                    }
-                }
-                // STRATA_GR_RDNA_Q8: the int8 + fp16-scale copy of a Q8_0 / BF16 down / up projection, priced as `load` makes it
-                if (gr_rdna_q8_env() && hc_q8_name(tensor.name) && tensor.shape.size() == 2 && (tensor.type == 8 || tensor.type == 30) &&
-                    !tensor.name.ends_with("_inject.weight") && in_stage(tensor.name) && r8_seen.insert(tensor.name).second) {
-                    const auto found = table.table_.find(tensor.name);
-                    if (found != table.table_.end() && found->second.ne0 % 32 == 0 && tensor.shape[0] == (uint64_t) found->second.ne0 &&
-                        tensor.shape[1] == (uint64_t) found->second.ne1) {
-                        const uint64_t n = (uint64_t) found->second.ne0 * (uint64_t) found->second.ne1;
-                        total += alloc_bytes((n + 255) / 256 * 256 + n / 32 * 2);
                     }
                 }
                 if (!eligible(tensor, include_ple_key)) continue;
@@ -560,57 +535,6 @@ bool NativeDense::load(const std::vector<std::string>& shards, WeightTable& tabl
                     allocated += alloc_bytes(bytes);
                     strata::core::manifest::instance().tensors("dense_hc_q8_copy", f32_inject ? "F32->Q8_0" : "Q8_0", 1, bytes);
                 }
-            if (gr_rdna_q8_env()) {   // STRATA_GR_RDNA_Q8=1: int8 + fp16-scale copies of the hyper-connection down / up projections (rdna_gr.cu)
-                for (const auto& tensor : gguf.tensors()) {
-                        if ((tensor.type != 8 && tensor.type != 30) || !hc_q8_name(tensor.name) || tensor.shape.size() != 2 ||
-                            tensor.name.ends_with("_inject.weight"))
-                            continue;
-                        if (outside(tensor.name) || !in_range(tensor.name)) continue;   // another stage's layers are never read here
-                        auto found = table.table_.find(tensor.name);
-                        if (found == table.table_.end() || found->second.hc_r8 != nullptr) continue;
-                        auto& ref = found->second;
-                        const uint64_t n0 = tensor.shape[0], n1 = tensor.shape[1], n = n0 * n1;
-                        if (n0 != (uint64_t) ref.ne0 || n1 != (uint64_t) ref.ne1 || n0 % 32 != 0) {
-                            err = "native dense (STRATA_GR_RDNA_Q8): incompatible matrix " + tensor.name; return false;
-                        }
-                        const uint64_t soff = (n + 255) / 256 * 256, bytes = soff + n / 32 * 2;
-                        std::vector<uint8_t> host((size_t) bytes, 0);
-                        int8_t* q = (int8_t*) host.data();
-                        uint16_t* sc = (uint16_t*) (host.data() + soff);
-                        const uint8_t* src = (const uint8_t*) gguf.tensor_data(tensor);
-                        for (uint64_t b = 0; b < n / 32; ++b) {
-                            if (tensor.type == 8) {                       // Q8_0: fp16 d + 32 int8, as stored
-                                std::memcpy(&sc[b], src + b * 34, 2);
-                                std::memcpy(q + b * 32, src + b * 34 + 2, 32);
-                            } else {                                      // BF16: quantized per 32 on the stored fp16 scale
-                                float x[32], amax = 0.0f;
-                                for (int j = 0; j < 32; ++j) {
-                                    uint16_t h; std::memcpy(&h, src + (b * 32 + j) * 2, 2);
-                                    const uint32_t u = (uint32_t) h << 16; std::memcpy(&x[j], &u, 4);
-                                    amax = (std::max)(amax, std::fabs(x[j]));
-                                }
-                                const uint16_t hb = half_bits(amax / 127.0f);
-                                sc[b] = hb;
-                                const float d = half_to_float(hb), id = d != 0.0f ? 1.0f / d : 0.0f;
-                                for (int j = 0; j < 32; ++j) {
-                                    const long v = std::lround(x[j] * id);
-                                    q[b * 32 + j] = (int8_t) (v > 127 ? 127 : v < -127 ? -127 : v);
-                                }
-                            }
-                        }
-                        void* p = nullptr;
-                        if (cudaMalloc(&p, bytes) != cudaSuccess || cudaMemcpy(p, host.data(), bytes, cudaMemcpyHostToDevice) != cudaSuccess) {
-                            err = "native dense (STRATA_GR_RDNA_Q8) upload " + tensor.name; return false;
-                        }
-                        ref.hc_r8 = p;
-                        weights_.push_back(p);
-                        hc_q8_bytes += bytes;
-                        allocated += alloc_bytes(bytes);
-                        if (!strata::kernels::rdna_r8_scratch_init((long long) n)) {
-                            err = "native dense (STRATA_GR_RDNA_Q8): scratch allocation"; return false;
-                        }
-                    }
-            }
         }
         if (hc_q8_env()) {
             // a bf16 pack stores no Q8_0 copy: quantize the layers' down / up projections. A row the arena kept
@@ -679,6 +603,7 @@ bool NativeDense::load(const std::vector<std::string>& shards, WeightTable& tabl
         for (auto& item : pending) {
             item.ref->native_data = item.data.get();
             item.ref->native_type = item.type;
+            item.ref->native_bytes = item.bytes;
             item.ref->native_q8_1 = scratch.get();
             if (item.packed) {
                 strata::kernels::native_q8_0_packed_register(item.data.get(), item.packed.get(), (int) item.ref->ne0,
@@ -746,8 +671,6 @@ bool NativeDense::add_hc_skip(const std::string& pack_dir, std::set<std::string>
 
 const uint16_t* NativeDense::hc_bf16_view(const WeightRef& w, void* stream, int slot, int cls) {
     if (w.data != nullptr) return (const uint16_t*) w.data;
-    // STRATA_GR_RDNA_Q8: the projection lives as int8 + fp16 scales only; slot 0 = down, 1 = up (rdna_gr.cu's per-device scratch)
-    if (w.hc_r8 != nullptr) return strata::kernels::rdna_r8_to_bf16((const int8_t*) w.hc_r8, w.ne1, w.ne0, slot, stream);
     if (w.hc_q8 == nullptr) return nullptr;
     // the device's scratch (allocated at load, one pair per device): the prompt path and the single-token read run one
     // after the other on a device, and each use is stream-ordered after the previous GEMM that read the slot

@@ -1343,8 +1343,10 @@ __global__ void native_mmvq_multi_kernel(const typename F::Block* __restrict__ w
 //   gfx1201 (R9700): n_in <= 4096 with n_out >= 4096 (qkv 2560->10240 73-79% -> 83-84% of the 644 GB/s, gate 2560->6144
 //     51-68% -> 76-78%, q 2560->12288 74-80% -> 85-86%); 6144->2560 is slower there (79% -> 55-59%) and keeps two rows.
 //   sm_86 (RTX A4000): every n_out >= 2048 (+1-4% at 2-4 columns, 6144->2560 at 6 columns 70% -> 76%).
+//   sm_120 (RTX 5090, BW-6a, STRATA_Q80_ROWS1=1, opt-in): every shape the one-row kernel exists for (n_in / 32 >= 4 blocks per
+//     iteration); the gains are in the 2-6 column table of q8_gemv_bench (phaseA-tests/bw/RESULTS-BW-C.md).
 // Other cards keep two rows until measured (STRATA_NO_MMVQ_ROWS2=1 forces one row everywhere; =0 keeps two everywhere).
-int dev_class() {   // 1 = gfx12, 2 = sm_86, 0 = the rest; per device
+int dev_class() {   // 1 = gfx12, 2 = sm_86, 3 = sm_120, 0 = the rest; per device
     static int cls[16];   // 0 unknown, else class + 1
     int dev = 0;
     if (cudaGetDevice(&dev) != cudaSuccess || dev < 0 || dev >= 16) return 0;
@@ -1358,6 +1360,8 @@ int dev_class() {   // 1 = gfx12, 2 = sm_86, 0 = the rest; per device
         if (cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, dev) == cudaSuccess &&
             cudaDeviceGetAttribute(&minor, cudaDevAttrComputeCapabilityMinor, dev) == cudaSuccess && major == 8 && minor == 6)
             c = 2;
+        else if (major == 12 && minor == 0)
+            c = 3;
 #endif
         (void) cudaGetLastError();
         cls[dev] = c + 1;
@@ -1376,7 +1380,11 @@ bool q8_0_rows1(int n_in, int n_out) {
         }();
         if (env == 0) return false;
         const int c = dev_class();
-        return (c == 1 && n_in <= 4096 && n_out >= 4096) || (c == 2 && n_out >= 2048);
+        static const bool sm120_rows1 = [] {   // BW-6a: opt-in until the engine A/B is read
+            const char* v = std::getenv("STRATA_Q80_ROWS1");
+            return v != nullptr && v[0] != '\0' && v[0] != '0';
+        }();
+        return (c == 1 && n_in <= 4096 && n_out >= 4096) || (c == 2 && n_out >= 2048) || (c == 3 && sm120_rows1);
     }
 }
 
@@ -2436,80 +2444,6 @@ void wave_launch(const void* weights, const void* x_q8_1, float* y, int n_in, in
 }
 #define STRATA_WAVE_MMVQ(...) \
     if (!g_wave_off) { wave_launch<__VA_ARGS__>(weights, x_q8_1, y, n_in, n_out, ncols, stream); launch_check(); return; }
-#elif defined(STRATA_USE_HIP)
-// ---- RDNA (wave32) STRATA_RDNA_MMVQ_WAVE=3 (opt-in; pancake T-009, T-378): one wave per output row that emulates the generic
-// four-warp layout in registers: the same partial sums in the same order (tmp[j][g] per emulated warp g, added g = 1..3 in order, then
-// warp_sum), without the LDS exchange and the block barrier.  The same kernel serves every column count 1..16, so a column's result
-// does not depend on how many verify tokens ride along.  Selection depends on the shape only (never on ncols), as in the fork.
-const char* g_rdna_wave_env = std::getenv("STRATA_RDNA_MMVQ_WAVE");
-const bool g_wave_exact = g_rdna_wave_env && std::string(g_rdna_wave_env) == "3";
-bool g_wave_off = !g_wave_exact;
-template<typename F, int NCOLS>
-__launch_bounds__(256)
-__global__ void native_mmvq_wave_exact_kernel(const typename F::Block* __restrict__ w, const Q81Block* __restrict__ x,
-                                              float* __restrict__ y, int n_in, int n_out) {
-    const int lane = int(threadIdx.x) & 31;
-    const int row = int(blockIdx.x) * 8 + int(threadIdx.x) / 32;
-    if (row >= n_out) return;
-    const int blocks_per_row = n_in / F::DIV;
-    const int x_stride = n_in / Q8K;
-    float tmp[NCOLS][WARPS] = {};
-#pragma unroll
-    for (int g = 0; g < WARPS; ++g) {
-        const int tid = lane + g * WARP;
-        const int kqs = F::kqs(tid);
-        for (int kbx = tid / F::T; kbx < blocks_per_row; kbx += F::BPI) {
-            const typename F::W wv = F::load(w + std::size_t(row) * blocks_per_row + kbx, kqs);
-#pragma unroll
-            for (int j = 0; j < NCOLS; ++j)
-                tmp[j][g] += F::apply(wv, x + std::size_t(j) * x_stride + kbx * F::KBY, kqs);
-        }
-    }
-#pragma unroll
-    for (int j = 0; j < NCOLS; ++j) {
-        float v = tmp[j][0];
-#pragma unroll
-        for (int g = 1; g < WARPS; ++g) v += tmp[j][g];
-        v = warp_sum(v);
-        if (lane == 0) y[std::size_t(j) * n_out + row] = v;
-    }
-}
-template<typename F, int NCOLS>
-void wave_launch_n(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, cudaStream_t s) {
-    const auto* w = static_cast<const typename F::Block*>(weights);
-    const auto* x = static_cast<const Q81Block*>(x_q8_1);
-    const unsigned blocks = unsigned((std::size_t(n_out) + 7) / 8);
-    native_mmvq_wave_exact_kernel<F, NCOLS><<<blocks, 256, 0, s>>>(w, x, y, n_in, n_out);
-}
-template<typename F>
-void wave_launch(const void* weights, const void* x_q8_1, float* y, int n_in, int n_out, int ncols, void* stream) {
-    const auto s = static_cast<cudaStream_t>(stream);
-    switch (ncols) {
-        case 1: wave_launch_n<F, 1>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 2: wave_launch_n<F, 2>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 3: wave_launch_n<F, 3>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 4: wave_launch_n<F, 4>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 5: wave_launch_n<F, 5>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 6: wave_launch_n<F, 6>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 7: wave_launch_n<F, 7>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 8: wave_launch_n<F, 8>(weights, x_q8_1, y, n_in, n_out, s); break;
-#if STRATA_VERIFY_MAX_T > 8
-        case 9: wave_launch_n<F, 9>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 10: wave_launch_n<F, 10>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 11: wave_launch_n<F, 11>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 12: wave_launch_n<F, 12>(weights, x_q8_1, y, n_in, n_out, s); break;
-#if STRATA_VERIFY_MAX_T > 12
-        case 13: wave_launch_n<F, 13>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 14: wave_launch_n<F, 14>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 15: wave_launch_n<F, 15>(weights, x_q8_1, y, n_in, n_out, s); break;
-        case 16: wave_launch_n<F, 16>(weights, x_q8_1, y, n_in, n_out, s); break;
-#endif
-#endif
-        default: throw std::invalid_argument("native MMVQ (wave) requires 1 <= ncols <= MAX_NCOLS");
-    }
-}
-#define STRATA_WAVE_MMVQ(...) \
-    if (!g_wave_off) { wave_launch<__VA_ARGS__>(weights, x_q8_1, y, n_in, n_out, ncols, stream); launch_check(); return; }
 #else
 #define STRATA_WAVE_MMVQ(...)
 #endif
@@ -2523,15 +2457,7 @@ void small_mmvq(const void* weights, const void* x_q8_1, float* y,
     validate_pointer(x_q8_1);
     validate_pointer(y);
     validate_stream(stream);
-#if defined(STRATA_USE_HIP) && !defined(STRATA_HIP_GFX906)
-    // gfx1100 (Strata-rdna3): short output matrices lose occupancy with one wave per row; keep their existing layout for the
-    // 6144-wide projections.  Selection depends only on the shape, never on the number of verify tokens.
-    if (n_in <= 1024 || (n_in <= 2560 && n_out >= 1024)) {
-        STRATA_WAVE_MMVQ(SmallTraits<Weight, Qi>)
-    }
-#else
     STRATA_WAVE_MMVQ(SmallTraits<Weight, Qi>)
-#endif
     if (ncols > 1) {
         launch_multi<SmallTraits<Weight, Qi>>(weights, x_q8_1, y, n_in, n_out, ncols, stream);
         launch_check();
@@ -3656,18 +3582,10 @@ void native_mmvq(int ggml_type, const void* weights, const void* x_q8_1, float* 
     case 8: native_q8_0_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
     case 20: native_iq4_nl_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
     case 11: native_q3_k_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
-    case 12:
-        if (rdna_q6k_enabled() && rdna_kq_mmvq(12, weights, x_q8_1, y, n_in, n_out, ncols, stream)) break;
-        native_q4_k_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
-    case 13:
-        if (rdna_q6k_enabled() && rdna_kq_mmvq(13, weights, x_q8_1, y, n_in, n_out, ncols, stream)) break;
-        native_q5_k_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
-    case 14:
-        if (rdna_q6k_enabled() && rdna_q6k_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream)) break;
-        native_q6_k_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
-    case 23:
-        if (rdna_q6k_enabled() && rdna_kq_mmvq(23, weights, x_q8_1, y, n_in, n_out, ncols, stream)) break;
-        native_iq4_xs_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
+    case 12: native_q4_k_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
+    case 13: native_q5_k_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
+    case 14: native_q6_k_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
+    case 23: native_iq4_xs_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
     case 42: native_q2_0_mmvq(weights, x_q8_1, y, n_in, n_out, ncols, stream); break;
     case 16: case 17: case 18: case 21: case 22: case 29:
         iq_mmvq(ggml_type, weights, x_q8_1, y, n_in, n_out, ncols, stream); break;

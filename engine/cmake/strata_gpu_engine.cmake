@@ -99,44 +99,15 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/kernels/ngram.cpp
                           src/ngram/ple_reader.cpp
                           src/platform/direct_file.cpp)
+  if(STRATA_ISA_FLOOR STREQUAL "avx")
+    if(MSVC)
+      set_source_files_properties(src/kernels/ngram.cpp PROPERTIES COMPILE_OPTIONS "/arch:AVX")
+    else()
+      set_source_files_properties(src/kernels/ngram.cpp PROPERTIES
+                                  COMPILE_OPTIONS "-mavx;-mno-avx2;-mno-fma;-mno-f16c")
+    endif()
+  endif()
   target_link_libraries(strata_kernels PUBLIC strata_core strata_artifact)
-  # the RDNA kernels (DPP / permlanex16 / sudot4) build on wave32 HIP only; CUDA and gfx906 builds take their
-  # "not available" answers from rdna_stub.cpp
-  if(STRATA_ENABLE_HIP)
-    target_sources(strata_kernels PRIVATE src/kernels/cuda/rdna_gr.cu src/kernels/cuda/rdna_mmvq.cu)
-  else()
-    target_sources(strata_kernels PRIVATE src/kernels/cuda/rdna_stub.cpp)
-  endif()
-  # the gfx1100 multi-column decode GEMVs (rdna_mmvq.cu) against native_mmvq: bounded, not bitwise (GPU, synthetic, no model);
-  # exits 77 (skip) on a wave64 card
-  # the gfx1100 hyper-connection read (rdna_gr.cu) against the default read: one test per kernel variant the environment selects (the
-  # BF16 read, the int8 read, its int8-activation A8 form, A8 with the inject rows in their own blocks, and that in one fused launch)
-  if(STRATA_ENABLE_HIP AND STRATA_BUILD_TESTS AND NOT STRATA_HIP_GFX906)
-    add_executable(rdna_gr_parity src/kernels/rdna_gr_parity.cpp)
-    target_include_directories(rdna_gr_parity PRIVATE ${_strata_gpu_include_directories})
-    target_link_libraries(rdna_gr_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
-    enable_testing()
-    add_test(NAME rdna_gr_parity COMMAND rdna_gr_parity)
-    add_test(NAME rdna_gr_parity_q8 COMMAND rdna_gr_parity --q8)
-    add_test(NAME rdna_gr_parity_a8 COMMAND rdna_gr_parity --q8 --tol 3e-2)
-    add_test(NAME rdna_gr_parity_a8_injup COMMAND rdna_gr_parity --q8 --tol 3e-2)
-    add_test(NAME rdna_gr_parity_a8_fused COMMAND rdna_gr_parity --q8 --tol 3e-2)
-    set(_rdna_gr_off "STRATA_GR_RDNA_A8=0;STRATA_GR_INJ_UP=0;STRATA_GR_FUSED=0")
-    set_tests_properties(rdna_gr_parity rdna_gr_parity_q8 PROPERTIES ENVIRONMENT "${_rdna_gr_off}")
-    set_tests_properties(rdna_gr_parity_a8 PROPERTIES ENVIRONMENT "STRATA_GR_RDNA_A8=1;STRATA_GR_INJ_UP=0;STRATA_GR_FUSED=0")
-    set_tests_properties(rdna_gr_parity_a8_injup PROPERTIES ENVIRONMENT "STRATA_GR_RDNA_A8=1;STRATA_GR_INJ_UP=1;STRATA_GR_FUSED=0")
-    set_tests_properties(rdna_gr_parity_a8_fused PROPERTIES ENVIRONMENT "STRATA_GR_RDNA_A8=1;STRATA_GR_INJ_UP=1;STRATA_GR_FUSED=1")
-    set_tests_properties(rdna_gr_parity rdna_gr_parity_q8 rdna_gr_parity_a8 rdna_gr_parity_a8_injup rdna_gr_parity_a8_fused
-                         PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
-  endif()
-  if(STRATA_ENABLE_HIP AND STRATA_BUILD_TESTS)
-    add_executable(rdna_mmvq_parity src/kernels/rdna_mmvq_parity.cpp)
-    target_include_directories(rdna_mmvq_parity PRIVATE ${_strata_gpu_include_directories})
-    target_link_libraries(rdna_mmvq_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
-    enable_testing()
-    add_test(NAME rdna_mmvq_parity COMMAND rdna_mmvq_parity)
-    set_tests_properties(rdna_mmvq_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
-  endif()
   # Exact gfx1100 prompt scorer (PR1825 method port): optional standalone test,
   # also available where the published source omits tests/.
   option(STRATA_PARITY_GFX1100_QSA_SCORES "Build the exact gfx1100 QSA score/ID check" OFF)
@@ -197,6 +168,10 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     target_link_libraries(qsa_topk_active_parity PRIVATE strata_kernels CUDA::cudart)
     add_test(NAME qsa_topk_active_parity COMMAND qsa_topk_active_parity)
     set_tests_properties(qsa_topk_active_parity PROPERTIES SKIP_RETURN_CODE 77)
+    # the same cases through the one-read top-k (#2093, STRATA_TOPK_SAMPLE=1, Turing's default) on any CUDA card: the
+    # same ids, including the rows past 524,288 cells where its sampling stride doubles
+    add_test(NAME qsa_topk_active_parity_sample COMMAND qsa_topk_active_parity)
+    set_tests_properties(qsa_topk_active_parity_sample PROPERTIES SKIP_RETURN_CODE 77 ENVIRONMENT "STRATA_TOPK_SAMPLE=1")
     # STRATA_QSA_SLOTS: a batch window's scores, top-k and attention as one launch over rows of different slots
     # against one call per row, bitwise (synthetic, no model)
     add_executable(qsa_slots_parity src/kernels/qsa_slots_parity.cpp)
@@ -437,6 +412,11 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     add_test(NAME device_free_error_test COMMAND device_free_error_test)
     set_tests_properties(device_free_error_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60
                          ENVIRONMENT "CUDA_VISIBLE_DEVICES=-1;HIP_VISIBLE_DEVICES=-1")
+    # #5636: an error an earlier unchecked call left pending is said and cleared before a graph capture (needs a device; skipped without)
+    add_executable(pending_cuda_error_test tests/core/pending_cuda_error_test.cpp)
+    target_link_libraries(pending_cuda_error_test PRIVATE strata_engine)
+    add_test(NAME pending_cuda_error_test COMMAND pending_cuda_error_test)
+    set_tests_properties(pending_cuda_error_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
     # STRATA_MMQ_DIRECT: slot_guard / slot_room / slot_tail on the uniform and the sized cache, and the default
     # (no guard) sized layout unchanged
     add_executable(expert_cache_slot_guard_test tests/core/expert_cache_slot_guard_test.cpp)
@@ -1107,6 +1087,12 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   target_link_libraries(route_prior_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
   add_test(NAME route_prior_parity COMMAND route_prior_parity)
   set_tests_properties(route_prior_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+  # the gated combine (STRATA_LFUSE) rounds the shared expert row's product on its own, bitwise the scale-rows-then-add path (#5100; GPU, synthetic, no model)
+  add_executable(native_moe_gated_test tests/cuda/native_moe_gated_test.cu)
+  target_include_directories(native_moe_gated_test PRIVATE ${_strata_gpu_include_directories})
+  target_link_libraries(native_moe_gated_test PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+  add_test(NAME native_moe_gated_test COMMAND native_moe_gated_test)
+  set_tests_properties(native_moe_gated_test PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 
   add_executable(router_top10_parity src/kernels/router_top10_parity.cpp)
   target_include_directories(router_top10_parity PRIVATE ${_strata_gpu_include_directories})

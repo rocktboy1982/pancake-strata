@@ -196,14 +196,6 @@ public:
     /// or sync and never read a history staged for another position.
     void set_head_sampling(bool on) { head_sampling_ = on; if (next_) next_->set_head_sampling(on); }
 
-    /// STRATA_VERIFY_ECAP=<n> (opt-in, changes the output; core/verify_ecap.hpp): the NEXT run's rows 1..T-1 are drafts, so the
-    /// expert pool may skip the CPU experts that only those rows name past the cap.  The decode loop says so per window: not for a
-    /// merged first window (its rows are prompt tokens).  A borrow for that run only: run clears it on every path, so a window
-    /// whose caller says nothing (a prompt read, a batch or pipelined window) is never capped.
-    void set_ecap_window(bool drafts) { ecap_next_ = drafts; if (next_) next_->set_ecap_window(drafts); }
-    /// STRATA_VERIFY_ECAP as init took it: the cap per draft row, -1 off.
-    int ecap() const { return ecap_; }
-
     /// LAYER SPLIT (multi-GPU): this verifier runs layers [layer_begin, layer_end) of every window.  A stage that
     /// does not start at layer 0 takes its residual from `handoff_in` instead of embedding the tokens; a stage that
     /// does not end at the last layer writes its residual to `handoff_out` and has no head.  The hand-off holds,
@@ -588,10 +580,6 @@ private:
     int32_t* d_spec_ = nullptr;          ///< device: kVerifyMaxT draft ids, then kVerifyMaxT q rows
     int hist_len_ = 0;
     bool head_sampling_ = true;          ///< set_head_sampling
-    // STRATA_VERIFY_ECAP=<n> (opt-in, changes the output): host side only (sink_.ecap per layer in run); the captured graphs
-    // do not change, so it costs no new capture
-    int ecap_ = -1;                        ///< init: the cap per draft row, -1 off
-    bool ecap_next_ = false;               ///< set_ecap_window: the next run's draft rows may be capped
 #if defined(STRATA_GPU_METAL)
     void* metal_ = nullptr;              ///< the Metal decode window (metal/src/engine/window.cpp): init/run/commit go there
 #endif
@@ -647,7 +635,7 @@ private:
     unsigned long long* trace_h_ = nullptr;
     unsigned long long* trace_m_ = nullptr;
     size_t trace_n_ = 0;
-    static constexpr int kProfPer = 33;              // stamps per layer (32 left the hc-read second
+    static constexpr int kProfPer = 34;              // stamps per layer (32 left the hc-read second
                                       // half's up-stamp at slot 32 = the next layer's slot 0: D8)
     bool prof_on_ = false;
     unsigned long long* prof_ = nullptr;              // device: n_layers * kProfPer + 4 stamps
@@ -720,6 +708,8 @@ private:
     cudaEvent_t tap_ev_ = nullptr;
     float* h_tap_ = nullptr;     float* m_tap_ = nullptr;       ///< the mapped copy of tap_dev_
     std::FILE* tap_file_ = nullptr;
+    bool tap_split_ = false;                      ///< STRATA_TAP_FILE on a layer split - this (first) stage gathers the chain's taps to the host
+    std::vector<float> tap_split_host_;           ///< [max_t][all taps][n_embd]
     void tap_write(int T, const int32_t* tokens, int64_t pos0);
     uint32_t* h_nf_ = nullptr;   uint32_t* m_nf_ = nullptr;     // #879: kVerifyMaxT * kNonfiniteBlocks flags
     int nf_row_ = -1;                     ///< nonfinite_row()
