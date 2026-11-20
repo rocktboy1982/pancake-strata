@@ -1,1 +1,5 @@
 case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 110.4 short 103.5 edit 167.4 edit 169.8 longdec64k 76.5/2189p 65241t  foreign CPU 2% [('snapd', 9), ('dbus-daemon', 0), ('localsearch-3', 0)]  gpu 2047/1249 MHz 63C 185W gtt 25M cpu 3655MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-HC_Q8_ALL_STAGES short 88.2 short 98.9 edit 120.1 edit 105.1 longdec64k 59.5/1397p 65241t  foreign CPU 2% [('kcompactd0', 3), ('claude', 1), ('localsearch-3', 1)]  gpu 1922/1249 MHz 63C 167W gtt 25M cpu 3542MHz 65C igpu 0%/vcn 0% fclk 1600
