@@ -33,6 +33,8 @@
 #   their own paired 3-rep blocks).  The budget then holds pass 1 + one block re-run only (no paired block is reserved).
 # SWEEP_EXTRA="us:--lookup-max-t us:STRATA_GR_RDNA ..." adds named flags the registry lists as measured (keys of retest_groups.json: the same arm the retest slices
 #   run) as one more arm each (sweep.py spec --extra); SWEEP_ONLY_META may be a `sweep.py select` file (the INCONCLUSIVE flags: the stage-2 re-screen).
+# SWEEP_PRIOR=<merged triage v2 of run 1> (with SWEEP_ONLY_META = the promising flags of run 1): this screen is the RESCREEN, a second independent 1-run test; a flag stands (PROMISING) only when its
+#   run-1 best case is above 0 % again (same direction), else NO-GAIN-P1 / INCONCLUSIVE on drift (sweep.py triage --prior).
 # SWEEP_HARNESS_SHA=<commit> pins the synced harness (sweep.py and its registry: the slices of one branch must cut the same list); default origin HEAD.
 # PASS 1 (tools/pancake/box_chains/sweep.py spec): only the coded switches NEVER TESTED on gfx1100 (owner clarification 2026-11-20): no pancake
 #   TEST_LEDGER.md row naming them on the box and no 2026-11-19 box verdict; already-measured switches keep their verdict and get no arm.  One engine
@@ -316,7 +318,7 @@ for bid in $(awk '/^BLOCK /{print $2}' $T/$B-blocks-$SLN.txt); do
 done
 p1f=$(ls $O/$B-p1-$SLN-b[0-9][0-9].jsonl $O/$B-p1-$SLN-b[0-9][0-9]r.jsonl 2>/dev/null | sort | tr '\n' ' ')
 [ -n "$p1f" ] || p1f=$O/$B-p1-$SLN-none.jsonl
-sw triage --meta $P1.meta.json --pass1 $p1f --drift-max $DMAX $([ "$SCREEN" = 1 ] && echo --screen-only) --out $T/$B-tri1-$SLN.json > $T/$B-tri1-$SLN.txt 2>&1 || say "ERROR triage of pass 1 failed: $(tail -n 1 $T/$B-tri1-$SLN.txt)"
+sw triage --meta $P1.meta.json --pass1 $p1f --drift-max $DMAX $([ "$SCREEN" = 1 ] && echo --screen-only) ${SWEEP_PRIOR:+--prior $SWEEP_PRIOR} --out $T/$B-tri1-$SLN.json > $T/$B-tri1-$SLN.txt 2>&1 || say "ERROR triage of pass 1 failed: $(tail -n 1 $T/$B-tri1-$SLN.txt)"
 # PASS 2 (owner order 2026-11-20: confirm the flags ONE BY ONE): every promising flag gets its OWN paired block (base, flag, base, flag, base, flag,
 # base: abtest --tier screen --drift-check on sweep.py's paired spec), the strongest first, while the budget holds a block; a block above the drift
 # limit runs once more when the budget holds it; the flags the budget leaves out are carried (sweep.py carry -> $O/$B-carry-$SLN.json, run by
@@ -343,7 +345,7 @@ elif sw pass2 --spec $P1 --triage $T/$B-tri1-$SLN.json --out $T/$B-p2-$SLN.json 
   done < $T/$B-p2-$SLN.lst
 else cat $T/$B-p2-$SLN.txt >> $L; fi
 TV=$O/$B-triage-$SLN.v2.json
-sw triage --meta $P1.meta.json --pass1 $p1f $p2args --drift-max $DMAX $([ "$SCREEN" = 1 ] && echo --screen-only) --out $TV > $T/$B-tri-$SLN.txt 2>&1 || say "ERROR final triage failed: $(tail -n 1 $T/$B-tri-$SLN.txt)"
+sw triage --meta $P1.meta.json --pass1 $p1f $p2args --drift-max $DMAX $([ "$SCREEN" = 1 ] && echo --screen-only) ${SWEEP_PRIOR:+--prior $SWEEP_PRIOR} --out $TV > $T/$B-tri-$SLN.txt 2>&1 || say "ERROR final triage failed: $(tail -n 1 $T/$B-tri-$SLN.txt)"
 sed 's/^/TRIAGE /' $T/$B-tri-$SLN.txt | cut -c1-300 >> $L
 sw carry --spec $P1 --meta $P1.meta.json --triage $TV --tag $SLN --out $O/$B-carry-$SLN.json >> $L 2>&1 || say "ERROR carry file of $SLN failed"
 parts="$(ls -tr $O/$B-triage-[1-9]of[1-9].v2.json 2>/dev/null) $(ls -tr $O/$B-triage-*.v2.json 2>/dev/null | grep -v -e '-triage-[1-9]of[1-9]\.v2\.json$')"

@@ -430,7 +430,30 @@ def pass2_verdict(rec, f, m2, d2, mx):
     return confirm_verdict(e2, f["exact"])
 
 
-def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX, screen_only=False):
+def two_run(p1, e2, exact):
+    """The TWO-RUN rule (owner 2026-11-20, replaces the 3-rep confirm): run 1 = the screen, run 2 = the rescreen.  Effect = the mean of the two runs per case, spread = their difference.
+    OPTIONAL: a case >= +10 % in BOTH runs and a case <= -3 % in BOTH runs.  DROP (no gain): no case above 0 in both runs (run 2 does not repeat the benefit, or both <= 0).
+    MIXED (nothing ships): the gain repeats but a case lost >= 3 % in both runs without a +10 % case.  KEEP: the benefit repeats in the same direction (both runs > 0 on the case(s) that
+    carried it); a lossy flag whose two-run mean on such a case is >= 3 % is RETEST-GATE (the quality gate runs before it ships).  Returns (verdict, reason, mean, spread)."""
+    common = [m for m in e2 if m in p1]
+    mean = {m: round((p1[m] + e2[m]) / 2.0, 2) for m in common}
+    spread = {m: round(abs(p1[m] - e2[m]), 2) for m in common}
+    big = [m for m in common if p1[m] >= OPT_GAIN and e2[m] >= OPT_GAIN]
+    loss = [m for m in common if p1[m] <= OPT_LOSS and e2[m] <= OPT_LOSS]
+    gain = [m for m in common if p1[m] > 0 and e2[m] > 0]
+    fmt = lambda ms: ", ".join("%s %+.2f %% (runs %+.2f / %+.2f)" % (m, mean[m], p1[m], e2[m]) for m in ms)
+    if big and loss:
+        return "OPTIONAL", "two runs agree: helps %s; hurts %s: opt-in, not default%s" % (fmt(big), fmt(loss), "" if exact else "; lossy: a quality gate is due before it is offered"), mean, spread
+    if not gain:
+        return "DROP", "two-run rule: no case above 0 in both runs (run 2 does not repeat the benefit, or both <= 0): no gain", mean, spread
+    if loss:
+        return "MIXED", "two-run rule: gain repeats (%s) but %s lost >= %.0f %% in both runs without a +%.0f %% case: nothing ships" % (fmt(gain), ", ".join(loss), -OPT_LOSS, OPT_GAIN), mean, spread
+    if not exact and max(mean[m] for m in gain) >= 3.0:
+        return "RETEST-GATE", "two-run rule: the benefit repeats (%s); lossy and >= 3 %%: a quality gate is due before it ships" % fmt(gain), mean, spread
+    return "KEEP", "two-run rule: the benefit repeats in the same direction (%s)" % fmt(gain), mean, spread
+
+
+def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX, screen_only=False, prior=None):
     """pass1: the lines of one run, or [(block label, lines)] of the blocks, oldest first (a block's re-run after its first run: per arm the
     latest clean run is used, else the latest run).  pass2_lines: {arm: [(label, lines), ...]} = the PAIRED confirm block(s) of each flag
     (owner order 2026-11-20: one flag per confirm block), or the lines of one old multi-flag confirm run (A B B A, kept for old files)."""
@@ -447,9 +470,16 @@ def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX, screen_only=False
         e1 = effects(m1, name, f["kind"])
         ok1 = clean(d1, drift_max)
         promising = promising_of(e1, PROMISE[f["exact"]])
+        p1 = pm = None
         if screen_only:                          # owner 2026-11-20: ANY case above 0 % (clean block) is "to be considered": PROMISING; ranked by gain afterwards (sweep.py rank)
             promising = bool(e1) and max(e1.values()) > 0
-        rec = {**f, "arm": name, "slice": meta.get("slice"), "pass1": e1, "promising": promising and ok1, "pass2": None, "block": lab, "drift1": d1, "clean1": ok1,
+            pm = None
+            pr_rec = (prior or {}).get(f["flag"]) or {}
+            p1 = pr_rec.get("run1") or pr_rec.get("pass1")                                 # run 1 (a drifted run 2 keeps it as "run1" for the next rescreen)
+            if p1:                                                                         # the RESCREEN (second 1-run test): the two-run rule decides (two_run)
+                pm = max(p1, key=lambda k: p1[k])
+                promising = bool(e1) and e1.get(pm, 0) > 0
+        rec = {**f, "run1": (p1 if screen_only and pm else None), "run1_best": pm if screen_only else None, "arm": name, "slice": meta.get("slice"), "pass1": e1, "promising": promising and ok1, "pass2": None, "block": lab, "drift1": d1, "clean1": ok1,
                "blocks_run": [x[0] for x in have], "pass2_drift": d2 or None, "pass2_clean": ok2, "carry": False}
         if promising and min(e1.values()) < FLOOR:
             rec["floor_note"] = "a metric below %.0f %% in pass 1 (%s): reported, the confirm decides" % (FLOOR, worst(e1))
@@ -464,17 +494,25 @@ def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX, screen_only=False
             rec["carry"] = promising and not screen_only        # a screen-only INCONCLUSIVE is re-screened once (sweep.py select), not confirmed
             v = ("INCONCLUSIVE", "pass-1 block %s base drift %s > %.0f %% (after its re-run): no verdict%s" % (
                 lab, worst(d1), drift_max, "; promising numbers: carried to the follow-up RETEST slice" if promising else ""))
+        elif not promising and pm:
+            v = (NOGAIN, "RESCREEN (second 1-run test, clean block %s): the run-1 benefit on %s did not repeat (%+.2f %%): dropped, no shipped change" % (lab, pm, e1.get(pm, 0)))
         elif not promising:
             v = (NOGAIN, "dropped after pass 1: no benefit observed (bar %.1f %%; clean block %s; n=1, not a refutation): no shipped change"
                  % (PROMISE[f["exact"]], lab))
         elif screen_only:
             rec["carry"] = True
-            v = ("PROMISING", "stage-1 screen (n=1, clean block %s): a case above 0 %% (best %+.2f %%): to be considered; the 3-rep confirm runs in descending order of gain "
+            v = ("PROMISING", ("RESCREEN (second 1-run test, clean block %s): the benefit repeats on %s (%+.2f %%): the 3-rep confirm follows" % (lab, pm, e1.get(pm, 0)))
+                 if pm else "stage-1 screen (n=1, clean block %s): a case above 0 %% (best %+.2f %%): to be considered; the 3-rep confirm runs in descending order of gain "
                               "(sweep.py rank: HIGH = best case >= 2.0 %% this round, 0 < gain < 2.0 %% PROMISING-LOW after the final comparison)" % (lab, max(e1.values())))
         else:
             rec["carry"] = True
             v = ("RETEST", "promising; pass 2 not run (budget): carried to the follow-up RETEST slice" if m2 is None
                  else "promising; no pass-2 rows for this arm (budget): carried to the follow-up RETEST slice")
+        if screen_only and pm and ok1 and e1:                      # both runs known, clean block: the two-run rule gives the verdict (owner 2026-11-20: no separate 3-rep stage)
+            v2, why2, mean, spread = two_run(p1, e1, f["exact"])
+            rec.update({"pass2": mean, "pass2_clean": True, "spread": spread, "runs": [p1, e1], "carry": False,
+                        "pass2_design": "two-run: run 1 (screen) + run 2 (rescreen), mean effect, spread = their difference"})
+            v = (v2, why2)
         rec["verdict"], rec["reason"] = v
         flags[f["flag"]] = rec
     return {"schema": "pancake.sweep-triage/2", "branch": meta["branch"], "slices": [meta["slice"]], "protected": meta.get("protected", {}),
@@ -751,7 +789,7 @@ def gate_entries(docs, base_path, upd, prefix="", bar=3.0):
         for flag, r in doc.get("flags", {}).items():
             p2 = r.get("pass2") or {}
             if r.get("bundle") or r.get("exact", True) or r.get("verdict") not in ("RETEST-GATE", "OPTIONAL") or r.get("pass2_clean") is not True \
-                    or not p2 or max(p2.values()) < bar or not str(r.get("source", "")).startswith("bench-retest.sh " + prefix):
+                    or not p2 or max(p2.values()) < bar                     or not (str(r.get("source", "")).startswith("bench-retest.sh " + prefix) or (prefix and str(r.get("slice") or "").startswith(prefix))):
                 continue
             env, args = r.get("env") or {}, r.get("args") or {}
             if r.get("kind") == "minus":
@@ -946,6 +984,7 @@ def main(argv=None):
     t.add_argument("--pass2-run", action="append", default=[], help="ARM=FILE.jsonl: a paired confirm block of one flag (its re-run after it)")
     t.add_argument("--out", required=True)
     t.add_argument("--drift-max", type=float, default=DRIFT_MAX)
+    t.add_argument("--prior", help="the merged triage of run 1: this is the RESCREEN, a flag stands only when its run-1 best case is above 0 again")
     t.add_argument("--screen-only", action="store_true", help="stage 1: a promising flag is PROMISING (no pass 2), an INCONCLUSIVE one is not carried")
     r = sub.add_parser("remark")
     r.add_argument("--triage", required=True)
@@ -1000,6 +1039,8 @@ def main(argv=None):
     sl.add_argument("--triage", required=True)
     sl.add_argument("--verdict", default="INCONCLUSIVE,UNTESTED")
     sl.add_argument("--slice-prefix", default="")
+    sl.add_argument("--min-gain", type=float, default=None, help="only flags whose best screen case is >= this (percent)")
+    sl.add_argument("--max-gain", type=float, default=None, help="only flags whose best screen case is < this (percent)")
     sl.add_argument("--out", required=True)
     rv = sub.add_parser("retest-triage")
     rv.add_argument("--blocks", required=True)
@@ -1086,7 +1127,8 @@ def main(argv=None):
                 ls = read_lines(f)
                 if ls is not None:
                     p2.setdefault(an, []).append((os.path.basename(f).rsplit(".", 1)[0], ls))
-        tri = triage(meta, sets, p2, a.drift_max, a.screen_only)
+        prior = json.load(open(a.prior, encoding="utf-8"))["flags"] if a.prior and os.path.exists(a.prior) else None
+        tri = triage(meta, sets, p2, a.drift_max, a.screen_only, prior)
         json.dump(tri, open(a.out, "w"), indent=1)
         for fl, rc in sorted(tri["flags"].items(), key=lambda kv: kv[1]["verdict"]):
             print("%-12s %-36s pass1 %s%s  [%s]" % (rc["verdict"], fl, json.dumps(rc["pass1"]), "  pass2 " + json.dumps(rc["pass2"]) if rc["pass2"] else "",
@@ -1186,7 +1228,8 @@ def main(argv=None):
     elif a.cmd == "select":
         tri = json.load(open(a.triage, encoding="utf-8"))
         vs = set(a.verdict.split(","))
-        fl = {r["arm"]: r for r in tri["flags"].values() if r.get("verdict") in vs and str(r.get("slice") or "").startswith(a.slice_prefix) and r.get("arm")}
+        fl = {r["arm"]: r for r in tri["flags"].values() if r.get("verdict") in vs and str(r.get("slice") or "").startswith(a.slice_prefix) and r.get("arm")
+              and (a.min_gain is None or max((r.get("pass1") or {0: -1e9}).values()) >= a.min_gain) and (a.max_gain is None or max((r.get("pass1") or {0: -1e9}).values()) < a.max_gain)}
         json.dump({"schema": "pancake.sweep-select/1", "verdicts": sorted(vs), "flags": fl}, open(a.out, "w"), indent=1)
         print("SELECT %d flag(s) with verdict %s: %s" % (len(fl), "/".join(sorted(vs)), ", ".join(r["flag"] for r in fl.values())))
     elif a.cmd == "retest-triage":

@@ -161,7 +161,7 @@ fx=; for k in ${RETEST_RD_DROP-STRATA_POOL_FUSE_PHASES}; do fx="$fx --drop-env $
 for kv in ${RETEST_RD_SET-STRATA_VERIFY_ECAP=0 STRATA_VERIFY_ECAP_MIN_ROWS=9}; do fx="$fx --set-env $kv"; done
 cf=; case "$RS" in
   carry*) cf="--carry $(ls ${RETEST_CARRY_GLOB:-$O/*-carry-*.json} 2>/dev/null | tr '\n' ' ') --carry-offset ${RETEST_CARRY_OFFSET:-0}${RETEST_CARRY_MAX:+ --carry-max $RETEST_CARRY_MAX}";;
-  gates*) cf="--gate-from $(ls $O/us-triage-rt-${RETEST_GATE_SLICES:-carry-us-usS2}*.v2.json 2>/dev/null | tr '\n' ' ') --gate-prefix ${RETEST_GATE_SLICES:-carry-us-usS2} --carry-offset ${RETEST_CARRY_OFFSET:-0}${RETEST_CARRY_MAX:+ --carry-max $RETEST_CARRY_MAX}";;
+  gates*) cf="--gate-from $(ls $O/us-triage-rt-${RETEST_GATE_SLICES:-usS2r}*.v2.json $O/us-triage-${RETEST_GATE_SLICES:-usS2r}*.v2.json 2>/dev/null | tr '\n' ' ') --gate-prefix ${RETEST_GATE_SLICES:-usS2r} --carry-offset ${RETEST_CARRY_OFFSET:-0}${RETEST_CARRY_MAX:+ --carry-max $RETEST_CARRY_MAX}";;
 esac
 rdargs="--rd-plain $RDC --rd-updated $RDU --rd-src $RDB/src-updated $fx"
 [ "${RETEST_NO_RD:-0}" = 1 ] && rdargs=   # US-only queue (owner order 2026-11-20 09:19): no RD config is read, no RD arm is built

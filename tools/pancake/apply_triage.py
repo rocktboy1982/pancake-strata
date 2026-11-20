@@ -15,7 +15,7 @@ Rules (owner rules 2026-11-20: flags are judged ONE BY ONE, each from its own ar
 sweep slices AND the RETEST slices of bench-retest.sh, same v2 schema):
   BUNDLE a record with "bundle": true (a whole arm or preset, e.g. RD `updated` against `plain`, or a whole-arm quality gate) NEVER changes a flag:
          it is reported only (it can trigger per-flag arms, not remove one).
-  NO-GAIN-P1 (pass 1 without a benefit), PROMISING / PROMISING-LOW (stage-1 screen results, not confirmed), INCONCLUSIVE (base drift > 5 %), RETEST, RETEST-GATE, UNTESTED: nothing changes.
+  NO-GAIN-P1 (pass 1 without a benefit), PROMISING / PROMISING-LOW (stage-1 screen results, not yet rescreened), MIXED, INCONCLUSIVE (base drift > 5 %), RETEST, RETEST-GATE, UNTESTED: nothing changes.
   OPTIONAL (clean pass 2 only, else HOLD: a metric >= +10 % and one <= -3 %): the flag leaves the default flags (shipped file, preset, spec
          arms) and is listed in the "optional" section of the shipped file with the cases it helps and hurts, and in README-PANCAKE.md (--readme:
          the block between the markers <!-- optional-flags:begin --> / <!-- optional-flags:end -->), so a user can turn it on for that workload.
@@ -58,6 +58,8 @@ def clean_pass2(rec):
     return bool(rec.get("pass2")) and rec.get("pass2_clean") is True
 
 
+# TWO-RUN RECORDS (US queue, owner 2026-11-20): a flag the rescreen ran again carries pass2 = the mean of run 1 and run 2 per case, pass2_clean True, pass2_design "two-run ...", and the
+# verdict of sweep.py two_run (KEEP / OPTIONAL / DROP / RETEST-GATE / MIXED): clean_pass2() accepts it, so KEEP / OPTIONAL / DROP below apply exactly as for a 3-rep record.
 def plan(tri):
     """[(flag, action, rec)] with action drop / add / optional / protected / hold / bundle / none.  hold: a DROP / KEEP / OPTIONAL without a
     clean pass 2 (nothing changes).  bundle: a whole-arm record (never changes a flag)."""
@@ -77,7 +79,7 @@ def plan(tri):
         elif v == "KEEP":
             out.append((flag, "add" if clean_pass2(rec) else "hold", rec))    # add: only what the shipped file does not carry yet
         else:
-            out.append((flag, "none", rec))          # NO-GAIN-P1, PROMISING(-LOW), RETEST, RETEST-GATE, INCONCLUSIVE, UNTESTED, REFERENCE
+            out.append((flag, "none", rec))          # NO-GAIN-P1, PROMISING(-LOW), MIXED (two-run rule: gain repeats but a case lost in both runs), RETEST, RETEST-GATE, INCONCLUSIVE, UNTESTED, REFERENCE
     return out
 
 

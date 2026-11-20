@@ -3660,3 +3660,58 @@ def test_run_queue_us4_runs_the_preliminary_right_after_screen_slice_1_and_never
     order = [body.index(x) for x in ('pgrep -fx "sh ./bench-sched.v8.sh"', "final preliminary FINAL_PREFIX=prelim FINAL_REPS=3 FINAL_NO_TRIAGE=1", "for k in 2 3 4 5; do screen",
                                      "sw select", "sw rank", "confirm usS2 0 $cut", "retest gates-us-$i", "final final FINAL_PREFIX=final FINAL_REPS=5", "confirm usM $cut", "QUEUE_US4_DONE")]
     assert order == sorted(order) and "screen 1/5" not in body and "usS1-1of5; done" not in body        # slice 1 (running under run-queue-us3.sh) is never started again
+
+
+def test_two_run_rule_keep_optional_drop_mixed_gate_and_the_rescreen_triage_record():
+    mod = sweep_mod()
+    assert mod.two_run({"short": 5.0, "edit": -1.0}, {"short": 3.0, "edit": 0.5}, True)[:1] == ("KEEP",)
+    v, why, mean, spread = mod.two_run({"short": 5.0, "edit": -1.0}, {"short": 3.0, "edit": 0.5}, True)
+    assert mean == {"short": 4.0, "edit": -0.25} and spread == {"short": 2.0, "edit": 1.5}
+    assert mod.two_run({"short": 12.0, "edit": -4.0}, {"short": 11.0, "edit": -5.0}, True)[0] == "OPTIONAL"
+    assert mod.two_run({"short": 12.0, "edit": -4.0}, {"short": 11.0, "edit": -1.0}, True)[0] == "KEEP"          # the loss does not repeat in both runs
+    assert mod.two_run({"short": 2.0}, {"short": -1.0}, True)[0] == "DROP" and mod.two_run({"short": -1.0, "edit": 2.0}, {"short": 0.0, "edit": -2.0}, True)[0] == "DROP"
+    assert mod.two_run({"short": 6.0, "edit": -4.0}, {"short": 5.0, "edit": -3.5}, True)[0] == "MIXED"
+    assert mod.two_run({"short": 4.0}, {"short": 3.5}, False)[0] == "RETEST-GATE" and mod.two_run({"short": 2.0}, {"short": 2.5}, False)[0] == "KEEP"
+    meta = {"branch": "us", "slice": "usS2r-1-1of1", "protected": {}, "flags": {
+        "minus-A": {"flag": "A", "kind": "minus", "exact": True, "env": {"A": "1"}, "args": {}}, "minus-B": {"flag": "B", "kind": "minus", "exact": True, "env": {"B": "1"}, "args": {}},
+        "minus-C": {"flag": "C", "kind": "minus", "exact": False, "env": {"C": "1"}, "args": {}}}}
+    prior = {"A": {"pass1": {"short": 3.0, "edit": 0.2}}, "B": {"pass1": {"short": 2.5}}, "C": {"pass1": {"edit": 4.0}}}
+    b = {"short": 100.0, "edit": 100.0, "longdec32k": 100.0, "longdec32k-prompt": 1000.0}
+    # minus-X: the effect of having X on is base / arm - 1: arm below base = a gain
+    rows = sweep_rows({"updated": b, "minus-A": {**b, "short": 96.0}, "minus-B": {**b, "short": 101.0}, "minus-C": {**b, "edit": 95.0}})
+    t = mod.triage(meta, rows, screen_only=True, prior=prior)
+    f = t["flags"]
+    assert f["A"]["verdict"] == "KEEP" and f["A"]["pass2_clean"] is True and f["A"]["pass2"]["short"] == 3.58 and f["A"]["spread"]["short"] == 1.17 and f["A"]["runs"][0] == {"short": 3.0, "edit": 0.2}
+    assert f["B"]["verdict"] == "DROP" and "does not repeat" in f["B"]["reason"]                                  # minus-B: base / arm - 1 = -1 %: the run-1 benefit did not repeat
+    assert f["C"]["verdict"] == "RETEST-GATE" and f["C"]["pass2"]["edit"] == 4.63
+    drift = sweep_rows({"updated": b, "minus-A": {**b, "short": 96.0}, "minus-B": {**b, "short": 96.0}, "minus-C": {**b, "edit": 95.0}}, late={**b, "short": 80.0})
+    td = mod.triage(meta, drift, screen_only=True, prior=prior)
+    assert all(r["verdict"] == "INCONCLUSIVE" and r["run1"] for r in td["flags"].values())                           # drifted run 2: INCONCLUSIVE, run 1 kept for the next rescreen
+    assert mod.merge.__doc__
+    import apply_triage as AT
+    acts = {fl: a for fl, a, _ in AT.plan({"flags": {"A": f["A"], "B": f["B"]}, "protected": {}})}
+    assert acts == {"A": "add", "B": "drop"}                                                                        # a two-run record applies like a 3-rep record
+
+
+def test_select_by_gain_and_the_rescreen_slices_of_the_us5_sequencer(tmp_path):
+    import subprocess, sys
+    tri = {"flags": {k: {"arm": "m-" + k, "flag": k, "verdict": v, "slice": sl, "pass1": g} for k, v, sl, g in (
+        ("H", "PROMISING", "usS1-1of5", {"short": 3.0}), ("L", "PROMISING", "usS1-1of5", {"short": 0.4, "edit": -1.0}), ("X", "INCONCLUSIVE", "usS1-1of5", {}),
+        ("H2", "PROMISING", "usS1-2of5", {"edit": 9.0}), ("R", "INCONCLUSIVE", "usS2r-1-1of1", {"short": 4.0}))}}
+    (tmp_path / "t.json").write_text(json.dumps(tri))
+
+    def sel(*a):
+        out = subprocess.run([sys.executable, str(CHAINS / "sweep.py"), "select", "--triage", str(tmp_path / "t.json"), "--out", str(tmp_path / "m.json"), *a], capture_output=True, text=True).stdout
+        return sorted(json.loads((tmp_path / "m.json").read_text())["flags"]), out
+    assert sel("--verdict", "PROMISING", "--slice-prefix", "usS1-1of5", "--min-gain", "2.0")[0] == ["m-H"]
+    assert sel("--verdict", "PROMISING", "--slice-prefix", "usS1-", "--max-gain", "2.0")[0] == ["m-L"]
+    assert sel("--verdict", "INCONCLUSIVE,UNTESTED", "--slice-prefix", "usS1-1of5")[0] == ["m-X"]
+    assert sel("--verdict", "INCONCLUSIVE", "--slice-prefix", "usS2r-1-")[0] == ["m-R"]
+    q = (CHAINS / "run-queue-us5.sh").read_text()
+    assert "SWEEP_HARNESS_SHA:?" in q and "BENCH_PREIDLED=1" in q and "QUEUE_US5_DONE" in q and "run-queue-us5.log" in q
+    body = q[q.index("# ---- slice 1 is already running"):]
+    order = [body.index(x) for x in ('pgrep -fx "sh ./bench-sched.v8.sh"', "\ncycle 1\n", "for k in 2 3 4 5; do screen $k/5 usS1-${k}of5; cycle $k; done", "\ngates\n",
+                                     "final final FINAL_PREFIX=final FINAL_REPS=5", "rescreen usS3r", "QUEUE_US5_DONE")]
+    assert order == sorted(order)
+    assert "prelim" not in body and "confirm" not in body and "carry-us-" not in body and "plain-upstream" not in body       # no stock arm, no preliminary, no 3-rep confirm stage
+    assert "SWEEP_PRIOR=$PRIOR" in q and "--min-gain 2.0" in q and "--max-gain 2.0" in q and "two-run" in q.lower() or "run 1 + run 2" in q
