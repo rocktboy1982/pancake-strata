@@ -14,3 +14,11 @@ REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1626, pack load 0.47 GiB/
 rep 0 updated              short 110.2 short 103.5 edit 169.7 edit 171.8 longdec64k 82.6/2185p 65241t  foreign CPU 2% [('kcompactd0', 3), ('upowerd', 1), ('localsearch-3', 1)]  gpu 2019/1249 MHz 62C 183W gtt 25M cpu 3684MHz 66C igpu 0%/vcn 0% fclk 1600
 REGIME-RECOVERED updated: first start prefill 1626 / load 0.47 GiB/s (paused 16:34:44), second start prefill 2185 / load 1.37 GiB/s
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-ATTN_DAILY     short 107.5 short 102.9 edit 161.8 edit 183.3 longdec64k 84.5/2190p 65241t  foreign CPU 4% [('kcompactd0', 8), ('claude', 1), ('localsearch-3', 1)]  gpu 1982/1249 MHz 63C 184W gtt 25M cpu 3736MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-ATTN_DAILY: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-PIN_BY_NEED    short 108.8 short 103.6 edit 169.5 edit 172.0 longdec64k 85.8/2187p 65241t  foreign CPU 4% [('kcompactd0', 7), ('claude', 1), ('kworker/13:1-events', 1)]  gpu 1988/1249 MHz 64C 182W gtt 25M cpu 3521MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PIN_BY_NEED: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 107.9 short 103.7 edit 169.4 edit 168.7 longdec64k 81.5/2178p 65241t  foreign CPU 5% [('kcompactd0', 8), ('kworker/1:2-events', 3), ('kswapd0', 3)]  gpu 2046/1249 MHz 64C 186W gtt 25M cpu 3589MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
