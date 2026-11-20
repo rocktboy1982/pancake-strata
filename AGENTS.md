@@ -88,7 +88,9 @@ Qwen3.6-35B-A3B; see README §8 and `docs/MODELS.md`.
   plus MOD_PLAN.md, TEST_LEDGER.md, LEADS.md, plan.html, README.md (stock-against-updated comparison) and
   README-PANCAKE.md. It holds no `bench/results/`: ledger archive paths resolve on `port/rdna3-decode`. Only normal
   fast-forward commits, never force. The previous main is kept as `main-backup-2026-11-20`.
-- `updated-strata` - the upstream-Strata port (worktree on the PC, push origin). `updated-strata-rdna3` - the
+- `updated-strata` - the upstream-Strata port on v0.2.16 (worktree on the PC, push origin; the box queue uses it, do not change it).
+  `updated-strata-v0.2.17` - the same port reduced to the tested arm, on upstream v0.2.17 (worktree `pancake-strata-v0217`; first commit = snapshot of the tag
+  without workflow changes, real history on the local tag `updated-strata-v0.2.17-realhistory`). `updated-strata-rdna3` - the
   Strata-rdna3 port, published and paused. `NetworkPancake` is never deleted.
 - Topic branches (`dev/*`, `work/*`, `feat/*`) as before. Run `git branch -r` and read `MOD_PLAN.md` before assuming a
   switch or feature exists. The push token has no `workflow` scope: keep `.github/workflows` as on the remote.
