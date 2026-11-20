@@ -19,3 +19,53 @@ rep 0 minus-GDN_HEAD       short 110.4 short 103.6 edit 169.7 edit 168.2 longdec
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-late            short 109.6 short 103.0 edit 161.8 edit 183.2 longdec64k 76.0/1710p 65241t  foreign CPU 3% [('kcompactd0', 5), ('kswapd0', 2), ('claude', 1)]  gpu 2042/1249 MHz 64C 195W gtt 25M cpu 3697MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1710, pack load 1.19 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.7 short 103.7 edit 167.3 edit 171.0 longdec64k 83.0/2187p 65241t  foreign CPU 2% [('kcompactd0', 2), ('systemd-journal', 0), ('dbus-daemon', 0)]  gpu 2001/1249 MHz 62C 182W gtt 25M cpu 3605MHz 67C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 1710 / load 1.19 GiB/s (paused 16:08:55), second start prefill 2187 / load 1.27 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 106.8 +-  43.8  (n=2)
+                              drafts accepted 0.71
+  short  minus-GDN_NOY           106.7 +-  41.3  (n=2)   vs updated:  -0.1% +-  2.4%  -> no difference
+                              drafts accepted 0.71
+  short  minus-GDN_CHUNKED       105.5 +-  34.3  (n=2)   vs updated:  -1.2% +-  8.9%  -> no difference
+                              drafts accepted 0.70
+  short  base-m1                 106.8 +-  48.9  (n=2)   vs updated:  +0.1% +-  4.8%  -> no difference
+                              drafts accepted 0.71
+  short  minus-GDN_HEAD          107.0 +-  43.2  (n=2)   vs updated:  +0.2% +-  0.6%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               107.2 +-  44.5  (n=2)   vs updated:  +0.4% +-  0.6%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 169.4 +-  14.0  (n=2)
+                              drafts accepted 0.90
+  edit   minus-GDN_NOY           168.6 +-   5.7  (n=2)   vs updated:  -0.4% +-  4.9%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-GDN_CHUNKED       182.4 +-  41.3  (n=2)   vs updated:  +7.7% +- 16.1%  -> no difference
+                              drafts accepted 0.91
+  edit   base-m1                 169.1 +-   5.7  (n=2)   vs updated:  -0.2% +-  4.9%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-GDN_HEAD          168.9 +-   9.5  (n=2)   vs updated:  -0.3% +-  2.6%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               169.2 +-  23.5  (n=2)   vs updated:  -0.1% +- 22.1%  -> no difference
+                              drafts accepted 0.90
+  longdec64k updated                  86.0 +-   nan  (n=1)
+  longdec64k minus-GDN_NOY            83.1 +-   nan  (n=1)   vs updated:  -3.4% +-  nan%  -> no difference
+  longdec64k minus-GDN_CHUNKED        81.1 +-   nan  (n=1)   vs updated:  -5.7% +-  nan%  -> no difference
+  longdec64k base-m1                  85.2 +-   nan  (n=1)   vs updated:  -0.9% +-  nan%  -> no difference
+  longdec64k minus-GDN_HEAD           85.0 +-   nan  (n=1)   vs updated:  -1.2% +-  nan%  -> no difference
+  longdec64k base-late                83.0 +-   nan  (n=1)   vs updated:  -3.5% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-GDN_NOY        identical on every case -> exact
+  minus-GDN_CHUNKED    DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              identical on every case -> exact
+  minus-GDN_HEAD       identical on every case -> exact
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.4%  edit -0.1%  longdec64k -3.5%
+  minus-GDN_NOY        short -0.3%  edit -0.4%  longdec64k -1.7%  -> drop
+  minus-GDN_CHUNKED    short -1.4%  edit +7.8%  longdec64k -4.0%  -> drop
+  base-m1              short -0.1%  edit -0.1%  longdec64k +0.8%  -> PROMOTE to confirm
+  minus-GDN_HEAD       short +0.0%  edit -0.2%  longdec64k +0.6%  -> PROMOTE to confirm
