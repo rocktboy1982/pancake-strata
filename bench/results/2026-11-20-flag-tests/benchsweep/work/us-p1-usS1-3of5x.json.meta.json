@@ -1,0 +1,253 @@
+{
+ "branch": "us",
+ "slice": "usS1-3of5x",
+ "flags": {
+  "plus-FUSE_HEAD_GR": {
+   "flag": "STRATA_FUSE_HEAD_GR",
+   "kind": "plus",
+   "keys": [
+    "STRATA_FUSE_HEAD_GR"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_FUSE_HEAD_GR": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: head HC read fused); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-GDN_CHUNKED_MIN": {
+   "flag": "STRATA_GDN_CHUNKED_MIN",
+   "kind": "plus",
+   "keys": [
+    "STRATA_GDN_CHUNKED_MIN"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GDN_CHUNKED_MIN": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class KeyIfSet: length from which the chunked GDN scan applies (default 30000 on gfx12)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-GDN_TC": {
+   "flag": "STRATA_GDN_TC",
+   "kind": "plus",
+   "keys": [
+    "STRATA_GDN_TC"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GDN_TC": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class KeyIfSet: tensor-core GDN scan (opt-in)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-GROUPED_V1": {
+   "flag": "STRATA_GROUPED_V1",
+   "kind": "plus",
+   "keys": [
+    "STRATA_GROUPED_V1"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GROUPED_V1": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: grouped expert kernel generation); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-GR_Q32_G": {
+   "flag": "STRATA_GR_Q32_G",
+   "kind": "plus",
+   "keys": [
+    "STRATA_GR_Q32_G"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GR_Q32_G": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-GR_Q8_PFS": {
+   "flag": "STRATA_GR_Q8_PFS",
+   "kind": "plus",
+   "keys": [
+    "STRATA_GR_Q8_PFS"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GR_Q8_PFS": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-HCD_EXACT": {
+   "flag": "STRATA_HCD_EXACT",
+   "kind": "plus",
+   "keys": [
+    "STRATA_HCD_EXACT"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_HCD_EXACT": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-HC_Q8_ALL_STAGES": {
+   "flag": "STRATA_HC_Q8_ALL_STAGES",
+   "kind": "plus",
+   "keys": [
+    "STRATA_HC_Q8_ALL_STAGES"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_HC_Q8_ALL_STAGES": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class KeyIfSet: which stages read the int8 HC image (modifies HC_Q8)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-HIP_ADAPT_KERNEL_COPY": {
+   "flag": "STRATA_HIP_ADAPT_KERNEL_COPY",
+   "kind": "plus",
+   "keys": [
+    "STRATA_HIP_ADAPT_KERNEL_COPY"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_HIP_ADAPT_KERNEL_COPY": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-IQ_STAGE_GRID": {
+   "flag": "STRATA_IQ_STAGE_GRID",
+   "kind": "plus",
+   "keys": [
+    "STRATA_IQ_STAGE_GRID"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_IQ_STAGE_GRID": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-IQ_STAGE_GRID_MMVQ": {
+   "flag": "STRATA_IQ_STAGE_GRID_MMVQ",
+   "kind": "plus",
+   "keys": [
+    "STRATA_IQ_STAGE_GRID_MMVQ"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_IQ_STAGE_GRID_MMVQ": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-IQ_STAGE_TABLES": {
+   "flag": "STRATA_IQ_STAGE_TABLES",
+   "kind": "plus",
+   "keys": [
+    "STRATA_IQ_STAGE_TABLES"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_IQ_STAGE_TABLES": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-KV_GROW": {
+   "flag": "STRATA_KV_GROW",
+   "kind": "plus",
+   "keys": [
+    "STRATA_KV_GROW"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_KV_GROW": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: KV placement/growth); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-LFUSE_PAIR": {
+   "flag": "STRATA_LFUSE_PAIR",
+   "kind": "plus",
+   "keys": [
+    "STRATA_LFUSE_PAIR"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_LFUSE_PAIR": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  }
+ },
+ "protected": {
+  "STRATA_VERIFY_ECAP": [
+   "edit"
+  ],
+  "STRATA_RDNA_Q6K": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_GR_RDNA": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_RDNA_MMVQ_WAVE": [
+   "short",
+   "edit",
+   "longdec32k"
+  ]
+ },
+ "measured": {
+  "STRATA_PF_HC_REGION": "ledger T-800",
+  "STRATA_HC_Q8": "ledger T-012",
+  "STRATA_PREFILL_CPU_SHARE": "ledger T-827",
+  "STRATA_HIP_WMMA": "ledger T-072",
+  "STRATA_PREFILL_AUTO_MAX": "ledger T-106, T-614",
+  "STRATA_PF_FUSED": "ledger T-803",
+  "GPU_MAX_HW_QUEUES": "ledger T-010",
+  "STRATA_GDN_PP": "ledger T-474, T-527, T-642, T-921",
+  "STRATA_PA_FAST": "ledger T-768",
+  "STRATA_PF_F16": "diag rerun 2026-11-19 (plain build) NO-GAIN",
+  "STRATA_PREFILL_RING": "ledger T-920",
+  "STRATA_ADAPT_OVERLAP": "ledger T-845",
+  "STRATA_HIPBLASLT_TUNING": "diag rerun 2026-11-19 (plain build)",
+  "STRATA_RDNA_MMVQ_WAVE": "diag rerun 2026-11-19",
+  "STRATA_GR_RDNA": "diag rerun 2026-11-19",
+  "STRATA_RDNA_Q6K": "diag rerun 2026-11-19 (UNSUPPORTED, text; owner: invalid, kept)",
+  "STRATA_VERIFY_ECAP": "diag rerun 2026-11-19 NO-GAIN short; spec 222 updated vs updated-exact",
+  "STRATA_COMBINE_CPU": "diag rerun 2026-11-19",
+  "STRATA_WAIT_FUSE": "diag rerun 2026-11-19 (with COMBINE_CPU)",
+  "STRATA_ROUTE_PUBLISH": "ledger T-009, T-549, T-839",
+  "STRATA_POOL_FUSE_PHASES": "ledger T-224",
+  "STRATA_EXPDEC_DOWN": "ledger T-037, T-040, T-222",
+  "--adapt-swaps": "ledger T-248, T-827",
+  "--pcie-frac": "ledger T-197, T-268, T-605, T-640 (+1)",
+  "--lookup-max-t": "ledger T-116, T-126, T-127, T-561",
+  "--conversation-cache-mib": "ledger T-690",
+  "STRATA_DENSE_MMQ": "ledger T-615"
+ },
+ "design": "blocked",
+ "block_size": 4
+}

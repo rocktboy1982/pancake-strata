@@ -1,0 +1,4 @@
+BLOCK b01 1520 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-3of5x-b01.json order: plus-GDN_CHUNKED_MIN plus-FUSE_HEAD_GR plus-GROUPED_V1 plus-GDN_TC
+BLOCK b02 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-3of5x-b02.json order: plus-HC_Q8_ALL_STAGES plus-HCD_EXACT plus-GR_Q8_PFS plus-GR_Q32_G
+BLOCK b03 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-3of5x-b03.json order: plus-HIP_ADAPT_KERNEL_COPY plus-IQ_STAGE_GRID_MMVQ plus-IQ_STAGE_GRID
+BLOCK b04 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-3of5x-b04.json order: plus-IQ_STAGE_TABLES plus-KV_GROW plus-LFUSE_PAIR

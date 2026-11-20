@@ -12,3 +12,51 @@ rep 0 base-m1              short 106.0 short 103.0 edit 162.2 edit 182.9 longdec
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 plus-LFUSE_PAIR      short 105.4 short 107.3 edit 153.9 edit 170.1 longdec64k 83.7/2191p 65239t  foreign CPU 4% [('kcompactd0', 9), ('kswapd0', 3), ('kworker/1:1-events', 1)]  gpu 2048/1249 MHz 66C 182W gtt 25M cpu 3467MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-LFUSE_PAIR: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 100.7 short 96.6 edit 162.8 edit 175.8 longdec64k 88.3/2169p 65239t  foreign CPU 6% [('kcompactd0', 9), ('kworker/1:0-events', 7), ('kswapd0', 3)]  gpu 1994/1249 MHz 67C 193W gtt 25M cpu 3548MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 101.8 +-  21.0  (n=2)
+                              drafts accepted 0.67
+  short  plus-LM_HIP              99.8 +-   2.5  (n=2)   vs updated:  -2.0% +- 18.1%  -> no difference
+                              drafts accepted 0.67
+  short  plus-MMVQ_IL            107.0 +-  43.8  (n=2)   vs updated:  +5.1% +- 22.5%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 104.5 +-  19.1  (n=2)   vs updated:  +2.6% +-  1.9%  -> better
+                              drafts accepted 0.70
+  short  plus-LFUSE_PAIR         106.3 +-  12.1  (n=2)   vs updated:  +4.4% +- 32.4%  -> no difference
+                              drafts accepted 0.70
+  short  base-late                98.7 +-  26.1  (n=2)   vs updated:  -3.1% +-  5.0%  -> no difference
+                              drafts accepted 0.67
+  edit   updated                 169.6 +-  85.2  (n=2)
+                              drafts accepted 0.89
+  edit   plus-LM_HIP             169.6 +-  84.5  (n=2)   vs updated:  -0.0% +-  0.4%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-MMVQ_IL            168.2 +-   7.0  (n=2)   vs updated:  -0.8% +- 46.1%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 172.6 +- 131.5  (n=2)   vs updated:  +1.7% +- 27.4%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-LFUSE_PAIR         162.0 +- 103.0  (n=2)   vs updated:  -4.5% +- 10.5%  -> no difference
+                              drafts accepted 0.88
+  edit   base-late               169.3 +-  82.6  (n=2)   vs updated:  -0.2% +-  1.5%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  85.2 +-   nan  (n=1)
+  longdec64k plus-LM_HIP              84.0 +-   nan  (n=1)   vs updated:  -1.4% +-  nan%  -> no difference
+  longdec64k plus-MMVQ_IL             81.7 +-   nan  (n=1)   vs updated:  -4.1% +-  nan%  -> no difference
+  longdec64k base-m1                  78.5 +-   nan  (n=1)   vs updated:  -7.9% +-  nan%  -> no difference
+  longdec64k plus-LFUSE_PAIR          83.7 +-   nan  (n=1)   vs updated:  -1.8% +-  nan%  -> no difference
+  longdec64k base-late                88.3 +-   nan  (n=1)   vs updated:  +3.6% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-LM_HIP          identical on every case -> exact
+  plus-MMVQ_IL         DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-LFUSE_PAIR      DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -3.1%  edit -0.2%  longdec64k +3.6%
+  plus-LM_HIP          short -0.4%  edit +0.1%  longdec64k -3.2%  -> drop
+  plus-MMVQ_IL         short +6.8%  edit -0.7%  longdec64k -5.8%  -> drop
+  base-m1              short +4.2%  edit +1.8%  longdec64k -9.5%  -> drop
+  plus-LFUSE_PAIR      short +6.1%  edit -4.4%  longdec64k -3.5%  -> drop
