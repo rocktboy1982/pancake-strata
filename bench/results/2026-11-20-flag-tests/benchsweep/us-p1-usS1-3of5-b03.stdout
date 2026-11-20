@@ -3,3 +3,8 @@ case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique 
 rep 0 updated              short 110.4 short 103.5 edit 167.4 edit 169.8 longdec64k 76.5/2189p 65241t  foreign CPU 2% [('snapd', 9), ('dbus-daemon', 0), ('localsearch-3', 0)]  gpu 2047/1249 MHz 63C 185W gtt 25M cpu 3655MHz 66C igpu 0%/vcn 0% fclk 1600
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 plus-HC_Q8_ALL_STAGES short 88.2 short 98.9 edit 120.1 edit 105.1 longdec64k 59.5/1397p 65241t  foreign CPU 2% [('kcompactd0', 3), ('claude', 1), ('localsearch-3', 1)]  gpu 1922/1249 MHz 63C 167W gtt 25M cpu 3542MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-GR_Q32_G        short 103.7 short 98.3 edit 121.9 edit 170.6 longdec64k 76.7/1396p 65241t  foreign CPU 3% [('kcompactd0', 10), ('localsearch-3', 1), ('kswapd0', 0)]  gpu 1956/1249 MHz 62C 178W gtt 25M cpu 3577MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 109.8 short 103.0 edit 169.9 edit 168.7 longdec64k 83.2/2184p 65241t  foreign CPU 4% [('kcompactd0', 9), ('kswapd0', 3), ('claude', 1)]  gpu 2041/1249 MHz 64C 185W gtt 25M cpu 3551MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
