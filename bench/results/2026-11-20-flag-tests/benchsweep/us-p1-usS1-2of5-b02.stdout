@@ -12,3 +12,7 @@ REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1535, pack load 0.43 GiB/
   waiting for a quiet machine: load 0.00, foreign CPU 28% [('snapd', 26), ('snapd-desktop-i', 1), ('localsearch-3', 0)], reclaim 0.0%
   quiet after 25 s
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 97.1 short 99.9 edit 96.9 edit 161.4 longdec64k 78.6/1490p 65242t  foreign CPU 2% [('localsearch-3', 1), ('systemd', 1), ('systemd-journal', 0)]  gpu 2050/1249 MHz 62C 177W gtt 25M cpu 3592MHz 65C igpu 0%/vcn 0% fclk 1600
+REGIME-STILL-SLOW base-m1: first start prefill 1535 / load 0.43 GiB/s (paused 18:14:52), second start prefill 1490 / load 0.63 GiB/s
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-adapt-every    short 101.1 short 73.7 edit 152.8 edit 165.9 longdec64k 78.4/1664p 65242t  foreign CPU 2% [('snapd', 12), ('kcompactd0', 7), ('kworker/9:2-mm_percpu_wq', 2)]  gpu 2040/1249 MHz 64C 177W gtt 25M cpu 3598MHz 65C igpu 0%/vcn 0% fclk 1600
