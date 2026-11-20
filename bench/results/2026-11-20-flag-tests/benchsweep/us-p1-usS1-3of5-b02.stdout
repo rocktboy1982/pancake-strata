@@ -5,3 +5,8 @@ rep 0 updated              short 108.8 short 102.9 edit 161.5 edit 183.7 longdec
 rep 0 plus-GROUPED_V1      short 108.9 short 101.7 edit 165.4 edit 167.7 longdec64k 61.1/1971p 65242t  foreign CPU 4% [('kcompactd0', 7), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 1991/1249 MHz 66C 179W gtt 25M cpu 3741MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-GROUPED_V1: every attempt noisy, keeping the quietest (4% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-GDN_TC          short 70.9 short 103.9 edit 157.1 edit 100.9 longdec64k 78.7/1465p 65242t  foreign CPU 5% [('kcompactd0', 10), ('kworker/9:1-events_freezable', 5), ('kswapd0', 3)]  gpu 2014/1249 MHz 64C 172W gtt 25M cpu 3499MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-GDN_TC: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 97.7 short 92.1 edit 122.5 edit 135.8 longdec64k 80.8/1504p 65242t  foreign CPU 4% [('kcompactd0', 7), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 2013/1249 MHz 63C 179W gtt 25M cpu 3628MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1504, pack load 0.49 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
