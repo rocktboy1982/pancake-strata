@@ -24,3 +24,60 @@ rep 0 minus-GR_RDNA_Q8: every attempt noisy, keeping the quietest (4% foreign CP
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-late            short 95.7 short 104.1 edit 122.9 edit 184.6 longdec64k 79.7/1460p 65242t  foreign CPU 4% [('kcompactd0', 7), ('kworker/1:2-mm_percpu_wq', 5), ('kswapd0', 3)]  gpu 1988/1249 MHz 64C 183W gtt 25M cpu 3454MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1460, pack load 0.52 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.4 short 103.5 edit 170.0 edit 168.3 longdec64k 87.2/2187p 65243t  foreign CPU 2% [('kcompactd0', 2), ('claude', 1), ('localsearch-3', 1)]  gpu 1992/1249 MHz 62C 182W gtt 25M cpu 3562MHz 65C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 1460 / load 0.52 GiB/s (paused 18:01:50), second start prefill 2187 / load 1.23 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.1 +-  41.9  (n=2)
+                              drafts accepted 0.71
+  short  minus-GR_INJ_UP         105.7 +-  43.8  (n=2)   vs updated:  -1.4% +-  1.8%  -> no difference
+                              drafts accepted 0.71
+  short  minus-GR_RDNA_A8        103.4 +-  27.3  (n=2)   vs updated:  -3.4% +- 64.7%  -> no difference
+                              drafts accepted 0.68
+  short  base-m1                 106.8 +-  47.0  (n=2)   vs updated:  -0.3% +-  4.7%  -> no difference
+                              drafts accepted 0.71
+  short  minus-QSA_ROWS          106.3 +-  35.6  (n=2)   vs updated:  -0.7% +-  5.9%  -> no difference
+                              drafts accepted 0.71
+  short  minus-GR_RDNA_Q8        106.1 +-  14.0  (n=2)   vs updated:  -0.9% +- 52.2%  -> no difference
+                              drafts accepted 0.73
+  short  base-late               107.0 +-  43.8  (n=2)   vs updated:  -0.1% +-  1.8%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 169.1 +-   7.0  (n=2)
+                              drafts accepted 0.89
+  edit   minus-GR_INJ_UP         164.4 +-  19.7  (n=2)   vs updated:  -2.8% +- 15.8%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-GR_RDNA_A8        166.9 +- 132.8  (n=2)   vs updated:  -1.2% +- 82.7%  -> no difference
+                              drafts accepted 0.90
+  edit   base-m1                 169.2 +-   3.2  (n=2)   vs updated:  +0.1% +-  2.3%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-QSA_ROWS          170.6 +-   8.3  (n=2)   vs updated:  +0.9% +-  9.0%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-GR_RDNA_Q8        166.8 +-  55.9  (n=2)   vs updated:  -1.3% +- 37.2%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               169.2 +-  10.8  (n=2)   vs updated:  +0.1% +-  2.3%  -> no difference
+                              drafts accepted 0.90
+  longdec64k updated                  84.7 +-   nan  (n=1)
+  longdec64k minus-GR_INJ_UP          79.8 +-   nan  (n=1)   vs updated:  -5.8% +-  nan%  -> no difference
+  longdec64k minus-GR_RDNA_A8         82.0 +-   nan  (n=1)   vs updated:  -3.2% +-  nan%  -> no difference
+  longdec64k base-m1                  86.0 +-   nan  (n=1)   vs updated:  +1.5% +-  nan%  -> no difference
+  longdec64k minus-QSA_ROWS           83.2 +-   nan  (n=1)   vs updated:  -1.8% +-  nan%  -> no difference
+  longdec64k minus-GR_RDNA_Q8         76.4 +-   nan  (n=1)   vs updated:  -9.8% +-  nan%  -> no difference
+  longdec64k base-late                87.2 +-   nan  (n=1)   vs updated:  +3.0% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-GR_INJ_UP      DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GR_RDNA_A8     DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-QSA_ROWS       DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GR_RDNA_Q8     DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -0.1%  edit +0.1%  longdec64k +3.0%
+  minus-GR_INJ_UP      short -1.3%  edit -2.8%  longdec64k -7.2%  -> drop
+  minus-GR_RDNA_A8     short -3.3%  edit -1.3%  longdec64k -4.6%  -> drop
+  base-m1              short -0.2%  edit +0.0%  longdec64k +0.1%  -> PROMOTE to confirm
+  minus-QSA_ROWS       short -0.7%  edit +0.9%  longdec64k -3.2%  -> drop
+  minus-GR_RDNA_Q8     short -0.9%  edit -1.4%  longdec64k -11.1%  -> drop
