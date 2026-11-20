@@ -22,3 +22,60 @@ rep 0 minus-ENGINE_NICE: every attempt noisy, keeping the quietest (3% foreign C
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-late            short 101.1 short 98.1 edit 122.5 edit 142.0 longdec64k 78.7/1620p 65242t  foreign CPU 4% [('kcompactd0', 8), ('kswapd0', 3), ('kworker/10:3-events', 2)]  gpu 2039/1249 MHz 63C 190W gtt 25M cpu 3614MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1620, pack load 0.41 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.4 short 103.8 edit 169.7 edit 171.6 longdec64k 79.5/2187p 65242t  foreign CPU 2% [('kcompactd0', 2), ('claude', 1), ('dbus-daemon', 0)]  gpu 2017/1249 MHz 62C 183W gtt 25M cpu 3641MHz 66C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 1620 / load 0.41 GiB/s (paused 18:28:36), second start prefill 2187 / load 1.27 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.0 +-  45.1  (n=2)
+                              drafts accepted 0.71
+  short  minus-GR_FUSED          101.7 +-  29.9  (n=2)   vs updated:  -5.0% +- 14.2%  -> no difference
+                              drafts accepted 0.67
+  short  minus-expert-profile     95.3 +-  23.5  (n=2)   vs updated: -10.9% +- 64.1%  -> no difference
+                              drafts accepted 0.73
+  short  base-m1                  98.5 +-  17.8  (n=2)   vs updated:  -8.0% +- 58.8%  -> no difference
+                              drafts accepted 0.67
+  short  minus-adapt-every        87.4 +- 174.1  (n=2)   vs updated: -18.4% +- 120.5%  -> no difference
+                              drafts accepted 0.68
+  short  minus-ENGINE_NICE        95.0 +- 106.8  (n=2)   vs updated: -11.3% +- 57.6%  -> no difference
+                              drafts accepted 0.72
+  short  base-late               107.1 +-  41.9  (n=2)   vs updated:  +0.0% +-  3.0%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 169.2 +-   5.7  (n=2)
+                              drafts accepted 0.89
+  edit   minus-GR_FUSED          168.2 +-  85.8  (n=2)   vs updated:  -0.6% +- 54.1%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-expert-profile    178.2 +- 151.2  (n=2)   vs updated:  +5.3% +- 92.7%  -> no difference
+                              drafts accepted 0.92
+  edit   base-m1                 129.2 +- 409.9  (n=2)   vs updated: -23.7% +- 245.6%  -> no difference
+                              drafts accepted 0.88
+  edit   minus-adapt-every       159.4 +-  83.3  (n=2)   vs updated:  -5.8% +- 52.6%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-ENGINE_NICE       148.9 +- 181.8  (n=2)   vs updated: -12.0% +- 104.0%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               170.6 +-  12.1  (n=2)   vs updated:  +0.8% +- 10.5%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  81.1 +-   nan  (n=1)
+  longdec64k minus-GR_FUSED           84.9 +-   nan  (n=1)   vs updated:  +4.7% +-  nan%  -> no difference
+  longdec64k minus-expert-profile     78.2 +-   nan  (n=1)   vs updated:  -3.6% +-  nan%  -> no difference
+  longdec64k base-m1                  78.6 +-   nan  (n=1)   vs updated:  -3.1% +-  nan%  -> no difference
+  longdec64k minus-adapt-every        78.4 +-   nan  (n=1)   vs updated:  -3.3% +-  nan%  -> no difference
+  longdec64k minus-ENGINE_NICE        77.1 +-   nan  (n=1)   vs updated:  -4.9% +-  nan%  -> no difference
+  longdec64k base-late                79.5 +-   nan  (n=1)   vs updated:  -2.0% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-GR_FUSED       DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-expert-profile DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-adapt-every    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-ENGINE_NICE    DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.0%  edit +0.8%  longdec64k -2.0%
+  minus-GR_FUSED       short -5.1%  edit -1.0%  longdec64k +5.7%  -> drop
+  minus-expert-profile short -11.0%  edit +4.9%  longdec64k -2.6%  -> drop
+  base-m1              short -8.0%  edit -24.0%  longdec64k -2.1%  -> drop
+  minus-adapt-every    short -18.4%  edit -6.2%  longdec64k -2.4%  -> drop
+  minus-ENGINE_NICE    short -11.3%  edit -12.4%  longdec64k -4.0%  -> drop
