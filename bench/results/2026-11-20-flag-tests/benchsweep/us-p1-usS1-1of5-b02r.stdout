@@ -1,2 +1,11 @@
 case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 101.1 short 99.8 edit 167.4 edit 181.2 longdec64k 81.9/2159p 65239t  foreign CPU 8% [('kcompactd0', 16), ('kworker/0:0-events', 4), ('kswapd0', 3)]  gpu 1848/1249 MHz 62C 178W gtt 25M cpu 3658MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 updated: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-STAGER_RING    short 103.7 short 107.4 edit 154.2 edit 170.7 longdec64k 85.5/2150p 65239t  foreign CPU 8% [('kcompactd0', 14), ('kworker/1:0-mm_percpu_wq', 8), ('kswapd0', 3)]  gpu 2040/1249 MHz 62C 187W gtt 25M cpu 3593MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-STAGER_RING: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-VERIFY_QDEDUP  short 100.4 short 99.3 edit 168.2 edit 178.9 longdec64k 80.8/2156p 65239t  foreign CPU 8% [('kcompactd0', 27), ('kswapd0', 4), ('kworker/0:0-events', 3)]  gpu 2003/1249 MHz 64C 189W gtt 25M cpu 3778MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-VERIFY_QDEDUP: every attempt noisy, keeping the quietest (8% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
