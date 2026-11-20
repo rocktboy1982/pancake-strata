@@ -15,9 +15,28 @@ hardware, model, settings, repetitions and raw-result archive. A number without 
 |---|---|
 | `main` (this one) | upstream Strata v0.2.16 + the pancake ports (= `updated-strata`) + the tracking documents and this README |
 | [`updated-strata`](https://github.com/rocktboy1982/pancake-strata/tree/updated-strata) | the same code without the tracking documents; written as a pull request to upstream ([README-PANCAKE.md](README-PANCAKE.md)) |
-| [`updated-strata-rdna3`](https://github.com/rocktboy1982/pancake-strata/tree/updated-strata-rdna3) | the same kind of port onto [nicejunjie/Strata-rdna3](https://github.com/nicejunjie/Strata-rdna3) `main` (`8b01b0c85`), with its own README-PANCAKE.md |
+| [`updated-strata-rdna3`](https://github.com/rocktboy1982/pancake-strata/tree/updated-strata-rdna3) | the same kind of port onto [nicejunjie/Strata-rdna3](https://github.com/nicejunjie/Strata-rdna3) `main` (`8b01b0c85`), with its own README-PANCAKE.md; **paused by owner order 2026-11-20: it stays as published, no further RDNA3 runs** |
 | [`port/rdna3-decode`](https://github.com/rocktboy1982/pancake-strata/tree/port/rdna3-decode) | the fork's work line: the full history, the benchmark harness (`tools/pancake/`), specs and raw results (`bench/`) |
 | `main-backup-2026-11-20` | the previous `main` (before it became `updated-strata`), kept unchanged |
+
+## Status (2026-11-20)
+
+- **The RDNA3 branch is paused by owner order (2026-11-20 09:19, box time: "stop doing the Strata-rdna3 tests, compare only to stock Strata").**
+  `updated-strata-rdna3` stays as published; no further RDNA3 run is queued. The RDNA3 comparison table below is the 2026-11-19 data and is
+  not extended (TEST_LEDGER.md T-1005, MOD_PLAN.md section 5).
+- **The upstream (US) retest is in progress** on the box (queue `run-queue-us.sh`, T-1005): every flag of the shipped profile that was dropped or
+  restored without a valid single-flag test is confirmed one by one in its own paired block against the updated arm, then the remaining untested
+  US flags run in blocked passes, and then a FINAL COMPARISON runs stock upstream v0.2.16 against updated-strata with the final shipped flags (exact
+  and lossy variant, short / edit / long 10K-100K, 5 confirm reps, plus a quality gate). The tables below are not changed until that result
+  exists. Rules: flags are judged individually, a mixed result is OPTIONAL, a flag is dropped only from a clean second pass, a block whose base
+  drifts above 5 % is INCONCLUSIVE.
+- **Pending retest** (named in [README-PANCAKE.md](README-PANCAKE.md) sections 2.4 and 2.4a; their current state is not a confirmed per-flag
+  result): `--lookup-max-t 12` (taken out of the shipped profile on a whole-arm gate REJECT; its attribution gate and paired block are queued),
+  `STRATA_RDNA_Q6K`, `STRATA_GR_RDNA`, `STRATA_RDNA_MMVQ_WAVE` and `STRATA_HIPBLASLT_TUNING` (100401 table) (restored on owner decision; speed
+  not yet confirmed one by one, parity ctests not yet run on the box), `STRATA_GR_RDNA_Q8`, `_A8`, `GR_INJ_UP`, `GR_FUSED` (lossy; no passing gate on
+  record), `STRATA_ENGINE_NICE`, `STRATA_SELECT_WMMA`, `STRATA_ATTN_DAILY`, `STRATA_KV_PREFETCH`, `STRATA_STAGER_RING`,
+  `STRATA_PF_GROUP_SCRATCH`, `STRATA_PROMPT_ATTN_IMMA` (in the updated arm; no valid single-flag block yet). The earlier one-run sweep verdicts are
+  void by base drift (T-1002) and nothing was applied from them.
 
 ## Where things are
 
