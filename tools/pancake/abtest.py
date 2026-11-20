@@ -586,9 +586,16 @@ PREREAD_AHEAD = 256 << 20         # posix_fadvise(WILLNEED) window kept ahead of
 PREREAD_FILES = ("--pack", "--native", "--ple-gguf")   # the config args whose files the engine loads (a directory: its regular files)
 
 
+def preread_mode():
+    """ABTEST_PREREAD: 0 / unset = off, 1 = the pre-read before the start (T-1006 first form), 2 = the just-in-time prefetch beside the engine's
+    own load (T-1006 analysis: the engine pins its whole arena BEFORE it reads the file, so the cache a pre-read filled is evicted)."""
+    v = os.environ.get("ABTEST_PREREAD", "0").strip()
+    return 2 if v == "2" else 0 if v in ("", "0") else 1
+
+
 def preread_enabled():
-    """ABTEST_PREREAD=1 turns the pre-read on (the box's chains export 1; unset / 0 anywhere else: nothing changes)."""
-    return os.environ.get("ABTEST_PREREAD", "0").strip() not in ("", "0")
+    """ABTEST_PREREAD=1 turns the pre-start pre-read on (the box's chains export 1; unset / 0 / 2 anywhere else: no pre-start read)."""
+    return preread_mode() == 1
 
 
 def preread_paths(cfg):
@@ -725,6 +732,169 @@ def preread_for_config(cfg_or_path, once=False):
         return []
 
 
+PREFETCH_LEAD = 4 << 30           # ABTEST_PREFETCH_LEAD_GIB: the most the prefetch may be ahead of the engine's own reads (the cache holds ~17 GiB beside the pinned arena)
+PREFETCH_ARENA_MIN = 16 << 30     # ABTEST_PREFETCH_ARENA_MIN_GIB: anonymous RSS the engine has to reach (its pinned arena) before the prefetch starts
+PREFETCH_WAIT_S = 40.0            # ABTEST_PREFETCH_WAIT_S: start anyway after this long without seeing the arena (a different engine, no /proc)
+
+
+def proc_descendants(pid):
+    """pids below `pid` (children, grandchildren ...) from /proc; [] when /proc cannot be read."""
+    kids = {}
+    try:
+        for d in os.listdir("/proc"):
+            if d.isdigit():
+                try:
+                    st = Path(f"/proc/{d}/stat").read_text()
+                    kids.setdefault(int(st[st.rindex(")") + 2:].split()[1]), []).append(int(d))
+                except (OSError, ValueError, IndexError):
+                    pass
+    except OSError:
+        return []
+    out, todo = [], [pid]
+    while todo:
+        for k in kids.get(todo.pop(), []):
+            out.append(k)
+            todo.append(k)
+    return out
+
+
+def find_engine_pid(root_pid, want=("--serve",)):
+    """The engine process under the server wrapper `root_pid`: the descendant whose command line has every string of `want` and 'strata'; None."""
+    for k in proc_descendants(root_pid):
+        try:
+            cmd = Path(f"/proc/{k}/cmdline").read_bytes().replace(b"\0", b" ").decode(errors="replace")
+        except OSError:
+            continue
+        if all(w in cmd for w in want) and "strata" in cmd:
+            return k
+    return None
+
+
+def _proc_field(path, key):
+    try:
+        for ln in Path(path).read_text().splitlines():
+            if ln.startswith(key):
+                return int(ln.split()[1])
+    except (OSError, ValueError, IndexError):
+        pass
+    return None
+
+
+def proc_anon_rss(pid):
+    """RssAnon of a process in bytes (/proc/<pid>/status), None when unreadable."""
+    kb = _proc_field(f"/proc/{pid}/status", "RssAnon:")
+    return None if kb is None else kb * 1024
+
+
+def proc_rchar(pid):
+    """Bytes the process has read with read() calls (/proc/<pid>/io rchar: its own, readable without privileges), None when unreadable."""
+    return _proc_field(f"/proc/{pid}/io", "rchar:")
+
+
+def prefetch_follow(path, pid, stop, lead=PREFETCH_LEAD, arena_min=PREFETCH_ARENA_MIN, wait_s=PREFETCH_WAIT_S, max_s=150.0, say=None,
+                    clock=time.time, sleep=time.sleep, anon=proc_anon_rss, rchar=proc_rchar, block=PREREAD_BLOCK, alive=None):
+    """T-1006 just-in-time prefetch (ABTEST_PREREAD=2): while the engine `pid` loads its experts from the gguf `path`, a reader keeps the file's
+    next bytes in the page cache, in file order, never more than `lead` bytes ahead of what the engine itself has read (its rchar since the
+    prefetch began).  Why not before the start: the engine pins its whole arena first (33 GiB, evicting the cache a pre-read filled; the cache
+    beside it holds ~17 GiB of the 36.5 GiB file), then reads the file in layer order with 6 threads (0.5-1.3 GiB/s; one stream with 16 MiB
+    blocks and WILLNEED reads 1.4-2.9 GiB/s on the same drive).  Waits until the engine's anonymous RSS has reached `arena_min` and stopped
+    growing (the arena is pinned), or `wait_s` passed.  Stops at the end of the file, when `stop` is set (the server is ready) or after `max_s`.
+    Returns (bytes_read, seconds, why)."""
+    say = say or (lambda m: print(m, flush=True))
+    alive = alive or (lambda: True)
+    t0 = clock()
+    last, still = -1, 0.0
+    while not stop.is_set() and alive():
+        a = anon(pid)
+        if a is not None and a >= arena_min:
+            if a == last and clock() - still >= 0.5:
+                break
+            if a != last:
+                last, still = a, clock()
+        if clock() - t0 > wait_s:
+            break
+        sleep(0.1)
+    if stop.is_set() or not alive():
+        say(f"PREFETCH {Path(path).name} 0.00 0.0 s: the engine was ready or gone before its arena was pinned")
+        return 0, 0.0, "early"
+    base = rchar(pid) or 0
+    t1, n, why = clock(), 0, "eof"
+    buf = bytearray(block)
+    adv = getattr(os, "posix_fadvise", None)
+    try:
+        fd = os.open(path, os.O_RDONLY)
+        try:
+            if adv:
+                adv(fd, 0, 0, os.POSIX_FADV_SEQUENTIAL)
+            ahead = 0
+            with os.fdopen(fd, "rb", buffering=0, closefd=False) as fh:
+                while True:
+                    if stop.is_set() or not alive():
+                        why = "stopped"
+                        break
+                    if clock() - t0 > max_s:
+                        why = "capped"
+                        break
+                    r = rchar(pid)
+                    if r is not None and n - (r - base) > lead:     # far enough ahead: let the engine catch up
+                        sleep(0.02)
+                        continue
+                    if adv and n + PREREAD_AHEAD > ahead:
+                        adv(fd, ahead, PREREAD_AHEAD, os.POSIX_FADV_WILLNEED)
+                        ahead += PREREAD_AHEAD
+                    got = fh.readinto(buf)
+                    if not got:
+                        break
+                    n += got
+        finally:
+            os.close(fd)
+    except OSError as e:
+        why = type(e).__name__
+    dt = clock() - t1
+    say(f"PREFETCH {Path(path).name} {n / 2**30:.2f} {dt:.1f} s ({n / 2**30 / max(dt, 1e-9):.2f} GiB/s; {why}; waited {t1 - t0:.1f} s for the arena)")
+    return n, dt, why
+
+
+def start_prefetch(cfg_path, srv_pid, say=None):
+    """ABTEST_PREREAD=2: starts the just-in-time prefetch thread for the engine under server process `srv_pid` (the config's --native gguf: the
+    file the experts are read from; the PLE table is read directly and the pack's files are small).  Returns (thread, stop_event), or
+    (None, None) when the mode is off or the config has no --native file.  Never raises."""
+    if preread_mode() != 2:
+        return None, None
+    try:
+        cfg = json.loads(Path(cfg_path).read_text(encoding="utf-8"))
+        args = cfg.get("args") or []
+        files = [Path(render_preset(str(args[i + 1]))) for i, v in enumerate(args[:-1]) if v == "--native"]
+        files = [f for f in files if f.is_file()]
+        if not files:
+            return None, None
+        env = os.environ
+        kw = dict(lead=int(float(env.get("ABTEST_PREFETCH_LEAD_GIB", "4")) * 2**30),
+                  arena_min=int(float(env.get("ABTEST_PREFETCH_ARENA_MIN_GIB", "16")) * 2**30),
+                  wait_s=float(env.get("ABTEST_PREFETCH_WAIT_S", str(PREFETCH_WAIT_S))), max_s=float(env.get("ABTEST_PREREAD_MAX_S", "150")), say=say)
+        stop = threading.Event()
+
+        def run():
+            try:
+                t0, pid = time.time(), None
+                while pid is None and not stop.is_set() and time.time() - t0 < 30:
+                    pid = find_engine_pid(srv_pid)
+                    if pid is None:
+                        time.sleep(0.2)
+                if pid is None:
+                    (say or print)("PREFETCH: no engine process found under the server: nothing prefetched")
+                    return
+                prefetch_follow(files[0], pid, stop, alive=lambda: Path(f"/proc/{pid}").exists(), **kw)
+            except Exception as e:   # noqa: BLE001 - never stops a test
+                print(f"PREFETCH failed ({type(e).__name__}: {e}): carrying on", flush=True)
+        th = threading.Thread(target=run, name="prefetch", daemon=True)
+        th.start()
+        return th, stop
+    except (OSError, ValueError, KeyError, AttributeError) as e:
+        print(f"PREFETCH failed ({type(e).__name__}: {e}): carrying on", flush=True)
+        return None, None
+
+
 def start_server(cfg_path, log_out, port, ready_wait=900):
     """Starts the engine server for a config and waits for its "ready: http" line.  Returns (process, None), or
     (None, "server died before ready" / "server not ready ...") - the caller stops the servers."""
@@ -735,15 +905,21 @@ def start_server(cfg_path, log_out, port, ready_wait=900):
                                 cfg_path, "--port", str(port)], cwd=ROOT, stdout=lf, stderr=subprocess.STDOUT, env=env)
     OWN.append(srv)
     PREREAD_STAMP.clear()   # this engine evicts the files: the next start reads them again
-    t0 = time.time()
-    while time.time() - t0 < ready_wait:
-        txt = Path(log_out).read_text(errors="replace")
-        if "ready: http" in txt:
-            return srv, None
-        if srv.poll() is not None or "EngineDied" in txt:
-            return None, "server died before ready"
-        time.sleep(1)      # T-1006: was 3 s (about 1.5 s lost per start on average); the file is read again, nothing else waits
-    return srv, None   # as before: not ready after ready_wait, carry on (the first request waits for it)
+    pf_thread, pf_stop = start_prefetch(cfg_path, srv.pid)   # T-1006 ABTEST_PREREAD=2: beside the engine's own load; (None, None) when off
+    try:
+        t0 = time.time()
+        while time.time() - t0 < ready_wait:
+            txt = Path(log_out).read_text(errors="replace")
+            if "ready: http" in txt:
+                return srv, None
+            if srv.poll() is not None or "EngineDied" in txt:
+                return None, "server died before ready"
+            time.sleep(1)      # T-1006: was 3 s (about 1.5 s lost per start on average); the file is read again, nothing else waits
+        return srv, None   # as before: not ready after ready_wait, carry on (the first request waits for it)
+    finally:
+        if pf_stop is not None:   # no read may run beside a measured request
+            pf_stop.set()
+            pf_thread.join(5)
 
 
 def token_check(url, P, cases):

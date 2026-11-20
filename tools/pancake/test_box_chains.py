@@ -9,6 +9,7 @@ import os
 import re
 import shutil
 import subprocess
+import threading
 import sys
 import time
 from pathlib import Path
@@ -3924,6 +3925,77 @@ def test_abtest_preread_is_off_unless_abtest_preread_is_set_and_reads_once_per_e
     text = (HERE / "abtest.py").read_text()
     assert text.index("preread_for_config(cfg)") < text.index("quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)\n            ROT[1] = r") \
         and "PREREAD_STAMP.clear()   # this engine evicts" in text
+
+
+def test_abtest_preread_mode_2_keeps_the_pre_start_read_off_and_selects_the_prefetch(monkeypatch):
+    ab = _abtest_mod()
+    for v, mode, pre in (("", 0, False), ("0", 0, False), ("1", 1, True), ("2", 2, False), ("yes", 1, True)):
+        monkeypatch.setenv("ABTEST_PREREAD", v)
+        assert (ab.preread_mode(), ab.preread_enabled()) == (mode, pre)
+    monkeypatch.delenv("ABTEST_PREREAD")
+    assert ab.preread_mode() == 0 and ab.start_prefetch("/nonexistent.json", 1) == (None, None)   # off: no thread
+    monkeypatch.setenv("ABTEST_PREREAD", "2")
+    assert ab.start_prefetch("/nonexistent.json", 1) == (None, None)                             # a broken config never stops a test
+
+
+def test_abtest_prefetch_follow_waits_for_the_pinned_arena_then_reads_in_order_never_far_ahead_of_the_engine(tmp_path):
+    ab = _abtest_mod()
+    f = tmp_path / "m.gguf"
+    f.write_bytes(bytes(range(256)) * 40)   # 10240 B = 10 blocks of 1024
+    now = [0.0]
+    pos = {"rchar": 5000, "anon": 0}
+    seen_lead, lines = [], []
+
+    def sleep(s):
+        now[0] += s
+        pos["anon"] = min(20000, pos["anon"] + 4000)   # the arena grows 4000 B per 0.1 s, then stays
+        if pos["anon"] == 20000 and now[0] > 1.0:       # the engine's own reads (rchar) catch up 1024 B per wait
+            pos["rchar"] += 1024
+
+    n, dt, why = ab.prefetch_follow(f, 7, threading.Event(), lead=2048, arena_min=10000, wait_s=60.0, say=lines.append, clock=lambda: now[0], sleep=sleep,
+                                    anon=lambda pid: pos["anon"], rchar=lambda pid: seen_lead.append(pos["rchar"]) or pos["rchar"], block=1024)
+    assert (n, why) == (10240, "eof") and lines[-1].startswith("PREFETCH m.gguf 0.00 ") and "eof" in lines[-1]
+    assert now[0] >= 0.6 + 0.5      # waited: the arena plateau (0.5 s without growth) came before the first read
+    # the lead throttle: with rchar frozen the prefetch stops at lead + one block, and the engine's progress releases it
+    pos.update(rchar=0, anon=20000)
+    now[0] = 0.0
+    calls = [0]
+
+    def sleep2(s):
+        calls[0] += 1
+        now[0] += s
+        pos["rchar"] += 1024
+
+    lines.clear()
+    n, dt, why = ab.prefetch_follow(f, 7, threading.Event(), lead=2048, arena_min=10000, wait_s=60.0, say=lines.append, clock=lambda: now[0], sleep=sleep2,
+                                    anon=lambda pid: 20000, rchar=lambda pid: pos["rchar"], block=1024)
+    assert n == 10240 and calls[0] >= 4   # it had to wait for the engine at least 4 times (10 blocks, lead 2 blocks)
+    # the arena never shows: starts after wait_s anyway; stop set: nothing read
+    now[0] = 0.0
+    n, dt, why = ab.prefetch_follow(f, 7, threading.Event(), lead=10**9, arena_min=10**9, wait_s=3.0, say=lines.append, clock=lambda: now[0],
+                                    sleep=lambda s: now.__setitem__(0, now[0] + s), anon=lambda pid: 0, rchar=lambda pid: 0, block=1024)
+    assert n == 10240 and now[0] >= 3.0
+    ev = threading.Event()
+    ev.set()
+    assert ab.prefetch_follow(f, 7, ev, say=lines.append, anon=lambda pid: 0)[0] == 0 and "ready or gone" in lines[-1]
+    # the engine gone while the prefetch waits / reads
+    alive = iter([True, False])
+    now[0] = 0.0
+    assert ab.prefetch_follow(f, 7, threading.Event(), arena_min=10**9, wait_s=60.0, say=lines.append, clock=lambda: now[0], sleep=lambda s: None,
+                              anon=lambda pid: 0, alive=lambda: next(alive, False))[0] == 0
+
+
+def test_abtest_start_server_stops_the_prefetch_when_the_server_is_ready_and_proc_helpers_read_this_process():
+    text = (HERE / "abtest.py").read_text()
+    body = text[text.index("def start_server"):text.index("def token_check")]
+    assert body.index("start_prefetch(cfg_path, srv.pid)") < body.index("txt = Path(log_out)") and "pf_stop.set()" in body and "finally:" in body
+    ab = _abtest_mod()
+    if not Path("/proc/self/io").exists():
+        return   # not Linux
+    assert ab.proc_rchar(os.getpid()) > 0 and ab.proc_anon_rss(os.getpid()) > 0
+    assert ab.proc_rchar(2**31) is None and ab.proc_anon_rss(2**31) is None
+    assert os.getpid() in ab.proc_descendants(os.getppid())
+    assert ab.find_engine_pid(os.getppid(), want=("pytest", "no-such-engine-string")) is None
 
 
 def test_run_queue_us11_waits_for_the_slice3_rerun_exports_the_preread_and_keeps_the_order():

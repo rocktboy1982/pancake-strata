@@ -198,6 +198,7 @@ T-1003). These rules came out of that. Each flag is judged on its own numbers.
    120 s idle pause with the pack read into the cache and runs once more (REGIME-PAUSE in the log); an arm is never judged against a base from the other state.
    Prevention (T-1006): `ABTEST_PREREAD=1` (set by the queue scripts, default 0) reads the model files of the config (`--pack` dir, `--native`, `--ple-gguf`) sequentially into the page cache
    before EVERY engine start and before the quiet gate (`PREREAD` lines; skipped at >= 95% cached; 90 s cap); the pause stays the fallback.
+   `ABTEST_PREREAD=1` did not change the load (the engine pins its 33 GiB arena before it reads the file, which evicts the pre-read: TEST_LEDGER.md T-1006); `ABTEST_PREREAD=2` replaces it with a prefetch beside the engine's own load (`PREFETCH` lines, never more than 4 GiB ahead of the engine's reads, stops at `ready: http`).
 3. **Classify by per-case effect (gain of having the flag ON):** HIGH = any case >= +2% even if another case is
    negative (short -1% with long +10% is a big gain on a case); LOW = best case above 0% and below 2%: not retested this
    round, goes to the backlog file; NEGATIVE = every case <= 0%: an off-by-default flag is NO-GAIN and dropped, a preset
