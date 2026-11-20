@@ -84,10 +84,11 @@ METRICS = ["short", "edit", "longdec32k", "longdec32k-prompt", "longdec64k", "lo
 START_S = START_OVH + sum(CASE_S.get(c, 60) for c in CASES)
 BLOCK = 6                                 # arms per pass-1 block (owner order 2026-11-20: <= 6)
 DRIFT_MAX = 5.0                           # % base drift above which a verdict is INCONCLUSIVE
-WEAK = ("INCONCLUSIVE", "UNTESTED", "NO-GAIN-P1", "PROMISING", "PROMISING-LOW")   # a merge never lets these replace a decided verdict (PROMISING = a stage-1 screen result: any later stage-2 verdict replaces it)
+WEAK = ("INCONCLUSIVE", "UNTESTED", "NO-GAIN-P1", "PROMISING", "PROMISING-LOW", "HURTS")   # a merge never lets these replace a decided verdict (PROMISING = a stage-1 screen result: any later stage-2 verdict replaces it)
 NOGAIN = "NO-GAIN-P1"                     # pass 1, clean block, no benefit: dropped after pass 1 (n=1, not a refutation); no shipped change
 OPT_GAIN, OPT_LOSS = 10.0, -3.0           # OPTIONAL: any metric >= +10 % AND any metric <= -3 % after the confirm (owner rule 2026-11-20)
 PROMISE = {True: 1.0, False: 1.5}        # exact / lossy: pass-1 bar
+HIGH_GAIN = 2.0                          # owner 2026-11-20: ANY case >= +2 % in run 1 (the screen) = HIGH (rescreened); 0 < best < 2 % = LOW (backlog); all cases <= 0: NO-GAIN (plus arm) / HURTS (minus arm, rescreened)
 KEEP = {True: 2.0, False: 3.0}           # exact / lossy: pass-2 bar
 FLOOR = -3.0
 BASES = ("updated", "base-late")
@@ -441,6 +442,10 @@ def two_run(p1, e2, exact):
     big = [m for m in common if p1[m] >= OPT_GAIN and e2[m] >= OPT_GAIN]
     loss = [m for m in common if p1[m] <= OPT_LOSS and e2[m] <= OPT_LOSS]
     gain = [m for m in common if p1[m] > 0 and e2[m] > 0]
+    if common and max(p1[m] for m in common) <= 0:                  # a HURTS flag (run 1: every case <= 0 with the preset flag ON): dropped only when run 2 agrees, else nothing changes
+        if max(e2[m] for m in common) <= 0:
+            return "DROP", "two-run rule: every case <= 0 in both runs (having the flag ON hurts: runs agree): no gain", mean, spread
+        return "UNSTABLE", "two-run rule: run 1 had every case <= 0 but run 2 shows a gain (%s): the runs disagree, nothing changes" % ", ".join("%s %+.2f %%" % (m, e2[m]) for m in common if e2[m] > 0), mean, spread
     fmt = lambda ms: ", ".join("%s %+.2f %% (runs %+.2f / %+.2f)" % (m, mean[m], p1[m], e2[m]) for m in ms)
     if big and loss:
         return "OPTIONAL", "two runs agree: helps %s; hurts %s: opt-in, not default%s" % (fmt(big), fmt(loss), "" if exact else "; lossy: a quality gate is due before it is offered"), mean, spread
@@ -472,7 +477,7 @@ def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX, screen_only=False
         promising = promising_of(e1, PROMISE[f["exact"]])
         p1 = pm = None
         if screen_only:                          # owner 2026-11-20: ANY case above 0 % (clean block) is "to be considered": PROMISING; ranked by gain afterwards (sweep.py rank)
-            promising = bool(e1) and max(e1.values()) > 0
+            promising = bool(e1) and max(e1.values()) >= HIGH_GAIN     # run 1: HIGH = ANY case >= +2 % (per-case effects), even when another case is negative
             pm = None
             pr_rec = (prior or {}).get(f["flag"]) or {}
             p1 = pr_rec.get("run1") or pr_rec.get("pass1")                                 # run 1 (a drifted run 2 keeps it as "run1" for the next rescreen)
@@ -494,6 +499,14 @@ def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX, screen_only=False
             rec["carry"] = promising and not screen_only        # a screen-only INCONCLUSIVE is re-screened once (sweep.py select), not confirmed
             v = ("INCONCLUSIVE", "pass-1 block %s base drift %s > %.0f %% (after its re-run): no verdict%s" % (
                 lab, worst(d1), drift_max, "; promising numbers: carried to the follow-up RETEST slice" if promising else ""))
+        elif screen_only and not pm and not promising and e1 and max(e1.values()) > 0:
+            rec["carry"] = False
+            v = ("PROMISING-LOW", "run 1 (clean block %s): best case %+.2f %% (0 < gain < %.1f %%): LOW gain, not rescreened this round: backlog (us-backlog-low.json, run-1 numbers kept)" % (
+                lab, max(e1.values()), HIGH_GAIN))
+        elif screen_only and not pm and not promising and e1 and f["kind"] == "minus":
+            rec["carry"] = True
+            v = ("HURTS", "run 1 (clean block %s): every case <= 0 %% with the preset flag ON (best %+.2f %%): having it ON hurts; rescreened once (a shipped change is at stake: no removal from one run)" % (
+                lab, max(e1.values())))
         elif not promising and pm:
             v = (NOGAIN, "RESCREEN (second 1-run test, clean block %s): the run-1 benefit on %s did not repeat (%+.2f %%): dropped, no shipped change" % (lab, pm, e1.get(pm, 0)))
         elif not promising:
@@ -502,8 +515,7 @@ def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX, screen_only=False
         elif screen_only:
             rec["carry"] = True
             v = ("PROMISING", ("RESCREEN (second 1-run test, clean block %s): the benefit repeats on %s (%+.2f %%): the 3-rep confirm follows" % (lab, pm, e1.get(pm, 0)))
-                 if pm else "stage-1 screen (n=1, clean block %s): a case above 0 %% (best %+.2f %%): to be considered; the 3-rep confirm runs in descending order of gain "
-                              "(sweep.py rank: HIGH = best case >= 2.0 %% this round, 0 < gain < 2.0 %% PROMISING-LOW after the final comparison)" % (lab, max(e1.values())))
+                 if pm else "stage-1 screen (n=1, clean block %s): a case >= +%.1f %% (best %+.2f %%): HIGH gain, goes to the rescreen" % (lab, HIGH_GAIN, max(e1.values())))
         else:
             rec["carry"] = True
             v = ("RETEST", "promising; pass 2 not run (budget): carried to the follow-up RETEST slice" if m2 is None
@@ -762,7 +774,6 @@ def carried(docs, br=None):
     return sorted(uniq, key=lambda e: -e["gain"])
 
 
-HIGH_GAIN = 2.0                          # owner 2026-11-20: ~2 % is the line between high and low gain (screen, best case effect)
 
 
 def rank_doc(ents, high=HIGH_GAIN):

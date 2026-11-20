@@ -3531,20 +3531,21 @@ def test_sweep_screen_only_any_case_above_zero_is_promising_and_the_rank_cut_is_
     meta = {"branch": "us", "slice": "usS1-1of5", "protected": {}, "flags": {
         "plus-A": {"flag": "A", "kind": "plus", "exact": True, "env": {"A": "1"}, "args": {}}, "plus-B": {"flag": "B", "kind": "plus", "exact": False, "env": {"B": "1"}, "args": {}},
         "plus-C": {"flag": "C", "kind": "plus", "exact": True, "env": {"C": "1"}, "args": {}}, "plus-D": {"flag": "D", "kind": "plus", "exact": True, "env": {"D": "1"}, "args": {}},
-        "plus-E": {"flag": "E", "kind": "plus", "exact": True, "env": {"E": "1"}, "args": {}}}}
+        "plus-E": {"flag": "E", "kind": "plus", "exact": True, "env": {"E": "1"}, "args": {}},
+        "minus-H": {"flag": "H", "kind": "minus", "exact": True, "env": {"H": "1"}, "args": {}}}}
     b = {"short": 100.0, "edit": 100.0, "longdec32k": 100.0, "longdec32k-prompt": 1000.0}
     p1 = sweep_rows({"updated": b, "plus-A": {**b, "short": 100.4}, "plus-B": {**b, "edit": 102.5}, "plus-C": {**b, "short": 99.0, "edit": 99.5, "longdec32k": 98.0},
-                     "plus-D": {**b, "short": 110.0, "edit": 96.0}})
+                     "plus-D": {**b, "short": 110.0, "edit": 96.0}, "minus-H": {**b, "short": 105.0}})
     t = mod.triage(meta, p1, screen_only=True)
-    assert {k: r["verdict"] for k, r in t["flags"].items()} == {"A": "PROMISING", "B": "PROMISING", "C": "NO-GAIN-P1", "D": "PROMISING", "E": "UNTESTED"}
-    assert [t["flags"][k]["carry"] for k in "ABCD"] == [True, True, False, True] and t["flags"]["A"]["slice"] == "usS1-1of5"
-    spec = {"base": "/p", "cases": ["short", "edit", "longdec32k"], "arms": {"updated": {}, **{"plus-" + k: {"env": {k: "1"}} for k in "ABCD"}}}
+    assert {k: r["verdict"] for k, r in t["flags"].items()} == {"A": "PROMISING-LOW", "B": "PROMISING", "C": "NO-GAIN-P1", "D": "PROMISING", "E": "UNTESTED", "H": "HURTS"}
+    assert [t["flags"][k]["carry"] for k in "ABCDH"] == [False, True, False, True, True]          # LOW goes to the backlog, HIGH and HURTS to the rescreen and t["flags"]["A"]["slice"] == "usS1-1of5"
+    spec = {"base": "/p", "cases": ["short", "edit", "longdec32k"], "arms": {"updated": {}, **{"plus-" + k: {"env": {k: "1"}} for k in "ABCD"}, "minus-H": {"env": {}}}}
     cr = [r for r in t["flags"].values() if r["carry"]]
     doc = mod.carry_doc(spec, meta, cr, "usS1-1of5")
     ents = mod.carried([doc], "us")
-    assert [e["flag"] for e in ents] == ["D", "B", "A"]                                  # best case first (the OPTIONAL-pattern flag by its big case)
+    assert [e["flag"] for e in ents if e["gain"] > 0] == ["D", "B"]                                  # best case first (the OPTIONAL-pattern flag by its big case)
     rk = mod.rank_doc(ents)
-    assert rk["cut"] == 2 and [r["verdict"] for r in rk["flags"]] == ["PROMISING", "PROMISING", "PROMISING-LOW"] and rk["flags"][2]["flag"] == "A" and rk["high"] == 2.0
+    assert rk["cut"] == 2 and [r["verdict"] for r in rk["flags"]][:2] == ["PROMISING", "PROMISING"] and rk["flags"][2]["flag"] == "H" and rk["high"] == 2.0
     assert mod.rank_doc([]) ["cut"] == 0 and mod.merge.__doc__
     # the old (non screen) triage keeps its bars
     assert mod.triage(meta, p1)["flags"]["A"]["verdict"] == "NO-GAIN-P1"
@@ -3636,7 +3637,7 @@ def test_bench_sweep_screen_only_skips_pass_2_writes_promising_and_the_carry_fil
     mod = sweep_mod()
     _, meta = mod.build_spec("rd", "/p.json", mod.arm_from_configs(plain, upd), sweep_registry(), "/s", "1/6", plain=plain, split="even")
     win = next(n for n, f in meta["flags"].items() if f["kind"] == "plus" and f["exact"])
-    dec = {"*": b, win: {**b, "short": 100.5}}                                                  # +0.5 %: above 0, far below the old bar
+    dec = {"*": b, win: {**b, "short": 103.0}}                                                  # +3 %: HIGH (any case >= +2 %)
     box.finish(box.start(SW, env=be_env(SWEEP_BRANCH="rd", SWEEP_SLICE="1/6", SWEEP_SPLIT="even", SWEEP_SCREEN_ONLY="1", SWEEP_WARM="first", SWEEP_BLOCK="8",
                                         STUB_ARM_DECODE=json.dumps(dec))), timeout=240)
     text = "\n".join(box.log("bench-sweep.log"))
@@ -3645,8 +3646,8 @@ def test_bench_sweep_screen_only_skips_pass_2_writes_promising_and_the_carry_fil
     tri = json.loads((sw_dir / "rd-triage-1of6.v2.json").read_text())
     wflag = meta["flags"][win]["flag"]
     assert tri["flags"][wflag]["verdict"] == "PROMISING" and tri["flags"][wflag]["carry"] is True and tri["flags"][wflag]["pass2"] is None
-    assert all(r["verdict"] == "NO-GAIN-P1" for f, r in tri["flags"].items() if f != wflag)
-    assert json.loads((sw_dir / "rd-carry-1of6.json").read_text())["arms"].keys() == {win}
+    assert all(r["verdict"] in ("NO-GAIN-P1", "HURTS") for f, r in tri["flags"].items() if f != wflag)                 # a flat minus arm (every case <= 0) is HURTS, a plus arm NO-GAIN
+    assert win in json.loads((sw_dir / "rd-carry-1of6.json").read_text())["arms"]
     rows0 = [json.loads(l)["arm"] for l in (sw_dir / "rd-p1-1of6-b01.jsonl").read_text().splitlines()]
     assert rows0[:2] == ["warmup", "updated"]
     if (sw_dir / "rd-p1-1of6-b02.jsonl").exists():
@@ -3671,6 +3672,7 @@ def test_two_run_rule_keep_optional_drop_mixed_gate_and_the_rescreen_triage_reco
     assert mod.two_run({"short": 12.0, "edit": -4.0}, {"short": 11.0, "edit": -1.0}, True)[0] == "KEEP"          # the loss does not repeat in both runs
     assert mod.two_run({"short": 2.0}, {"short": -1.0}, True)[0] == "DROP" and mod.two_run({"short": -1.0, "edit": 2.0}, {"short": 0.0, "edit": -2.0}, True)[0] == "DROP"
     assert mod.two_run({"short": 6.0, "edit": -4.0}, {"short": 5.0, "edit": -3.5}, True)[0] == "MIXED"
+    assert mod.two_run({"short": -1.0, "edit": -2.0}, {"short": -0.5}, True)[0] == "DROP" and mod.two_run({"short": -1.0}, {"short": 1.5}, True)[0] == "UNSTABLE"      # HURTS: dropped only when run 2 agrees
     assert mod.two_run({"short": 4.0}, {"short": 3.5}, False)[0] == "RETEST-GATE" and mod.two_run({"short": 2.0}, {"short": 2.5}, False)[0] == "KEEP"
     meta = {"branch": "us", "slice": "usS2r-1-1of1", "protected": {}, "flags": {
         "minus-A": {"flag": "A", "kind": "minus", "exact": True, "env": {"A": "1"}, "args": {}}, "minus-B": {"flag": "B", "kind": "minus", "exact": True, "env": {"B": "1"}, "args": {}},
@@ -3715,3 +3717,12 @@ def test_select_by_gain_and_the_rescreen_slices_of_the_us5_sequencer(tmp_path):
     assert order == sorted(order)
     assert "prelim" not in body and "confirm" not in body and "carry-us-" not in body and "plain-upstream" not in body       # no stock arm, no preliminary, no 3-rep confirm stage
     assert "SWEEP_PRIOR=$PRIOR" in q and "--min-gain 2.0" in q and "--max-gain 2.0" in q and "two-run" in q.lower() or "run 1 + run 2" in q
+
+
+def test_run_queue_us6_rescreens_high_and_hurts_only_low_gain_goes_to_the_backlog_file():
+    q = (CHAINS / "run-queue-us6.sh").read_text()
+    assert "SWEEP_HARNESS_SHA:?" in q and "run-queue-us6.log" in q and "QUEUE_US6_DONE" in q and "BENCH_PREIDLED=1" in q
+    body = q[q.index("# ---- slice 1 is already running"):]
+    assert "--verdict PROMISING,HURTS" in q and "--min-gain" not in body and "rescreen usS3r" not in body and "us-backlog-low.json" in body
+    order = [body.index(x) for x in ('pgrep -fx "sh ./bench-sched.v8.sh"', "for k in 2 3 4 5; do screen $k/5 usS1-${k}of5; cycle $k; done", "us-backlog-low.json", "final final FINAL_PREFIX=final FINAL_REPS=5", "QUEUE_US6_DONE")]
+    assert order == sorted(order) and "prelim" not in body and "plain-upstream" not in body and "confirm" not in body
