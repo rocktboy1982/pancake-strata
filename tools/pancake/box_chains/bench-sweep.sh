@@ -9,7 +9,14 @@
 #   us: base = the pancake harness's configs/pancake/flashnext-iq2_xs-plain-upstream.json, arm `updated` = spec 220's updated arm (build
 #       /mnt/pancake/benchus/build-us/strata, the profile and table of /mnt/pancake/benchus/src-us);
 #   rd: base = /home/dan/auto-runs/benchRD/config-plain.json, arm `updated` = what /home/dan/auto-runs/benchRD/config-updated.json adds to it
-#       (build /mnt/pancake/benchRD/build-updated/strata; the plus arms' files from /mnt/pancake/benchRD/src-updated).
+#       (build /mnt/pancake/benchRD/build-updated/strata; the plus arms' files from /mnt/pancake/benchRD/src-updated).  That config is from the run
+#       before the flag cleanup (TEST_LEDGER.md T-988): the updated arm is built from it MINUS SWEEP_RD_DROP (default STRATA_POOL_FUSE_PHASES, out of
+#       the shipped RD file) and WITH SWEEP_RD_SET (default STRATA_VERIFY_ECAP=0 STRATA_VERIFY_ECAP_MIN_ROWS=9, ECAP as shipped, T-990); every change
+#       is logged as an ARMFIX line.
+# PRIORITY ORDER (owner order 2026-11-20): slice 1 of a branch = all [arm] + [named] switches (us 36: the 35 of the updated arm + AMD_COMMUNITY_TUNING;
+#   rd 17: the 11 of the updated arm + GR_RDNA_Q8 / A8 / INJ_UP / FUSED, ADAPT_PERSIST, AMD_COMMUNITY_TUNING, filled up with [code] arms to the even
+#   slice size), [code] after them; every slice is triaged, confirmed (pass 2) and merged on its own: usable after slice 1.
+# SWEEP_HARNESS_SHA=<commit> pins the synced harness (sweep.py and its registry: the slices of one branch must cut the same list); default origin HEAD.
 # PASS 1 (tools/pancake/box_chains/sweep.py spec): only the coded switches NEVER TESTED on gfx1100 (owner clarification 2026-11-20): no pancake
 #   TEST_LEDGER.md row naming them on the box and no 2026-11-19 box verdict; already-measured switches keep their verdict and get no arm.  One engine
 #   start per arm, abtest --tier screen --drift-check (the base again at the end), cases short, edit, longdec32k; minus-X for an untested switch the
@@ -18,7 +25,7 @@
 # PASS 2: the promising flags only (at most SWEEP_PASS2_MAX, default 6, the strongest first): abtest --tier confirm, 3 reps; KEEP >= 2 % (exact),
 #   RETEST-GATE >= 3 % (lossy: a quality gate is due), else DROP.  The triage file is what tools/pancake/apply_triage.py applies to the shipped files.
 # BUDGET: 150 s per engine start (sweep.py estimate); a run must stay <= SWEEP_MAX_S (9000 s, 2.5 h) or it stops before any start and names the
-#   slice count it needs.  us: 153 untested switches = 5 runs (SWEEP_SLICE=1/5 .. 5/5: 31 / 31 / 31 / 31 / 29 arms, <= 8100 s each); rd: 109 untested
+#   slice count it needs.  us: 153 untested switches = 5 runs (SWEEP_SLICE=1/5 .. 5/5: 36 / 30 / 30 / 30 / 27 arms, <= 8850 s each); rd: 109 untested
 #   switches, the ones Strata-rdna3's own setup already runs at that value get no arm (98 arms with the box's config-updated.json of 2026-11-19) = 3 runs
 #   (1/3 .. 3/3: 33 / 33 / 32 arms, <= 8400 s each).  8 runs, at most about 18 h of box time (pass 2 at its cap in every run).  BENCH_BUDGET_S overrides
 #   the computed budget (estimate + 900 s); pass 2 starts only when its estimate fits the budget left.
@@ -88,7 +95,7 @@
 # quick idle before each step; pancake.service stays DOWN (never started; stopped only after 3 minutes without a client); AA stays frozen (no signal is
 # ever sent to it); nothing is deleted; every abtest run is in its OWN SESSION under a watchdog (run_group: TERM at the limit, KILL 100 s later, REAP of
 # every process it had): no orphan engine survives a step.  The harness runs with the box's venv python (ABTEST_PYTHON).
-# Start (not launched by the agent that wrote it; copy bench-sweep.sh and bench-sched.sh to /home/dan/clone-of-d/src first), one run after the other:
+# Start: /home/dan/clone-of-d/src/run-queue-sweep.sh runs the 8 slices (rd 1/3, us 1/5, rd 2/3, rd 3/3, us 2/5 .. 5/5) one after the other; by hand:
 #   cd /home/dan/clone-of-d/src && SWEEP_BRANCH=rd SWEEP_SLICE=1/3 BENCH_ONLY=EXTRA BENCH_EXTRA=./bench-sweep.sh BENCH_NO_RESUME=1 setsid nohup sh ./bench-sched.sh > /dev/null 2>&1 &
 #   (then SWEEP_SLICE=2/3, 3/3; then SWEEP_BRANCH=us SWEEP_SLICE=1/5 .. 5/5; each run merges its slice into <branch>-triage.json)
 S=/home/dan/clone-of-d/src; R=$S/Strata-win; L=$S/bench-sweep.log; O=/home/dan/auto-runs/benchsweep; T=$O/work; PM=/mnt/pancake/benchsweep; HN=$PM/harness
@@ -211,10 +218,10 @@ miss=; for f in $DATA/packs/iq2_xs/tokenizer $DATA/models/IQ2_XS/Qwen3.8-Flash-N
 say "PREREQ ok ($B): $need"
 
 # ------------------------------------------------------------------ 1. harness: origin port/rdna3-decode (abtest, sweep.py, its registry, spec 220), mtimes reset
-SHA=$(timeout 60 git ls-remote $REPO_URL refs/heads/port/rdna3-decode 2>/dev/null | cut -f1)
+SHA=${SWEEP_HARNESS_SHA:-$(timeout 60 git ls-remote $REPO_URL refs/heads/port/rdna3-decode 2>/dev/null | cut -f1)}
 HARN=$PM/harness.tgz; rm -f $HARN.part
 if [ -n "$SHA" ] && timeout 1200 curl -sfL -o $HARN.part https://codeload.github.com/rocktboy1982/pancake-strata/tar.gz/$SHA && tar tzf $HARN.part >/dev/null 2>&1; then
-  mv $HARN.part $HARN; say "SYNC harness: origin port/rdna3-decode $SHA -> $HN"
+  mv $HARN.part $HARN; say "SYNC harness: origin port/rdna3-decode $SHA${SWEEP_HARNESS_SHA:+ (pinned by SWEEP_HARNESS_SHA)} -> $HN"
 else abort "SYNC harness download failed"; fi
 mkdir -p $HN && tar xzmf $HARN --no-same-owner --strip-components=1 -C $HN || abort "SYNC harness tar failed"
 for need in tools/pancake/abtest.py tools/pancake/box_chains/sweep.py tools/pancake/box_chains/sweep_candidates.json \
@@ -229,8 +236,10 @@ say "PREREQ harness ok: $HPY imports serve.server from $HN $(date +%T)"
 P1=$T/$B-p1-$SLN.json
 if [ $B = us ]; then sw spec --branch us --plain $HN/configs/pancake/flashnext-iq2_xs-plain-upstream.json --arm-from $HN/bench/specs/220-updated-vs-upstream-short.json --arm-name updated \
                        --src $SRC --slice $SL --pass2-max $P2MAX --out $P1 > $T/$B-spec-$SLN.txt 2>&1 || abort "SPEC: sweep.py spec failed: $(tail -n 1 $T/$B-spec-$SLN.txt)"
-else sw spec --branch rd --plain $RDC --updated-config $RDU --src $SRC --slice $SL --pass2-max $P2MAX --out $P1 > $T/$B-spec-$SLN.txt 2>&1 || abort "SPEC: sweep.py spec failed: $(tail -n 1 $T/$B-spec-$SLN.txt)"; fi
-grep '^SWEEP' $T/$B-spec-$SLN.txt >> $L
+else fx=; for k in ${SWEEP_RD_DROP-STRATA_POOL_FUSE_PHASES}; do fx="$fx --drop-env $k"; done
+  for kv in ${SWEEP_RD_SET-STRATA_VERIFY_ECAP=0 STRATA_VERIFY_ECAP_MIN_ROWS=9}; do fx="$fx --set-env $kv"; done
+  sw spec --branch rd --plain $RDC --updated-config $RDU $fx --src $SRC --slice $SL --pass2-max $P2MAX --out $P1 > $T/$B-spec-$SLN.txt 2>&1 || abort "SPEC: sweep.py spec failed: $(tail -n 1 $T/$B-spec-$SLN.txt)"; fi
+grep -E '^(ARMFIX|SWEEP)' $T/$B-spec-$SLN.txt >> $L
 set -- $(grep '^ESTIMATE' $T/$B-spec-$SLN.txt); E1=${2:-0}; E2=${3:-0}
 [ "$E1" -gt 0 ] || abort "SPEC: no estimate from sweep.py"
 if [ $((E1 + E2)) -gt $MAXS ]; then

@@ -4,6 +4,8 @@ retest, don't keep low performers").
 
   sweep.py spec    --branch us|rd --plain PLAIN.json (--arm-from SPEC.json [--arm-name updated] | --updated-config UPDATED.json) --src SRC_TREE --out SPEC1.json
                    [--slice K/N] [--registry sweep_candidates.json]          the pass-1 spec (+ SPEC1.json.meta.json); prints arms and the estimate
+                   [--drop-env KEY]... [--set-env KEY=VALUE]...                 (with --updated-config) fix the updated config first; each change is
+                                                                                 printed as an ARMFIX line
   sweep.py triage  --meta SPEC1.json.meta.json --pass1 ROWS1.jsonl [--pass2 ROWS2.jsonl] --out TRIAGE.json
   sweep.py pass2   --spec SPEC1.json --triage TRIAGE.json --out SPEC2.json [--max N]   the 3-rep confirm spec of the promising flags (exit 3: none)
   sweep.py merge   --out BRANCH-triage.json PART.json...                                  one triage file of all slices of a branch
@@ -20,6 +22,10 @@ having it ON: plus-X against the base, the base against minus-X (the base = the 
 TRIAGE (the owner's two-pass rule): promising = effect >= 1.0 % (exact) / >= 1.5 % (lossy) on a metric and no metric below -3 %; else a low
 performer (DROP).  PASS 2: only the promising flags, abtest --tier confirm, 3 reps, the same cases; KEEP = >= 2 % (exact) on a metric and none below
 -3 %; a lossy flag at >= 3 % is RETEST-GATE (a quality gate is due before it is shipped); everything else DROP.  A flag without rows is UNTESTED.
+PRIORITY ORDER (owner order 2026-11-20): the arms run in this order: first the [arm] switches (source "updated arm"), then the [named] ones
+(source "owner list ..."), then the [code] ones; slice 1 of a branch holds ALL [arm] + [named] arms (filled up with [code] arms to the even slice
+size when they are fewer), the other slices split the rest evenly.  Every slice is triaged, confirmed (pass 2) and merged on its own, so the
+results of slice 1 are usable before the other slices run.
 Estimate: 150 s per engine start (the 2026-11-19 box runs: ~1.5 min per start of short + edit + long32k, plus the 32K decode)."""
 import argparse
 import json
@@ -95,12 +101,45 @@ def flags_of(arm, registry, untested, src, plain=None):
     return out
 
 
-def take_slice(items, sl):
+def priority(meta):
+    """0 = [arm] (set by the updated arm), 1 = [named] (owner list), 2 = [code] (any other coded switch)."""
+    src = meta.get("source", "")
+    return 0 if src == "updated arm" else 1 if src.startswith("owner list") else 2
+
+
+def take_slice(items, sl, first=0):
+    """Part K of N.  The first `first` items (the priority ones) all go to slice 1, which is at least the even size ceil(len / N); the other
+    slices split the rest evenly."""
     k, n = (int(x) for x in sl.split("/"))
     if not 1 <= k <= n:
         raise SystemExit("sweep: --slice K/N needs 1 <= K <= N")
-    size = math.ceil(len(items) / n)
-    return items[(k - 1) * size:k * size]
+    if n == 1:
+        return list(items)
+    s1 = max(first, math.ceil(len(items) / n))
+    if k == 1:
+        return items[:s1]
+    rest = items[s1:]
+    size = math.ceil(len(rest) / (n - 1))
+    return rest[(k - 2) * size:(k - 1) * size]
+
+
+def fix_config(upd, drop=(), sets=()):
+    """The updated config with the keys in `drop` taken out of its env and KEY=VALUE of `sets` put in; returns (config, ARMFIX lines)."""
+    upd = json.loads(json.dumps(upd))
+    env, notes = upd.setdefault("env", {}), []
+    for k in drop:
+        if k in env:
+            notes.append("ARMFIX dropped %s=%s from the updated config" % (k, env.pop(k)))
+        else:
+            notes.append("ARMFIX %s is not in the updated config: nothing dropped" % k)
+    for kv in sets:
+        k, _, v = kv.partition("=")
+        if env.get(k) == v:
+            notes.append("ARMFIX %s=%s already in the updated config" % (k, v))
+        else:
+            notes.append("ARMFIX set %s=%s in the updated config (was %s)" % (k, v, env.get(k, "unset")))
+            env[k] = v
+    return upd, notes
 
 
 def estimate(n_arms, pass2_max=6):
@@ -113,7 +152,8 @@ def build_spec(branch, plain_path, arm, registry, src, sl="1/1", plain=None):
     if plain is None and os.path.exists(plain_path):
         plain = json.load(open(plain_path, encoding="utf-8"))
     items = flags_of(arm, registry, registry.get("untested", {}).get(branch, []), src, plain)
-    items = take_slice(items, sl)
+    items.sort(key=lambda it: priority(it[1]))                 # stable: [arm], then [named], then [code], registry order inside each
+    items = take_slice(items, sl, sum(priority(m) < 2 for _, m, _ in items))
     arms = {"updated": arm}
     meta = {"branch": branch, "slice": sl, "flags": {}, "protected": registry.get("protected", {}),
             "measured": registry.get("measured", {}).get(branch, {})}
@@ -236,6 +276,8 @@ def main(argv=None):
     s.add_argument("--slice", default="1/1")
     s.add_argument("--registry", default=REGISTRY)
     s.add_argument("--pass2-max", type=int, default=6)
+    s.add_argument("--drop-env", action="append", default=[])
+    s.add_argument("--set-env", action="append", default=[])
     t = sub.add_parser("triage")
     t.add_argument("--meta", required=True)
     t.add_argument("--pass1", required=True)
@@ -258,16 +300,20 @@ def main(argv=None):
         if a.arm_from:
             arm = load_arm(a.arm_from, a.arm_name)
         elif a.updated_config:
-            arm = arm_from_configs(plain, json.load(open(a.updated_config, encoding="utf-8")))
+            upd, notes = fix_config(json.load(open(a.updated_config, encoding="utf-8")), a.drop_env, a.set_env)
+            for ln in notes:
+                print(ln)
+            arm = arm_from_configs(plain, upd)
         else:
             raise SystemExit("sweep spec: --arm-from or --updated-config")
         spec, meta = build_spec(a.branch, a.plain, arm, json.load(open(a.registry, encoding="utf-8")), a.src, a.slice)
         json.dump(spec, open(a.out, "w"), indent=1)
         json.dump(meta, open(a.out + ".meta.json", "w"), indent=1)
         p1, p2 = estimate(len(meta["flags"]), a.pass2_max)
-        print("SWEEP %s slice %s: %d flag arms (%d minus, %d plus) + updated + base-late; estimate pass 1 %d s, pass 2 <= %d s, total <= %d s"
+        pr = [priority(f) for f in meta["flags"].values()]
+        print("SWEEP %s slice %s: %d flag arms (%d minus, %d plus; %d arm, %d named, %d code) + updated + base-late; estimate pass 1 %d s, pass 2 <= %d s, total <= %d s"
               % (a.branch, a.slice, len(meta["flags"]), sum(f["kind"] == "minus" for f in meta["flags"].values()),
-                 sum(f["kind"] == "plus" for f in meta["flags"].values()), p1, p2, p1 + p2))
+                 sum(f["kind"] == "plus" for f in meta["flags"].values()), pr.count(0), pr.count(1), pr.count(2), p1, p2, p1 + p2))
         print("ESTIMATE %d %d" % (p1, p2))
     elif a.cmd == "triage":
         meta = json.load(open(a.meta, encoding="utf-8"))

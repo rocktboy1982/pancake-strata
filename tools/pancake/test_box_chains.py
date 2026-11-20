@@ -2555,6 +2555,36 @@ def test_sweep_rd_arm_is_what_config_updated_adds_and_a_plus_value_theirs_alread
     assert plus == {c["name"] for c in reg["untested"]["rd"]} - same - {f["flag"] for f in meta["flags"].values() if f["kind"] == "minus"}
     parts = [mod.build_spec("rd", "/p.json", arm, reg, "/s", "%d/3" % k, plain=plain)[1]["flags"] for k in (1, 2, 3)]
     assert all(sum(mod.estimate(len(x))) <= 9000 for x in parts) and sum(len(x) for x in parts) == len(meta["flags"])
+    # priority order: every [arm] and [named] arm is in slice 1, ahead of its [code] arms
+    first = [f for f in parts[0].values()]
+    assert {f["flag"] for f in meta["flags"].values() if mod.priority(f) < 2} <= {f["flag"] for f in first}
+    assert [mod.priority(f) for f in first] == sorted(mod.priority(f) for f in first) and len(parts[0]) == 33
+
+
+def test_sweep_priority_order_slice_1_is_all_arm_and_named_switches_then_the_code_ones_split_evenly():
+    mod, reg = sweep_mod(), sweep_registry()
+    arm = json.loads((SPECS / "220-updated-vs-upstream-short.json").read_text())["arms"]["updated"]
+    parts = [list(mod.build_spec("us", "/x/plain.json", arm, reg, "/s", "%d/5" % k, plain={"env": {}, "args": []})[1]["flags"].values()) for k in range(1, 6)]
+    assert [len(x) for x in parts] == [36, 30, 30, 30, 27] and all(sum(mod.estimate(len(x))) <= 9000 for x in parts)
+    assert [mod.priority(f) for f in parts[0]].count(0) == 35 and [f["flag"] for f in parts[0] if mod.priority(f) == 1] == ["STRATA_AMD_COMMUNITY_TUNING"]
+    assert all(mod.priority(f) == 2 for x in parts[1:] for f in x)
+    names = {c["name"] for c in reg["untested"]["rd"] if mod.priority(c) == 1}
+    assert names == {"STRATA_GR_RDNA_Q8", "STRATA_GR_RDNA_A8", "STRATA_GR_INJ_UP", "STRATA_GR_FUSED", "STRATA_ADAPT_PERSIST", "STRATA_AMD_COMMUNITY_TUNING"}
+    assert mod.take_slice(list(range(10)), "1/1", 4) == list(range(10)) and mod.take_slice(list(range(10)), "1/3", 2) == [0, 1, 2, 3]
+    assert mod.take_slice(list(range(10)), "1/3", 6) == list(range(6)) and mod.take_slice(list(range(10)), "3/3", 6) == [8, 9]
+
+
+def test_sweep_rd_updated_config_fixups_drop_pool_fuse_phases_keep_ecap_and_are_logged():
+    mod = sweep_mod()
+    upd = {"exe": "/e", "env": {"STRATA_POOL_FUSE_PHASES": "1", "STRATA_VERIFY_ECAP": "0", "STRATA_X": "1"}, "args": []}
+    fixed, notes = mod.fix_config(upd, ["STRATA_POOL_FUSE_PHASES", "STRATA_NOPE"], ["STRATA_VERIFY_ECAP=0", "STRATA_VERIFY_ECAP_MIN_ROWS=9"])
+    assert fixed["env"] == {"STRATA_VERIFY_ECAP": "0", "STRATA_X": "1", "STRATA_VERIFY_ECAP_MIN_ROWS": "9"} and "STRATA_POOL_FUSE_PHASES" in upd["env"]
+    assert notes == ["ARMFIX dropped STRATA_POOL_FUSE_PHASES=1 from the updated config", "ARMFIX STRATA_NOPE is not in the updated config: nothing dropped",
+                     "ARMFIX STRATA_VERIFY_ECAP=0 already in the updated config", "ARMFIX set STRATA_VERIFY_ECAP_MIN_ROWS=9 in the updated config (was unset)"]
+    arm = mod.arm_from_configs({"env": {}, "args": []}, fixed)
+    assert "STRATA_POOL_FUSE_PHASES" not in arm["env"] and arm["env"]["STRATA_VERIFY_ECAP_MIN_ROWS"] == "9"
+    text = (CHAINS / SW).read_text()
+    assert "${SWEEP_RD_DROP-STRATA_POOL_FUSE_PHASES}" in text and "${SWEEP_RD_SET-STRATA_VERIFY_ECAP=0 STRATA_VERIFY_ECAP_MIN_ROWS=9}" in text
 
 
 def test_sweep_triage_thresholds_promising_then_keep_drop_retest_gate():
@@ -2619,7 +2649,7 @@ def test_bench_sweep_rd_full_flow_pass1_triage_pass2_and_the_triage_file(tmp_pat
     text = "\n".join(lines)
     assert lines[-1] == "WINBENCHSWEEP_DONE" and "ERROR" not in text and "ABORTED" not in text, text
     assert_start_end_pairs(lines)
-    order = ["PREREQ ok (rd)", "SYNC harness", "PREREQ harness ok", "SWEEP rd slice 1/3: %d flag arms" % n1, "BUDGET ",
+    order = ["PREREQ ok (rd)", "SYNC harness", "PREREQ harness ok", "ARMFIX ", "SWEEP rd slice 1/3: %d flag arms" % n1, "BUDGET ",
              "START rd-p1-1of3", "END rd-p1-1of3 exit=0", "PASS2 1 flag(s): " + wflag, "START rd-p2-1of3", "END rd-p2-1of3 exit=0",
              "TRIAGE KEEP", "TRIAGE file", "SUMMARY branch rd slice 1/3: pass 1 exit=0, pass 2 exit=0", "service stays down"]
     pos = [text.index(k) for k in order]
@@ -2653,7 +2683,7 @@ def test_bench_sweep_us_whole_branch_over_2h30_stops_before_any_start_and_names_
     f.write_text("x")
     box2.finish(box2.start(SW, env=be_env(SWEEP_BRANCH="us", SWEEP_SLICE="2/5")), timeout=240)
     t2 = "\n".join(box2.log("bench-sweep.log"))
-    assert "SWEEP us slice 2/5: 31 flag arms" in t2 and "START us-p1-2of5" in t2 and "ERROR" not in t2, t2
+    assert "SWEEP us slice 2/5: 30 flag arms" in t2 and "START us-p1-2of5" in t2 and "ERROR" not in t2, t2
     assert (box2.tmp / "auto-runs" / "benchsweep" / "us-triage-2of5.json").exists() and (box2.tmp / "auto-runs" / "benchsweep" / "us-triage.json").exists()
 
 
