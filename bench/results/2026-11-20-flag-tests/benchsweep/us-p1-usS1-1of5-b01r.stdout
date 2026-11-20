@@ -26,3 +26,73 @@ rep 0 minus-PROMPT_ATTN_IMMA: every attempt noisy, keeping the quietest (5% fore
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-ATTN_DAILY     short 100.7 short 107.5 edit 118.1 edit 175.6 longdec64k 56.4/1574p 65239t  foreign CPU 5% [('kcompactd0', 11), ('kworker/1:0-mm_percpu_wq', 3), ('kswapd0', 2)]  gpu 1907/1249 MHz 63C 181W gtt 25M cpu 3871MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-ATTN_DAILY: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 91.5 short 105.5 edit 125.2 edit 138.4 longdec64k 82.5/1576p 65240t  foreign CPU 4% [('kcompactd0', 12), ('kswapd0', 3), ('kworker/0:1-events', 1)]  gpu 2038/1249 MHz 63C 186W gtt 25M cpu 3676MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 base-late: every attempt noisy, keeping the quietest (4% foreign CPU)
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 102.1 +-  29.2  (n=2)
+                              drafts accepted 0.67
+  short  minus-ROUTE_TAIL_SKIP     99.5 +-   3.8  (n=2)   vs updated:  -2.5% +- 24.9%  -> no difference
+                              drafts accepted 0.67
+  short  minus-EXCHANGE_ROTATE    101.4 +-  14.6  (n=2)   vs updated:  -0.6% +- 14.3%  -> no difference
+                              drafts accepted 0.67
+  short  minus-PIN_BY_NEED       107.0 +-  45.1  (n=2)   vs updated:  +4.8% +- 15.6%  -> no difference
+                              drafts accepted 0.71
+  short  minus-EXPDEC             98.5 +-  13.3  (n=2)   vs updated:  -3.5% +- 15.6%  -> no difference
+                              drafts accepted 0.67
+  short  minus-KV_PREFETCH       102.0 +-  22.9  (n=2)   vs updated:  -0.1% +-  6.2%  -> no difference
+                              drafts accepted 0.67
+  short  minus-PROMPT_ATTN_IMMA    101.7 +-  29.2  (n=2)   vs updated:  -0.4% +-  0.0%  -> worse
+                              drafts accepted 0.67
+  short  minus-ATTN_DAILY        104.1 +-  43.2  (n=2)   vs updated:  +2.0% +- 71.0%  -> no difference
+                              drafts accepted 0.73
+  short  base-late                98.5 +-  89.0  (n=2)   vs updated:  -3.5% +- 115.8%  -> no difference
+                              drafts accepted 0.69
+  edit   updated                 169.8 +-  82.0  (n=2)
+                              drafts accepted 0.89
+  edit   minus-ROUTE_TAIL_SKIP    169.4 +-  78.8  (n=2)   vs updated:  -0.2% +-  1.9%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-EXCHANGE_ROTATE    173.5 +-  97.9  (n=2)   vs updated:  +2.2% +-  9.4%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-PIN_BY_NEED       170.8 +-  19.7  (n=2)   vs updated:  +0.6% +- 36.7%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-EXPDEC            163.9 +-  66.1  (n=2)   vs updated:  -3.4% +-  9.4%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-KV_PREFETCH       169.3 +-  83.9  (n=2)   vs updated:  -0.3% +-  1.1%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-PROMPT_ATTN_IMMA    174.4 +-  90.9  (n=2)   vs updated:  +2.8% +-  5.2%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-ATTN_DAILY        146.8 +- 365.4  (n=2)   vs updated: -13.5% +- 167.0%  -> no difference
+                              drafts accepted 0.88
+  edit   base-late               131.8 +-  83.9  (n=2)   vs updated: -22.4% +-  1.1%  -> worse
+                              drafts accepted 0.85
+  longdec64k updated                  80.3 +-   nan  (n=1)
+  longdec64k minus-ROUTE_TAIL_SKIP     86.9 +-   nan  (n=1)   vs updated:  +8.2% +-  nan%  -> no difference
+  longdec64k minus-EXCHANGE_ROTATE     82.8 +-   nan  (n=1)   vs updated:  +3.1% +-  nan%  -> no difference
+  longdec64k minus-PIN_BY_NEED        86.6 +-   nan  (n=1)   vs updated:  +7.8% +-  nan%  -> no difference
+  longdec64k minus-EXPDEC             79.8 +-   nan  (n=1)   vs updated:  -0.6% +-  nan%  -> no difference
+  longdec64k minus-KV_PREFETCH        85.9 +-   nan  (n=1)   vs updated:  +7.0% +-  nan%  -> no difference
+  longdec64k minus-PROMPT_ATTN_IMMA     80.1 +-   nan  (n=1)   vs updated:  -0.2% +-  nan%  -> no difference
+  longdec64k minus-ATTN_DAILY         56.4 +-   nan  (n=1)   vs updated: -29.8% +-  nan%  -> no difference
+  longdec64k base-late                82.5 +-   nan  (n=1)   vs updated:  +2.7% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-ROUTE_TAIL_SKIP identical on every case -> exact
+  minus-EXCHANGE_ROTATE DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-PIN_BY_NEED    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-EXPDEC         identical on every case -> exact
+  minus-KV_PREFETCH    identical on every case -> exact
+  minus-PROMPT_ATTN_IMMA DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-ATTN_DAILY     DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -3.5%  edit -22.4%  longdec64k +2.7%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  minus-ROUTE_TAIL_SKIP short -0.8%  edit +12.4%  longdec64k +6.8%  -> PROMOTE to confirm
+  minus-EXCHANGE_ROTATE short +1.1%  edit +15.1%  longdec64k +1.7%  -> PROMOTE to confirm
+  minus-PIN_BY_NEED    short +6.7%  edit +13.2%  longdec64k +6.4%  -> PROMOTE to confirm
+  minus-EXPDEC         short -1.7%  edit +8.7%  longdec64k -2.0%  -> PROMOTE to confirm
+  minus-KV_PREFETCH    short +1.7%  edit +12.3%  longdec64k +5.5%  -> PROMOTE to confirm
+  minus-PROMPT_ATTN_IMMA short +1.4%  edit +15.7%  longdec64k -1.6%  -> PROMOTE to confirm
+  minus-ATTN_DAILY     short +3.8%  edit -2.6%  longdec64k -30.7%  -> drop
