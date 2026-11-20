@@ -1,0 +1,26 @@
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+PREREAD conversions.json 0.00 0.0 s (0.01 GiB/s; was 0% cached)
+PREREAD dense.bin 1.43 0.9 s (1.60 GiB/s; was 0% cached)
+PREREAD index.txt 0.00 0.0 s (0.15 GiB/s; was 0% cached)
+PREREAD native_experts.txt 0.00 0.0 s (0.02 GiB/s; was 0% cached)
+PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.53 18.3 s (1.99 GiB/s; was 45% cached)
+PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf 0.00 0.0 s: skipped, 26.82 GiB would take the planned 64.8 GiB over the 46.2 GiB the page cache can hold
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 warmup               short 110.4 short 103.5 edit 169.1 edit 171.3 longdec64k 85.0/2183p 65239t  foreign CPU 2% [('kcompactd0', 2), ('claude', 2), ('kworker/u65:8-KFD IH', 1)]  gpu 2044/1249 MHz 62C 183W gtt 25M cpu 3598MHz 65C igpu 0%/vcn 0% fclk 1600
+PREREAD conversions.json 0.00 0.0 s (0.01 GiB/s; was 0% cached)
+PREREAD dense.bin 1.43 0.8 s (1.86 GiB/s; was 0% cached)
+PREREAD index.txt 0.00 0.0 s (0.16 GiB/s; was 0% cached)
+PREREAD native_experts.txt 0.00 0.0 s (0.02 GiB/s; was 0% cached)
+PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.53 12.7 s (2.87 GiB/s; was 45% cached)
+PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf 0.00 0.0 s: skipped, 26.82 GiB would take the planned 64.8 GiB over the 46.2 GiB the page cache can hold
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 110.4 short 102.8 edit 166.7 edit 183.5 longdec64k 81.3/2035p 65239t  foreign CPU 2% [('snapd', 9), ('kcompactd0', 3), ('localsearch-3', 0)]  gpu 2036/1249 MHz 63C 195W gtt 25M cpu 3641MHz 64C igpu 0%/vcn 0% fclk 1600
+PREREAD conversions.json 0.00 0.0 s (0.00 GiB/s; was 0% cached)
+PREREAD dense.bin 1.43 0.8 s (1.86 GiB/s; was 0% cached)
+PREREAD index.txt 0.00 1.1 s (0.00 GiB/s; was 0% cached)
+PREREAD native_experts.txt 0.00 0.0 s (0.02 GiB/s; was 0% cached)
+PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.53 25.3 s (1.44 GiB/s; was 45% cached)
+PREREAD Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00002-of-00002.gguf 0.00 0.0 s: skipped, 26.82 GiB would take the planned 64.8 GiB over the 46.2 GiB the page cache can hold
+  WARNING: only 17 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
