@@ -92,6 +92,9 @@ HIGH_GAIN = 2.0                          # owner 2026-11-20: ANY case >= +2 % in
 KEEP = {True: 2.0, False: 3.0}           # exact / lossy: pass-2 bar
 FLOOR = -3.0
 BASES = ("updated", "base-late")
+MID = "base-m"                            # T-1006: a base start between the arms of a block (base-m1, base-m2 ...): every arm is judged against the two bases around it
+PAIR_MAX = 8.0                            # T-1006: with mid bases a pair of single-start bases may differ up to this much (start-to-start noise, 8 % passes 79 % of drift-free pairs) when both bases are in the same box state
+PREFILL_SAME = 12.0                       # T-1006: two base starts are in the same box state when their long-prompt prefill tok/s differ by less than this % (fast state ~2170, slow ~1500-1600 tok/s; the two bases run the same config, so a flag cannot move it; reclaim share was tried and misclassifies)
 WARM = "warmup"                          # the extra first engine start of every block (T-1004): base config, not counted, not judged
 
 
@@ -221,18 +224,18 @@ def block_sizes(n, size=BLOCK):
     return [n // nb + (1 if i < n % nb else 0) for i in range(nb)]
 
 
-def estimate(n_arms, pass2_max=6, block=BLOCK, warm="each"):
+def estimate(n_arms, pass2_max=6, block=BLOCK, warm="each", mid=0):
     """(pass 1, one block re-run, pass 2) in seconds: every block = its arms + updated + base-late; one re-run of the largest block is budgeted;
     pass 2 = pass2_max paired blocks of 8 starts (warm-up, base, flag x 3 interleaved, base); every block has one extra warm-up start (T-1004)."""
     bs = block_sizes(n_arms, block)
-    p1 = (n_arms + (3 if warm == "each" else 2) * len(bs) + (0 if warm == "each" else 1)) * START_S      # warm = first: ONE warm-up start per slice
+    p1 = (n_arms + (3 if warm == "each" else 2) * len(bs) + (0 if warm == "each" else 1) + (sum((n - 1) // mid for n in bs) if mid else 0)) * START_S      # warm = first: ONE warm-up start per slice; mid: one more base start after every `mid` arms of a block (T-1006)
     rr = ((max(bs) + 2) * START_S) if bs and warm != "each" else ((max(bs) + 3) * START_S) if bs else 0
     p2 = min(pass2_max, n_arms) * 8 * START_S          # planning: one paired block (8 starts) per flag; pass 2 itself has no cap
     #                                                    (bench-sweep.sh runs blocks while the 2.5 h budget holds, the rest is carried)
     return p1, rr, p2
 
 
-def block_specs(spec, size=BLOCK, seed="0", warm="each"):
+def block_specs(spec, size=BLOCK, seed="0", warm="each", mid=0):
     """[(block id, spec, arm order)]: the flag arms of a pass-1 spec in blocks of <= size (spec order), each block's arms shuffled (a seeded
     random order: the same seed gives the same order); every block spec = the warm-up start (the base, not counted), updated, the block's arms, then abtest's base-late (drift_check)."""
     names = [a for a in spec["arms"] if a != "updated"]
@@ -245,7 +248,10 @@ def block_specs(spec, size=BLOCK, seed="0", warm="each"):
         random.Random("%s:%s" % (seed, bid)).shuffle(part)
         arms = {WARM: spec["arms"]["updated"]} if (warm == "each" or k == 1) else {}     # warm-up start first (T-1004: not counted, not judged); warm = first: only the slice's first block (rows of rdC-1 k01r / k02: a block that follows another one starts steady)
         arms["updated"] = spec["arms"]["updated"]
-        arms.update({a: spec["arms"][a] for a in part})
+        for j, a in enumerate(part):
+            if mid and j and j % mid == 0:
+                arms["%s%d" % (MID, j // mid)] = spec["arms"]["updated"]      # T-1006: a base start after every `mid` arms (judge each arm against the bases around it)
+            arms[a] = spec["arms"][a]
         note = "%s; block %s of %d: %s%d arms, random order, base again at the end" % (spec.get("note", ""), bid, len(sizes), "warm-up start, " if WARM in arms else "", n)
         out.append((bid, {**spec, "arms": arms, "drift_check": True, "note": note.lstrip("; ")}, part))
     return out
@@ -402,6 +408,71 @@ def drift2(lines, base="updated", cases=None):
     return out
 
 
+def is_base(name):
+    return name in BASES or str(name).startswith(MID)
+
+
+def _start_metrics(rec, cases, last=False):
+    return metrics([json.dumps(rec)], cases=cases, last=last).get(rec.get("arm"), {})
+
+
+def local_view(lines, arm, kind, mx=DRIFT_MAX, cases=None):
+    """T-1006 (drift fix, ledger): one arm judged against the TWO BASE STARTS AROUND IT (updated / base-mN / base-late), not the block ends.  The usS1 screen
+    showed the box switch to a slow state after 2-8 starts of a block (a step, not a slope), so the ends of a block are never the same box.
+    Returns (effects, drift, ok, info): effects = % gain against the mean of the two bounding bases (all requests); drift = {case: % of the later base against
+    the earlier one} on the LAST request of each case (T-1004); ok = the pair agrees within mx % (the owner's 5 % guard) -- or, with mid bases, within PAIR_MAX % when
+    both bases are in the same box state by their long-prompt prefill speed (start-to-start noise, not drift).  No base on one side: ({}, {}, False)."""
+    cases = cases or CASES
+    last_at = {}
+    recs = records(lines)
+    for i, r in enumerate(recs):
+        if r.get("arm") and r["arm"] != WARM:
+            last_at[r["arm"]] = i
+    if arm not in last_at:
+        return {}, {}, False, {}
+    at = last_at[arm]
+    before = [a for a, i in last_at.items() if i < at and is_base(a)]
+    after = [a for a, i in last_at.items() if i > at and is_base(a)]
+    if not before or not after:
+        if "updated" in last_at and "base-late" in last_at:         # rows not in run order (an old file, a hand-made one): the block ends, as before T-1006
+            b, c = "updated", "base-late"
+        else:
+            return {}, {}, False, {}
+    else:
+        b = max(before, key=lambda a: last_at[a])
+        c = min(after, key=lambda a: last_at[a])
+    rb, rc, ra = recs[last_at[b]], recs[last_at[c]], recs[at]
+    mb, mc = _start_metrics(rb, cases), _start_metrics(rc, cases)
+    base = {k: (mb[k] + mc[k]) / 2.0 for k in mb if k in mc}
+    eff = effects({"__b__": base, arm: _start_metrics(ra, cases)}, arm, kind, bases=("__b__",))
+    lb, lc = _start_metrics(rb, cases, True), _start_metrics(rc, cases, True)
+    drift = {k: round(lc[k] / lb[k] * 100.0 - 100.0, 2) for k in drift_keys(cases) if lb.get(k) and lc.get(k)}
+    ok = clean(drift, mx)
+    pb = {k: v for k, v in mb.items() if k.endswith("-prompt")}
+    pc = {k: v for k, v in mc.items() if k.endswith("-prompt")}
+    keys = [k for k in pb if k in pc]
+    same = bool(keys) and all(abs(pc[k] / pb[k] * 100.0 - 100.0) <= PREFILL_SAME for k in keys)
+    mid = any(str(a).startswith(MID) for a in last_at)
+    if not ok and mid and same and clean(drift, PAIR_MAX):
+        ok = True
+    return eff, drift, ok, {"bases": [b, c], "prefill": [round(pb[k]) for k in keys], "same_state": same}
+
+
+def local_report(lines, kinds=None, mx=DRIFT_MAX, cases=None):
+    """[(arm, bases, drift, ok, states)] of every non-base arm of one run (the DRIFT lines of bench-sweep)."""
+    out = []
+    seen = []
+    for r in records(lines):
+        a = r.get("arm")
+        if a and a != WARM and not is_base(a) and a not in seen:
+            seen.append(a)
+    for a in seen:
+        kind = "plus" if a.startswith("plus-") else "minus"
+        e, d, ok, info = local_view(lines, a, kind, mx, cases)
+        out.append((a, info.get("bases"), d, ok, info.get("same_state")))
+    return out
+
+
 def clean(d, mx=DRIFT_MAX):
     """True when the drift is known (base rows on both ends) and no case is beyond mx %."""
     return bool(d) and max(abs(v) for v in d.values()) <= mx
@@ -462,7 +533,7 @@ def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX, screen_only=False
     """pass1: the lines of one run, or [(block label, lines)] of the blocks, oldest first (a block's re-run after its first run: per arm the
     latest clean run is used, else the latest run).  pass2_lines: {arm: [(label, lines), ...]} = the PAIRED confirm block(s) of each flag
     (owner order 2026-11-20: one flag per confirm block), or the lines of one old multi-flag confirm run (A B B A, kept for old files)."""
-    sets = [(lab, metrics(ls), drift1(ls)) for lab, ls in _sets(pass1)]
+    sets = [(lab, metrics(ls), drift1(ls), ls) for lab, ls in _sets(pass1)]
     paired2 = isinstance(pass2_lines, dict)
     legacy = pass2_lines is not None and not paired2
     m2 = metrics(pass2_lines) if legacy else None
@@ -470,10 +541,12 @@ def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX, screen_only=False
     ok2 = clean(d2, drift_max) if legacy else None
     flags = {}
     for name, f in meta["flags"].items():
-        have = [(lab, m, d) for lab, m, d in sets if m.get(name)]
-        lab, m1, d1 = ([x for x in have if clean(x[2], drift_max)] or have or [(None, {}, {})])[-1]
-        e1 = effects(m1, name, f["kind"])
-        ok1 = clean(d1, drift_max)
+        have = []
+        for lab, m, d, ls in sets:
+            if m.get(name):
+                e, dl, okl, _ = local_view(ls, name, f["kind"], drift_max)       # T-1006: against the two bases around the arm (the block ends in the old layout)
+                have.append((lab, e, dl, okl))
+        lab, e1, d1, ok1 = ([x for x in have if x[3]] or have or [(None, {}, {}, False)])[-1]
         promising = promising_of(e1, PROMISE[f["exact"]])
         p1 = pm = None
         if screen_only:                          # owner 2026-11-20: ANY case above 0 % (clean block) is "to be considered": PROMISING; ranked by gain afterwards (sweep.py rank)
@@ -975,6 +1048,7 @@ def main(argv=None):
     s.add_argument("--tag", help="the slice name in the meta and the file names (default: --slice)")
     s.add_argument("--block-size", type=int, default=BLOCK)
     s.add_argument("--warm", choices=["each", "first"], default="each")
+    s.add_argument("--mid-base", type=int, default=0, help="T-1006: a base start after every K arms of a block (0: base only at both ends)")
     s.add_argument("--source", choices=["untested", "backlog"], default="untested")
     s.add_argument("--extra", action="append", default=[], help="KEY of retest_groups.json (e.g. us:--lookup-max-t): a named flag measured before, screened again (one arm)")
     s.add_argument("--groups", default=os.path.join(HERE, "retest_groups.json"))
@@ -984,6 +1058,10 @@ def main(argv=None):
     b.add_argument("--size", type=int, default=BLOCK)
     b.add_argument("--seed", default="0")
     b.add_argument("--warm", choices=["each", "first"], default="each")
+    b.add_argument("--mid-base", type=int, default=0)
+    lc = sub.add_parser("local")
+    lc.add_argument("--rows", required=True)
+    lc.add_argument("--max", type=float, default=DRIFT_MAX)
     d = sub.add_parser("drift")
     d.add_argument("--rows", required=True)
     d.add_argument("--pass2", action="store_true")
@@ -1104,7 +1182,7 @@ def main(argv=None):
         json.dump(spec, open(a.out, "w"), indent=1)
         json.dump(meta, open(a.out + ".meta.json", "w"), indent=1)
         n = len(meta["flags"])
-        p1, rr, p2 = estimate(n, a.pass2_max, a.block_size, a.warm)
+        p1, rr, p2 = estimate(n, a.pass2_max, a.block_size, a.warm, a.mid_base)
         pr = [priority(f) for f in meta["flags"].values()]
         print("SWEEP %s slice %s: %d flag arms (%d minus, %d plus; %d arm, %d named, %d code) in %d blocks of <= %d (%s), each with updated + base-late; "
               "estimate pass 1 %d s, one block re-run %d s, pass 2 <= %d s, total <= %d s"
@@ -1114,10 +1192,17 @@ def main(argv=None):
         print("ESTIMATE %d %d %d" % (p1, p2, rr))
     elif a.cmd == "blocks":
         spec = json.load(open(a.spec, encoding="utf-8"))
-        for bid, sp, order in block_specs(spec, a.size, a.seed, a.warm):
+        for bid, sp, order in block_specs(spec, a.size, a.seed, a.warm, a.mid_base):
             path = "%s-%s.json" % (a.prefix, bid)
             json.dump(sp, open(path, "w"), indent=1)
-            print("BLOCK %s %d %s order: %s" % (bid, (len(order) + (3 if WARM in sp["arms"] else 2)) * START_S, path, " ".join(order)))
+            nstarts = len(sp["arms"]) + 1                         # every arm + base-late (abtest appends it)
+            print("BLOCK %s %d %s order: %s" % (bid, nstarts * START_S, path, " ".join(order)))
+    elif a.cmd == "local":                                 # T-1006: per arm, the base starts around it, their spread and box state
+        rep = local_report(read_lines(a.rows) or [], mx=a.max)
+        for arm, bs, d, ok, st in rep:
+            print("LOCAL %-28s bases %s spread %s same-state %s -> %s" % (arm, "/".join(bs) if bs else "-", "  ".join("%s %+.1f%%" % kv for kv in d.items()) or "-", st, "CLEAN" if ok else "UNCLEAN"))
+        print("LOCALSUM %d of %d arms clean" % (sum(1 for r in rep if r[3]), len(rep)))
+        return 0
     elif a.cmd == "drift":
         lines = read_lines(a.rows) or []
         dd = drift2(lines) if a.pass2 else drift1(lines)

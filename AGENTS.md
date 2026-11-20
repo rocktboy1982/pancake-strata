@@ -186,10 +186,12 @@ T-1003). These rules came out of that. Each flag is judged on its own numbers.
 1. **Individual, never batches.** One arm per flag (`minus-X` for a flag the preset sets, `plus-X` for an off-by-default
    one; a flag whose preset value equals the engine default still gets the arm that flips it). A bundle result (whole
    preset, spec 250 `updated`, a whole-arm gate) never adds or removes a flag; it only triggers per-flag arms.
-2. **Screen = run 1 of every flag**, one rep, cases short, edit and long 64K (prompt and decode). Blocks of at most 8
-   arms: base before, arms, base after; one warm-up start per slice; drift judged on the LAST request of each case of
-   the counted base runs; drift > 5% = one re-run of the block, then INCONCLUSIVE (never DROP or KEEP). The box slows
-   during long runs (memory compaction, `kcompactd`): never judge arms against a base from the other end of a 1.5 h run.
+2. **Screen = run 1 of every flag**, one rep, cases short, edit and long 64K (prompt and decode). Blocks of at most 4 arms with a base start after every 2 arms
+   (`updated`, a, a, `base-m1`, a, a, `base-late`; one warm-up start per slice; T-1006): every arm is judged against the MEAN OF THE TWO BASE STARTS AROUND IT, never against
+   a base from the other end of a block or run. Drift guard = 5% on the LAST request of each case between those two bases (a pair up to 8% passes only when both
+   bases show the same box state: long-prompt prefill within 12%); an arm whose pair disagrees is INCONCLUSIVE (never DROP or KEEP) and runs again alone (queue
+   `rerun1`), there is no whole-block re-run. The box switches between a fast and a slow state for 10-15 min at a time (prefill -30%, decode -5..-12%); nothing in the
+   harness can prevent it, so only the local base pair is trusted.
 3. **Classify by per-case effect (gain of having the flag ON):** HIGH = any case >= +2% even if another case is
    negative (short -1% with long +10% is a big gain on a case); LOW = best case above 0% and below 2%: not retested this
    round, goes to the backlog file; NEGATIVE = every case <= 0%: an off-by-default flag is NO-GAIN and dropped, a preset

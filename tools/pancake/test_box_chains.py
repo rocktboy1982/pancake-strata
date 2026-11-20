@@ -3745,3 +3745,72 @@ def test_run_queue_us6_rescreens_high_and_hurts_only_low_gain_goes_to_the_backlo
     assert "--verdict PROMISING,HURTS" in q and "--min-gain" not in body and "rescreen usS3r" not in body and "us-backlog-low.json" in body
     order = [body.index(x) for x in ('pgrep -fx "sh ./bench-sched.v8.sh"', "for k in 2 3 4 5; do screen $k/5 usS1-${k}of5; cycle $k; done", "us-backlog-low.json", "final final FINAL_PREFIX=final FINAL_REPS=5", "QUEUE_US6_DONE")]
     assert order == sorted(order) and "prelim" not in body and "plain-upstream" not in body and "confirm" not in body
+
+
+# ---- T-1006: the drift fix (bases around every arm, not at the block ends)
+C6 = ["short", "edit", "longdec64k"]
+
+
+def _local_rows(seq):
+    """seq = [(arm, prefill tok/s, short, edit, ldec)] -> abtest jsonl lines (two requests of short / edit, one long64k)."""
+    out = []
+    for arm, rc, sh, ed, ld in seq:
+        rows = [{"case": "short", "decode_tps": sh}, {"case": "short", "decode_tps": sh}, {"case": "edit", "decode_tps": ed}, {"case": "edit", "decode_tps": ed},
+                {"case": "longdec64k", "decode_tps": ld, "prompt_tps": rc}]
+        out.append(json.dumps({"arm": arm, "rep": 0, "rows": rows}))
+    return out
+
+
+def test_sweep_mid_bases_layout_estimate_and_block_line(monkeypatch):
+    mod = sweep_mod()
+    spec = {"base": "/p.json", "drift_check": True, "arms": {"updated": {"env": {}}, **{"plus-%02d" % i: {"env": {"K": str(i)}} for i in range(8)}}}
+    bl = mod.block_specs(spec, 4, "s", "first", mid=2)
+    assert [len(o) for _, _, o in bl] == [4, 4]
+    names = list(bl[0][1]["arms"])
+    assert names[:2] == ["warmup", "updated"] and names[4] == "base-m1" and len(names) == 2 + 4 + 1
+    assert list(bl[1][1]["arms"])[3] == "base-m1"
+    assert list(bl[1][1]["arms"])[0] == "updated"                                    # warm = first: only block 1 has the warm-up start
+    # one extra base start per mid group: 8 arms in 2 blocks of 4 with mid 2 = 8 + 2 * 2 + 1 (warm) + 2 (mid) starts
+    assert mod.estimate(8, block=4, warm="first", mid=2)[0] == mod.estimate(8, block=4, warm="first")[0] + 2 * mod.START_S
+    assert mod.block_specs(spec, 4, "s", "first")[0][1]["arms"].keys() == {"warmup", "updated", *[a for _, _, o in bl[:1] for a in o]}
+
+
+def test_sweep_local_base_clean_arms_before_the_step_inconclusive_for_the_pair_across_it():
+    mod = sweep_mod()
+    F, S = (100.0, 170.0, 80.0), (92.0, 150.0, 72.0)               # the slow box state: short -8 %, edit -12 %, long -10 %
+    seq = [("warmup", 2170.0, *F), ("updated", 2170.0, *F), ("minus-A", 2170.0, 100.0, 170.0, 80.0), ("minus-B", 2170.0, 103.0, 170.0, 80.0), ("base-m1", 2170.0, *F),
+           ("minus-C", 1550.0, *S), ("minus-D", 1550.0, *S), ("base-late", 1550.0, *S)]
+    ls = _local_rows(seq)
+    e, d, ok, info = mod.local_view(ls, "minus-B", "minus", cases=C6)
+    assert ok and info["bases"] == ["updated", "base-m1"] and round(e["short"], 1) == -2.9 and info["same_state"] is True
+    # C and D sit between base-m1 (fast) and base-late (slow): the pair differs by 8-12 %: no verdict, whatever their numbers
+    assert mod.local_view(ls, "minus-C", "minus", cases=C6)[2] is False and mod.local_view(ls, "minus-D", "minus", cases=C6)[2] is False
+    rep = {a: ok for a, _, _, ok, _ in mod.local_report(ls, cases=C6)}
+    assert rep == {"minus-A": True, "minus-B": True, "minus-C": False, "minus-D": False}
+    # the old block-end reading would have judged all four against the end bases: drift 8-12 % -> the whole block was INCONCLUSIVE
+    assert not mod.clean(mod.drift1(ls, cases=["short", "edit", "longdec64k"]))
+
+
+def test_sweep_local_pair_noise_between_5_and_8_percent_is_accepted_only_in_the_same_box_state():
+    mod = sweep_mod()
+    mk = lambda r2: _local_rows([("updated", 2170.0, 100.0, 170.0, 80.0), ("minus-A", 2170.0, 100.0, 170.0, 80.0), ("base-m1", r2, 106.0, 170.0, 80.0), ("minus-Z", 2170.0, 100.0, 170.0, 80.0), ("base-late", 2170.0, 100.0, 170.0, 80.0)])
+    assert mod.local_view(mk(2170.0), "minus-A", "minus", cases=C6)[2] is True              # +6 % between two bases, same prefill speed: noise
+    assert mod.local_view(mk(1550.0), "minus-A", "minus", cases=C6)[2] is False             # the second base is in the slow state (prefill 1550 against 2170): drift, the owner's 5 % holds
+    # without mid bases (old layout) the 5 % guard is strict
+    old = _local_rows([("updated", 2170.0, 100.0, 170.0, 80.0), ("minus-A", 2170.0, 100.0, 170.0, 80.0), ("base-late", 2170.0, 106.0, 170.0, 80.0)])
+    assert mod.local_view(old, "minus-A", "minus", cases=C6)[2] is False
+
+
+def test_bench_sweep_has_the_mid_base_switches_and_the_local_log_line():
+    text = (CHAINS / SW).read_text()
+    assert "SWEEP_MID" in text and "--mid-base $MID" in text and "sw local --rows" in text and 'SWEEP_RERUN' in text
+
+
+def test_run_queue_us7_uses_the_mid_base_sweep_script_and_keeps_the_us6_steps():
+    t7 = (CHAINS / "run-queue-us7.sh").read_text()
+    t6 = (CHAINS / "run-queue-us6.sh").read_text()
+    assert "bench-sweep.v6.sh" in t7 and "bench-sweep.v5.sh" not in t7 and "SWEEP_BLOCK=4 SWEEP_MID=2 SWEEP_RERUN=0" in t7 and "run-queue-us7.log" in t7
+    assert 'pgrep -fx "sh ./bench-sweep.v4.sh"' in t7 and 'pgrep -fx "sh ./bench-sched.v8.sh"' in t7                  # it still waits for the running slice 1
+    for step in ("cycle 1", "gates", "final final FINAL_PREFIX=final FINAL_REPS=5", "rerun1()", "rescreen()"):
+        assert step in t7 and step in t6
+    assert subprocess.run([SH, "-n", str(CHAINS / "run-queue-us7.sh")]).returncode == 0

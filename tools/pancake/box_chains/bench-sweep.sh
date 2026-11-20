@@ -127,6 +127,7 @@ USB=/mnt/pancake/benchus; RDB=/mnt/pancake/benchRD; RDC=/home/dan/auto-runs/benc
 DATA=/home/dan/clone-of-d/Strata-data; ROCM=/opt/rocm/core-10.0; REPO_URL=https://github.com/rocktboy1982/pancake-strata.git
 T0=$(date +%s); BUDGET=${BENCH_BUDGET_S:-9900}; POLL=5; MAXS=${SWEEP_MAX_S:-9000}; P2MAX=${SWEEP_PASS2_MAX:-6}
 BS=${SWEEP_BLOCK:-6}; DMAX=${SWEEP_DRIFT_MAX:-5}; SPLIT=${SWEEP_SPLIT:-priority}; SCREEN=${SWEEP_SCREEN_ONLY:-0}; WARM=${SWEEP_WARM:-each}   # SWEEP_WARM=first: ONE warm-up start per slice (owner 2026-11-20; rows of rdC-1 k01r / k02: a block that follows another one starts steady)
+MID=${SWEEP_MID:-0}; RR=${SWEEP_RERUN:-1}   # T-1006 (drift fix): SWEEP_MID=K = a base start after every K arms, every arm judged against the 2 bases around it; SWEEP_RERUN=0 = no whole-block re-run (the arms whose bases disagree are INCONCLUSIVE and run again, alone, in the queue's rerun1 step)
 B=${SWEEP_BRANCH:-}; SL=${SWEEP_SLICE:-1/1}; SLN=${SWEEP_TAG:-$(echo "$SL" | tr / o | sed 's/o/of/')}; SEED=${SWEEP_SEED:-$SLN}
 export PATH=$ROCM/bin:$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
 HPY=${BENCH_HARNESS_PY:-$R/.venv/bin/python}
@@ -271,7 +272,7 @@ for f in $O/$B-triage-[1-9]of[1-9].json; do
 done
 # ------------------------------------------------------------------ 2. the pass-1 spec, its blocks and the estimate (stop before any start when the run does not fit 2.5 h)
 P1=$T/$B-p1-$SLN.json
-sel="--slice $SL --split $SPLIT --tag $SLN --block-size $BS --warm $WARM"
+sel="--slice $SL --split $SPLIT --tag $SLN --block-size $BS --warm $WARM --mid-base $MID"
 for x in ${SWEEP_EXTRA:-}; do sel="$sel --extra $x"; done
 [ -n "${SWEEP_SOURCE:-}" ] && sel="$sel --source $SWEEP_SOURCE"   # SWEEP_SOURCE=backlog: the deferred switches of sweep_candidates.json "backlog" (run-queue-us-backlog.sh)
 [ -n "${SWEEP_ONLY_META:-}" ] && sel="$sel --only-meta $SWEEP_ONLY_META"
@@ -293,7 +294,7 @@ if [ $((E1 + ER + P2ONE)) -gt $MAXS ]; then
 fi
 [ -n "${BENCH_BUDGET_S:-}" ] || BUDGET=$MAXS
 say "BUDGET $BUDGET s (2.5 h: pass 1 $E1 s + one block re-run $ER s budgeted; pass 2 = one paired block of $P2ONE s per promising flag while the budget holds it, the rest carried; plan for $P2MAX flags $E2 s)"
-sw blocks --spec $P1 --prefix $T/$B-p1-$SLN --size $BS --seed "$SEED" --warm $WARM > $T/$B-blocks-$SLN.txt 2>&1 || abort "SPEC: sweep.py blocks failed: $(tail -n 1 $T/$B-blocks-$SLN.txt)"
+sw blocks --spec $P1 --prefix $T/$B-p1-$SLN --size $BS --seed "$SEED" --warm $WARM --mid-base $MID > $T/$B-blocks-$SLN.txt 2>&1 || abort "SPEC: sweep.py blocks failed: $(tail -n 1 $T/$B-blocks-$SLN.txt)"
 cut -c1-400 $T/$B-blocks-$SLN.txt >> $L
 
 # ------------------------------------------------------------------ 3. pass 1 block by block (a drifting block runs once more), triage, pass 2, the final triage
@@ -304,6 +305,10 @@ for bid in $(awk '/^BLOCK /{print $2}' $T/$B-blocks-$SLN.txt); do
   ab $B-p1-$SLN-$bid $((est + 600)) $bsp --tier screen --drift-check --retries 0 || rc1=$?
   d=$(sw drift --rows $O/$B-p1-$SLN-$bid.jsonl --max $DMAX); drc=$?
   say "DRIFT $bid (block $nb, base late vs early): $d"
+  if [ "$MID" -gt 0 ]; then   # T-1006: the verdicts are per arm (the two bases around it); the block ends say nothing about the arms in between
+    sw local --rows $O/$B-p1-$SLN-$bid.jsonl --max $DMAX 2>&1 | cut -c1-260 >> $L
+    [ "$RR" = 1 ] || drc=0
+  fi
   if [ $drc -ne 0 ]; then
     if left_ok $((est + P2ONE)); then
       say "RERUN $bid: base drift above $DMAX % (or no base rows on both ends): the block runs once more"
