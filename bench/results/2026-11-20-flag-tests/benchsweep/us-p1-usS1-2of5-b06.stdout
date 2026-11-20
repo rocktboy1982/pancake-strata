@@ -13,3 +13,55 @@ rep 0 base-m1              short 108.0 short 103.7 edit 169.7 edit 171.9 longdec
 rep 0 plus-CPU_IQ_ALL_EXACT1 short 99.5 short 91.4 edit 109.5 edit 183.2 longdec64k 82.0/1464p 65242t  foreign CPU 3% [('kcompactd0', 6), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 1894/1249 MHz 63C 167W gtt 25M cpu 3426MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-CPU_IQ_ALL_EXACT1: every attempt noisy, keeping the quietest (3% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 100.3 short 95.9 edit 128.5 edit 111.1 longdec64k 81.1/1351p 65242t  foreign CPU 4% [('kcompactd0', 7), ('kswapd0', 3), ('kworker/1:0-events', 2)]  gpu 1914/1249 MHz 63C 168W gtt 25M cpu 3566MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1351, pack load 0.43 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 108.9 short 103.7 edit 161.6 edit 169.4 longdec64k 83.8/2186p 65242t  foreign CPU 2% [('kcompactd0', 3), ('claude', 1), ('kworker/u65:9-KFD IH', 1)]  gpu 2042/1249 MHz 62C 181W gtt 25M cpu 3728MHz 65C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 1351 / load 0.43 GiB/s (paused 19:42:21), second start prefill 2186 / load 1.25 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 106.8 +-  46.4  (n=2)
+                              drafts accepted 0.71
+  short  plus-ATTN_V3            107.2 +-  42.6  (n=2)   vs updated:  +0.5% +-  3.6%  -> no difference
+                              drafts accepted 0.71
+  short  plus-ATTN_MERGE_V2      108.0 +-  43.8  (n=2)   vs updated:  +1.2% +-  2.4%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 105.8 +-  27.3  (n=2)   vs updated:  -0.8% +- 17.9%  -> no difference
+                              drafts accepted 0.71
+  short  plus-CPU_IQ_ALL_EXACT1     95.5 +-  51.5  (n=2)   vs updated: -10.6% +-  4.8%  -> worse
+                              drafts accepted 0.65
+  short  base-late               106.3 +-  33.0  (n=2)   vs updated:  -0.4% +- 12.5%  -> no difference
+                              drafts accepted 0.70
+  edit   updated                 170.8 +-  12.7  (n=2)
+                              drafts accepted 0.89
+  edit   plus-ATTN_V3            168.9 +-   0.0  (n=2)   vs updated:  -1.1% +-  7.4%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-ATTN_MERGE_V2      171.5 +-  11.4  (n=2)   vs updated:  +0.4% +-  0.7%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 170.8 +-  14.0  (n=2)   vs updated:  -0.0% +-  0.7%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-CPU_IQ_ALL_EXACT1    146.3 +- 468.4  (n=2)   vs updated: -14.3% +- 266.8%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               165.5 +-  49.6  (n=2)   vs updated:  -3.1% +- 21.6%  -> no difference
+                              drafts accepted 0.90
+  longdec64k updated                  83.2 +-   nan  (n=1)
+  longdec64k plus-ATTN_V3             82.5 +-   nan  (n=1)   vs updated:  -0.8% +-  nan%  -> no difference
+  longdec64k plus-ATTN_MERGE_V2       86.4 +-   nan  (n=1)   vs updated:  +3.8% +-  nan%  -> no difference
+  longdec64k base-m1                  83.6 +-   nan  (n=1)   vs updated:  +0.5% +-  nan%  -> no difference
+  longdec64k plus-CPU_IQ_ALL_EXACT1     82.0 +-   nan  (n=1)   vs updated:  -1.4% +-  nan%  -> no difference
+  longdec64k base-late                83.8 +-   nan  (n=1)   vs updated:  +0.7% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-ATTN_V3         DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-ATTN_MERGE_V2   identical on every case -> exact
+  base-m1              identical on every case -> exact
+  plus-CPU_IQ_ALL_EXACT1 DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -0.4%  edit -3.1%  longdec64k +0.7%
+  plus-ATTN_V3         short +0.7%  edit +0.4%  longdec64k -1.2%  -> PROMOTE to confirm
+  plus-ATTN_MERGE_V2   short +1.4%  edit +2.0%  longdec64k +3.5%  -> PROMOTE to confirm
+  base-m1              short -0.6%  edit +1.6%  longdec64k +0.1%  -> PROMOTE to confirm
+  plus-CPU_IQ_ALL_EXACT1 short -10.4%  edit -13.0%  longdec64k -1.8%  -> drop
