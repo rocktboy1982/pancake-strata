@@ -56,6 +56,10 @@ hardware, model, settings, repetitions and raw-result archive. A number without 
 The raw results named by the ledger rows (`bench/results/...`, `pancake-docs/research/bench/...`) live on the
 [`port/rdna3-decode`](https://github.com/rocktboy1982/pancake-strata/tree/port/rdna3-decode) branch.
 
+### Where the raw data is
+
+This branch holds no `bench/results/`. The raw result files (jsonl, json, stdout, logs) live on the branch [`port/rdna3-decode`](https://github.com/rocktboy1982/pancake-strata/tree/port/rdna3-decode) under [`bench/results/`](https://github.com/rocktboy1982/pancake-strata/tree/port/rdna3-decode/bench/results). The archive paths in the last column of [TEST_LEDGER.md](TEST_LEDGER.md) and the ledger ids (`T-nnn`) cited in this file point there, so they resolve on that branch, not on `main`. Files larger than 1.5 MB stay on the test box and the ledger row names their path.
+
 ## Measured comparison
 
 How these were measured. Machine: RX 7900 XT 20 GB (gfx1100), AMD Ryzen 7 5700G, 58 GB RAM, PCIe 4.0 x16, ROCm 10.0, Linux. Model:
