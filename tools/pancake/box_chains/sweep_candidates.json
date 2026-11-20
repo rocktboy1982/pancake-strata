@@ -399,15 +399,6 @@
     "exact": true
    },
    {
-    "name": "STRATA_ADMIT_MERGE_FIRST",
-    "env": {
-     "STRATA_ADMIT_MERGE_FIRST": "0"
-    },
-    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
     "name": "STRATA_ATTN_LANECELL",
     "env": {
      "STRATA_ATTN_LANECELL": "1"
@@ -433,42 +424,6 @@
     "why": "coded switch (disk-env class Unsure: decode attention v3); no gfx1100 ledger row",
     "source": "conversation_disk_env.def + branch code",
     "exact": false
-   },
-   {
-    "name": "STRATA_CKPT_ASYNC",
-    "env": {
-     "STRATA_CKPT_ASYNC": "1"
-    },
-    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
-    "name": "STRATA_CKPT_GATHER",
-    "env": {
-     "STRATA_CKPT_GATHER": "1"
-    },
-    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
-    "name": "STRATA_CKPT_POOL",
-    "env": {
-     "STRATA_CKPT_POOL": "1"
-    },
-    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
-    "name": "STRATA_CKPT_THREADS",
-    "env": {
-     "STRATA_CKPT_THREADS": "0"
-    },
-    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
    },
    {
     "name": "STRATA_CPU_IQ_ALL_EXACT1",
@@ -507,24 +462,6 @@
     "exact": true
    },
    {
-    "name": "STRATA_DRAFT_KEEP",
-    "env": {
-     "STRATA_DRAFT_KEEP": "1"
-    },
-    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
-    "name": "STRATA_EARLY_REMOTE_CONTEXTS",
-    "env": {
-     "STRATA_EARLY_REMOTE_CONTEXTS": "1"
-    },
-    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
     "name": "STRATA_EMBED_VRAM",
     "env": {
      "STRATA_EMBED_VRAM": "1"
@@ -541,33 +478,6 @@
     "why": "coded switch (disk-env class Speed: VRAM accounting for chunk sizing); no gfx1100 ledger row",
     "source": "conversation_disk_env.def + branch code",
     "exact": true
-   },
-   {
-    "name": "STRATA_EXPERT_V2",
-    "env": {
-     "STRATA_EXPERT_V2": "1"
-    },
-    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
-    "name": "STRATA_EXPERT_V2K",
-    "env": {
-     "STRATA_EXPERT_V2K": "1"
-    },
-    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
-    "name": "STRATA_EXP_MODE",
-    "env": {
-     "STRATA_EXP_MODE": "0"
-    },
-    "why": "coded switch (disk-env class KeyIfSet: F14 per-format expert layouts: bitwise only per native_expert_bench on one RTX 3); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
    },
    {
     "name": "STRATA_FS_SLOTS",
@@ -714,60 +624,6 @@
     "exact": true
    },
    {
-    "name": "STRATA_KVA",
-    "env": {
-     "STRATA_KVA": "0"
-    },
-    "why": "coded switch (disk-env class KeyIfSet: approximate prefill plan (research): the late layers of a cold prompt are approx); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
-    "name": "STRATA_KVA_ANY_MODEL",
-    "env": {
-     "STRATA_KVA_ANY_MODEL": "1"
-    },
-    "why": "coded switch (disk-env class KeyIfSet: allows KVA on any model); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
-    "name": "STRATA_KVA_DRAFT_FLOOR",
-    "env": {
-     "STRATA_KVA_DRAFT_FLOOR": "1"
-    },
-    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
-    "name": "STRATA_KVA_MIN_PROMPT",
-    "env": {
-     "STRATA_KVA_MIN_PROMPT": "1"
-    },
-    "why": "coded switch (disk-env class KeyIfSet: prompt length that triggers KVA); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
-    "name": "STRATA_KVA_ORACLE_FP32",
-    "env": {
-     "STRATA_KVA_ORACLE_FP32": "1"
-    },
-    "why": "coded switch (disk-env class KeyIfSet: KVA oracle precision); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
-    "name": "STRATA_KVA_SUFFIX",
-    "env": {
-     "STRATA_KVA_SUFFIX": "1"
-    },
-    "why": "coded switch (disk-env class KeyIfSet: exact tail length); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
     "name": "STRATA_KV_GROW",
     "env": {
      "STRATA_KV_GROW": "0"
@@ -822,15 +678,6 @@
     "exact": false
    },
    {
-    "name": "STRATA_MMQ_KQ",
-    "env": {
-     "STRATA_MMQ_KQ": "1"
-    },
-    "why": "coded switch (disk-env class KeyIfSet: K-quant experts on MMQ (first-token KL ~0.03)); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
     "name": "STRATA_MMVQ_IL",
     "env": {
      "STRATA_MMVQ_IL": "0"
@@ -838,24 +685,6 @@
     "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
     "source": "conversation_disk_env.def + branch code",
     "exact": true
-   },
-   {
-    "name": "STRATA_MMVQ_IL_120",
-    "env": {
-     "STRATA_MMVQ_IL_120": "1"
-    },
-    "why": "coded switch (disk-env class Unsure: IL row table for big 12.0 cards); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
-    "name": "STRATA_MMVQ_IL_Q3K",
-    "env": {
-     "STRATA_MMVQ_IL_Q3K": "1"
-    },
-    "why": "coded switch (disk-env class Unsure: IL kernel for Q3_K); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
    },
    {
     "name": "STRATA_MMVQ_IL_T1",
@@ -939,15 +768,6 @@
     "exact": true
    },
    {
-    "name": "STRATA_NO_NORM_ROPE",
-    "env": {
-     "STRATA_NO_NORM_ROPE": "0"
-    },
-    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
     "name": "STRATA_NO_SUB16_GU",
     "env": {
      "STRATA_NO_SUB16_GU": "1"
@@ -955,15 +775,6 @@
     "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
     "source": "conversation_disk_env.def + branch code",
     "exact": true
-   },
-   {
-    "name": "STRATA_OLD_GROUPED",
-    "env": {
-     "STRATA_OLD_GROUPED": "1"
-    },
-    "why": "coded switch (disk-env class Unsure: old Q2_0 grouped kernel kept for A/B; no bitwise claim found); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
    },
    {
     "name": "STRATA_OLD_IQ_MMVQ",
@@ -1002,15 +813,6 @@
     "exact": true
    },
    {
-    "name": "STRATA_PA_V2T",
-    "env": {
-     "STRATA_PA_V2T": "1"
-    },
-    "why": "coded switch (disk-env class KeyIfSet: Turing v2 attention with register staging (changes answers)); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
     "name": "STRATA_PCIE_AUTO_CANON",
     "env": {
      "STRATA_PCIE_AUTO_CANON": "1"
@@ -1047,24 +849,6 @@
     "exact": false
    },
    {
-    "name": "STRATA_PF_FUSED_Q2N",
-    "env": {
-     "STRATA_PF_FUSED_Q2N": "1"
-    },
-    "why": "coded switch (disk-env class KeyIfSet: Q2_0 fused prompt kernel (own bits, MMQ otherwise)); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
-    "name": "STRATA_PF_FUSED_Q50",
-    "env": {
-     "STRATA_PF_FUSED_Q50": "1"
-    },
-    "why": "coded switch (disk-env class Unsure: Q5_0 fused kernel (default on for F16 on gfx1151)); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
     "name": "STRATA_PF_Q8D_F16",
     "env": {
      "STRATA_PF_Q8D_F16": "0"
@@ -1088,24 +872,6 @@
      "STRATA_PIPED_MTP": "0"
     },
     "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
-    "name": "STRATA_PLE_COMPACT",
-    "env": {
-     "STRATA_PLE_COMPACT": "1"
-    },
-    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
-    "name": "STRATA_PLE_COPY_STREAM",
-    "env": {
-     "STRATA_PLE_COPY_STREAM": "1"
-    },
-    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
     "source": "conversation_disk_env.def + branch code",
     "exact": true
    },
@@ -1151,42 +917,6 @@
      "STRATA_PREFILL_LM_EVEN": "0"
     },
     "why": "coded switch (disk-env class Unsure: even vs largest-that-fits super-chunks: changes the super-chunk geometry (like N); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
-    "name": "STRATA_PROMPT_ATTN_Q4",
-    "env": {
-     "STRATA_PROMPT_ATTN_Q4": "0"
-    },
-    "why": "coded switch (disk-env class KeyIfSet: Q4_0-KV prompt attention kernel); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
-    "name": "STRATA_PROMPT_ATTN_Q4_TC",
-    "env": {
-     "STRATA_PROMPT_ATTN_Q4_TC": "1"
-    },
-    "why": "coded switch (disk-env class Unsure: Q4 tensor-core prompt attention); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
-    "name": "STRATA_Q2_BITPLANE",
-    "env": {
-     "STRATA_Q2_BITPLANE": "1"
-    },
-    "why": "coded switch (disk-env class KeyIfSet: lossy bit-plane Q2_0 dot); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
-    "name": "STRATA_Q2_WARP",
-    "env": {
-     "STRATA_Q2_WARP": "0"
-    },
-    "why": "coded switch (disk-env class Unsure: Q2_0 warp kernel); no gfx1100 ledger row",
     "source": "conversation_disk_env.def + branch code",
     "exact": false
    },
@@ -1299,29 +1029,11 @@
     "exact": true
    },
    {
-    "name": "STRATA_SLOT_CKPT_MOVE",
-    "env": {
-     "STRATA_SLOT_CKPT_MOVE": "0"
-    },
-    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
     "name": "STRATA_SMALL_UNR",
     "env": {
      "STRATA_SMALL_UNR": "1"
     },
     "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": true
-   },
-   {
-    "name": "STRATA_SPEC_GUMBEL",
-    "env": {
-     "STRATA_SPEC_GUMBEL": "1"
-    },
-    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
     "source": "conversation_disk_env.def + branch code",
     "exact": true
    },
@@ -1349,24 +1061,6 @@
      "STRATA_TOPK_STREAM": "0"
     },
     "why": "coded switch (disk-env class Unsure: top-k stream variant); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
-    "name": "STRATA_TQ_STAGE",
-    "env": {
-     "STRATA_TQ_STAGE": "0"
-    },
-    "why": "coded switch (disk-env class Unsure: TQ staging); no gfx1100 ledger row",
-    "source": "conversation_disk_env.def + branch code",
-    "exact": false
-   },
-   {
-    "name": "STRATA_TQ_SUB8",
-    "env": {
-     "STRATA_TQ_SUB8": "0"
-    },
-    "why": "coded switch (disk-env class Unsure: TQ sub-8 kernels); no gfx1100 ledger row",
     "source": "conversation_disk_env.def + branch code",
     "exact": false
    },
@@ -2456,5 +2150,355 @@
    "STRATA_RDNA_KQ_MAXCOLS": "ledger T-080, T-699, T-767",
    "STRATA_DENSE_MMQ": "ledger T-615"
   }
+ },
+ "pruned": {
+  "us": [
+   {
+    "name": "STRATA_MMVQ_IL_120",
+    "env": {
+     "STRATA_MMVQ_IL_120": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: IL row table for big 12.0 cards); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "prune": "hardware this box does not have: the IL row table for big gfx12.0 cards (native_mmvq.cu `own120 = il_env_on(\"STRATA_MMVQ_IL_120\")`); gfx1100 is no 12.0 card (never tested)"
+   },
+   {
+    "name": "STRATA_NO_NORM_ROPE",
+    "env": {
+     "STRATA_NO_NORM_ROPE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "prune": "pure alias: the off switch of STRATA_NORM_ROPE (native_rope.cu lines 177 / 180 read both for the one decision); NORM_ROPE keeps the arm as the representative (never tested)"
+   },
+   {
+    "name": "STRATA_PA_V2T",
+    "env": {
+     "STRATA_PA_V2T": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: Turing v2 attention with register staging (changes answers)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "prune": "hardware this box does not have: Turing (sm_75) only. qsa_prompt_attn.cu: `if (v1 || (turing && !v2t))` reads the switch only on a Turing card; gfx1100 is not Turing: it cannot act (never tested)"
+   }
+  ],
+  "note": "never tested: hardware this box does not have, or a pure alias (each cites its code line)."
+ },
+ "backlog": {
+  "us": [
+   {
+    "name": "STRATA_ADMIT_MERGE_FIRST",
+    "env": {
+     "STRATA_ADMIT_MERGE_FIRST": "0"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): admission order of concurrent requests (one request at a time)"
+   },
+   {
+    "name": "STRATA_CKPT_ASYNC",
+    "env": {
+     "STRATA_CKPT_ASYNC": "1"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): conversation checkpoint save: request latency, not decode / prompt tok/s"
+   },
+   {
+    "name": "STRATA_CKPT_GATHER",
+    "env": {
+     "STRATA_CKPT_GATHER": "1"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): conversation checkpoint gather"
+   },
+   {
+    "name": "STRATA_CKPT_POOL",
+    "env": {
+     "STRATA_CKPT_POOL": "1"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): conversation checkpoint buffer pool"
+   },
+   {
+    "name": "STRATA_CKPT_THREADS",
+    "env": {
+     "STRATA_CKPT_THREADS": "0"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): conversation checkpoint threads"
+   },
+   {
+    "name": "STRATA_DRAFT_KEEP",
+    "env": {
+     "STRATA_DRAFT_KEEP": "1"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): diagnostic (generate.cpp comment)"
+   },
+   {
+    "name": "STRATA_EARLY_REMOTE_CONTEXTS",
+    "env": {
+     "STRATA_EARLY_REMOTE_CONTEXTS": "1"
+    },
+    "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): remote (peer / multi-device) contexts (one local GPU; it was a PROMISING flag in the RD screen)"
+   },
+   {
+    "name": "STRATA_EXPERT_V2",
+    "env": {
+     "STRATA_EXPERT_V2": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): IQ3_S / IQ4_NL grouped decode experts (the experts are IQ2_XS)"
+   },
+   {
+    "name": "STRATA_EXPERT_V2K",
+    "env": {
+     "STRATA_EXPERT_V2K": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): K-variant of EXPERT_V2"
+   },
+   {
+    "name": "STRATA_EXP_MODE",
+    "env": {
+     "STRATA_EXP_MODE": "0"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: F14 per-format expert layouts: bitwise only per native_expert_bench on one RTX 3); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): F14 per-format expert layouts (measured on an RTX card)"
+   },
+   {
+    "name": "STRATA_KVA",
+    "env": {
+     "STRATA_KVA": "0"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: approximate prefill plan (research): the late layers of a cold prompt are approx); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): KVA research family (approximate prefill plan, lossy)"
+   },
+   {
+    "name": "STRATA_KVA_ANY_MODEL",
+    "env": {
+     "STRATA_KVA_ANY_MODEL": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: allows KVA on any model); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): KVA research family"
+   },
+   {
+    "name": "STRATA_KVA_DRAFT_FLOOR",
+    "env": {
+     "STRATA_KVA_DRAFT_FLOOR": "1"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): KVA research family"
+   },
+   {
+    "name": "STRATA_KVA_MIN_PROMPT",
+    "env": {
+     "STRATA_KVA_MIN_PROMPT": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: prompt length that triggers KVA); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): KVA research family"
+   },
+   {
+    "name": "STRATA_KVA_ORACLE_FP32",
+    "env": {
+     "STRATA_KVA_ORACLE_FP32": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: KVA oracle precision); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): KVA oracle / debug precision"
+   },
+   {
+    "name": "STRATA_KVA_SUFFIX",
+    "env": {
+     "STRATA_KVA_SUFFIX": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: exact tail length); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): KVA research family"
+   },
+   {
+    "name": "STRATA_MMQ_KQ",
+    "env": {
+     "STRATA_MMQ_KQ": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: K-quant experts on MMQ (first-token KL ~0.03)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): K-quant experts on MMQ: the experts are IQ2_XS"
+   },
+   {
+    "name": "STRATA_MMVQ_IL_Q3K",
+    "env": {
+     "STRATA_MMVQ_IL_Q3K": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: IL kernel for Q3_K); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): IL kernel for Q3_K: no Q3_K tensor"
+   },
+   {
+    "name": "STRATA_OLD_GROUPED",
+    "env": {
+     "STRATA_OLD_GROUPED": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: old Q2_0 grouped kernel kept for A/B; no bitwise claim found); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): old Q2_0 grouped kernel: no Q2_0 tensor in the model"
+   },
+   {
+    "name": "STRATA_PF_FUSED_Q2N",
+    "env": {
+     "STRATA_PF_FUSED_Q2N": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: Q2_0 fused prompt kernel (own bits, MMQ otherwise)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Q2_0 fused prompt kernel: no Q2_0 tensor"
+   },
+   {
+    "name": "STRATA_PF_FUSED_Q50",
+    "env": {
+     "STRATA_PF_FUSED_Q50": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: Q5_0 fused kernel (default on for F16 on gfx1151)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Q5_0 fused prompt kernel: no Q5_0 tensor"
+   },
+   {
+    "name": "STRATA_PLE_COMPACT",
+    "env": {
+     "STRATA_PLE_COMPACT": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): PLE = per-layer embeddings of the Gemma-3n family: another model"
+   },
+   {
+    "name": "STRATA_PLE_COPY_STREAM",
+    "env": {
+     "STRATA_PLE_COPY_STREAM": "1"
+    },
+    "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): PLE copy stream: another model"
+   },
+   {
+    "name": "STRATA_PROMPT_ATTN_Q4",
+    "env": {
+     "STRATA_PROMPT_ATTN_Q4": "0"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: Q4_0-KV prompt attention kernel); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Q4_0-KV prompt attention: inside `if (pools.k_q4 != nullptr)` (--kv q4_0); the preset runs --kv int8"
+   },
+   {
+    "name": "STRATA_PROMPT_ATTN_Q4_TC",
+    "env": {
+     "STRATA_PROMPT_ATTN_Q4_TC": "1"
+    },
+    "why": "coded switch (disk-env class Unsure: Q4 tensor-core prompt attention); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Q4 tensor-core prompt attention: same `pools.k_q4` block, Turing path"
+   },
+   {
+    "name": "STRATA_Q2_BITPLANE",
+    "env": {
+     "STRATA_Q2_BITPLANE": "1"
+    },
+    "why": "coded switch (disk-env class KeyIfSet: lossy bit-plane Q2_0 dot); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Q2_0 weights: the IQ2_XS benchmark model has no Q2_0 tensor"
+   },
+   {
+    "name": "STRATA_Q2_WARP",
+    "env": {
+     "STRATA_Q2_WARP": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: Q2_0 warp kernel); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Q2_0 warp kernel: no Q2_0 tensor in the IQ2_XS model"
+   },
+   {
+    "name": "STRATA_SLOT_CKPT_MOVE",
+    "env": {
+     "STRATA_SLOT_CKPT_MOVE": "0"
+    },
+    "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): conversation slot checkpoint move"
+   },
+   {
+    "name": "STRATA_SPEC_GUMBEL",
+    "env": {
+     "STRATA_SPEC_GUMBEL": "1"
+    },
+    "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": true,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Gumbel sampling of speculative drafts (greedy benchmark)"
+   },
+   {
+    "name": "STRATA_TQ_STAGE",
+    "env": {
+     "STRATA_TQ_STAGE": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: TQ staging); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): TQ (ternary) staging: no TQ tensor in the model"
+   },
+   {
+    "name": "STRATA_TQ_SUB8",
+    "env": {
+     "STRATA_TQ_SUB8": "0"
+    },
+    "why": "coded switch (disk-env class Unsure: TQ sub-8 kernels); no gfx1100 ledger row",
+    "source": "conversation_disk_env.def + branch code",
+    "exact": false,
+    "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): TQ (ternary) sub-8 kernels"
+   }
+  ],
+  "note": "BACKLOG, deferred by the owner to the week of 2026-11-23 (decided 2026-11-20 while the screen was planned): switches that may well not act on this build / model (other quants, KVA research, checkpoint / admission / sampling paths). They are NOT pruned: run them later with run-queue-us-backlog.sh (SWEEP_SOURCE=backlog, the same screen design: 1 rep, blocks of 8, short + edit + long64k, 2.0 % line, ranked confirm). us-backlog.json is the ready-to-run queue file."
  }
 }

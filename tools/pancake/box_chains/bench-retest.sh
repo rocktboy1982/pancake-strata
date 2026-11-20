@@ -7,6 +7,10 @@
 # RETEST_NO_RD=1: the RD configs are not read at all (the US-only queue run-queue-us.sh); the slices usT-1..usT-4 hold US entries only.
 # RETEST_SLICE=<name> picks a slice of tools/pancake/box_chains/retest_groups.json (rdC-1, rdC-2, mixC-3, usC-4, mixR-5, mixR-6, usR-7) or
 #   carry-rd / carry-us / carry (the flags bench-sweep.sh carried: $O/<branch>-carry-*.json, pass 2 over its budget or a drifted block).
+# STAGE 2 of the US queue run-queue-us3.sh (owner protocol restated 2026-11-20, T-1005): RETEST_SLICE=carry-us-<tag> confirms the flags the stage-1 screen marked PROMISING
+#   (carry files $O/us-carry-usS1-*.json, RETEST_CARRY_GLOB overrides the glob), the strongest first: RETEST_CARRY_OFFSET / RETEST_CARRY_MAX take the flags [offset, offset+max)
+#   (6 per slice: 6 paired blocks + one re-run fit 2.5 h).  RETEST_SLICE=gates-us runs the quality gates (updated against updated minus / plus the flag): the static
+#   --lookup-max-t gate (attributes the earlier whole-preset REJECT) and one per flag whose clean confirm (source retest slice carry-us-usS2*, RETEST_GATE_SLICES) is lossy >= 3 %.
 # A PAIRED BLOCK (sweep.py paired_spec) = abtest --tier screen --drift-check on a spec whose arms are warmup (the base, an extra first start: not counted, not judged), base, flag, base~2, flag~2, base~3, flag~3, and
 #   abtest's base-late at the end: 8 engine starts (~19 min with short + edit + longdec32k), each flag rep between two base runs of the same block.
 #   The drift (counted base runs against the first counted one) is judged on the last request of each case per start (sweep.py, T-1004).
@@ -27,6 +31,7 @@ USB=/mnt/pancake/benchus; RDB=/mnt/pancake/benchRD; RDC=/home/dan/auto-runs/benc
 DATA=/home/dan/clone-of-d/Strata-data; ROCM=/opt/rocm/core-10.0; REPO_URL=https://github.com/rocktboy1982/pancake-strata.git
 T0=$(date +%s); POLL=5; MAXS=${RETEST_MAX_S:-9000}; BUDGET=${BENCH_BUDGET_S:-$MAXS}
 DMAX=${SWEEP_DRIFT_MAX:-5}
+LAYOUT=${RETEST_LAYOUT:-interleaved}; WARMM=${RETEST_WARM:-each}   # compact: base, flag x 3, base-late (5 starts); RETEST_WARM=first: one warm-up start per slice
 RS=${RETEST_SLICE:-}
 export PATH=$ROCM/bin:$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
 HPY=${BENCH_HARNESS_PY:-$R/.venv/bin/python}
@@ -154,10 +159,13 @@ say "PREREQ harness ok: $HPY imports serve.server from $HN $(date +%T)"
 # ------------------------------------------------------------------ 2. the blocks of the slice (one paired spec per flag)
 fx=; for k in ${RETEST_RD_DROP-STRATA_POOL_FUSE_PHASES}; do fx="$fx --drop-env $k"; done
 for kv in ${RETEST_RD_SET-STRATA_VERIFY_ECAP=0 STRATA_VERIFY_ECAP_MIN_ROWS=9}; do fx="$fx --set-env $kv"; done
-cf=; case "$RS" in carry*) cf="--carry $(ls $O/*-carry-*.json 2>/dev/null | tr '\n' ' ')";; esac
+cf=; case "$RS" in
+  carry*) cf="--carry $(ls ${RETEST_CARRY_GLOB:-$O/*-carry-*.json} 2>/dev/null | tr '\n' ' ') --carry-offset ${RETEST_CARRY_OFFSET:-0}${RETEST_CARRY_MAX:+ --carry-max $RETEST_CARRY_MAX}";;
+  gates*) cf="--gate-from $(ls $O/us-triage-rt-${RETEST_GATE_SLICES:-carry-us-usS2}*.v2.json 2>/dev/null | tr '\n' ' ') --gate-prefix ${RETEST_GATE_SLICES:-carry-us-usS2} --carry-offset ${RETEST_CARRY_OFFSET:-0}${RETEST_CARRY_MAX:+ --carry-max $RETEST_CARRY_MAX}";;
+esac
 rdargs="--rd-plain $RDC --rd-updated $RDU --rd-src $RDB/src-updated $fx"
 [ "${RETEST_NO_RD:-0}" = 1 ] && rdargs=   # US-only queue (owner order 2026-11-20 09:19): no RD config is read, no RD arm is built
-sw retest --slice $RS --out-dir $T $rdargs \
+sw retest --slice $RS --out-dir $T --layout $LAYOUT --warm $WARMM $rdargs \
    --us-plain $HN/configs/pancake/flashnext-iq2_xs-plain-upstream.json --us-arm-spec $HN/bench/specs/220-updated-vs-upstream-short.json \
    --us-exact-spec $HN/bench/specs/222-updated-exact-vs-upstream-short.json --us-src $USB/src-us $cf > $T/retest-$RS.txt 2>&1 \
    || abort "SPEC: sweep.py retest failed: $(tail -n 1 $T/retest-$RS.txt)"
@@ -177,14 +185,14 @@ while read -r tag bid typ est br path bname aname cases flag; do
     paired)
       ab retest-$RS-$bid $((est + 600)) $path --tier screen --drift-check --retries 0 || rcs=$?
       runs="$runs --run $bid=$O/retest-$RS-$bid.jsonl"
-      d=$(sw paired-drift --rows $O/retest-$RS-$bid.jsonl --base $bname --arm $aname --cases $cases --max $DMAX); drc=$?
+      d=$(sw paired-drift --rows $O/retest-$RS-$bid.jsonl --base $bname --arm $aname --cases $cases --max $DMAX --layout $LAYOUT); drc=$?
       say "DRIFT $bid ($flag, $br; paired block, base runs vs the first): $d"
       if [ $drc -ne 0 ]; then
         if left_ok $((est + 60)); then
           say "RERUN $bid: base drift above $DMAX % (or no base rows): the paired block runs once more"; wait_idle; nrr=$((nrr + 1))
           ab retest-$RS-${bid}r $((est + 600)) $path --tier screen --drift-check --retries 0 || rcs=$?
           runs="$runs --run $bid=$O/retest-$RS-${bid}r.jsonl"
-          d=$(sw paired-drift --rows $O/retest-$RS-${bid}r.jsonl --base $bname --arm $aname --cases $cases --max $DMAX); drc=$?
+          d=$(sw paired-drift --rows $O/retest-$RS-${bid}r.jsonl --base $bname --arm $aname --cases $cases --max $DMAX --layout $LAYOUT); drc=$?
           say "DRIFT ${bid}r: $d"
           if [ $drc -eq 0 ]; then nclean=$((nclean + 1)); else nbad=$((nbad + 1)); say "INCONCLUSIVE $bid ($flag): still above $DMAX % after its re-run"; fi
         else nbad=$((nbad + 1)); say "SKIP rerun $bid: budget: $(left) s left: $flag is INCONCLUSIVE (carried)"; fi

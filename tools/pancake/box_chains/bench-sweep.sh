@@ -25,6 +25,14 @@
 # PRIORITY ORDER (owner order 2026-11-20): slice 1 of a branch = all [arm] + [named] switches (us 36: the 35 of the updated arm + AMD_COMMUNITY_TUNING;
 #   rd 17: the 11 of the updated arm + GR_RDNA_Q8 / A8 / INJ_UP / FUSED, ADAPT_PERSIST, AMD_COMMUNITY_TUNING, filled up with [code] arms to the even
 #   slice size), [code] after them; every slice is triaged, confirmed (pass 2) and merged on its own: usable after slice 1.
+# SWEEP_SCREEN_ONLY=1 (owner order 2026-11-20 ~09:50, protocol restated: "ONE TEST OF ALL THE FLAGS to see which are to be tested further: 1 or 2 reps at best;
+#   afterwards a 3-rep test if all still stands"; TEST_LEDGER.md T-1005): STAGE 1 of the US queue run-queue-us3.sh.  Pass 1 only (blocked screen, 1 rep per arm, warm-up
+#   start + base before and after every block, the drift rule of 5ae76fbc8), NO pass 2: sweep.py triage --screen-only writes per flag PROMISING (a case at or above the
+#   bar: carry true) / NO-GAIN-P1 / INCONCLUSIVE (base drift above 5 % after the one re-run; re-screened once in stage 2) into <branch>-triage-<tag>.v2.json (merged
+#   into <branch>-triage.v2.json) and the carry file <branch>-carry-<tag>.json (the PROMISING flags: stage 2 = bench-retest.sh carry-us slices confirms them in
+#   their own paired 3-rep blocks).  The budget then holds pass 1 + one block re-run only (no paired block is reserved).
+# SWEEP_EXTRA="us:--lookup-max-t us:STRATA_GR_RDNA ..." adds named flags the registry lists as measured (keys of retest_groups.json: the same arm the retest slices
+#   run) as one more arm each (sweep.py spec --extra); SWEEP_ONLY_META may be a `sweep.py select` file (the INCONCLUSIVE flags: the stage-2 re-screen).
 # SWEEP_HARNESS_SHA=<commit> pins the synced harness (sweep.py and its registry: the slices of one branch must cut the same list); default origin HEAD.
 # PASS 1 (tools/pancake/box_chains/sweep.py spec): only the coded switches NEVER TESTED on gfx1100 (owner clarification 2026-11-20): no pancake
 #   TEST_LEDGER.md row naming them on the box and no 2026-11-19 box verdict; already-measured switches keep their verdict and get no arm.  One engine
@@ -116,7 +124,7 @@ S=/home/dan/clone-of-d/src; R=$S/Strata-win; L=$S/bench-sweep.log; O=/home/dan/a
 USB=/mnt/pancake/benchus; RDB=/mnt/pancake/benchRD; RDC=/home/dan/auto-runs/benchRD/config-plain.json; RDU=/home/dan/auto-runs/benchRD/config-updated.json
 DATA=/home/dan/clone-of-d/Strata-data; ROCM=/opt/rocm/core-10.0; REPO_URL=https://github.com/rocktboy1982/pancake-strata.git
 T0=$(date +%s); BUDGET=${BENCH_BUDGET_S:-9900}; POLL=5; MAXS=${SWEEP_MAX_S:-9000}; P2MAX=${SWEEP_PASS2_MAX:-6}
-BS=${SWEEP_BLOCK:-6}; DMAX=${SWEEP_DRIFT_MAX:-5}; SPLIT=${SWEEP_SPLIT:-priority}
+BS=${SWEEP_BLOCK:-6}; DMAX=${SWEEP_DRIFT_MAX:-5}; SPLIT=${SWEEP_SPLIT:-priority}; SCREEN=${SWEEP_SCREEN_ONLY:-0}; WARM=${SWEEP_WARM:-each}   # SWEEP_WARM=first: ONE warm-up start per slice (owner 2026-11-20; rows of rdC-1 k01r / k02: a block that follows another one starts steady)
 B=${SWEEP_BRANCH:-}; SL=${SWEEP_SLICE:-1/1}; SLN=${SWEEP_TAG:-$(echo "$SL" | tr / o | sed 's/o/of/')}; SEED=${SWEEP_SEED:-$SLN}
 export PATH=$ROCM/bin:$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
 HPY=${BENCH_HARNESS_PY:-$R/.venv/bin/python}
@@ -244,7 +252,7 @@ if [ -n "$SHA" ] && timeout 1200 curl -sfL -o $HARN.part https://codeload.github
   mv $HARN.part $HARN; say "SYNC harness: origin port/rdna3-decode $SHA${SWEEP_HARNESS_SHA:+ (pinned by SWEEP_HARNESS_SHA)} -> $HN"
 else abort "SYNC harness download failed"; fi
 mkdir -p $HN && tar xzmf $HARN --no-same-owner --strip-components=1 -C $HN || abort "SYNC harness tar failed"
-for need in tools/pancake/abtest.py tools/pancake/box_chains/sweep.py tools/pancake/box_chains/sweep_candidates.json \
+for need in tools/pancake/abtest.py tools/pancake/box_chains/sweep.py tools/pancake/box_chains/sweep_candidates.json tools/pancake/box_chains/retest_groups.json \
             bench/specs/220-updated-vs-upstream-short.json configs/pancake/flashnext-iq2_xs-plain-upstream.json; do
   [ -f "$HN/$need" ] || abort "SYNC: $need is missing in the synced harness"
 done
@@ -261,7 +269,9 @@ for f in $O/$B-triage-[1-9]of[1-9].json; do
 done
 # ------------------------------------------------------------------ 2. the pass-1 spec, its blocks and the estimate (stop before any start when the run does not fit 2.5 h)
 P1=$T/$B-p1-$SLN.json
-sel="--slice $SL --split $SPLIT --tag $SLN --block-size $BS"
+sel="--slice $SL --split $SPLIT --tag $SLN --block-size $BS --warm $WARM"
+for x in ${SWEEP_EXTRA:-}; do sel="$sel --extra $x"; done
+[ -n "${SWEEP_SOURCE:-}" ] && sel="$sel --source $SWEEP_SOURCE"   # SWEEP_SOURCE=backlog: the deferred switches of sweep_candidates.json "backlog" (run-queue-us-backlog.sh)
 [ -n "${SWEEP_ONLY_META:-}" ] && sel="$sel --only-meta $SWEEP_ONLY_META"
 for m in ${SWEEP_EXCLUDE_META:-}; do sel="$sel --exclude-meta $m"; done
 if [ $B = us ]; then sw spec --branch us --plain $HN/configs/pancake/flashnext-iq2_xs-plain-upstream.json --arm-from $HN/bench/specs/220-updated-vs-upstream-short.json --arm-name updated \
@@ -274,13 +284,14 @@ set -- $(grep '^ESTIMATE' $T/$B-spec-$SLN.txt); E1=${2:-0}; E2=${3:-0}; ER=${4:-
 [ "$E1" -gt 0 ] || abort "SPEC: no estimate from sweep.py (no flag arm in this slice?)"
 # pass 1 + its re-run + at least one paired confirm block must fit 2.5 h; pass 2 takes what is left of the 2.5 h, the rest is carried
 P2ONE=$((8 * 150))   # a paired block = warm-up start + 7 counted starts (T-1004)
+[ "$SCREEN" = 1 ] && P2ONE=0   # stage 1 (screen only): no paired block follows
 if [ $((E1 + ER + P2ONE)) -gt $MAXS ]; then
   n=${SL#*/}; need=$(( (E1 + ER + P2ONE) * n / MAXS + 1 ))
   abort "BUDGET: this run's pass 1 ($E1 s) + one block re-run ($ER s) + one paired confirm block ($P2ONE s) is over $MAXS s (2.5 h): split it (SWEEP_SLICE=1/$need ... at least $need parts); nothing was started"
 fi
 [ -n "${BENCH_BUDGET_S:-}" ] || BUDGET=$MAXS
 say "BUDGET $BUDGET s (2.5 h: pass 1 $E1 s + one block re-run $ER s budgeted; pass 2 = one paired block of $P2ONE s per promising flag while the budget holds it, the rest carried; plan for $P2MAX flags $E2 s)"
-sw blocks --spec $P1 --prefix $T/$B-p1-$SLN --size $BS --seed "$SEED" > $T/$B-blocks-$SLN.txt 2>&1 || abort "SPEC: sweep.py blocks failed: $(tail -n 1 $T/$B-blocks-$SLN.txt)"
+sw blocks --spec $P1 --prefix $T/$B-p1-$SLN --size $BS --seed "$SEED" --warm $WARM > $T/$B-blocks-$SLN.txt 2>&1 || abort "SPEC: sweep.py blocks failed: $(tail -n 1 $T/$B-blocks-$SLN.txt)"
 cut -c1-400 $T/$B-blocks-$SLN.txt >> $L
 
 # ------------------------------------------------------------------ 3. pass 1 block by block (a drifting block runs once more), triage, pass 2, the final triage
@@ -305,13 +316,14 @@ for bid in $(awk '/^BLOCK /{print $2}' $T/$B-blocks-$SLN.txt); do
 done
 p1f=$(ls $O/$B-p1-$SLN-b[0-9][0-9].jsonl $O/$B-p1-$SLN-b[0-9][0-9]r.jsonl 2>/dev/null | sort | tr '\n' ' ')
 [ -n "$p1f" ] || p1f=$O/$B-p1-$SLN-none.jsonl
-sw triage --meta $P1.meta.json --pass1 $p1f --drift-max $DMAX --out $T/$B-tri1-$SLN.json > $T/$B-tri1-$SLN.txt 2>&1 || say "ERROR triage of pass 1 failed: $(tail -n 1 $T/$B-tri1-$SLN.txt)"
+sw triage --meta $P1.meta.json --pass1 $p1f --drift-max $DMAX $([ "$SCREEN" = 1 ] && echo --screen-only) --out $T/$B-tri1-$SLN.json > $T/$B-tri1-$SLN.txt 2>&1 || say "ERROR triage of pass 1 failed: $(tail -n 1 $T/$B-tri1-$SLN.txt)"
 # PASS 2 (owner order 2026-11-20: confirm the flags ONE BY ONE): every promising flag gets its OWN paired block (base, flag, base, flag, base, flag,
 # base: abtest --tier screen --drift-check on sweep.py's paired spec), the strongest first, while the budget holds a block; a block above the drift
 # limit runs once more when the budget holds it; the flags the budget leaves out are carried (sweep.py carry -> $O/$B-carry-$SLN.json, run by
 # bench-retest.sh's carry slices).  No cap on the number of flags.
 rc2=-; p2args=; np2=0
-if sw pass2 --spec $P1 --triage $T/$B-tri1-$SLN.json --out $T/$B-p2-$SLN.json > $T/$B-p2-$SLN.txt 2>&1; then
+if [ "$SCREEN" = 1 ]; then say "SCREEN ONLY (SWEEP_SCREEN_ONLY=1): pass 2 skipped; the PROMISING flags are carried to the stage-2 confirm (bench-retest.sh carry-us slices)"
+elif sw pass2 --spec $P1 --triage $T/$B-tri1-$SLN.json --out $T/$B-p2-$SLN.json > $T/$B-p2-$SLN.txt 2>&1; then
   grep -v -E '^(ESTIMATE2|PAIR )' $T/$B-p2-$SLN.txt >> $L
   rc2=0; tr -d '\r' < $T/$B-p2-$SLN.txt > $T/$B-p2-$SLN.lst
   while read -r tag an est psp; do
@@ -331,7 +343,7 @@ if sw pass2 --spec $P1 --triage $T/$B-tri1-$SLN.json --out $T/$B-p2-$SLN.json > 
   done < $T/$B-p2-$SLN.lst
 else cat $T/$B-p2-$SLN.txt >> $L; fi
 TV=$O/$B-triage-$SLN.v2.json
-sw triage --meta $P1.meta.json --pass1 $p1f $p2args --drift-max $DMAX --out $TV > $T/$B-tri-$SLN.txt 2>&1 || say "ERROR final triage failed: $(tail -n 1 $T/$B-tri-$SLN.txt)"
+sw triage --meta $P1.meta.json --pass1 $p1f $p2args --drift-max $DMAX $([ "$SCREEN" = 1 ] && echo --screen-only) --out $TV > $T/$B-tri-$SLN.txt 2>&1 || say "ERROR final triage failed: $(tail -n 1 $T/$B-tri-$SLN.txt)"
 sed 's/^/TRIAGE /' $T/$B-tri-$SLN.txt | cut -c1-300 >> $L
 sw carry --spec $P1 --meta $P1.meta.json --triage $TV --tag $SLN --out $O/$B-carry-$SLN.json >> $L 2>&1 || say "ERROR carry file of $SLN failed"
 parts="$(ls -tr $O/$B-triage-[1-9]of[1-9].v2.json 2>/dev/null) $(ls -tr $O/$B-triage-*.v2.json 2>/dev/null | grep -v -e '-triage-[1-9]of[1-9]\.v2\.json$')"

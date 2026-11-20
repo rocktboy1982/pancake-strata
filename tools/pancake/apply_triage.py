@@ -15,7 +15,7 @@ Rules (owner rules 2026-11-20: flags are judged ONE BY ONE, each from its own ar
 sweep slices AND the RETEST slices of bench-retest.sh, same v2 schema):
   BUNDLE a record with "bundle": true (a whole arm or preset, e.g. RD `updated` against `plain`, or a whole-arm quality gate) NEVER changes a flag:
          it is reported only (it can trigger per-flag arms, not remove one).
-  NO-GAIN-P1 (pass 1 without a benefit), INCONCLUSIVE (base drift > 5 %), RETEST, RETEST-GATE, UNTESTED: nothing changes.
+  NO-GAIN-P1 (pass 1 without a benefit), PROMISING / PROMISING-LOW (stage-1 screen results, not confirmed), INCONCLUSIVE (base drift > 5 %), RETEST, RETEST-GATE, UNTESTED: nothing changes.
   OPTIONAL (clean pass 2 only, else HOLD: a metric >= +10 % and one <= -3 %): the flag leaves the default flags (shipped file, preset, spec
          arms) and is listed in the "optional" section of the shipped file with the cases it helps and hurts, and in README-PANCAKE.md (--readme:
          the block between the markers <!-- optional-flags:begin --> / <!-- optional-flags:end -->), so a user can turn it on for that workload.
@@ -77,7 +77,7 @@ def plan(tri):
         elif v == "KEEP":
             out.append((flag, "add" if clean_pass2(rec) else "hold", rec))    # add: only what the shipped file does not carry yet
         else:
-            out.append((flag, "none", rec))          # NO-GAIN-P1, RETEST, RETEST-GATE, INCONCLUSIVE, UNTESTED, REFERENCE
+            out.append((flag, "none", rec))          # NO-GAIN-P1, PROMISING(-LOW), RETEST, RETEST-GATE, INCONCLUSIVE, UNTESTED, REFERENCE
     return out
 
 

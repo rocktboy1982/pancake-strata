@@ -1,0 +1,300 @@
+{
+ "schema": "pancake.sweep-backlog/1",
+ "branch": "us",
+ "status": "NOT STARTED: deferred by the owner to the week of 2026-11-23",
+ "launcher": "tools/pancake/box_chains/run-queue-us-backlog.sh (SWEEP_HARNESS_SHA=<pin> sh ./run-queue-us-backlog.sh on the box; scripts bench-sweep.v4.sh, bench-retest.v3.sh)",
+ "design": {
+  "source": "sweep_candidates.json backlog.us (SWEEP_SOURCE=backlog)",
+  "reps": 1,
+  "block": 8,
+  "warm_up": "one start per slice",
+  "cases": [
+   "short",
+   "edit",
+   "longdec64k"
+  ],
+  "line": "2.0 % best case = HIGH (3-rep compact confirm), 0 < gain < 2 % = PROMISING-LOW (confirmed afterwards), <= 0 % clean = dropped"
+ },
+ "slices": 2,
+ "flags": [
+  {
+   "flag": "STRATA_ADMIT_MERGE_FIRST",
+   "env": {
+    "STRATA_ADMIT_MERGE_FIRST": "0"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): admission order of concurrent requests (one request at a time)"
+  },
+  {
+   "flag": "STRATA_CKPT_ASYNC",
+   "env": {
+    "STRATA_CKPT_ASYNC": "1"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): conversation checkpoint save: request latency, not decode / prompt tok/s"
+  },
+  {
+   "flag": "STRATA_CKPT_GATHER",
+   "env": {
+    "STRATA_CKPT_GATHER": "1"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): conversation checkpoint gather"
+  },
+  {
+   "flag": "STRATA_CKPT_POOL",
+   "env": {
+    "STRATA_CKPT_POOL": "1"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): conversation checkpoint buffer pool"
+  },
+  {
+   "flag": "STRATA_CKPT_THREADS",
+   "env": {
+    "STRATA_CKPT_THREADS": "0"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): conversation checkpoint threads"
+  },
+  {
+   "flag": "STRATA_DRAFT_KEEP",
+   "env": {
+    "STRATA_DRAFT_KEEP": "1"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): diagnostic (generate.cpp comment)"
+  },
+  {
+   "flag": "STRATA_EARLY_REMOTE_CONTEXTS",
+   "env": {
+    "STRATA_EARLY_REMOTE_CONTEXTS": "1"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): remote (peer / multi-device) contexts (one local GPU; it was a PROMISING flag in the RD screen)"
+  },
+  {
+   "flag": "STRATA_EXPERT_V2",
+   "env": {
+    "STRATA_EXPERT_V2": "1"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): IQ3_S / IQ4_NL grouped decode experts (the experts are IQ2_XS)"
+  },
+  {
+   "flag": "STRATA_EXPERT_V2K",
+   "env": {
+    "STRATA_EXPERT_V2K": "1"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): K-variant of EXPERT_V2"
+  },
+  {
+   "flag": "STRATA_EXP_MODE",
+   "env": {
+    "STRATA_EXP_MODE": "0"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): F14 per-format expert layouts (measured on an RTX card)"
+  },
+  {
+   "flag": "STRATA_KVA",
+   "env": {
+    "STRATA_KVA": "0"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): KVA research family (approximate prefill plan, lossy)"
+  },
+  {
+   "flag": "STRATA_KVA_ANY_MODEL",
+   "env": {
+    "STRATA_KVA_ANY_MODEL": "1"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): KVA research family"
+  },
+  {
+   "flag": "STRATA_KVA_DRAFT_FLOOR",
+   "env": {
+    "STRATA_KVA_DRAFT_FLOOR": "1"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): KVA research family"
+  },
+  {
+   "flag": "STRATA_KVA_MIN_PROMPT",
+   "env": {
+    "STRATA_KVA_MIN_PROMPT": "1"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): KVA research family"
+  },
+  {
+   "flag": "STRATA_KVA_ORACLE_FP32",
+   "env": {
+    "STRATA_KVA_ORACLE_FP32": "1"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): KVA oracle / debug precision"
+  },
+  {
+   "flag": "STRATA_KVA_SUFFIX",
+   "env": {
+    "STRATA_KVA_SUFFIX": "1"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): KVA research family"
+  },
+  {
+   "flag": "STRATA_MMQ_KQ",
+   "env": {
+    "STRATA_MMQ_KQ": "1"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): K-quant experts on MMQ: the experts are IQ2_XS"
+  },
+  {
+   "flag": "STRATA_MMVQ_IL_Q3K",
+   "env": {
+    "STRATA_MMVQ_IL_Q3K": "1"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): IL kernel for Q3_K: no Q3_K tensor"
+  },
+  {
+   "flag": "STRATA_OLD_GROUPED",
+   "env": {
+    "STRATA_OLD_GROUPED": "1"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): old Q2_0 grouped kernel: no Q2_0 tensor in the model"
+  },
+  {
+   "flag": "STRATA_PF_FUSED_Q2N",
+   "env": {
+    "STRATA_PF_FUSED_Q2N": "1"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Q2_0 fused prompt kernel: no Q2_0 tensor"
+  },
+  {
+   "flag": "STRATA_PF_FUSED_Q50",
+   "env": {
+    "STRATA_PF_FUSED_Q50": "1"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Q5_0 fused prompt kernel: no Q5_0 tensor"
+  },
+  {
+   "flag": "STRATA_PLE_COMPACT",
+   "env": {
+    "STRATA_PLE_COMPACT": "1"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): PLE = per-layer embeddings of the Gemma-3n family: another model"
+  },
+  {
+   "flag": "STRATA_PLE_COPY_STREAM",
+   "env": {
+    "STRATA_PLE_COPY_STREAM": "1"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): PLE copy stream: another model"
+  },
+  {
+   "flag": "STRATA_PROMPT_ATTN_Q4",
+   "env": {
+    "STRATA_PROMPT_ATTN_Q4": "0"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Q4_0-KV prompt attention: inside `if (pools.k_q4 != nullptr)` (--kv q4_0); the preset runs --kv int8"
+  },
+  {
+   "flag": "STRATA_PROMPT_ATTN_Q4_TC",
+   "env": {
+    "STRATA_PROMPT_ATTN_Q4_TC": "1"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Q4 tensor-core prompt attention: same `pools.k_q4` block, Turing path"
+  },
+  {
+   "flag": "STRATA_Q2_BITPLANE",
+   "env": {
+    "STRATA_Q2_BITPLANE": "1"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Q2_0 weights: the IQ2_XS benchmark model has no Q2_0 tensor"
+  },
+  {
+   "flag": "STRATA_Q2_WARP",
+   "env": {
+    "STRATA_Q2_WARP": "0"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Q2_0 warp kernel: no Q2_0 tensor in the IQ2_XS model"
+  },
+  {
+   "flag": "STRATA_SLOT_CKPT_MOVE",
+   "env": {
+    "STRATA_SLOT_CKPT_MOVE": "0"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): conversation slot checkpoint move"
+  },
+  {
+   "flag": "STRATA_SPEC_GUMBEL",
+   "env": {
+    "STRATA_SPEC_GUMBEL": "1"
+   },
+   "args": null,
+   "exact": true,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): Gumbel sampling of speculative drafts (greedy benchmark)"
+  },
+  {
+   "flag": "STRATA_TQ_STAGE",
+   "env": {
+    "STRATA_TQ_STAGE": "0"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): TQ (ternary) staging: no TQ tensor in the model"
+  },
+  {
+   "flag": "STRATA_TQ_SUB8",
+   "env": {
+    "STRATA_TQ_SUB8": "0"
+   },
+   "args": null,
+   "exact": false,
+   "defer": "deferred by the owner to the week of 2026-11-23 (this round's screen is the 119 other untested switches + 5 named): TQ (ternary) sub-8 kernels"
+  }
+ ]
+}

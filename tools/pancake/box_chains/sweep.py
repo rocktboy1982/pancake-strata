@@ -76,12 +76,15 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REGISTRY = os.path.join(HERE, "sweep_candidates.json")
-CASES = ["short", "edit", "longdec32k"]
-METRICS = ["short", "edit", "longdec32k", "longdec32k-prompt"]
-START_S = 150
+CASE_S = {"short": 30, "edit": 40, "longdec10k": 30, "longdec32k": 50, "longdec64k": 90, "longdec100k": 140, "long10k": 20, "long32k": 45,
+          "long64k": 70, "long100k": 110}
+START_OVH = 30                             # per engine start (load, warm-up); short + edit + longdec32k = 150 s
+CASES = os.environ.get("SWEEP_CASES", "short,edit,longdec32k").split(",")   # the US queue (owner 2026-11-20): SWEEP_CASES=short,edit,longdec64k (190 s a start)
+METRICS = ["short", "edit", "longdec32k", "longdec32k-prompt", "longdec64k", "longdec64k-prompt"]
+START_S = START_OVH + sum(CASE_S.get(c, 60) for c in CASES)
 BLOCK = 6                                 # arms per pass-1 block (owner order 2026-11-20: <= 6)
 DRIFT_MAX = 5.0                           # % base drift above which a verdict is INCONCLUSIVE
-WEAK = ("INCONCLUSIVE", "UNTESTED", "NO-GAIN-P1")   # a merge never lets these replace a decided verdict
+WEAK = ("INCONCLUSIVE", "UNTESTED", "NO-GAIN-P1", "PROMISING", "PROMISING-LOW")   # a merge never lets these replace a decided verdict (PROMISING = a stage-1 screen result: any later stage-2 verdict replaces it)
 NOGAIN = "NO-GAIN-P1"                     # pass 1, clean block, no benefit: dropped after pass 1 (n=1, not a refutation); no shipped change
 OPT_GAIN, OPT_LOSS = 10.0, -3.0           # OPTIONAL: any metric >= +10 % AND any metric <= -3 % after the confirm (owner rule 2026-11-20)
 PROMISE = {True: 1.0, False: 1.5}        # exact / lossy: pass-1 bar
@@ -148,6 +151,26 @@ def flags_of(arm, registry, untested, src, plain=None):
     return out
 
 
+EXTRA_SOURCE = "owner list (stage 1: the named retest flags that are not in the untested registry)"
+
+
+def extra_items(keys, groups, registry, arm, src, base_path):
+    """[(arm name, meta, arm)] for named flags the registry does not list as untested (measured before: --lookup-max-t, GR_RDNA, RDNA_MMVQ_WAVE,
+    RDNA_Q6K, HIPBLASLT_TUNING): built by resolve_entry from the retest groups' entries, so the stage-1 screen and the stage-2 confirm run the same arm."""
+    out = []
+    for key in keys:
+        br = key.split(":", 1)[0]
+        d = resolve_entry(key, groups["entries"].get(key, {}), {br: {"path": base_path, "arms": {"updated": arm}}}, registry, {br: src})
+        if d["type"] != "paired" or d.get("bundle"):
+            raise SystemExit("sweep spec: --extra %s is not a plain flag entry" % key)
+        meta = {"flag": d["flag"], "kind": d["kind"], "keys": list(d["env"]) + list(d["args"]), "exact": d["exact"], "env": d["env"],
+                "args": d["args"], "why": d.get("why", ""), "source": EXTRA_SOURCE}
+        if d.get("ship"):
+            meta["ship"] = d["ship"]
+        out.append((d["arm_name"], meta, d["arm"]))
+    return out
+
+
 def priority(meta):
     """0 = [arm] (set by the updated arm), 1 = [named] (owner list), 2 = [code] (any other coded switch)."""
     src = meta.get("source", "")
@@ -197,18 +220,18 @@ def block_sizes(n, size=BLOCK):
     return [n // nb + (1 if i < n % nb else 0) for i in range(nb)]
 
 
-def estimate(n_arms, pass2_max=6, block=BLOCK):
+def estimate(n_arms, pass2_max=6, block=BLOCK, warm="each"):
     """(pass 1, one block re-run, pass 2) in seconds: every block = its arms + updated + base-late; one re-run of the largest block is budgeted;
     pass 2 = pass2_max paired blocks of 8 starts (warm-up, base, flag x 3 interleaved, base); every block has one extra warm-up start (T-1004)."""
     bs = block_sizes(n_arms, block)
-    p1 = (n_arms + 3 * len(bs)) * START_S
-    rr = ((max(bs) + 3) * START_S) if bs else 0
+    p1 = (n_arms + (3 if warm == "each" else 2) * len(bs) + (0 if warm == "each" else 1)) * START_S      # warm = first: ONE warm-up start per slice
+    rr = ((max(bs) + 2) * START_S) if bs and warm != "each" else ((max(bs) + 3) * START_S) if bs else 0
     p2 = min(pass2_max, n_arms) * 8 * START_S          # planning: one paired block (8 starts) per flag; pass 2 itself has no cap
     #                                                    (bench-sweep.sh runs blocks while the 2.5 h budget holds, the rest is carried)
     return p1, rr, p2
 
 
-def block_specs(spec, size=BLOCK, seed="0"):
+def block_specs(spec, size=BLOCK, seed="0", warm="each"):
     """[(block id, spec, arm order)]: the flag arms of a pass-1 spec in blocks of <= size (spec order), each block's arms shuffled (a seeded
     random order: the same seed gives the same order); every block spec = the warm-up start (the base, not counted), updated, the block's arms, then abtest's base-late (drift_check)."""
     names = [a for a in spec["arms"] if a != "updated"]
@@ -219,19 +242,22 @@ def block_specs(spec, size=BLOCK, seed="0"):
         i += n
         bid = "b%02d" % k
         random.Random("%s:%s" % (seed, bid)).shuffle(part)
-        arms = {WARM: spec["arms"]["updated"], "updated": spec["arms"]["updated"]}     # warm-up start first (T-1004: not counted, not judged)
+        arms = {WARM: spec["arms"]["updated"]} if (warm == "each" or k == 1) else {}     # warm-up start first (T-1004: not counted, not judged); warm = first: only the slice's first block (rows of rdC-1 k01r / k02: a block that follows another one starts steady)
+        arms["updated"] = spec["arms"]["updated"]
         arms.update({a: spec["arms"][a] for a in part})
-        note = "%s; block %s of %d: warm-up start, %d arms, random order, base again at the end" % (spec.get("note", ""), bid, len(sizes), n)
+        note = "%s; block %s of %d: %s%d arms, random order, base again at the end" % (spec.get("note", ""), bid, len(sizes), "warm-up start, " if WARM in arms else "", n)
         out.append((bid, {**spec, "arms": arms, "drift_check": True, "note": note.lstrip("; ")}, part))
     return out
 
 
-def build_spec(branch, plain_path, arm, registry, src, sl="1/1", plain=None, split="priority", only=None, exclude=None, tag=None, block=BLOCK):
+def build_spec(branch, plain_path, arm, registry, src, sl="1/1", plain=None, split="priority", only=None, exclude=None, tag=None, block=BLOCK, extra=(), source="untested"):
     """only / exclude: arm names (e.g. the arms of an earlier slice's meta): keep only those / leave those out, before the slice is cut.
     split="even": the slices split the list evenly (no priority-first slice 1)."""
     if plain is None and os.path.exists(plain_path):
         plain = json.load(open(plain_path, encoding="utf-8"))
-    items = flags_of(arm, registry, registry.get("untested", {}).get(branch, []), src, plain)
+    items = flags_of(arm, registry, registry.get(source, {}).get(branch, []), src, plain)      # source = "backlog": the deferred switches (run-queue-us-backlog.sh)
+    have = {m["flag"] for _, m, _ in items}
+    items += [it for it in extra if it[1]["flag"] not in have]          # the named flags measured before (stage 1: screened again, one arm each)
     items.sort(key=lambda it: priority(it[1]))                 # stable: [arm], then [named], then [code], registry order inside each
     if only is not None:
         items = [it for it in items if it[0] in set(only)]
@@ -404,7 +430,7 @@ def pass2_verdict(rec, f, m2, d2, mx):
     return confirm_verdict(e2, f["exact"])
 
 
-def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX):
+def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX, screen_only=False):
     """pass1: the lines of one run, or [(block label, lines)] of the blocks, oldest first (a block's re-run after its first run: per arm the
     latest clean run is used, else the latest run).  pass2_lines: {arm: [(label, lines), ...]} = the PAIRED confirm block(s) of each flag
     (owner order 2026-11-20: one flag per confirm block), or the lines of one old multi-flag confirm run (A B B A, kept for old files)."""
@@ -421,7 +447,9 @@ def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX):
         e1 = effects(m1, name, f["kind"])
         ok1 = clean(d1, drift_max)
         promising = promising_of(e1, PROMISE[f["exact"]])
-        rec = {**f, "arm": name, "pass1": e1, "promising": promising and ok1, "pass2": None, "block": lab, "drift1": d1, "clean1": ok1,
+        if screen_only:                          # owner 2026-11-20: ANY case above 0 % (clean block) is "to be considered": PROMISING; ranked by gain afterwards (sweep.py rank)
+            promising = bool(e1) and max(e1.values()) > 0
+        rec = {**f, "arm": name, "slice": meta.get("slice"), "pass1": e1, "promising": promising and ok1, "pass2": None, "block": lab, "drift1": d1, "clean1": ok1,
                "blocks_run": [x[0] for x in have], "pass2_drift": d2 or None, "pass2_clean": ok2, "carry": False}
         if promising and min(e1.values()) < FLOOR:
             rec["floor_note"] = "a metric below %.0f %% in pass 1 (%s): reported, the confirm decides" % (FLOOR, worst(e1))
@@ -433,12 +461,16 @@ def triage(meta, pass1, pass2_lines=None, drift_max=DRIFT_MAX):
         elif v is not None:
             pass                                    # a pass-2 verdict (RETEST / INCONCLUSIVE when pass 2 drifted)
         elif not ok1:
-            rec["carry"] = promising
+            rec["carry"] = promising and not screen_only        # a screen-only INCONCLUSIVE is re-screened once (sweep.py select), not confirmed
             v = ("INCONCLUSIVE", "pass-1 block %s base drift %s > %.0f %% (after its re-run): no verdict%s" % (
                 lab, worst(d1), drift_max, "; promising numbers: carried to the follow-up RETEST slice" if promising else ""))
         elif not promising:
             v = (NOGAIN, "dropped after pass 1: no benefit observed (bar %.1f %%; clean block %s; n=1, not a refutation): no shipped change"
                  % (PROMISE[f["exact"]], lab))
+        elif screen_only:
+            rec["carry"] = True
+            v = ("PROMISING", "stage-1 screen (n=1, clean block %s): a case above 0 %% (best %+.2f %%): to be considered; the 3-rep confirm runs in descending order of gain "
+                              "(sweep.py rank: HIGH = best case >= 2.0 %% this round, 0 < gain < 2.0 %% PROMISING-LOW after the final comparison)" % (lab, max(e1.values())))
         else:
             rec["carry"] = True
             v = ("RETEST", "promising; pass 2 not run (budget): carried to the follow-up RETEST slice" if m2 is None
@@ -457,33 +489,39 @@ def rep_name(arm, k):
     return arm if k == 1 else "%s~%d" % (arm, k)
 
 
-def paired_spec(base_path, base_name, base_arm, name, arm, cases=None, note="", reps=PAIRED_REPS):
+def paired_spec(base_path, base_name, base_arm, name, arm, cases=None, note="", reps=PAIRED_REPS, layout="interleaved", warm=True):
     """ONE flag's confirm block: warm-up (the base, not counted), base, flag, base, flag, base, flag, base -- abtest --tier screen --drift-check runs the arms in spec order, one
     engine start each, and the base again at the end (base-late): 3 interleaved reps of the flag, each between two base runs of the same block."""
     cases = cases or CASES
-    arms = {WARM: base_arm}                      # the warm-up start (T-1004): first, not counted, not judged
-    for k in range(1, reps + 1):
-        arms[rep_name(base_name, k)] = base_arm
-        arms[rep_name(name, k)] = arm
+    arms = {WARM: base_arm} if warm else {}      # the warm-up start (T-1004): first, not counted, not judged
+    if layout == "compact":                      # base, flag x reps, then abtest's base-late (owner 2026-11-20: 5 counted starts, ~12 min)
+        arms[base_name] = base_arm
+        for k in range(1, reps + 1):
+            arms[rep_name(name, k)] = arm
+    else:
+        for k in range(1, reps + 1):
+            arms[rep_name(base_name, k)] = base_arm
+            arms[rep_name(name, k)] = arm
     return {"base": base_path, "drift_check": True, "lossy": True, "prefill": any(c.startswith("long") for c in cases), "cases": list(cases),
             "reps": 1, "arms": arms,
             "note": ("paired confirm block of ONE flag (%s against %s): one warm-up start of the base (not counted), base, flag x %d interleaved, base again at the end; tools/pancake/box_chains/"
                      "sweep.py paired_spec. %s" % (name, base_name, reps, note)).strip()}
 
 
-def paired_eval(lines, base_name, name, kind, cases=None, reps=PAIRED_REPS):
+def paired_eval(lines, base_name, name, kind, cases=None, reps=PAIRED_REPS, layout="interleaved"):
     """(effects {metric: % gain of the flag ON, the mean of the per-rep paired gains: flag rep k against the mean of the base runs before and
     after it}, drift {metric: the largest deviation (signed, %) of a later base run from the first one}, per-rep gains)."""
     cases = cases or CASES
     m = metrics(lines, cases=cases)
-    bases = [rep_name(base_name, k) for k in range(1, reps + 1)] + ["base-late"]
+    compact = layout == "compact"
+    bases = [base_name, "base-late"] if compact else [rep_name(base_name, k) for k in range(1, reps + 1)] + ["base-late"]
     flags = [rep_name(name, k) for k in range(1, reps + 1)]
     per = []
     for k, fa in enumerate(flags):
         fx = m.get(fa)
         if not fx:
             continue
-        br = [m.get(b) for b in bases[k:k + 2] if m.get(b)]
+        br = [m.get(b) for b in (bases if compact else bases[k:k + 2]) if m.get(b)]
         e = {}
         for met, x in fx.items():
             bv = [b[met] for b in br if b.get(met)]
@@ -495,8 +533,8 @@ def paired_eval(lines, base_name, name, kind, cases=None, reps=PAIRED_REPS):
             per.append(e)
     eff = {}
     for met in {k for e in per for k in e}:
-        vals = [e[met] for e in per if met in e]
-        eff[met] = round(sum(vals) / len(vals), 2)
+        vals = sorted(e[met] for e in per if met in e)
+        eff[met] = round(vals[len(vals) // 2] if compact and len(vals) % 2 else sum(vals) / len(vals), 2)     # compact: the median of the 3 reps (a disturbed start does not move it)
     eff = {k: eff[k] for k in sorted(eff, key=lambda k: (METRICS.index(k) if k in METRICS else 99, k))}
     md = metrics(lines, cases=cases, last=True)        # the drift is judged on the last request of each case per start (T-1004), the effects on the mean
     first = md.get(bases[0], {})
@@ -508,9 +546,9 @@ def paired_eval(lines, base_name, name, kind, cases=None, reps=PAIRED_REPS):
     return eff, drift, [{k: round(v, 2) for k, v in e.items()} for e in per]
 
 
-def paired_record(rec, runs, base_name, name, kind, exact, cases, mx=DRIFT_MAX):
+def paired_record(rec, runs, base_name, name, kind, exact, cases, mx=DRIFT_MAX, layout="interleaved"):
     """Fill rec from the paired block run(s) [(label, lines)] of one flag (the latest clean run, else the latest) -> (verdict, reason)."""
-    evs = [(lab, paired_eval(ls, base_name, name, kind, cases)) for lab, ls in runs if ls]
+    evs = [(lab, paired_eval(ls, base_name, name, kind, cases, layout=layout)) for lab, ls in runs if ls]
     evs = [x for x in evs if x[1][0]]
     if not evs:
         rec.update({"pass2": None, "pass2_drift": None, "pass2_clean": None})
@@ -518,7 +556,7 @@ def paired_record(rec, runs, base_name, name, kind, exact, cases, mx=DRIFT_MAX):
     lab, (eff, drift, per) = ([x for x in evs if clean(x[1][1], mx)] or evs)[-1]
     ok = clean(drift, mx)
     rec.update({"pass2": eff, "pass2_reps": per, "pass2_drift": drift or None, "pass2_clean": ok, "pass2_block": lab,
-                "pass2_runs": [x[0] for x in evs], "pass2_design": "paired block: warm-up (not counted), base, flag x 3 interleaved, base", "drift_estimator": "last request of each case per start"})
+                "pass2_runs": [x[0] for x in evs], "pass2_design": ("compact paired block: base, flag x 3, base (median of the 3 paired gains)" if layout == "compact" else "paired block: warm-up (not counted), base, flag x 3 interleaved, base"), "drift_estimator": "last request of each case per start"})
     if not ok:
         rec["carry"] = True
         return "INCONCLUSIVE", "paired block %s base drift %s > %.0f %% (after its re-run): no verdict; carried to the follow-up RETEST slice" % (
@@ -600,9 +638,6 @@ def merge(parts):
 
 
 # ------------------------------------------------------------------ RETEST slices (bench-retest.sh): one paired block per flag
-CASE_S = {"short": 30, "edit": 40, "longdec10k": 30, "longdec32k": 50, "longdec64k": 90, "longdec100k": 140, "long10k": 20, "long32k": 45,
-          "long64k": 70, "long100k": 110}
-START_OVH = 30                             # per engine start (load, warm-up); short + edit + longdec32k = 150 s = START_S
 
 
 def start_s(cases):
@@ -670,21 +705,78 @@ def carry_entries(docs):
             out.append({"key": "%s:%s" % (doc["branch"], m["flag"]), "branch": doc["branch"], "flag": m["flag"], "type": "paired", "kind": m["kind"],
                         "exact": bool(m.get("exact", True)), "bundle": False, "base_name": "updated", "arm_name": an, "base_arm": doc["base_arm"],
                         "arm": x["arm"], "env": m.get("env") or {}, "args": m.get("args") or {}, "base": doc["base"], "cases": cases,
-                        "est": 8 * start_s(cases), "why": "carried from slice %s (pass 1 %s)" % (doc.get("slice"), json.dumps(x.get("pass1")))})
+                        "est": 8 * start_s(cases), "why": "carried from slice %s (pass 1 %s)" % (doc.get("slice"), json.dumps(x.get("pass1"))),
+                        "gain": max((x.get("pass1") or {0: 0}).values())})
     return out
 
 
-def retest_blocks(groups, slice_name, bases, registry, src, carry_docs=()):
+def carried(docs, br=None):
+    """The carried flags of the carry files, deduplicated (a flag carried twice runs once: the later file wins), the strongest pass-1 gain first
+    (stage 2 of the US queue confirms the most promising flags first)."""
+    seen, uniq = set(), []
+    for e in carry_entries(docs):
+        if br not in (None, e["branch"]):
+            continue
+        if e["key"] in seen:
+            uniq = [u for u in uniq if u["key"] != e["key"]]
+        seen.add(e["key"])
+        uniq.append(e)
+    return sorted(uniq, key=lambda e: -e["gain"])
+
+
+HIGH_GAIN = 2.0                          # owner 2026-11-20: ~2 % is the line between high and low gain (screen, best case effect)
+
+
+def rank_doc(ents, high=HIGH_GAIN):
+    """The ranked queue of the PROMISING flags (best screen case effect first, OPTIONAL-pattern flags by their big case): gain >= high (2.0 %) = HIGH, confirmed this round
+    in descending order (6 per slice, the tail spills into the next slice); 0 < gain < 2 % = PROMISING-LOW: skipped for now, confirmed in stage 2b after the final
+    comparison in the same order.  Nothing is dropped here (flags <= 0 % never get this far: NO-GAIN-P1)."""
+    m = len(ents)
+    cut = sum(1 for e in ents if e["gain"] >= high)
+    rule = "%d of %d promising flag(s) have a best screen case >= %.1f %% (HIGH, confirmed this round, highest first); %d are PROMISING-LOW (0 < gain < %.1f %%, stage 2b after the final comparison)" % (
+        cut, m, high, m - cut, high)
+    flags = [{"rank": i + 1, "flag": e["flag"], "arm": e["arm_name"], "kind": e["kind"], "exact": e["exact"], "gain": e["gain"],
+              "pass1": json.loads(e["why"].split("(pass 1 ", 1)[1][:-1]) if "(pass 1 " in e["why"] else None,
+              "verdict": "PROMISING" if i < cut else "PROMISING-LOW", "tier": "high" if i < cut else "low"} for i, e in enumerate(ents)]
+    return {"schema": "pancake.sweep-ranked/1", "cut": cut, "n": m, "high": high, "rule": rule, "flags": flags}
+
+
+def gate_entries(docs, base_path, upd, prefix="", bar=3.0):
+    """Quality-gate blocks of flags whose CLEAN confirm shows a lossy gain >= bar (verdict RETEST-GATE, or an OPTIONAL lossy one) in the triage docs
+    `docs`, only records of a retest slice whose name starts with `prefix` (the stage-2 slices usS2-*): the gate compares updated with updated MINUS the flag (a flag the
+    updated arm sets) or PLUS the flag (one it does not set)."""
+    out = []
+    ue, ua = upd.get("env") or {}, upd.get("args") or {}
+    for doc in docs:
+        for flag, r in doc.get("flags", {}).items():
+            p2 = r.get("pass2") or {}
+            if r.get("bundle") or r.get("exact", True) or r.get("verdict") not in ("RETEST-GATE", "OPTIONAL") or r.get("pass2_clean") is not True \
+                    or not p2 or max(p2.values()) < bar or not str(r.get("source", "")).startswith("bench-retest.sh " + prefix):
+                continue
+            env, args = r.get("env") or {}, r.get("args") or {}
+            if r.get("kind") == "minus":
+                arm = {**upd, "env": {k: v for k, v in ue.items() if k not in env}, "args": {k: v for k, v in ua.items() if k not in args}}
+            else:
+                arm = {**upd, "env": {**ue, **env}, "args": {**ua, **args}}
+            out.append({"key": "us:GATE-" + flag, "branch": "us", "flag": flag, "type": "gate", "base_name": "updated", "base": base_path,
+                        "arms": {"updated": upd, "%s-%s" % (r.get("kind", "plus"), flag.replace("STRATA_", "").lstrip("-")): arm}, "est": 2700,
+                        "cases": list(CASES), "bundle": False,
+                        "why": "quality gate: the confirm of %s shows a lossy gain (%s)" % (flag, json.dumps(p2))})
+    return out
+
+
+def retest_blocks(groups, slice_name, bases, registry, src, carry_docs=(), offset=0, limit=None, gate_docs=(), gate_prefix=""):
+    """offset / limit: a carry slice takes the carried flags [offset:offset+limit] (strongest first): the stage-2 slices of the US queue."""
     if slice_name.startswith("carry"):
-        br = slice_name.split("-", 1)[1] if "-" in slice_name else None
-        ents = [e for e in carry_entries(carry_docs) if br in (None, e["branch"])]
-        seen, uniq = set(), []
-        for e in ents:                                  # a flag carried by two slices runs once (the later carry file wins)
-            if e["key"] in seen:
-                uniq = [u for u in uniq if u["key"] != e["key"]]
-            seen.add(e["key"])
-            uniq.append(e)
-        ents = uniq
+        parts = slice_name.split("-")
+        br = parts[1] if len(parts) > 1 and parts[1] in ("us", "rd") else None
+        ents = carried(carry_docs, br)
+        ents = ents[offset:] if limit is None else ents[offset:offset + limit]
+    elif slice_name.startswith("gates"):
+        ents = [resolve_entry(k, groups["entries"].get(k, {}), bases, registry, src) for k in groups["slices"]["gates-us"]]    # every gates-* slice: the static gate(s) + the dynamic ones, cut by offset / limit
+        have = {e["key"] for e in ents}
+        ents += [e for e in gate_entries(gate_docs, bases["us"]["path"], bases["us"]["arms"]["updated"], gate_prefix) if e["key"] not in have]
+        ents = ents[offset:] if limit is None else ents[offset:offset + limit]
     else:
         if slice_name not in groups["slices"]:
             raise SystemExit("sweep retest: no slice %s in the groups file (have: %s)" % (slice_name, ", ".join(groups["slices"])))
@@ -696,7 +788,8 @@ def retest_blocks(groups, slice_name, bases, registry, src, carry_docs=()):
 
 def block_spec_of(e):
     if e["type"] == "paired":
-        return paired_spec(e["base"], e["base_name"], e["base_arm"], e["arm_name"], e["arm"], e["cases"], e.get("why", ""))
+        return paired_spec(e["base"], e["base_name"], e["base_arm"], e["arm_name"], e["arm"], e["cases"], e.get("why", ""), layout=e.get("layout", "interleaved"),
+                           warm=e.get("warm", True))
     if e["type"] == "gate":
         return {"base": e["base"], "lossy": True, "prefill": False, "cases": ["short", "edit"], "reps": 1, "arms": e["arms"],
                 "note": "quality gate of updated against updated minus %s (bench-retest.sh): %s" % (e["flag"], e.get("why", ""))}
@@ -732,7 +825,7 @@ def retest_verdicts(blocks, runs, drift_max=DRIFT_MAX):
                "why": e.get("why", ""), "cases": e["cases"]}
         if e.get("ship"):
             rec["ship"] = e["ship"]
-        v = paired_record(rec, rs, e["base_name"], e["arm_name"], e["kind"], e["exact"], e["cases"], drift_max)
+        v = paired_record(rec, rs, e["base_name"], e["arm_name"], e["kind"], e["exact"], e["cases"], drift_max, e.get("layout", "interleaved"))
         if v is None:
             v = ("UNTESTED", "no rows of the paired block")
         if e["bundle"]:
@@ -764,7 +857,7 @@ def final_arms(tri, s220, s222):
     return doc["arms"], changes, actions
 
 
-def final_specs(tri, s220_doc, s222_doc, shipped=None, reps=FINAL_REPS):
+def final_specs(tri, s220_doc, s222_doc, shipped=None, reps=FINAL_REPS, long_cases=None):
     """{name: spec} of the final comparison: final-short (short + edit), final-long (10K / 32K / 64K / 100K), final-gate (the quality-gate spec: plain-upstream
     first = scored twice as the noise, updated-exact, updated); each with the three arms stock plain-upstream, updated (lossy), updated-exact; plus the plan lines."""
     arms, changes, actions = final_arms(tri, s220_doc["arms"], s222_doc["arms"])
@@ -778,7 +871,7 @@ def final_specs(tri, s220_doc, s222_doc, shipped=None, reps=FINAL_REPS):
     base = s220_doc["base"]
     mk = lambda cases, prefill, reps: {"base": base, "lossy": True, "prefill": prefill, "cases": list(cases), "reps": reps,
                                        "arms": json.loads(json.dumps(three)), "note": note}
-    specs = {"final-short": mk(FINAL_SHORT, False, reps), "final-long": mk(FINAL_LONG, True, reps)}
+    specs = {"final-short": mk(FINAL_SHORT, False, reps), "final-long": mk(long_cases or FINAL_LONG, True, reps)}
     gate = mk(FINAL_SHORT, False, 1)
     gate["arms"] = {k: json.loads(json.dumps(three[k])) for k in ("plain-upstream", "updated-exact", "updated")}     # the order of spec 222
     gate["note"] = "QUALITY GATE of the final comparison: " + note
@@ -800,7 +893,7 @@ def final_estimate(specs, reps=FINAL_REPS):
     n_arms = 3
     blocks = -(-reps // 3)
     starts = n_arms * reps + blocks * n_arms * 1
-    return {"final-short": starts * start_s(FINAL_SHORT), "final-long": starts * start_s(FINAL_LONG), "final-gate": 2700}
+    return {"final-short": starts * start_s(FINAL_SHORT), "final-long": starts * start_s(specs["final-long"]["cases"]), "final-gate": 2700}
 
 
 def read_lines(f):
@@ -832,11 +925,16 @@ def main(argv=None):
     s.add_argument("--exclude-meta", action="append", default=[], help="leave out the arms of this meta file")
     s.add_argument("--tag", help="the slice name in the meta and the file names (default: --slice)")
     s.add_argument("--block-size", type=int, default=BLOCK)
+    s.add_argument("--warm", choices=["each", "first"], default="each")
+    s.add_argument("--source", choices=["untested", "backlog"], default="untested")
+    s.add_argument("--extra", action="append", default=[], help="KEY of retest_groups.json (e.g. us:--lookup-max-t): a named flag measured before, screened again (one arm)")
+    s.add_argument("--groups", default=os.path.join(HERE, "retest_groups.json"))
     b = sub.add_parser("blocks")
     b.add_argument("--spec", required=True)
     b.add_argument("--prefix", required=True)
     b.add_argument("--size", type=int, default=BLOCK)
     b.add_argument("--seed", default="0")
+    b.add_argument("--warm", choices=["each", "first"], default="each")
     d = sub.add_parser("drift")
     d.add_argument("--rows", required=True)
     d.add_argument("--pass2", action="store_true")
@@ -848,6 +946,7 @@ def main(argv=None):
     t.add_argument("--pass2-run", action="append", default=[], help="ARM=FILE.jsonl: a paired confirm block of one flag (its re-run after it)")
     t.add_argument("--out", required=True)
     t.add_argument("--drift-max", type=float, default=DRIFT_MAX)
+    t.add_argument("--screen-only", action="store_true", help="stage 1: a promising flag is PROMISING (no pass 2), an INCONCLUSIVE one is not carried")
     r = sub.add_parser("remark")
     r.add_argument("--triage", required=True)
     r.add_argument("--pass1", required=True)
@@ -880,6 +979,28 @@ def main(argv=None):
     rt.add_argument("--drop-env", action="append", default=[])
     rt.add_argument("--set-env", action="append", default=[])
     rt.add_argument("--carry", nargs="*", default=[])
+    rt.add_argument("--layout", choices=["interleaved", "compact"], default="interleaved", help="paired block: base,flag x3 interleaved (8 starts) or compact base,flag x3,base-late (5)")
+    rt.add_argument("--warm", choices=["each", "first"], default="each", help="warm-up start in every paired block or only the first one of the slice")
+    rt.add_argument("--carry-offset", type=int, default=0)
+    rt.add_argument("--carry-max", type=int, default=None)
+    rt.add_argument("--gate-from", nargs="*", default=[], help="triage files whose clean lossy confirms >= 3 %% get a quality-gate block (slice gates-*)")
+    rt.add_argument("--gate-prefix", default="", help="only records whose source starts with this")
+    rk = sub.add_parser("rank")
+    rk.add_argument("--carry", nargs="*", default=[])
+    rk.add_argument("--branch", default="us")
+    rk.add_argument("--high", type=float, default=2.0)
+    rk.add_argument("--out", required=True)
+    cc = sub.add_parser("carry-count")
+    cc.add_argument("--carry", nargs="*", default=[])
+    cc.add_argument("--branch", default="us")
+    cc.add_argument("--gate-from", nargs="*", default=[], help="also print GATECOUNT: the quality-gate blocks of the clean lossy confirms (+1: the static --lookup-max-t gate)")
+    cc.add_argument("--gate-prefix", default="")
+    cc.add_argument("--gate-base-spec", help="spec 220 (its updated arm is the gate base)")
+    sl = sub.add_parser("select")
+    sl.add_argument("--triage", required=True)
+    sl.add_argument("--verdict", default="INCONCLUSIVE,UNTESTED")
+    sl.add_argument("--slice-prefix", default="")
+    sl.add_argument("--out", required=True)
     rv = sub.add_parser("retest-triage")
     rv.add_argument("--blocks", required=True)
     rv.add_argument("--run", action="append", default=[], help="BID=FILE.jsonl (a block's run; its re-run after it)")
@@ -892,6 +1013,7 @@ def main(argv=None):
     fs.add_argument("--shipped", help="terminal/data/tuned-flags.json (a copy is changed in memory only: the FINALSHIPPED lines)")
     fs.add_argument("--out-dir", required=True)
     fs.add_argument("--reps", type=int, default=FINAL_REPS)
+    fs.add_argument("--long", default="", help="comma list of long cases (default: all four sizes); the PRELIMINARY comparison: longdec64k,longdec100k")
     fs.add_argument("--prefix", default="final", help="file name prefix (prelim: the PRELIMINARY comparison)")
     fs.add_argument("--no-triage", action="store_true", help="PRELIMINARY: apply no triage, the arms of specs 220 / 222 as shipped now")
     pd = sub.add_parser("paired-drift")
@@ -900,6 +1022,7 @@ def main(argv=None):
     pd.add_argument("--arm", required=True)
     pd.add_argument("--cases", default=",".join(CASES))
     pd.add_argument("--max", type=float, default=DRIFT_MAX)
+    pd.add_argument("--layout", choices=["interleaved", "compact"], default="interleaved")
     g = sub.add_parser("merge")
     g.add_argument("--out", required=True)
     g.add_argument("parts", nargs="+")
@@ -907,6 +1030,7 @@ def main(argv=None):
     e.add_argument("--arms", type=int, required=True)
     e.add_argument("--pass2-max", type=int, default=6)
     e.add_argument("--block-size", type=int, default=BLOCK)
+    e.add_argument("--warm", choices=["each", "first"], default="each")
     a = ap.parse_args(argv)
     if a.cmd == "spec":
         plain = json.load(open(a.plain, encoding="utf-8"))
@@ -921,12 +1045,14 @@ def main(argv=None):
             raise SystemExit("sweep spec: --arm-from or --updated-config")
         only = meta_arms(a.only_meta) if a.only_meta else None
         excl = [x for m in a.exclude_meta for x in meta_arms(m)]
-        spec, meta = build_spec(a.branch, a.plain, arm, json.load(open(a.registry, encoding="utf-8")), a.src, a.slice, split=a.split, only=only,
-                                exclude=excl, tag=a.tag, block=a.block_size)
+        registry = json.load(open(a.registry, encoding="utf-8"))
+        extra = extra_items(a.extra, json.load(open(a.groups, encoding="utf-8")), registry, arm, a.src, a.plain) if a.extra else ()
+        spec, meta = build_spec(a.branch, a.plain, arm, registry, a.src, a.slice, split=a.split, only=only,
+                                exclude=excl, tag=a.tag, block=a.block_size, extra=extra, source=a.source)
         json.dump(spec, open(a.out, "w"), indent=1)
         json.dump(meta, open(a.out + ".meta.json", "w"), indent=1)
         n = len(meta["flags"])
-        p1, rr, p2 = estimate(n, a.pass2_max, a.block_size)
+        p1, rr, p2 = estimate(n, a.pass2_max, a.block_size, a.warm)
         pr = [priority(f) for f in meta["flags"].values()]
         print("SWEEP %s slice %s: %d flag arms (%d minus, %d plus; %d arm, %d named, %d code) in %d blocks of <= %d (%s), each with updated + base-late; "
               "estimate pass 1 %d s, one block re-run %d s, pass 2 <= %d s, total <= %d s"
@@ -936,10 +1062,10 @@ def main(argv=None):
         print("ESTIMATE %d %d %d" % (p1, p2, rr))
     elif a.cmd == "blocks":
         spec = json.load(open(a.spec, encoding="utf-8"))
-        for bid, sp, order in block_specs(spec, a.size, a.seed):
+        for bid, sp, order in block_specs(spec, a.size, a.seed, a.warm):
             path = "%s-%s.json" % (a.prefix, bid)
             json.dump(sp, open(path, "w"), indent=1)
-            print("BLOCK %s %d %s order: %s" % (bid, (len(order) + 3) * START_S, path, " ".join(order)))
+            print("BLOCK %s %d %s order: %s" % (bid, (len(order) + (3 if WARM in sp["arms"] else 2)) * START_S, path, " ".join(order)))
     elif a.cmd == "drift":
         lines = read_lines(a.rows) or []
         dd = drift2(lines) if a.pass2 else drift1(lines)
@@ -960,7 +1086,7 @@ def main(argv=None):
                 ls = read_lines(f)
                 if ls is not None:
                     p2.setdefault(an, []).append((os.path.basename(f).rsplit(".", 1)[0], ls))
-        tri = triage(meta, sets, p2, a.drift_max)
+        tri = triage(meta, sets, p2, a.drift_max, a.screen_only)
         json.dump(tri, open(a.out, "w"), indent=1)
         for fl, rc in sorted(tri["flags"].items(), key=lambda kv: kv[1]["verdict"]):
             print("%-12s %-36s pass1 %s%s  [%s]" % (rc["verdict"], fl, json.dumps(rc["pass1"]), "  pass2 " + json.dumps(rc["pass2"]) if rc["pass2"] else "",
@@ -1020,9 +1146,16 @@ def main(argv=None):
         if miss:
             raise SystemExit("sweep retest: no base configs for branch(es) %s" % ", ".join(miss))
         docs = [json.load(open(f, encoding="utf-8")) for f in a.carry if os.path.exists(f)]
-        blocks = retest_blocks(groups, a.slice, bases, registry, src, docs)
+        gdocs = [json.load(open(f, encoding="utf-8")) for f in a.gate_from if os.path.exists(f)]
+        blocks = retest_blocks(groups, a.slice, bases, registry, src, docs, a.carry_offset, a.carry_max, gdocs, a.gate_prefix)
+        first_paired = True
         for e in blocks:
             e["slice"] = a.slice
+            if e["type"] == "paired":
+                e["layout"] = a.layout
+                e["warm"] = a.warm == "each" or first_paired
+                first_paired = False
+                e["est"] = ((1 if e["warm"] else 0) + (5 if a.layout == "compact" else 7)) * start_s(e["cases"])
             sp = block_spec_of(e)
             e["path"] = os.path.join(a.out_dir, "retest-%s-%s.json" % (a.slice, e["bid"])) if sp else None
             if sp:
@@ -1032,6 +1165,30 @@ def main(argv=None):
         json.dump(blocks, open(os.path.join(a.out_dir, "retest-%s.blocks.json" % a.slice), "w"), indent=1)
         print("RETEST %s: %d blocks, estimate %d s" % (a.slice, len(blocks), sum(e["est"] for e in blocks)))
         print("ESTIMATE %d" % sum(e["est"] for e in blocks))
+    elif a.cmd == "rank":
+        docs = [json.load(open(f, encoding="utf-8")) for f in a.carry if os.path.exists(f)]
+        ents = carried(docs, a.branch)
+        doc = rank_doc(ents, a.high)
+        json.dump(doc, open(a.out, "w"), indent=1)
+        print("RANKCUT %d %d" % (doc["cut"], len(ents)))
+        print("RANKRULE %s" % doc["rule"])
+        for r in doc["flags"]:
+            print("RANKFLAG %d %s %+.2f %s" % (r["rank"], r["flag"], r["gain"], r["verdict"]))
+    elif a.cmd == "carry-count":
+        docs = [json.load(open(f, encoding="utf-8")) for f in a.carry if os.path.exists(f)]
+        ents = carried(docs, a.branch)
+        print("CARRYCOUNT %d" % len(ents))
+        if a.gate_from and a.gate_base_spec:
+            gd = [json.load(open(f, encoding="utf-8")) for f in a.gate_from if os.path.exists(f)]
+            print("GATECOUNT %d" % (1 + len(gate_entries(gd, "-", load_arm(a.gate_base_spec), a.gate_prefix))))
+        for e in ents:
+            print("CARRYFLAG %s %+.2f" % (e["flag"], e["gain"]))
+    elif a.cmd == "select":
+        tri = json.load(open(a.triage, encoding="utf-8"))
+        vs = set(a.verdict.split(","))
+        fl = {r["arm"]: r for r in tri["flags"].values() if r.get("verdict") in vs and str(r.get("slice") or "").startswith(a.slice_prefix) and r.get("arm")}
+        json.dump({"schema": "pancake.sweep-select/1", "verdicts": sorted(vs), "flags": fl}, open(a.out, "w"), indent=1)
+        print("SELECT %d flag(s) with verdict %s: %s" % (len(fl), "/".join(sorted(vs)), ", ".join(r["flag"] for r in fl.values())))
     elif a.cmd == "retest-triage":
         blocks = json.load(open(a.blocks, encoding="utf-8"))
         runs = {}
@@ -1053,7 +1210,7 @@ def main(argv=None):
         if tri.get("schema") != "pancake.sweep-triage/2" or tri.get("branch") not in (None, "us"):
             raise SystemExit("sweep final-specs: %s is not a v2 triage of branch us" % a.triage)
         sh = json.load(open(a.shipped, encoding="utf-8")) if a.shipped and os.path.exists(a.shipped) else None
-        specs, lines = final_specs(tri, json.load(open(a.us_arm_spec, encoding="utf-8")), json.load(open(a.us_exact_spec, encoding="utf-8")), sh, a.reps)
+        specs, lines = final_specs(tri, json.load(open(a.us_arm_spec, encoding="utf-8")), json.load(open(a.us_exact_spec, encoding="utf-8")), sh, a.reps, a.long.split(",") if a.long else None)
         est = final_estimate(specs, a.reps)
         for name, sp in specs.items():
             fn = os.path.join(a.out_dir, name.replace("final", a.prefix, 1) + ".json")
@@ -1065,7 +1222,7 @@ def main(argv=None):
         print("ESTIMATE %d" % sum(est.values()))
     elif a.cmd == "paired-drift":
         lines = read_lines(a.rows) or []
-        eff, dd, per = paired_eval(lines, a.base, a.arm, "plus", a.cases.split(","))
+        eff, dd, per = paired_eval(lines, a.base, a.arm, "plus", a.cases.split(","), layout=a.layout)
         ok = clean(dd, a.max)
         print("DRIFT %s max %s -> %s" % ("  ".join("%s %+.1f%%" % kv for kv in dd.items()) or "no base rows",
                                           ("%.1f%%" % max(abs(v) for v in dd.values())) if dd else "-",
@@ -1074,7 +1231,7 @@ def main(argv=None):
     elif a.cmd == "merge":
         json.dump(merge(a.parts), open(a.out, "w"), indent=1)
     else:
-        p1, rr, p2 = estimate(a.arms, a.pass2_max, a.block_size)
+        p1, rr, p2 = estimate(a.arms, a.pass2_max, a.block_size, a.warm)
         print("ESTIMATE %d %d %d" % (p1, p2, rr))
     return 0
 

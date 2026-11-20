@@ -12,7 +12,8 @@
   "usT-1": ["us:STRATA_ENGINE_NICE", "us:STRATA_SELECT_WMMA", "us:STRATA_ATTN_DAILY", "us:STRATA_KV_PREFETCH", "us:STRATA_STAGER_RING"],
   "usT-2": ["us:STRATA_PF_GROUP_SCRATCH", "us:STRATA_PROMPT_ATTN_IMMA", "us:--lookup-max-t", "us:STRATA_GR_RDNA_Q8", "us:STRATA_GR_RDNA_A8"],
   "usT-3": ["us:STRATA_GR_INJ_UP", "us:STRATA_GR_FUSED", "us:STRATA_GR_RDNA", "us:STRATA_RDNA_MMVQ_WAVE", "us:STRATA_RDNA_Q6K"],
-  "usT-4": ["us:STRATA_HIPBLASLT_TUNING", "us:BUNDLE-222-updated-exact", "us:GATE-lookup-max-t", "us:SPEC-223"]
+  "usT-4": ["us:STRATA_HIPBLASLT_TUNING", "us:BUNDLE-222-updated-exact", "us:GATE-lookup-max-t", "us:SPEC-223"],
+  "gates-us": ["us:GATE-lookup-max-t"]
  },
  "entries": {
   "rd:STRATA_EXPDEC": {"kind": "minus", "why": "pass 1 (void one-run slice 1): long-decode gain, short loss: an OPTIONAL candidate"},
