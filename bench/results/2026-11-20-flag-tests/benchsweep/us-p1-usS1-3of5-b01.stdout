@@ -12,3 +12,63 @@ rep 0 plus-EMB_REUSE_ACCOUNT: every attempt noisy, keeping the quietest (4% fore
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-m1              short 110.6 short 102.9 edit 168.9 edit 169.5 longdec64k 84.1/2182p 65242t  foreign CPU 3% [('kcompactd0', 7), ('kswapd0', 3), ('kworker/0:1-events', 2)]  gpu 2039/1249 MHz 65C 187W gtt 25M cpu 3755MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-FUSE_DECODE     short 108.9 short 103.3 edit 168.0 edit 169.9 longdec64k 84.6/2191p 65242t  foreign CPU 5% [('kcompactd0', 7), ('kswapd0', 3), ('systemd', 1)]  gpu 1979/1249 MHz 65C 183W gtt 25M cpu 3560MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-FUSE_DECODE: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-FS_SLOTS        short 101.3 short 110.0 edit 144.9 edit 163.8 longdec64k 75.0/2176p 65242t  foreign CPU 5% [('kcompactd0', 8), ('kworker/0:1-events', 3), ('kswapd0', 2)]  gpu 2039/1249 MHz 66C 188W gtt 25M cpu 3689MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-FS_SLOTS: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 108.5 short 103.6 edit 170.1 edit 172.1 longdec64k 81.8/2192p 65242t  foreign CPU 4% [('kcompactd0', 7), ('kswapd0', 3), ('kworker/1:2-events', 3)]  gpu 1964/1249 MHz 66C 182W gtt 25M cpu 3488MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 104.8 +-  15.9  (n=2)
+                              drafts accepted 0.71
+  short  plus-EMBED_VRAM         101.2 +-  24.8  (n=2)   vs updated:  -3.4% +- 38.8%  -> no difference
+                              drafts accepted 0.66
+  short  plus-EMB_REUSE_ACCOUNT    105.1 +-  29.2  (n=2)   vs updated:  +0.3% +- 12.7%  -> no difference
+                              drafts accepted 0.70
+  short  base-m1                 106.8 +-  48.9  (n=2)   vs updated:  +1.9% +- 31.5%  -> no difference
+                              drafts accepted 0.71
+  short  plus-FUSE_DECODE        106.1 +-  35.6  (n=2)   vs updated:  +1.3% +- 18.8%  -> no difference
+                              drafts accepted 0.71
+  short  plus-FS_SLOTS           105.7 +-  55.3  (n=2)   vs updated:  +0.9% +- 67.9%  -> no difference
+                              drafts accepted 0.70
+  short  base-late               106.0 +-  31.1  (n=2)   vs updated:  +1.2% +- 14.6%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 168.5 +-  15.3  (n=2)
+                              drafts accepted 0.90
+  edit   plus-EMBED_VRAM         173.4 +- 137.9  (n=2)   vs updated:  +2.9% +- 72.8%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-EMB_REUSE_ACCOUNT    182.6 +-  43.8  (n=2)   vs updated:  +8.4% +- 35.1%  -> no difference
+                              drafts accepted 0.91
+  edit   base-m1                 169.2 +-   3.8  (n=2)   vs updated:  +0.4% +-  6.8%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-FUSE_DECODE        168.9 +-  12.1  (n=2)   vs updated:  +0.3% +-  1.9%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-FS_SLOTS           154.4 +- 120.1  (n=2)   vs updated:  -8.4% +- 62.2%  -> no difference
+                              drafts accepted 0.87
+  edit   base-late               171.1 +-  12.7  (n=2)   vs updated:  +1.5% +-  1.5%  -> better
+                              drafts accepted 0.89
+  longdec64k updated                  82.8 +-   nan  (n=1)
+  longdec64k plus-EMBED_VRAM          80.6 +-   nan  (n=1)   vs updated:  -2.7% +-  nan%  -> no difference
+  longdec64k plus-EMB_REUSE_ACCOUNT     82.3 +-   nan  (n=1)   vs updated:  -0.6% +-  nan%  -> no difference
+  longdec64k base-m1                  84.1 +-   nan  (n=1)   vs updated:  +1.6% +-  nan%  -> no difference
+  longdec64k plus-FUSE_DECODE         84.6 +-   nan  (n=1)   vs updated:  +2.2% +-  nan%  -> no difference
+  longdec64k plus-FS_SLOTS            75.0 +-   nan  (n=1)   vs updated:  -9.4% +-  nan%  -> no difference
+  longdec64k base-late                81.8 +-   nan  (n=1)   vs updated:  -1.2% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-EMBED_VRAM      DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-EMB_REUSE_ACCOUNT DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-FUSE_DECODE     identical on every case -> exact
+  plus-FS_SLOTS        DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +1.2%  edit +1.5%  longdec64k -1.2%
+  plus-EMBED_VRAM      short -4.0%  edit +2.1%  longdec64k -2.1%  -> drop
+  plus-EMB_REUSE_ACCOUNT short -0.3%  edit +7.6%  longdec64k +0.0%  -> PROMOTE to confirm
+  base-m1              short +1.3%  edit -0.4%  longdec64k +2.2%  -> PROMOTE to confirm
+  plus-FUSE_DECODE     short +0.7%  edit -0.5%  longdec64k +2.8%  -> PROMOTE to confirm
+  plus-FS_SLOTS        short +0.2%  edit -9.1%  longdec64k -8.9%  -> drop
