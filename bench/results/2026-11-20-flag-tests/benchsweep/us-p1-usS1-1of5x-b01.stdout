@@ -18,3 +18,6 @@ rep 0 base-m1              short 110.4 short 103.4 edit 113.8 edit 138.1 longdec
 REGIME-STILL-SLOW base-m1: first start prefill 1504 / load 0.39 GiB/s (paused 15:15:10), second start prefill 1501 / load 1.22 GiB/s
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-EXPDEC         short 86.4 short 92.0 edit 138.9 edit 134.1 longdec64k 72.4/1398p 65241t  foreign CPU 2% [('snapd', 6), ('claude', 1), ('gsd-housekeepin', 1)]  gpu 2002/1249 MHz 62C 184W gtt 25M cpu 3556MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-EXCHANGE_ROTATE short 101.1 short 94.0 edit 170.8 edit 134.0 longdec64k 81.4/1542p 65241t  foreign CPU 2% [('kcompactd0', 6), ('kworker/1:0-events', 4), ('dbus-daemon', 0)]  gpu 1944/1249 MHz 63C 179W gtt 25M cpu 3558MHz 65C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
