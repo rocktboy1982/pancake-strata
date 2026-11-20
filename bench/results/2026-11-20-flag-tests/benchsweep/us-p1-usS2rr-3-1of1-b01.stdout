@@ -3,3 +3,10 @@ case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique 
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.45 34.5 s (1.06 GiB/s; stopped; waited 13.8 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 warmup               short 110.9 short 103.7 edit 166.5 edit 170.3 longdec64k 79.3/1859p 65239t  foreign CPU 2% [('gnome-shell', 4), ('localsearch-3', 1), ('systemd-oomd', 0)]  gpu 2043/1249 MHz 62C 193W gtt 25M cpu 3582MHz 64C igpu 0%/vcn 0% fclk 1600
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.53 88.4 s (0.41 GiB/s; eof; waited 17.4 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 100.8 short 98.0 edit 125.8 edit 139.4 longdec64k 79.9/1576p 65239t  foreign CPU 4% [('kcompactd0', 9), ('kworker/1:2-mm_percpu_wq', 4), ('kworker/0:1-events', 1)]  gpu 2010/1249 MHz 62C 186W gtt 25M cpu 3720MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1576, pack load 0.37 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 33.7 s (1.08 GiB/s; stopped; waited 12.6 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
