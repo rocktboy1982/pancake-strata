@@ -6,3 +6,7 @@ REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1510, pack load 0.64 GiB/
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 updated              short 104.5 short 92.0 edit 172.3 edit 178.3 longdec64k 81.9/1601p 65241t  foreign CPU 2% [('claude', 1), ('kcompactd0', 1), ('localsearch-3', 1)]  gpu 1954/1249 MHz 62C 180W gtt 25M cpu 3789MHz 65C igpu 0%/vcn 0% fclk 1600
 REGIME-STILL-SLOW updated: first start prefill 1510 / load 0.64 GiB/s (paused 21:32:24), second start prefill 1601 / load 0.95 GiB/s
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-IQ_STAGE_GRID_MMVQ short 96.5 short 86.7 edit 151.6 edit 168.1 longdec64k 78.6/1462p 65241t  foreign CPU 2% [('kcompactd0', 3), ('kworker/9:2-mm_percpu_wq', 1), ('claude', 1)]  gpu 2004/1249 MHz 63C 185W gtt 25M cpu 3616MHz 66C igpu 0%/vcn 0% fclk 1600
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-IQ_STAGE_TABLES short 104.5 short 70.8 edit 153.7 edit 132.4 longdec64k 80.8/1611p 65241t  foreign CPU 3% [('kcompactd0', 12), ('claude', 1), ('localsearch-3', 1)]  gpu 1972/1249 MHz 63C 169W gtt 25M cpu 3479MHz 65C igpu 0%/vcn 0% fclk 1600
