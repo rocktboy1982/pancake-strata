@@ -24,3 +24,57 @@ rep 0 minus-STAGER_RING: every attempt noisy, keeping the quietest (4% foreign C
 rep 0 minus-GDN_CHUNKED    short 107.1 short 103.0 edit 185.9 edit 179.1 longdec64k 82.0/2097p 65242t  foreign CPU 4% [('kcompactd0', 7), ('kswapd0', 2), ('claude', 1)]  gpu 2037/1249 MHz 63C 191W gtt 25M cpu 3670MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-GDN_CHUNKED: every attempt noisy, keeping the quietest (4% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 109.4 short 103.0 edit 163.1 edit 183.6 longdec64k 83.7/2190p 65242t  foreign CPU 3% [('kcompactd0', 6), ('kswapd0', 1), ('claude', 1)]  gpu 1971/1249 MHz 64C 183W gtt 25M cpu 3483MHz 66C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.2 +-  43.8  (n=2)
+                              drafts accepted 0.71
+  short  minus-GDN_HEAD          101.0 +-  31.1  (n=2)   vs updated:  -5.8% +- 11.9%  -> no difference
+                              drafts accepted 0.72
+  short  minus-PREFILL_CPU_SHARE_MAX     98.7 +-  28.0  (n=2)   vs updated:  -7.9% +- 14.8%  -> no difference
+                              drafts accepted 0.70
+  short  base-m1                  92.9 +- 127.1  (n=2)   vs updated: -13.3% +- 159.5%  -> no difference
+                              drafts accepted 0.70
+  short  minus-STAGER_RING       105.5 +-  31.1  (n=2)   vs updated:  -1.6% +- 11.9%  -> no difference
+                              drafts accepted 0.70
+  short  minus-GDN_CHUNKED       105.0 +-  26.1  (n=2)   vs updated:  -2.0% +- 16.6%  -> no difference
+                              drafts accepted 0.70
+  short  base-late               106.2 +-  40.7  (n=2)   vs updated:  -0.9% +-  3.0%  -> no difference
+                              drafts accepted 0.70
+  edit   updated                 168.6 +-  14.6  (n=2)
+                              drafts accepted 0.90
+  edit   minus-GDN_HEAD          104.5 +-   7.0  (n=2)   vs updated: -38.0% +-  4.5%  -> worse
+                              drafts accepted 0.89
+  edit   minus-PREFILL_CPU_SHARE_MAX    143.8 +- 136.6  (n=2)   vs updated: -14.7% +- 89.7%  -> no difference
+                              drafts accepted 0.86
+  edit   base-m1                 162.4 +- 164.6  (n=2)   vs updated:  -3.7% +- 89.0%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-STAGER_RING       172.4 +- 140.4  (n=2)   vs updated:  +2.3% +- 74.7%  -> no difference
+                              drafts accepted 0.88
+  edit   minus-GDN_CHUNKED       182.5 +-  43.2  (n=2)   vs updated:  +8.3% +- 34.3%  -> no difference
+                              drafts accepted 0.91
+  edit   base-late               173.3 +- 130.3  (n=2)   vs updated:  +2.8% +- 68.6%  -> no difference
+                              drafts accepted 0.88
+  longdec64k updated                  81.3 +-   nan  (n=1)
+  longdec64k minus-GDN_HEAD           60.0 +-   nan  (n=1)   vs updated: -26.2% +-  nan%  -> no difference
+  longdec64k minus-PREFILL_CPU_SHARE_MAX     75.4 +-   nan  (n=1)   vs updated:  -7.3% +-  nan%  -> no difference
+  longdec64k base-m1                  77.0 +-   nan  (n=1)   vs updated:  -5.3% +-  nan%  -> no difference
+  longdec64k minus-STAGER_RING        82.1 +-   nan  (n=1)   vs updated:  +1.0% +-  nan%  -> no difference
+  longdec64k minus-GDN_CHUNKED        82.0 +-   nan  (n=1)   vs updated:  +0.9% +-  nan%  -> no difference
+  longdec64k base-late                83.7 +-   nan  (n=1)   vs updated:  +3.0% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-GDN_HEAD       DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-PREFILL_CPU_SHARE_MAX DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-STAGER_RING    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GDN_CHUNKED    DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -0.9%  edit +2.8%  longdec64k +3.0%
+  minus-GDN_HEAD       short -5.4%  edit -38.9%  longdec64k -27.3%  -> drop
+  minus-PREFILL_CPU_SHARE_MAX short -7.5%  edit -15.9%  longdec64k -8.6%  -> drop
+  base-m1              short -12.9%  edit -5.0%  longdec64k -6.7%  -> drop
+  minus-STAGER_RING    short -1.1%  edit +0.8%  longdec64k -0.5%  -> PROMOTE to confirm
+  minus-GDN_CHUNKED    short -1.5%  edit +6.8%  longdec64k -0.6%  -> PROMOTE to confirm
