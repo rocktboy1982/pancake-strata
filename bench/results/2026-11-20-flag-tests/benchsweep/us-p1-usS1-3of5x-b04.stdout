@@ -19,3 +19,53 @@ rep 0 plus-LFUSE_PAIR: every attempt noisy, keeping the quietest (4% foreign CPU
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-late            short 92.0 short 100.7 edit 156.8 edit 154.8 longdec64k 59.4/1657p 65239t  foreign CPU 4% [('kcompactd0', 10), ('kswapd0', 3), ('claude', 1)]  gpu 2029/1249 MHz 63C 185W gtt 25M cpu 3746MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1657, pack load 0.54 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 101.5 short 85.1 edit 130.4 edit 139.3 longdec64k 77.9/1659p 65239t  foreign CPU 2% [('kcompactd0', 2), ('migration/6', 0), ('upowerd', 0)]  gpu 1955/1249 MHz 62C 168W gtt 25M cpu 3629MHz 65C igpu 0%/vcn 0% fclk 1600
+REGIME-STILL-SLOW base-late: first start prefill 1657 / load 0.54 GiB/s (paused 23:47:08), second start prefill 1659 / load 0.93 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.1 +-  44.5  (n=2)
+                              drafts accepted 0.71
+  short  plus-IQ_STAGE_TABLES    103.2 +-   8.3  (n=2)   vs updated:  -3.7% +- 33.8%  -> no difference
+                              drafts accepted 0.69
+  short  plus-KV_GROW             95.7 +- 152.5  (n=2)   vs updated: -10.6% +- 100.9%  -> no difference
+                              drafts accepted 0.70
+  short  base-m1                 107.0 +-  43.8  (n=2)   vs updated:  -0.0% +-  0.6%  -> no difference
+                              drafts accepted 0.71
+  short  plus-LFUSE_PAIR          98.0 +-  30.5  (n=2)   vs updated:  -8.5% +- 13.1%  -> no difference
+                              drafts accepted 0.69
+  short  base-late                93.3 +- 104.2  (n=2)   vs updated: -12.9% +- 55.8%  -> no difference
+                              drafts accepted 0.68
+  edit   updated                 168.6 +-  16.5  (n=2)
+                              drafts accepted 0.90
+  edit   plus-IQ_STAGE_TABLES    161.6 +- 103.0  (n=2)   vs updated:  -4.2% +- 51.3%  -> no difference
+                              drafts accepted 0.87
+  edit   plus-KV_GROW            162.3 +- 187.5  (n=2)   vs updated:  -3.7% +- 101.4%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 170.7 +-  10.8  (n=2)   vs updated:  +1.2% +-  3.4%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-LFUSE_PAIR         122.4 +-  23.5  (n=2)   vs updated: -27.4% +- 23.7%  -> worse
+                              drafts accepted 0.87
+  edit   base-late               134.9 +-  56.6  (n=2)   vs updated: -20.0% +- 23.7%  -> no difference
+                              drafts accepted 0.90
+  longdec64k updated                  59.6 +-   nan  (n=1)
+  longdec64k plus-IQ_STAGE_TABLES     81.6 +-   nan  (n=1)   vs updated: +36.9% +-  nan%  -> no difference
+  longdec64k plus-KV_GROW             83.9 +-   nan  (n=1)   vs updated: +40.8% +-  nan%  -> no difference
+  longdec64k base-m1                  84.2 +-   nan  (n=1)   vs updated: +41.3% +-  nan%  -> no difference
+  longdec64k plus-LFUSE_PAIR          82.4 +-   nan  (n=1)   vs updated: +38.3% +-  nan%  -> no difference
+  longdec64k base-late                77.9 +-   nan  (n=1)   vs updated: +30.7% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-IQ_STAGE_TABLES DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-KV_GROW         DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-LFUSE_PAIR      DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -12.9%  edit -20.0%  longdec64k +30.7%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-IQ_STAGE_TABLES short +2.9%  edit +6.5%  longdec64k +18.7%  -> PROMOTE to confirm
+  plus-KV_GROW         short -4.5%  edit +7.0%  longdec64k +22.0%  -> drop
+  base-m1              short +6.8%  edit +12.5%  longdec64k +22.5%  -> PROMOTE to confirm
+  plus-LFUSE_PAIR      short -2.2%  edit -19.3%  longdec64k +19.9%  -> drop

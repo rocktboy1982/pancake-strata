@@ -7,7 +7,8 @@
   "usS1-1of5x",
   "usS2r-1-1of1",
   "usS1-2of5",
-  "usS1-3of5"
+  "usS1-3of5",
+  "usS1-3of5x"
  ],
  "protected": {
   "STRATA_VERIFY_ECAP": [
@@ -2694,31 +2695,31 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-FUSE_HEAD_GR",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": -12.42,
-    "edit": -3.15,
-    "longdec64k": 6.27,
-    "longdec64k-prompt": -10.57
+    "short": -2.86,
+    "edit": -24.07,
+    "longdec64k": 11.51,
+    "longdec64k-prompt": -22.97
    },
    "promising": false,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b02",
+   "block": "us-p1-usS1-3of5x-b01",
    "drift1": {
-    "short": -0.96,
-    "edit": 8.45,
-    "longdec64k": 3.8
+    "short": -1.16,
+    "edit": 9.0,
+    "longdec64k": 33.71
    },
    "clean1": false,
    "blocks_run": [
-    "us-p1-usS1-3of5-b02"
+    "us-p1-usS1-3of5x-b01"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
    "carry": false,
-   "floor_note": "a metric below -3 % in pass 1 (short -12.4 %): reported, the confirm decides",
+   "floor_note": "a metric below -3 % in pass 1 (edit -24.1 %): reported, the confirm decides",
    "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b02 base drift edit +8.4 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+   "reason": "pass-1 block us-p1-usS1-3of5x-b01 base drift longdec64k +33.7 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
   },
   "STRATA_GDN_CHUNKED_MIN": {
    "flag": "STRATA_GDN_CHUNKED_MIN",
@@ -2736,30 +2737,31 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-GDN_CHUNKED_MIN",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": -7.09,
-    "edit": -51.34,
-    "longdec64k": -17.6,
-    "longdec64k-prompt": -17.29
+    "short": -34.23,
+    "edit": -50.16,
+    "longdec64k": 4.44,
+    "longdec64k-prompt": -17.7
    },
    "promising": false,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b02",
+   "block": "us-p1-usS1-3of5x-b01",
    "drift1": {
-    "short": -0.96,
-    "edit": 8.45,
-    "longdec64k": 3.8
+    "short": -1.16,
+    "edit": 9.0,
+    "longdec64k": 33.71
    },
    "clean1": false,
    "blocks_run": [
-    "us-p1-usS1-3of5-b02"
+    "us-p1-usS1-3of5x-b01"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
    "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (edit -50.2 %): reported, the confirm decides",
    "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b02 base drift edit +8.4 % > 5 % (after its re-run): no verdict"
+   "reason": "pass-1 block us-p1-usS1-3of5x-b01 base drift longdec64k +33.7 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
   },
   "STRATA_GDN_TC": {
    "flag": "STRATA_GDN_TC",
@@ -2777,31 +2779,31 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-GDN_TC",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": -17.95,
-    "edit": -24.54,
-    "longdec64k": 5.14,
-    "longdec64k-prompt": -23.1
+    "short": -4.17,
+    "edit": 4.1,
+    "longdec64k": 0.12,
+    "longdec64k-prompt": 0.44
    },
-   "promising": false,
+   "promising": true,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b02",
+   "block": "us-p1-usS1-3of5x-b01",
    "drift1": {
-    "short": 0.78,
-    "edit": -7.89,
-    "longdec64k": -3.29
+    "short": 1.76,
+    "edit": -7.39,
+    "longdec64k": 0.48
    },
-   "clean1": false,
+   "clean1": true,
    "blocks_run": [
-    "us-p1-usS1-3of5-b02"
+    "us-p1-usS1-3of5x-b01"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
-   "carry": false,
-   "floor_note": "a metric below -3 % in pass 1 (edit -24.5 %): reported, the confirm decides",
-   "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b02 base drift edit -7.9 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+   "carry": true,
+   "floor_note": "a metric below -3 % in pass 1 (short -4.2 %): reported, the confirm decides",
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-3of5x-b01): a case >= +2.0 % (best +4.10 %): HIGH gain, goes to the rescreen"
   },
   "STRATA_GROUPED_V1": {
    "flag": "STRATA_GROUPED_V1",
@@ -2819,31 +2821,31 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-GROUPED_V1",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": -1.15,
-    "edit": -2.57,
-    "longdec64k": -18.37,
-    "longdec64k-prompt": 3.49
+    "short": -1.69,
+    "edit": -4.16,
+    "longdec64k": 2.66,
+    "longdec64k-prompt": 0.35
    },
-   "promising": false,
+   "promising": true,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b02",
+   "block": "us-p1-usS1-3of5x-b01",
    "drift1": {
-    "short": 0.78,
-    "edit": -7.89,
-    "longdec64k": -3.29
+    "short": 1.76,
+    "edit": -7.39,
+    "longdec64k": 0.48
    },
-   "clean1": false,
+   "clean1": true,
    "blocks_run": [
-    "us-p1-usS1-3of5-b02"
+    "us-p1-usS1-3of5x-b01"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
-   "carry": false,
-   "floor_note": "a metric below -3 % in pass 1 (longdec64k -18.4 %): reported, the confirm decides",
-   "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b02 base drift edit -7.9 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+   "carry": true,
+   "floor_note": "a metric below -3 % in pass 1 (edit -4.2 %): reported, the confirm decides",
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-3of5x-b01): a case >= +2.0 % (best +2.66 %): HIGH gain, goes to the rescreen"
   },
   "STRATA_GR_Q32_G": {
    "flag": "STRATA_GR_Q32_G",
@@ -2861,30 +2863,30 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-GR_Q32_G",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": -5.32,
-    "edit": -13.44,
-    "longdec64k": -3.94,
-    "longdec64k-prompt": -36.16
+    "short": -0.91,
+    "edit": 1.95,
+    "longdec64k": 0.61,
+    "longdec64k-prompt": -0.19
    },
    "promising": false,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b03",
+   "block": "us-p1-usS1-3of5x-b02",
    "drift1": {
-    "short": -0.48,
-    "edit": -0.65,
-    "longdec64k": 8.76
+    "short": -0.19,
+    "edit": -1.11,
+    "longdec64k": -7.93
    },
-   "clean1": false,
+   "clean1": true,
    "blocks_run": [
-    "us-p1-usS1-3of5-b03"
+    "us-p1-usS1-3of5x-b02"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
    "carry": false,
-   "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b03 base drift longdec64k +8.8 % > 5 % (after its re-run): no verdict"
+   "verdict": "PROMISING-LOW",
+   "reason": "run 1 (clean block us-p1-usS1-3of5x-b02): best case +1.95 % (0 < gain < 2.0 %): LOW gain, not rescreened this round: backlog (us-backlog-low.json, run-1 numbers kept)"
   },
   "STRATA_GR_Q8_PFS": {
    "flag": "STRATA_GR_Q8_PFS",
@@ -2902,31 +2904,30 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-GR_Q8_PFS",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": -2.04,
-    "edit": -5.09,
-    "longdec64k": 11.89,
-    "longdec64k-prompt": 13.68
+    "short": 0.02,
+    "edit": -0.18,
+    "longdec64k": 0.61,
+    "longdec64k-prompt": 0.07
    },
    "promising": false,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b03",
+   "block": "us-p1-usS1-3of5x-b02",
    "drift1": {
-    "short": 0.49,
-    "edit": 1.6,
-    "longdec64k": -9.01
+    "short": -0.19,
+    "edit": -1.11,
+    "longdec64k": -7.93
    },
-   "clean1": false,
+   "clean1": true,
    "blocks_run": [
-    "us-p1-usS1-3of5-b03"
+    "us-p1-usS1-3of5x-b02"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
    "carry": false,
-   "floor_note": "a metric below -3 % in pass 1 (longdec64k-prompt +13.7 %): reported, the confirm decides",
-   "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b03 base drift longdec64k -9.0 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+   "verdict": "PROMISING-LOW",
+   "reason": "run 1 (clean block us-p1-usS1-3of5x-b02): best case +0.61 % (0 < gain < 2.0 %): LOW gain, not rescreened this round: backlog (us-backlog-low.json, run-1 numbers kept)"
   },
   "STRATA_HCD_EXACT": {
    "flag": "STRATA_HCD_EXACT",
@@ -2944,30 +2945,30 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-HCD_EXACT",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": 0.44,
-    "edit": -0.71,
-    "longdec64k": 3.08,
-    "longdec64k-prompt": 2.55
+    "short": -13.88,
+    "edit": -38.77,
+    "longdec64k": -4.4,
+    "longdec64k-prompt": -33.0
    },
    "promising": false,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b03",
+   "block": "us-p1-usS1-3of5x-b02",
    "drift1": {
-    "short": 0.49,
-    "edit": 1.6,
-    "longdec64k": -9.01
+    "short": 0.0,
+    "edit": 1.84,
+    "longdec64k": 3.88
    },
-   "clean1": false,
+   "clean1": true,
    "blocks_run": [
-    "us-p1-usS1-3of5-b03"
+    "us-p1-usS1-3of5x-b02"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
    "carry": false,
-   "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b03 base drift longdec64k -9.0 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+   "verdict": "NO-GAIN-P1",
+   "reason": "dropped after pass 1: no benefit observed (bar 1.0 %; clean block us-p1-usS1-3of5x-b02; n=1, not a refutation): no shipped change"
   },
   "STRATA_HC_Q8_ALL_STAGES": {
    "flag": "STRATA_HC_Q8_ALL_STAGES",
@@ -2985,30 +2986,30 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-HC_Q8_ALL_STAGES",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": -12.3,
-    "edit": -33.35,
-    "longdec64k": -25.49,
-    "longdec64k-prompt": -36.13
+    "short": -1.19,
+    "edit": -0.32,
+    "longdec64k": -4.16,
+    "longdec64k-prompt": -19.82
    },
    "promising": false,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b03",
+   "block": "us-p1-usS1-3of5x-b02",
    "drift1": {
-    "short": -0.48,
-    "edit": -0.65,
-    "longdec64k": 8.76
+    "short": 0.0,
+    "edit": 1.84,
+    "longdec64k": 3.88
    },
-   "clean1": false,
+   "clean1": true,
    "blocks_run": [
-    "us-p1-usS1-3of5-b03"
+    "us-p1-usS1-3of5x-b02"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
    "carry": false,
-   "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b03 base drift longdec64k +8.8 % > 5 % (after its re-run): no verdict"
+   "verdict": "NO-GAIN-P1",
+   "reason": "dropped after pass 1: no benefit observed (bar 1.5 %; clean block us-p1-usS1-3of5x-b02; n=1, not a refutation): no shipped change"
   },
   "STRATA_HC_Q8_INJECT": {
    "flag": "STRATA_HC_Q8_INJECT",
@@ -3067,30 +3068,30 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-HIP_ADAPT_KERNEL_COPY",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": -3.66,
-    "edit": -5.03,
-    "longdec64k": -6.97,
+    "short": -1.6,
+    "edit": -9.03,
+    "longdec64k": -9.86,
     "longdec64k-prompt": 0.22
    },
    "promising": false,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b04",
+   "block": "us-p1-usS1-3of5x-b03",
    "drift1": {
-    "short": 0.29,
-    "edit": 0.06,
-    "longdec64k": 10.63
+    "short": 3.29,
+    "edit": -7.32,
+    "longdec64k": 3.28
    },
-   "clean1": false,
+   "clean1": true,
    "blocks_run": [
-    "us-p1-usS1-3of5-b04"
+    "us-p1-usS1-3of5x-b03"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
    "carry": false,
-   "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b04 base drift longdec64k +10.6 % > 5 % (after its re-run): no verdict"
+   "verdict": "PROMISING-LOW",
+   "reason": "run 1 (clean block us-p1-usS1-3of5x-b03): best case +0.22 % (0 < gain < 2.0 %): LOW gain, not rescreened this round: backlog (us-backlog-low.json, run-1 numbers kept)"
   },
   "STRATA_HIP_SWIGLU_FUSED": {
    "flag": "STRATA_HIP_SWIGLU_FUSED",
@@ -3149,31 +3150,31 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-IQ_STAGE_GRID",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": -0.49,
-    "edit": 3.01,
-    "longdec64k": -4.45,
-    "longdec64k-prompt": 0.13
+    "short": -4.38,
+    "edit": 3.78,
+    "longdec64k": 0.48,
+    "longdec64k-prompt": 0.06
    },
    "promising": false,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b04",
+   "block": "us-p1-usS1-3of5x-b03",
    "drift1": {
-    "short": 0.29,
-    "edit": 0.06,
-    "longdec64k": 10.63
+    "short": -0.48,
+    "edit": 8.84,
+    "longdec64k": -4.71
    },
    "clean1": false,
    "blocks_run": [
-    "us-p1-usS1-3of5-b04"
+    "us-p1-usS1-3of5x-b03"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
    "carry": false,
-   "floor_note": "a metric below -3 % in pass 1 (longdec64k -4.5 %): reported, the confirm decides",
+   "floor_note": "a metric below -3 % in pass 1 (short -4.4 %): reported, the confirm decides",
    "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b04 base drift longdec64k +10.6 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+   "reason": "pass-1 block us-p1-usS1-3of5x-b03 base drift edit +8.8 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
   },
   "STRATA_IQ_STAGE_GRID_MMVQ": {
    "flag": "STRATA_IQ_STAGE_GRID_MMVQ",
@@ -3191,30 +3192,30 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-IQ_STAGE_GRID_MMVQ",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": -10.74,
-    "edit": -7.09,
-    "longdec64k": -5.47,
-    "longdec64k-prompt": -22.78
+    "short": -35.28,
+    "edit": -0.71,
+    "longdec64k": -8.31,
+    "longdec64k-prompt": -24.59
    },
    "promising": false,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b05",
+   "block": "us-p1-usS1-3of5x-b03",
    "drift1": {
-    "short": 12.5,
-    "edit": -4.77,
-    "longdec64k": 3.05
+    "short": 3.29,
+    "edit": -7.32,
+    "longdec64k": 3.28
    },
-   "clean1": false,
+   "clean1": true,
    "blocks_run": [
-    "us-p1-usS1-3of5-b05"
+    "us-p1-usS1-3of5x-b03"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
    "carry": false,
-   "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b05 base drift short +12.5 % > 5 % (after its re-run): no verdict"
+   "verdict": "NO-GAIN-P1",
+   "reason": "dropped after pass 1: no benefit observed (bar 1.0 %; clean block us-p1-usS1-3of5x-b03; n=1, not a refutation): no shipped change"
   },
   "STRATA_IQ_STAGE_TABLES": {
    "flag": "STRATA_IQ_STAGE_TABLES",
@@ -3232,30 +3233,31 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-IQ_STAGE_TABLES",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": -14.59,
-    "edit": -16.86,
-    "longdec64k": -2.83,
-    "longdec64k-prompt": -14.94
+    "short": -3.67,
+    "edit": -4.73,
+    "longdec64k": 13.49,
+    "longdec64k-prompt": -26.42
    },
    "promising": false,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b05",
+   "block": "us-p1-usS1-3of5x-b04",
    "drift1": {
-    "short": 12.5,
-    "edit": -4.77,
-    "longdec64k": 3.05
+    "short": 0.0,
+    "edit": 0.94,
+    "longdec64k": 41.28
    },
    "clean1": false,
    "blocks_run": [
-    "us-p1-usS1-3of5-b05"
+    "us-p1-usS1-3of5x-b04"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
    "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k-prompt -26.4 %): reported, the confirm decides",
    "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b05 base drift short +12.5 % > 5 % (after its re-run): no verdict"
+   "reason": "pass-1 block us-p1-usS1-3of5x-b04 base drift longdec64k +41.3 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
   },
   "STRATA_KV_GROW": {
    "flag": "STRATA_KV_GROW",
@@ -3273,30 +3275,31 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-KV_GROW",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": 0.35,
-    "edit": -25.4,
-    "longdec64k": -34.44,
-    "longdec64k-prompt": -26.13
+    "short": -10.62,
+    "edit": -4.29,
+    "longdec64k": 16.69,
+    "longdec64k-prompt": 2.09
    },
    "promising": false,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b05",
+   "block": "us-p1-usS1-3of5x-b04",
    "drift1": {
-    "short": -0.48,
-    "edit": 8.13,
-    "longdec64k": -8.06
+    "short": 0.0,
+    "edit": 0.94,
+    "longdec64k": 41.28
    },
    "clean1": false,
    "blocks_run": [
-    "us-p1-usS1-3of5-b05"
+    "us-p1-usS1-3of5x-b04"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
    "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k +16.7 %): reported, the confirm decides",
    "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b05 base drift edit +8.1 % > 5 % (after its re-run): no verdict"
+   "reason": "pass-1 block us-p1-usS1-3of5x-b04 base drift longdec64k +41.3 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
   },
   "STRATA_KV_HOST_REGISTER": {
    "flag": "STRATA_KV_HOST_REGISTER",
@@ -3437,31 +3440,30 @@
    "run1": null,
    "run1_best": null,
    "arm": "plus-LFUSE_PAIR",
-   "slice": "usS1-3of5",
+   "slice": "usS1-3of5x",
    "pass1": {
-    "short": 4.7,
-    "edit": -5.22,
-    "longdec64k": 0.36,
-    "longdec64k-prompt": 0.92
+    "short": -2.17,
+    "edit": -19.84,
+    "longdec64k": 1.67,
+    "longdec64k-prompt": -25.9
    },
    "promising": false,
    "pass2": null,
-   "block": "us-p1-usS1-3of5-b07",
+   "block": "us-p1-usS1-3of5x-b04",
    "drift1": {
-    "short": -6.21,
-    "edit": -3.88,
-    "longdec64k": 12.48
+    "short": -17.86,
+    "edit": -18.78,
+    "longdec64k": -7.48
    },
    "clean1": false,
    "blocks_run": [
-    "us-p1-usS1-3of5-b07"
+    "us-p1-usS1-3of5x-b04"
    ],
    "pass2_drift": null,
    "pass2_clean": null,
    "carry": false,
-   "floor_note": "a metric below -3 % in pass 1 (edit -5.2 %): reported, the confirm decides",
    "verdict": "INCONCLUSIVE",
-   "reason": "pass-1 block us-p1-usS1-3of5-b07 base drift longdec64k +12.5 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+   "reason": "pass-1 block us-p1-usS1-3of5x-b04 base drift edit -18.8 % > 5 % (after its re-run): no verdict"
   },
   "STRATA_LM_HIP": {
    "flag": "STRATA_LM_HIP",

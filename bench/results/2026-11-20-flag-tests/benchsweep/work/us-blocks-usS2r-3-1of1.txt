@@ -1,0 +1,2 @@
+BLOCK b01 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-3-1of1-b01.json order: plus-EMB_REUSE_ACCOUNT plus-GDN_TC plus-EMBED_VRAM
+BLOCK b02 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-3-1of1-b02.json order: plus-MMVQ_IL plus-GROUPED_V1 plus-LM_HIP
