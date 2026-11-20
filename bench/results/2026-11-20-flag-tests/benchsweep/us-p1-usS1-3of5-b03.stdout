@@ -14,3 +14,62 @@ rep 0 plus-GR_Q8_PFS: every attempt noisy, keeping the quietest (5% foreign CPU)
 rep 0 plus-HCD_EXACT       short 110.9 short 103.6 edit 169.1 edit 168.6 longdec64k 81.9/1972p 65241t  foreign CPU 4% [('kcompactd0', 13), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 1997/1249 MHz 65C 180W gtt 25M cpu 3561MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-HCD_EXACT: every attempt noisy, keeping the quietest (4% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 99.6 short 107.6 edit 158.5 edit 168.1 longdec64k 77.7/1564p 65241t  foreign CPU 4% [('kcompactd0', 12), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 1949/1249 MHz 64C 188W gtt 25M cpu 3723MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1564, pack load 0.49 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.8 short 103.5 edit 170.2 edit 171.4 longdec64k 75.7/1661p 65241t  foreign CPU 2% [('claude', 1), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1993/1249 MHz 62C 177W gtt 25M cpu 3587MHz 66C igpu 0%/vcn 0% fclk 1600
+REGIME-STILL-SLOW base-late: first start prefill 1564 / load 0.49 GiB/s (paused 21:01:34), second start prefill 1661 / load 1.26 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.0 +-  43.8  (n=2)
+                              drafts accepted 0.71
+  short  plus-HC_Q8_ALL_STAGES     93.6 +-  68.0  (n=2)   vs updated: -12.5% +- 104.6%  -> no difference
+                              drafts accepted 0.72
+  short  plus-GR_Q32_G           101.0 +-  34.3  (n=2)   vs updated:  -5.6% +-  8.9%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 106.4 +-  43.2  (n=2)   vs updated:  -0.5% +-  0.6%  -> no difference
+                              drafts accepted 0.71
+  short  plus-GR_Q8_PFS          104.6 +-  45.8  (n=2)   vs updated:  -2.2% +-  1.8%  -> worse
+                              drafts accepted 0.67
+  short  plus-HCD_EXACT          107.2 +-  46.4  (n=2)   vs updated:  +0.3% +-  2.4%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               107.2 +-  46.4  (n=2)   vs updated:  +0.2% +-  2.4%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 168.6 +-  15.3  (n=2)
+                              drafts accepted 0.90
+  edit   plus-HC_Q8_ALL_STAGES    112.6 +-  95.3  (n=2)   vs updated: -33.2% +- 65.6%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-GR_Q32_G           146.2 +- 309.5  (n=2)   vs updated: -13.3% +- 174.5%  -> no difference
+                              drafts accepted 0.90
+  edit   base-m1                 169.3 +-   7.6  (n=2)   vs updated:  +0.4% +- 13.6%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-GR_Q8_PFS          161.4 +- 105.5  (n=2)   vs updated:  -4.3% +- 53.5%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-HCD_EXACT          168.8 +-   3.2  (n=2)   vs updated:  +0.1% +- 10.9%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               170.8 +-   7.6  (n=2)   vs updated:  +1.3% +-  4.5%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  76.5 +-   nan  (n=1)
+  longdec64k plus-HC_Q8_ALL_STAGES     59.5 +-   nan  (n=1)   vs updated: -22.2% +-  nan%  -> no difference
+  longdec64k plus-GR_Q32_G            76.7 +-   nan  (n=1)   vs updated:  +0.3% +-  nan%  -> no difference
+  longdec64k base-m1                  83.2 +-   nan  (n=1)   vs updated:  +8.8% +-  nan%  -> no difference
+  longdec64k plus-GR_Q8_PFS           88.9 +-   nan  (n=1)   vs updated: +16.2% +-  nan%  -> no difference
+  longdec64k plus-HCD_EXACT           81.9 +-   nan  (n=1)   vs updated:  +7.1% +-  nan%  -> no difference
+  longdec64k base-late                75.7 +-   nan  (n=1)   vs updated:  -1.0% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-HC_Q8_ALL_STAGES DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-GR_Q32_G        DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-GR_Q8_PFS       DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-HCD_EXACT       DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.2%  edit +1.3%  longdec64k -1.0%
+  plus-HC_Q8_ALL_STAGES short -12.6%  edit -33.6%  longdec64k -21.8%  -> drop
+  plus-GR_Q32_G        short -5.7%  edit -13.8%  longdec64k +0.8%  -> drop
+  base-m1              short -0.6%  edit -0.2%  longdec64k +9.3%  -> PROMOTE to confirm
+  plus-GR_Q8_PFS       short -2.3%  edit -4.9%  longdec64k +16.8%  -> drop
+  plus-HCD_EXACT       short +0.2%  edit -0.5%  longdec64k +7.6%  -> PROMOTE to confirm
