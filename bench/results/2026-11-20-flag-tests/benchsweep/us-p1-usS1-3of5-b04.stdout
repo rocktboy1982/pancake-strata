@@ -16,3 +16,9 @@ rep 0 base-m1              short 110.9 short 103.7 edit 167.7 edit 169.7 longdec
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 plus-HIP_SWIGLU_FUSED short 98.1 short 104.4 edit 153.9 edit 179.1 longdec64k 79.2/1476p 65240t  foreign CPU 3% [('kcompactd0', 9), ('kswapd0', 2), ('claude', 1)]  gpu 2045/1249 MHz 65C 184W gtt 25M cpu 3673MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-HIP_SWIGLU_FUSED: every attempt noisy, keeping the quietest (3% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-HC_Q8_INJECT    short 99.7 short 98.6 edit 61.7 edit 98.1 longdec64k 59.4/1612p 65240t  foreign CPU 4% [('kcompactd0', 10), ('kswapd0', 3), ('kworker/1:1-events', 1)]  gpu 1982/1249 MHz 64C 168W gtt 25M cpu 3590MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-HC_Q8_INJECT: every attempt noisy, keeping the quietest (4% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.7 short 103.5 edit 169.3 edit 171.5 longdec64k 83.2/2172p 65240t  foreign CPU 5% [('kcompactd0', 9), ('kswapd0', 3), ('kworker/u65:13-KFD IH', 1)]  gpu 2038/1249 MHz 64C 191W gtt 25M cpu 3652MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 2172, pack load 0.62 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
