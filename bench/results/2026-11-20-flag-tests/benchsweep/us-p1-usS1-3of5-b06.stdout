@@ -13,3 +13,50 @@ rep 0 base-m1              short 109.4 short 103.6 edit 170.5 edit 168.8 longdec
 rep 0 plus-KV_HOST_REGISTER short 110.0 short 103.8 edit 169.3 edit 171.8 longdec64k 81.0/2184p 65239t  foreign CPU 4% [('kcompactd0', 8), ('kswapd0', 2), ('localsearch-3', 1)]  gpu 2011/1249 MHz 66C 184W gtt 25M cpu 3671MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-KV_HOST_REGISTER: every attempt noisy, keeping the quietest (4% foreign CPU)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.6 short 103.7 edit 169.6 edit 171.8 longdec64k 83.3/2177p 65239t  foreign CPU 3% [('kcompactd0', 5), ('kworker/0:1-events', 2), ('kworker/1:1-events', 1)]  gpu 2032/1249 MHz 66C 186W gtt 25M cpu 3716MHz 66C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.1 +-  47.0  (n=2)
+                              drafts accepted 0.71
+  short  plus-LFUSE_GATE         105.2 +-  33.0  (n=2)   vs updated:  -1.8% +- 13.1%  -> no difference
+                              drafts accepted 0.71
+  short  plus-LFUSE              107.1 +-  41.9  (n=2)   vs updated:  +0.0% +-  4.7%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 106.5 +-  36.9  (n=2)   vs updated:  -0.6% +-  9.5%  -> no difference
+                              drafts accepted 0.71
+  short  plus-KV_HOST_REGISTER    106.9 +-  39.4  (n=2)   vs updated:  -0.2% +-  7.1%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               107.2 +-  43.8  (n=2)   vs updated:  +0.0% +-  3.0%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 169.3 +-   6.4  (n=2)
+                              drafts accepted 0.89
+  edit   plus-LFUSE_GATE         168.2 +-  18.4  (n=2)   vs updated:  -0.6% +- 14.6%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-LFUSE              168.6 +-  21.0  (n=2)   vs updated:  -0.4% +- 16.1%  -> no difference
+                              drafts accepted 0.90
+  edit   base-m1                 169.7 +-  10.8  (n=2)   vs updated:  +0.2% +-  2.6%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-KV_HOST_REGISTER    170.6 +-  15.9  (n=2)   vs updated:  +0.7% +- 13.1%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               170.7 +-  14.0  (n=2)   vs updated:  +0.8% +- 12.0%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  85.5 +-   nan  (n=1)
+  longdec64k plus-LFUSE_GATE          84.5 +-   nan  (n=1)   vs updated:  -1.2% +-  nan%  -> no difference
+  longdec64k plus-LFUSE               81.4 +-   nan  (n=1)   vs updated:  -4.8% +-  nan%  -> no difference
+  longdec64k base-m1                  82.1 +-   nan  (n=1)   vs updated:  -4.0% +-  nan%  -> no difference
+  longdec64k plus-KV_HOST_REGISTER     81.0 +-   nan  (n=1)   vs updated:  -5.3% +-  nan%  -> no difference
+  longdec64k base-late                83.3 +-   nan  (n=1)   vs updated:  -2.6% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-LFUSE_GATE      DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-LFUSE           DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-KV_HOST_REGISTER DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.0%  edit +0.8%  longdec64k -2.6%
+  plus-LFUSE_GATE      short -1.8%  edit -1.0%  longdec64k +0.1%  -> PROMOTE to confirm
+  plus-LFUSE           short -0.0%  edit -0.9%  longdec64k -3.6%  -> drop
+  base-m1              short -0.6%  edit -0.2%  longdec64k -2.7%  -> drop
+  plus-KV_HOST_REGISTER short -0.2%  edit +0.3%  longdec64k -4.0%  -> drop
