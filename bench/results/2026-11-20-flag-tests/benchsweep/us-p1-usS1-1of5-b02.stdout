@@ -14,3 +14,7 @@ rep 0 minus-SELECT_WMMA: every attempt noisy, keeping the quietest (6% foreign C
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-SH_STREAM      short 94.5 short 87.3 edit 177.7 edit 183.6 longdec64k 75.8/1474p 65242t  foreign CPU 5% [('kcompactd0', 14), ('kswapd0', 3), ('kworker/0:1-events', 2)]  gpu 1965/1249 MHz 63C 180W gtt 25M cpu 3342MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-SH_STREAM: every attempt noisy, keeping the quietest (5% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-PF_GROUP_SCRATCH short 102.0 short 91.3 edit 157.6 edit 166.4 longdec64k 61.1/1539p 65242t  foreign CPU 6% [('kcompactd0', 21), ('kworker/13:2-events', 5), ('kworker/5:1-mm_percpu_wq', 2)]  gpu 2037/1249 MHz 62C 186W gtt 25M cpu 3734MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-PF_GROUP_SCRATCH: every attempt noisy, keeping the quietest (6% foreign CPU)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
