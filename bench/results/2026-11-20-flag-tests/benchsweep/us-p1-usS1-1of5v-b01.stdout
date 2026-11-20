@@ -12,3 +12,8 @@ rep 0 minus-ROUTE_TAIL_SKIP: every attempt noisy, keeping the quietest (6% forei
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-m1              short 97.0 short 99.3 edit 157.7 edit 152.6 longdec64k 76.2/1528p 65240t  foreign CPU 6% [('kcompactd0', 13), ('kworker/1:2-events', 3), ('kworker/1:1-events', 3)]  gpu 2011/1249 MHz 62C 181W gtt 25M cpu 3577MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1528, pack load 0.66 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 104.0 short 94.5 edit 166.1 edit 184.8 longdec64k 78.3/1644p 65240t  foreign CPU 2% [('kcompactd0', 4), ('localsearch-3', 1), ('dbus-daemon', 0)]  gpu 2038/1249 MHz 61C 189W gtt 25M cpu 3803MHz 65C igpu 0%/vcn 0% fclk 1600
+REGIME-STILL-SLOW base-m1: first start prefill 1528 / load 0.66 GiB/s (paused 12:46:17), second start prefill 1644 / load 1.21 GiB/s
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
