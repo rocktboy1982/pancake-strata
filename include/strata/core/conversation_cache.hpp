@@ -31,6 +31,9 @@ struct ConversationCheckpoint {
     // STRATA_CKPT_VRAM_SLOTS: the tag of the device copy of `gdn` (0: none).  Set by conversation_checkpoint_save, the
     // only writer of a checkpoint's GDN bytes besides a whole copy (which keeps them equal, so it keeps the tag).
     uint64_t dev_tag = 0;
+    // STRATA_SNAP_STATE_F16 (LEADS.md S6): `gdn` holds the compact FP16 blob (gdn_state_f16.hpp), not FP32 bytes.  Every writer of
+    // `gdn` sets it with the bytes (a copy / move of `gdn` copies it); false = FP32, the format of a run without the switch.
+    bool gdn_f16 = false;
     // A shared-prefix pin (the request key pin=N): this checkpoint is the read-only prefix many suffix queries branch
     // from, so retention never evicts it (conv_cache.hpp) and a parked conversation holding it stays parked (evicted
     // last instead with ConversationCache::set_pin_evict_last).  A run-time
@@ -138,7 +141,7 @@ inline ConversationCheckpointSplit conversation_checkpoints_split(std::vector<Co
         for (size_t k = 0; k < stages; ++k) {
             auto& dst = out.parts[k][w];
             auto& src = c.stage_parts[k];
-            dst.gdn = std::move(src.gdn); dst.ple = std::move(src.ple);
+            dst.gdn = std::move(src.gdn); dst.gdn_f16 = src.gdn_f16; dst.ple = std::move(src.ple);
             dst.tails = std::move(src.tails); dst.dead = std::move(src.dead);
             dst.block_pos = std::move(src.block_pos);
         }

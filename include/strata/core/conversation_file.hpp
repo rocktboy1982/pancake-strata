@@ -182,6 +182,7 @@ bool session_file_write(const std::string& path, const SavedConversation& meta, 
 // parts 0..4 = gdn, ple, tails, dead, block_pos, read in place like SessionKvSource
 struct SessionStateSource {
     std::array<size_t, 5> sizes{};
+    bool gdn_f16 = false;   // part 0 (the GDN state) is the compact FP16 blob (gdn_state_f16.hpp), sizes[0] its bytes
     std::function<bool(size_t part, size_t offset, void* dst, size_t n)> read;
     std::function<std::string()> error;
 };

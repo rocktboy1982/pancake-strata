@@ -2,6 +2,7 @@
 
 #include "strata/core/conversation_cache.hpp"
 #include "strata/core/conversation_file.hpp"
+#include "strata/core/gdn_state_f16.hpp"
 #include "strata/core/layer.hpp"
 #include "strata/core/session.hpp"
 
@@ -89,6 +90,10 @@ bool conversation_session_read_limits(SessionReadLimits& limits, const SessionSt
 struct ConversationStateSizes {
     size_t gdn = 0, ple = 0, tail = 0, dead = 0, block_pos = 0;
 };
+/// STRATA_SNAP_STATE_F16 (LEADS.md S6): the bytes a stored GDN part of `raw_f32_bytes` (a `gdn` size above) takes under the
+/// switch: the compact FP16 blob, about half; unchanged (`raw_f32_bytes`) when the switch is off.  Use it for every estimate of
+/// what a checkpoint / image holds; `ConversationStateSizes::gdn` stays the FP32 size of the live state on the device.
+size_t conversation_gdn_stored_bytes(size_t raw_f32_bytes);
 /// Whole-model sizes: `gdn` covers every GDN layer, the indexer sizes are per QSA layer.
 bool conversation_state_sizes(const ModelGeometry& g, ConversationStateSizes& sizes, std::string& error);
 /// The same for one session's layer carve (#216): `gdn` covers its `gdn_alloc` rows; the per-QSA-layer sizes
@@ -192,6 +197,9 @@ struct ConversationStateTarget {
     std::array<uint64_t, 5> sizes{};
     int64_t tokens = 0;
     std::shared_ptr<ConversationCheckpoint> staged;   // Metal: gathered for the decode window
+    // STRATA_SNAP_STATE_F16: part 0 is the compact FP16 blob (the image's live.gdn_f16): its blocks are staged here, decoded by finish()
+    bool gdn_blob = false;
+    std::shared_ptr<gdn_f16::BlobStage> blob_stage;
     bool apply(size_t part, uint64_t offset, const void* data, size_t n, std::string& error) const;
     bool finish(const std::vector<int32_t>& ids, std::string& error) const;
 };

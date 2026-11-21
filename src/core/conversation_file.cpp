@@ -1,4 +1,5 @@
 #include "strata/core/conversation_file.hpp"
+#include "strata/core/gdn_state_f16.hpp"
 
 #include <algorithm>
 #include <bit>
@@ -48,6 +49,11 @@ constexpr char kMagic[8] = {'S', 'T', 'R', 'S', 'E', 'S', 'S', '\x01'};
 constexpr char kEnd[8] = {'S', 'T', 'R', 'S', 'E', 'N', 'D', '\x01'};
 constexpr uint32_t kVersion = 1;
 constexpr size_t kHeader = 64, kTrailer = 16;
+// Header flags (the first reserved u64, bytes 40..47; zero in every file written without STRATA_SNAP_STATE_F16, so those stay byte for
+// byte as before and an older reader still takes them).  Bit 0: every GDN state part in the file (the live state and each
+// checkpoint) is the compact FP16 blob (gdn_state_f16.hpp), not FP32 bytes.  A reader that does not know the bit refuses the
+// file (invalid header fields); this one reads both formats and tags what it parses (ConversationCheckpoint::gdn_f16).
+constexpr uint64_t kFlagGdnF16 = 1;
 
 // Progress for a transfer: one report after every block that was handed to (or read from) the OS, whatever its size
 // - the last, partial block included - so a small file reports too, and each report follows real movement.
@@ -696,9 +702,27 @@ void put_tokens(Out& o, const ConversationCheckpoint& c) {
     for (const auto& k : c.imgs) { o.i64(k.start); o.u64(k.hash); }
 }
 
-void put_checkpoint(Out& o, const ConversationCheckpoint& c) {
+// The GDN array `gdn` (a blob when `is_blob`) in the file's format `file_blob`.  Same format: written as is (the default path,
+// unchanged).  Otherwise it is converted (FP32 -> blob or blob -> FP32), one checkpoint at a time; the sizing pass counts the
+// converted size from the formula without converting.
+void put_gdn(Out& o, const std::vector<uint8_t>& gdn, bool is_blob, bool file_blob, bool paged) {
+    auto emit = [&](const std::vector<uint8_t>& v) { if (paged) o.paged(v); else o.vec(v); };
+    if (is_blob == file_blob) { emit(gdn); return; }
+    const size_t size = file_blob ? (gdn.size() % sizeof(float) == 0 ? gdn_f16::blob_bytes(gdn.size() / sizeof(float)) : 0)
+                                  : gdn_f16::blob_raw_bytes(gdn.size());
+    if (size == 0 && !gdn.empty()) { o.ok = false; o.read_failed = true; o.read_what = "GDN state FP16 conversion: invalid part size"; return; }
+    if (!o.f) { o.u64(size); o.count(size); return; }
+    std::vector<uint8_t> conv;
+    const bool done = gdn.empty() ? true
+                    : file_blob ? gdn_f16::encode(gdn.data(), gdn.size(), conv)
+                                : gdn_f16::decode(gdn.data(), gdn.size(), conv);
+    if (!done || conv.size() != size) { o.ok = false; o.read_failed = true; o.read_what = "GDN state FP16 conversion failed"; return; }
+    emit(conv);
+}
+
+void put_checkpoint(Out& o, const ConversationCheckpoint& c, bool file_blob) {
     put_tokens(o, c);
-    o.vec(c.gdn); o.vec(c.ple); o.vec(c.tails); o.vec(c.dead); o.vec(c.block_pos);
+    put_gdn(o, c.gdn, c.gdn_f16, file_blob, false); o.vec(c.ple); o.vec(c.tails); o.vec(c.dead); o.vec(c.block_pos);
     o.u64(c.used);
 }
 
@@ -723,7 +747,7 @@ void put_payload(Out& o, const SessionSaveSources& s) {
     o.u64(s.checkpoints.size());
     for (const ConversationCheckpoint* c : s.checkpoints) {
         put_tokens(o, *c);
-        o.paged(c->gdn); o.paged(c->ple); o.paged(c->tails); o.paged(c->dead); o.paged(c->block_pos);
+        put_gdn(o, c->gdn, c->gdn_f16, s.state.gdn_f16, true); o.paged(c->ple); o.paged(c->tails); o.paged(c->dead); o.paged(c->block_pos);
         o.u64(c->used);
     }
     put_kv_sources(o, s.kv);
@@ -731,9 +755,9 @@ void put_payload(Out& o, const SessionSaveSources& s) {
 
 void put_payload(Out& o, const SavedConversation& s, const std::vector<SessionKvSource>* sources = nullptr) {
     put_head(o, s);
-    put_checkpoint(o, s.live);
+    put_checkpoint(o, s.live, s.live.gdn_f16);
     o.u64(s.checkpoints.size());
-    for (const auto& c : s.checkpoints) put_checkpoint(o, c);
+    for (const auto& c : s.checkpoints) put_checkpoint(o, c, s.live.gdn_f16);
     if (sources) {
         put_kv_sources(o, *sources);
         return;
@@ -761,6 +785,7 @@ struct In {
     uint64_t* state_hash = nullptr;
     SessionError kind = SessionError::invalid;
     size_t kv_layer = 0;
+    bool gdn_f16 = false;   // the header's kFlagGdnF16: the GDN parts of this file are blobs
     bool fail(const std::string& m) { if (error.empty()) error = "session file: " + m; return false; }
     bool raw(void* p, size_t c) {
         if (c > left) return fail("payload ends early");
@@ -801,6 +826,7 @@ bool get_tokens(In& in, ConversationCheckpoint& c) {
     uint64_t n = 0;
     if (!in.count(n, 16, in.limits.max_tokens)) return false;
     c.imgs.resize((size_t) n);
+    c.gdn_f16 = in.gdn_f16;   // (every parse of a checkpoint or the live state starts here: the file's GDN format)
     for (auto& k : c.imgs) if (!in.i64(k.start) || !in.u64(k.hash)) return false;
     return true;
 }
@@ -970,7 +996,7 @@ bool has_stage_parts(const SavedConversation& s) {
 
 // header v1, little-endian: magic[8] version:u32 header_size:u32 model:u64 config:u64 payload:u64 reserved:u64[2]
 // header_hash:u64 (session_hash64 of bytes 0..55, seed 0)
-void header_bytes(uint8_t* h, const SessionFileIdentity& id, uint64_t payload) {
+void header_bytes(uint8_t* h, const SessionFileIdentity& id, uint64_t payload, uint64_t flags = 0) {
     std::memset(h, 0, kHeader);
     std::memcpy(h, kMagic, 8);
     const uint32_t version = kVersion, size = kHeader;
@@ -979,6 +1005,7 @@ void header_bytes(uint8_t* h, const SessionFileIdentity& id, uint64_t payload) {
     std::memcpy(h + 16, &id.model, 8);
     std::memcpy(h + 24, &id.config, 8);
     std::memcpy(h + 32, &payload, 8);
+    std::memcpy(h + 40, &flags, 8);
     const uint64_t hh = session_hash64(h, 56, 0);
     std::memcpy(h + 56, &hh, 8);
 }
@@ -1229,7 +1256,7 @@ std::string write_refusal(const SessionSaveSources& save) {
 
 template<class Put>
 bool write_impl(const std::string& path, const std::string& refusal, const Put& put, const SessionFileIdentity& id,
-                size_t& bytes, std::string& error, const SessionWriteOptions& opt, SessionStatus& st) {
+                size_t& bytes, std::string& error, const SessionWriteOptions& opt, SessionStatus& st, uint64_t flags = 0) {
     st = {};
     st.error = SessionError::invalid;   // refusals before any disk access
     if (!refusal.empty()) { error = refusal; return false; }
@@ -1271,7 +1298,7 @@ bool write_impl(const std::string& path, const std::string& refusal, const Put& 
     f.write_fault = injected(fault, "write");
     f.flush_fault = injected(fault, "file_flush");
     uint8_t h[kHeader];
-    header_bytes(h, id, payload);
+    header_bytes(h, id, payload, flags);
     bool ok = f.write(h, kHeader);
     SessionHasher hash(0);
     Out out;
@@ -1412,7 +1439,7 @@ bool session_file_write(const std::string& path, const SavedConversation& meta, 
                         const SessionWriteOptions& options, SessionStatus* status) {
     return write_guarded(path, [&](SessionStatus& st) {
         return write_impl(path, write_refusal(meta, &kv), [&](Out& o) { put_payload(o, meta, &kv); }, id, bytes,
-                          error, options, st);
+                          error, options, st, meta.live.gdn_f16 ? kFlagGdnF16 : 0);
     }, error, status);
 }
 
@@ -1420,7 +1447,7 @@ bool session_file_write(const std::string& path, const SavedConversation& image,
                         size_t& bytes, std::string& error, const SessionWriteOptions& options, SessionStatus* status) {
     return write_guarded(path, [&](SessionStatus& st) {
         return write_impl(path, write_refusal(image, nullptr), [&](Out& o) { put_payload(o, image); }, id, bytes,
-                          error, options, st);
+                          error, options, st, image.live.gdn_f16 ? kFlagGdnF16 : 0);
     }, error, status);
 }
 
@@ -1428,7 +1455,7 @@ bool session_file_write(const std::string& path, const SessionSaveSources& save,
                         size_t& bytes, std::string& error, const SessionWriteOptions& options, SessionStatus* status) {
     return write_guarded(path, [&](SessionStatus& st) {
         return write_impl(path, write_refusal(save), [&](Out& o) { put_payload(o, save); }, id, bytes, error,
-                          options, st);
+                          options, st, save.state.gdn_f16 ? kFlagGdnF16 : 0);
     }, error, status);
 }
 
@@ -1436,6 +1463,7 @@ SessionStateSource session_state_source(const ConversationCheckpoint& c) {
     SessionStateSource s;
     const std::array<const std::vector<uint8_t>*, 5> parts = {&c.gdn, &c.ple, &c.tails, &c.dead, &c.block_pos};
     for (size_t i = 0; i < parts.size(); ++i) s.sizes[i] = parts[i]->size();
+    s.gdn_f16 = c.gdn_f16;
     s.read = [parts](size_t part, size_t offset, void* dst, size_t n) {
         if (part >= parts.size() || offset > parts[part]->size() || n > parts[part]->size() - offset) return false;
         uint8_t* d = static_cast<uint8_t*>(dst);
@@ -1452,7 +1480,7 @@ SessionStateSource session_state_source(const ConversationCheckpoint& c) {
 namespace {
 // The header every read checks first: magic, version, fields, size and both fingerprints, leaving `payload` set.
 bool header_ok(const uint8_t* h, uint64_t size, const SessionFileIdentity& id, uint64_t& payload,
-               std::string& error) {
+               std::string& error, uint64_t* flags = nullptr) {
     uint32_t version = 0, hsize = 0;
     uint64_t model = 0, config = 0, r0 = 0, r1 = 0, hh = 0;
     std::memcpy(&version, h + 8, 4); std::memcpy(&hsize, h + 12, 4);
@@ -1461,7 +1489,8 @@ bool header_ok(const uint8_t* h, uint64_t size, const SessionFileIdentity& id, u
     if (std::memcmp(h, kMagic, 8) != 0) { error = "session file: not a Strata session file (magic)"; return false; }
     if (hh != session_hash64(h, 56, 0)) { error = "session file: header checksum mismatch"; return false; }
     if (version != kVersion) { error = "session file: unsupported version " + std::to_string(version); return false; }
-    if (hsize != kHeader || r0 || r1) { error = "session file: invalid header fields"; return false; }
+    if (hsize != kHeader || (r0 & ~kFlagGdnF16) || r1) { error = "session file: invalid header fields"; return false; }
+    if (flags) *flags = r0;
     if (model != id.model) { error = "session file: saved with another model (model fingerprint differs)"; return false; }
     if (config != id.config) { error = "session file: saved with another engine configuration (config fingerprint differs)"; return false; }
     if (payload > size || size - kHeader - kTrailer != payload) {
@@ -1478,6 +1507,7 @@ struct ReadFile {
     RawFile raw;
     FileSource source;
     uint64_t size = 0;
+    uint64_t flags = 0;   // the header's flags (kFlagGdnF16)
     ReadFile() : source(raw) {}
     bool open(const std::string& path, const SessionFileIdentity& id, const SessionReadLimits& limits,
               uint64_t& payload, std::string& error, SessionStatus& st) {
@@ -1506,7 +1536,7 @@ struct ReadFile {
             error = "session file: header read error: " + source.error();
             return false;
         }
-        return header_ok(h, size, id, payload, error);
+        return header_ok(h, size, id, payload, error, &flags);
     }
 };
 
@@ -1539,8 +1569,8 @@ bool read_impl(const std::string& path, const SessionFileIdentity& id, SavedConv
     f.expected = size;
     uint8_t h[kHeader];
     if (!f.read(h, kHeader)) { st.error = f.kind(); error = "session file: header read error: " + f.error(); return false; }
-    uint64_t payload = 0;
-    if (!header_ok(h, size, id, payload, error)) return false;
+    uint64_t payload = 0, flags = 0;
+    if (!header_ok(h, size, id, payload, error, &flags)) return false;
     if (limits.admit) {
         std::string why;
         if (!limits.admit(session_read_peak_bytes(size), why)) {
@@ -1551,6 +1581,7 @@ bool read_impl(const std::string& path, const SessionFileIdentity& id, SavedConv
     }
     SavedConversation parsed;
     In in{&f, SessionHasher(0), payload, error, limits};
+    in.gdn_f16 = (flags & kFlagGdnF16) != 0;
     if (!get_payload(in, parsed)) { st.error = in.kind; return false; }
     if (in.left) { error = "session file: payload has " + std::to_string(in.left) + " unparsed bytes"; return false; }
     uint8_t t[kTrailer];
@@ -1588,6 +1619,7 @@ bool read_stream_impl(const std::string& path, const SessionFileIdentity& id, Sa
     SavedConversation parsed;
     SessionStreamLayout recorded;
     In in{&rf.source, SessionHasher(0), payload, error, limits};
+    in.gdn_f16 = (rf.flags & kFlagGdnF16) != 0;
     in.record_kv = layout ? &recorded.kv : kv_part_bytes;
     if (layout) {
         in.record_state = &recorded.live_state;
@@ -1625,6 +1657,7 @@ bool apply_stream_impl(const std::string& path, const SessionFileIdentity& id, c
     SessionReadLimits open;   // the read pass checked the engine's bounds; this walk only hands the K/V over
     SavedConversation parsed;   // re-parsed, then discarded
     In in{&rf.source, SessionHasher(0), payload, error, open};
+    in.gdn_f16 = (rf.flags & kFlagGdnF16) != 0;
     in.verify_kv = &kv_part_bytes;
     in.verify_state = live_state;
     if (!get_payload_streamed(in, parsed, sink, live_state ? Keep::tokens : Keep::meta)) { st.error = in.kind; return false; }
@@ -1653,6 +1686,7 @@ bool apply_state_impl(const std::string& path, const SessionFileIdentity& id, co
     SavedConversation parsed;
     uint64_t hash = 0;
     In in{&rf.source, SessionHasher(0), payload, error, open};
+    in.gdn_f16 = (rf.flags & kFlagGdnF16) != 0;
     in.verify_state = &layout.live_state;
     in.state_hash = &hash;
     if (!get_head(in, parsed) || !get_tokens(in, parsed.live) || !get_state_streamed(in, block.get(), &sink)) {
