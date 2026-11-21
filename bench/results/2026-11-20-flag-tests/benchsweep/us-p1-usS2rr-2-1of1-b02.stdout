@@ -26,3 +26,15 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 26.83 47.9 s (0.5
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 plus-ATTN_LANECELL   short 97.9 short 97.9 edit 122.0 edit 186.8 longdec64k 84.9/1678p 65240t  foreign CPU 2% [('kcompactd0', 4), ('kworker/1:2-mm_percpu_wq', 1), ('kswapd0', 1)]  gpu 2032/1249 MHz 61C 196W gtt 25M cpu 3420MHz 64C igpu 0%/vcn 0% fclk 1600
 SETTLE 120 after a 135 s run
+STARTDIAG 2026-11-21T03:48:37 prev_run_s=135 gap_s=260 rd_sect=142546722264 wr_sect=110758464 io_ticks_ms=110217042 d_rd_sect=98144800 d_wr_sect=136 d_io_ticks_ms=79054 cached_kb=17514876 mlocked_kb=64 memavail_kb=57906140 nvme_temp_c=49 compact_stall_d=5
+STARTLOAD 2026-11-21T03:49:25 loaded 33.02 GiB at 1.07 GiB/s rate=1.07
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.47 34.1 s (1.07 GiB/s; stopped; waited 12.2 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 100.6 short 100.1 edit 162.2 edit 176.1 longdec64k 82.1/2174p 65240t  foreign CPU 6% [('kcompactd0', 8), ('kworker/11:0-events', 4), ('kworker/1:1-events', 3)]  gpu 1895/1249 MHz 61C 182W gtt 25M cpu 3560MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T03:50:27 prev_run_s=105 gap_s=110 rd_sect=142626610448 wr_sect=110759096 io_ticks_ms=110258830 d_rd_sect=79888184 d_wr_sect=632 d_io_ticks_ms=41788 cached_kb=13674852 mlocked_kb=64 memavail_kb=57900884 nvme_temp_c=51 compact_stall_d=8
+STARTLOAD 2026-11-21T03:51:18 loaded 33.02 GiB at 0.99 GiB/s rate=0.99
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 27.12 37.5 s (0.72 GiB/s; stopped; waited 11.8 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-ATTN_MERGE_V2   short 107.5 short 104.7 edit 170.8 edit 169.4 longdec64k 86.0/2163p 65240t  foreign CPU 6% [('kcompactd0', 13), ('kworker/13:0-events_freezable', 5), ('kswapd0', 4)]  gpu 2033/1249 MHz 62C 181W gtt 25M cpu 3763MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-ATTN_MERGE_V2: every attempt noisy, keeping the quietest (6% foreign CPU)
+STARTDIAG 2026-11-21T03:52:26 prev_run_s=113 gap_s=118 rd_sect=142728692144 wr_sect=110759192 io_ticks_ms=110307657 d_rd_sect=102081696 d_wr_sect=96 d_io_ticks_ms=48827 cached_kb=15651648 mlocked_kb=64 memavail_kb=57942876 nvme_temp_c=52 compact_stall_d=13
