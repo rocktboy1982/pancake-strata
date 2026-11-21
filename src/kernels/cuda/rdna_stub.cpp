@@ -20,6 +20,7 @@ void rdna_gr_read_multi(const FusedGrArgs*, int, float*, void*, unsigned long lo
 // rdna_mmvq.cu: the RDNA GEMVs do not exist here; the callers keep native_mmvq.
 namespace strata::kernels {
 bool rdna_q6k_enabled() { return false; }
+void rdna_chains_override(int) {}
 bool rdna_q6k_mmvq(const void*, const void*, float*, int, int, int, void*) { return false; }
 bool rdna_kq_mmvq(int, const void*, const void*, float*, int, int, int, void*) { return false; }
 }  // namespace strata::kernels

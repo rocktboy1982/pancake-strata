@@ -3,6 +3,7 @@
 // them once (ql nibble | qh 2 bits, -32) and applies them to every column with two dp4a.  The same products and
 // per-16 scales as ggml's vec_dot_q6_K_q8_1, another summation order (not bitwise the reference kernel).
 #include "strata/kernels/native_mmvq.hpp"
+#include "strata/kernels/rdna_chain_split.hpp"
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
 #include <cstdint>
@@ -168,6 +169,185 @@ __global__ void __launch_bounds__(256) rdna_kq_kernel(const uint8_t* __restrict_
         const float v = wsum32(acc[c]);
         if (lane == 0) y[(size_t) c * n_out + row] = v;
     }
+}
+
+// ---- STRATA_VERIFY_GEMV_CHAINS=2|4 (LEADS.md Part U U7; default off, the kernels above are untouched).  The same
+// kernels with the lane's i32 dot split into independent sudot4 chains (strata/kernels/rdna_chain_split.hpp: an exact
+// integer re-association, tested on the host).  CH 2: each 2-step dot becomes two independent single-step dots joined by
+// an i32 add (Q4_K / Q5_K: the weight dot and the activation-sum dot, four sudot4 in flight per column).  CH 4: CH 2 plus
+// every column's integer dots of the superblock issued before the first f32 fold (all NC columns' sudot4 independent;
+// the folds keep the original column order and the original per-column fmaf order, so the f32 result is unchanged).
+// Built for 1..16 columns only (the engine's verify windows); wider calls take the kernels above.
+struct ChainDevDot {
+    __device__ __forceinline__ static int dot4(int w, int q, int acc) { return __builtin_amdgcn_sudot4(true, w, true, q, acc, false); }
+};
+
+template <int NC, int CH, int UNR = (NC <= 2 ? 5 : NC <= 4 ? 3 : NC <= 8 ? 2 : 1)>
+__global__ void __launch_bounds__(256) rdna_q6k_chain_kernel(const uint8_t* __restrict__ w, const Q81* __restrict__ x,
+                                                             float* __restrict__ y, int n_in, int n_out) {
+    const int lane = threadIdx.x & 31;
+    const int row = blockIdx.x * 8 + (threadIdx.x >> 5);
+    if (row >= n_out) return;
+    const int nsb = n_in / QK, xs = n_in / 32;
+    const int n = lane >> 4, qd = (lane >> 2) & 3, l = (lane & 3) * 8;
+    const int ql_off = n * 64 + (qd & 1) * 32 + l, qh_off = 128 + n * 32 + l, sc_off = 192 + n * 8 + (l >> 4) + 2 * qd;
+    const int xb = n * 4 + qd, xi = l >> 2;
+    const int hs = 2 * qd, ns = (qd >= 2) ? 4 : 0;
+    float acc[NC];
+#pragma unroll
+    for (int c = 0; c < NC; ++c) acc[c] = 0.0f;
+    const uint8_t* wr = w + (size_t) row * nsb * BB;
+#pragma unroll UNR
+    for (int sb = 0; sb < nsb; ++sb) {
+        const uint8_t* b = wr + (size_t) sb * BB;
+        const uint32_t l0 = ld32u(b + ql_off), l1 = ld32u(b + ql_off + 4);
+        const uint32_t h0 = ld32u(b + qh_off), h1 = ld32u(b + qh_off + 4);
+        const int sc = (int) (int8_t) b[sc_off];
+        const float d = __half2float(*reinterpret_cast<const __half*>(b + 208));
+        const uint32_t lo0 = (l0 >> ns) & 0x0f0f0f0fu, lo1 = (l1 >> ns) & 0x0f0f0f0fu;
+        const uint32_t hi0 = ((h0 >> hs) & 0x03030303u) << 4, hi1 = ((h1 >> hs) & 0x03030303u) << 4;
+        const int w0 = (int) ((((lo0 | hi0) | 0x80808080u) - 0x20202020u) ^ 0x80808080u);
+        const int w1 = (int) ((((lo1 | hi1) | 0x80808080u) - 0x20202020u) ^ 0x80808080u);
+        const float ds = d * (float) sc;
+        if constexpr (CH >= 4) {
+            int s[NC];
+#pragma unroll
+            for (int c = 0; c < NC; ++c) {
+                const Q81* xb8 = x + (size_t) c * xs + sb * 8 + xb;
+                const int* q = reinterpret_cast<const int*>(xb8->qs) + xi;
+                s[c] = rdna_chain::dot8<CH, ChainDevDot>(w0, w1, q[0], q[1]);
+            }
+#pragma unroll
+            for (int c = 0; c < NC; ++c) {
+                const Q81* xb8 = x + (size_t) c * xs + sb * 8 + xb;
+                acc[c] = fmaf(ds * __low2float(xb8->ds), (float) s[c], acc[c]);
+            }
+        } else {
+#pragma unroll
+            for (int c = 0; c < NC; ++c) {
+                const Q81* xb8 = x + (size_t) c * xs + sb * 8 + xb;
+                const int* q = reinterpret_cast<const int*>(xb8->qs) + xi;
+                const int s = rdna_chain::dot8<CH, ChainDevDot>(w0, w1, q[0], q[1]);
+                acc[c] = fmaf(ds * __low2float(xb8->ds), (float) s, acc[c]);
+            }
+        }
+    }
+#pragma unroll
+    for (int c = 0; c < NC; ++c) {
+        const float v = wsum32(acc[c]);
+        if (lane == 0) y[(size_t) c * n_out + row] = v;
+    }
+}
+
+template <int FMT, int NC, int CH, int UNR = (NC <= 2 ? 5 : NC <= 4 ? 3 : NC <= 8 ? 2 : 1)>
+__global__ void __launch_bounds__(256) rdna_kq_chain_kernel(const uint8_t* __restrict__ w, const Q81* __restrict__ x,
+                                                            float* __restrict__ y, int n_in, int n_out) {
+    constexpr int BB_ = KFmt<FMT>::B;
+    const int lane = threadIdx.x & 31;
+    const int row = blockIdx.x * 8 + (threadIdx.x >> 5);
+    if (row >= n_out) return;
+    const int nsb = n_in / QK, xs = n_in / 32;
+    const int j = lane >> 2, l0 = (lane & 3) * 8;
+    float acc[NC];
+#pragma unroll
+    for (int c = 0; c < NC; ++c) acc[c] = 0.0f;
+    const uint8_t* wr = w + (size_t) row * nsb * BB_;
+#pragma unroll UNR
+    for (int sb = 0; sb < nsb; ++sb) {
+        const uint8_t* b = wr + (size_t) sb * BB_;
+        int w0, w1;
+        float f1, f2 = 0.0f;
+        if constexpr (FMT == 23) {
+            const int hl = l0 >= 16 ? 4 : 0;
+            const uint32_t q0 = ld32u(b + 8 + 16 * j + (l0 & 15)), q1 = ld32u(b + 8 + 16 * j + (l0 & 15) + 4);
+            w0 = (int) iq4_lut4((q0 >> hl) & 0x0f0f0f0fu);
+            w1 = (int) iq4_lut4((q1 >> hl) & 0x0f0f0f0fu);
+            const uint16_t sh = *reinterpret_cast<const uint16_t*>(b + 2);
+            const int ls = ((b[4 + j / 2] >> (4 * (j & 1))) & 0xf) | (((sh >> (2 * j)) & 3) << 4);
+            f1 = __half2float(*reinterpret_cast<const __half*>(b)) * (float) (ls - 32);
+        } else {
+            const int qo = (FMT == 12 ? 16 : 48) + (j >> 1) * 32 + l0, ns = 4 * (j & 1);
+            uint32_t v0 = (ld32u(b + qo) >> ns) & 0x0f0f0f0fu, v1 = (ld32u(b + qo + 4) >> ns) & 0x0f0f0f0fu;
+            if constexpr (FMT == 13) {
+                v0 |= ((ld32u(b + 16 + l0) >> j) & 0x01010101u) << 4;
+                v1 |= ((ld32u(b + 16 + l0 + 4) >> j) & 0x01010101u) << 4;
+            }
+            w0 = (int) v0; w1 = (int) v1;
+            const uint32_t s0 = ld32u(b + 4), s1 = ld32u(b + 8), s2 = ld32u(b + 12);
+            auto sb8 = [&](int k) -> int {
+                const uint32_t w = k < 4 ? s0 : (k < 8 ? s1 : s2);
+                return (int) ((w >> (8 * (k & 3))) & 0xffu);
+            };
+            int sc, m;
+            if (j < 4) { sc = sb8(j) & 63; m = sb8(j + 4) & 63; }
+            else { sc = (sb8(j + 4) & 0xF) | ((sb8(j - 4) >> 6) << 4); m = (sb8(j + 4) >> 4) | ((sb8(j) >> 6) << 4); }
+            const float2 dm = __half22float2(*reinterpret_cast<const half2*>(b));
+            f1 = dm.x * (float) sc; f2 = dm.y * (float) m;
+        }
+        if constexpr (CH >= 4) {
+            int d1[NC], d2[NC];
+#pragma unroll
+            for (int c = 0; c < NC; ++c) {
+                const Q81* xb8 = x + (size_t) c * xs + sb * 8 + j;
+                const int* q = reinterpret_cast<const int*>(xb8->qs) + (l0 >> 2);
+                d1[c] = rdna_chain::dot8<CH, ChainDevDot>(w0, w1, q[0], q[1]);
+                if constexpr (FMT != 23) d2[c] = rdna_chain::dot8<CH, ChainDevDot>(0x01010101, 0x01010101, q[0], q[1]);
+                else d2[c] = 0;
+            }
+#pragma unroll
+            for (int c = 0; c < NC; ++c) {
+                const Q81* xb8 = x + (size_t) c * xs + sb * 8 + j;
+                const float d8 = __low2float(xb8->ds);
+                if constexpr (FMT == 23) acc[c] = fmaf(d8 * f1, (float) d1[c], acc[c]);
+                else acc[c] = fmaf(d8, f1 * (float) d1[c] - f2 * (float) d2[c], acc[c]);
+            }
+        } else {
+#pragma unroll
+            for (int c = 0; c < NC; ++c) {
+                const Q81* xb8 = x + (size_t) c * xs + sb * 8 + j;
+                const int* q = reinterpret_cast<const int*>(xb8->qs) + (l0 >> 2);
+                const float d8 = __low2float(xb8->ds);
+                const int s1 = rdna_chain::dot8<CH, ChainDevDot>(w0, w1, q[0], q[1]);
+                if constexpr (FMT == 23) acc[c] = fmaf(d8 * f1, (float) s1, acc[c]);
+                else {
+                    const int s2 = rdna_chain::dot8<CH, ChainDevDot>(0x01010101, 0x01010101, q[0], q[1]);
+                    acc[c] = fmaf(d8, f1 * (float) s1 - f2 * (float) s2, acc[c]);
+                }
+            }
+        }
+    }
+#pragma unroll
+    for (int c = 0; c < NC; ++c) {
+        const float v = wsum32(acc[c]);
+        if (lane == 0) y[(size_t) c * n_out + row] = v;
+    }
+}
+
+// 0 = off (default); 2 / 4 from STRATA_VERIFY_GEMV_CHAINS, read once (rdna_chains_override: tests and benches)
+inline int& chains_cell() { static int v = -1; return v; }
+inline int rdna_chains() {
+    int& v = chains_cell();
+    if (v < 0) v = rdna_chain::parse_chains(std::getenv("STRATA_VERIFY_GEMV_CHAINS"));
+    return v;
+}
+// compile-time walk N..1: launch the instance whose column count is `nc`
+template <int FMT, int CH, int N> struct ChainLaunch {
+    static bool go(int nc, unsigned blocks, const uint8_t* wb, const Q81* x, float* y, int n_in, int n_out, cudaStream_t s) {
+        if (nc != N) return ChainLaunch<FMT, CH, N - 1>::go(nc, blocks, wb, x, y, n_in, n_out, s);
+        if constexpr (FMT == 14) rdna_q6k_chain_kernel<N, CH><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out);
+        else rdna_kq_chain_kernel<FMT, N, CH><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out);
+        return true;
+    }
+};
+template <int FMT, int CH> struct ChainLaunch<FMT, CH, 0> {
+    static bool go(int, unsigned, const uint8_t*, const Q81*, float*, int, int, cudaStream_t) { return false; }
+};
+template <int FMT>
+bool chain_launch(int chains, const uint8_t* wb, const Q81* x, float* y, int n_in, int n_out, int ncols, cudaStream_t s) {
+    if (chains == 0 || ncols < 1 || ncols > 16) return false;
+    const unsigned blocks = (unsigned) ((n_out + 7) / 8);
+    return chains == 4 ? ChainLaunch<FMT, 4, 16>::go(ncols, blocks, wb, x, y, n_in, n_out, s)
+                       : ChainLaunch<FMT, 2, 16>::go(ncols, blocks, wb, x, y, n_in, n_out, s);
 }
 
 // ---- Matrix-core few-column kernel (STRATA_RDNA_WMMA_MINCOLS=N: from N columns up, Q4_K / Q5_K, up to 32 columns).
@@ -601,6 +781,9 @@ bool rdna_kq_mmvq(int type, const void* w, const void* xq, float* y, int n_in, i
         else wmma_launch_iq4xs(wb, x, y, n_in, n_out, ncols, s);
         return true;
     }
+    if (const int ch = rdna_chains(); ch != 0 && (type == 23 || ((type == 12 || type == 13) && (ncols >= 4 || std::getenv("STRATA_RDNA_KQ_ALL") != nullptr)))) {   // STRATA_VERIFY_GEMV_CHAINS (U7): the gates of the cases below
+        if (type == 12 ? chain_launch<12>(ch, wb, x, y, n_in, n_out, ncols, s) : type == 13 ? chain_launch<13>(ch, wb, x, y, n_in, n_out, ncols, s) : chain_launch<23>(ch, wb, x, y, n_in, n_out, ncols, s)) return true;
+    }
     switch (type) {
         // Q4_K / Q5_K: measured slower than the native wave kernels on gfx1100 - not taken (kept for the bench)
         case 12: if (ncols < 4 && std::getenv("STRATA_RDNA_KQ_ALL") == nullptr) return false;   // faster than the wave kernel from 4 columns
@@ -613,6 +796,8 @@ bool rdna_kq_mmvq(int type, const void* w, const void* xq, float* y, int n_in, i
 }
 namespace {
 }  // namespace
+
+void rdna_chains_override(int chains) { chains_cell() = chains == 2 || chains == 4 ? chains : 0; }   // tests / benches
 
 bool rdna_q6k_enabled() {
     static const bool on = [] { const char* v = std::getenv("STRATA_RDNA_Q6K"); return v != nullptr && v[0] == '1'; }();
@@ -629,6 +814,7 @@ bool rdna_q6k_mmvq(const void* w, const void* xq, float* y, int n_in, int n_out,
         wmma_launch_q6k(wb, x, y, n_in, n_out, ncols, s);
         return true;
     }
+    if (const int ch = rdna_chains(); ch != 0 && chain_launch<14>(ch, wb, x, y, n_in, n_out, ncols, s)) return true;   // STRATA_VERIFY_GEMV_CHAINS (U7)
     switch (ncols) {
         case 1: rdna_q6k_kernel<1><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
         case 2: rdna_q6k_kernel<2><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
