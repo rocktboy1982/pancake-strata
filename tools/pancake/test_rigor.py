@@ -290,3 +290,26 @@ def test_run_queue_us15_is_us14_with_rigor_and_turbo():
     for script in ("bench-sweep.sh", "bench-retest.sh", "bench-final-us.sh"):
         assert subprocess.run([shutil.which("sh"), "-n", str(CHAINS / script)]).returncode == 0
     assert "SWEEP_NO_TRIAGE" in (CHAINS / "bench-sweep.sh").read_text(encoding="utf-8") and "us-triage-rigor.json" in (CHAINS / "bench-retest.sh").read_text(encoding="utf-8")
+
+
+@pytest.mark.skipif(not shutil.which("sh"), reason="needs a POSIX sh")
+def test_run_queue_us16_is_us15_with_only_the_new_pin_ready_cap_and_names():
+    a = (CHAINS / "run-queue-us15.sh").read_text(encoding="utf-8")
+    p = CHAINS / "run-queue-us16.sh"
+    b = p.read_text(encoding="utf-8")
+    assert subprocess.run([shutil.which("sh"), "-n", str(p)]).returncode == 0 and "\r" not in b
+    a_lines, b_lines = a.split("\n"), b.split("\n")
+    import difflib
+    changed = [(x[0], x[2:]) for x in difflib.ndiff(a_lines, b_lines) if x[0] in "+-"]
+    kept = [x for x in changed if not x[1].lstrip().startswith("#")]    # comment lines (the new header) aside, only these differ:
+    assert sorted(kept) == sorted([("-", "L=/home/dan/clone-of-d/src/run-queue-us15.log"), ("+", "L=/home/dan/clone-of-d/src/run-queue-us16.log"),
+                                   ("-", "  hp=$O/work/us15-harness.tgz"), ("+", "  hp=$O/work/us16-harness.tgz"),
+                                   ("-", 'say "QUEUE_US15_DONE $(date +%F_%T)"'), ("+", 'say "QUEUE_US16_DONE $(date +%F_%T)"'),
+                                   ("-", next(x for x in a_lines if x.startswith('say "QUEUE_US15 START'))),
+                                   ("+", next(x for x in b_lines if x.startswith('say "QUEUE_US16 START'))),
+                                   ("+", next(x for x in b_lines if x.startswith("export ABTEST_READY_MAX_S=${ABTEST_READY_MAX_S:-900}")))])
+    assert next(x for x in a_lines if x.startswith('say "QUEUE_US15 START')).replace("US15", "US16") == next(x for x in b_lines if x.startswith('say "QUEUE_US16 START'))
+    body = b[b.index("# ---- us15 (T-1020)"):]
+    order = ["leftover\n", "rigor\n", "gates\n", "turbo\n", "final final"]
+    pos = [body.index("\n" + x) for x in order]
+    assert pos == sorted(pos) and body.index("rescreen usS2r-5") < body.index("\nleftover\n") and "SWEEP_HARNESS_SHA:?" in b   # the pin comes from the caller's environment
