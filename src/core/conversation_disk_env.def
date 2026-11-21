@@ -44,8 +44,9 @@ STRATA_ENV("STRATA_VERIFY_DEFER_CPU", Key, "CPU rows deferred a window: lossy")
 STRATA_ENV("STRATA_VERIFY_DEFER_CPU_BELOW", Key, "deferral threshold")
 STRATA_ENV("STRATA_VERIFY_DEFER_CPU_TOP", Key, "deferral top-k")
 
-// ---- KeyIfSet: changes what a state holds; part of the key only when set (an empty value counts as set: several are read by presence alone), so a run without it keeps its key (100) ----
+// ---- KeyIfSet: changes what a state holds; part of the key only when set (an empty value counts as set: several are read by presence alone), so a run without it keeps its key (101) ----
 STRATA_ENV("STRATA_AMD_COMMUNITY_TUNING", KeyIfSet, "makes SELECT_SIMT=2 the default on gfx103x (other summation order, KL 0.0256) and loads community GEMM tables")
+STRATA_ENV("STRATA_REDUCE_F32", KeyIfSet, "LEADS.md Part U U2: f32 accumulators and f32 exp / sqrt / divide in the legacy (non-native) silu, GDN norm, PLE and QSA indexer kernels instead of f64; last-bit differences, not bit-exact (reduce_f32_model.py)")
 STRATA_ENV("STRATA_POOL_MICRO_Q2FMA2", KeyIfSet, "B110: one-token Q2_0 CPU row with two accumulator chains; reassociated sum, rounding class (pool_micro_parity_test)")
 STRATA_ENV("STRATA_POOL_MICRO_SWIGLU", KeyIfSet, "B110: 8-lane exp in the one-token IQ gate/up SwiGLU; exp within a few ulp of std::exp (pool_micro_parity_test)")
 STRATA_ENV("STRATA_BFLA", Inert, "old BFLA switch, split in two: turns nothing on, prints a note")

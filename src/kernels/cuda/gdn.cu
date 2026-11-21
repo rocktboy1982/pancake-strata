@@ -3,6 +3,7 @@
 // See include/strata/kernels/gdn.hpp for the state layout (S, h_v, S) and for why the recurrence needs no
 // barrier at all: every line of it touches only one (j, h) column, so one thread owns a column end to end.
 #include "strata/kernels/gdn.hpp"
+#include "strata/kernels/reduce_f32.hpp"
 
 #include <cuda_runtime.h>
 
@@ -115,35 +116,52 @@ __global__ void gdn_conv_kernel(float* __restrict__ cs, const float* __restrict_
 /// The sum is accumulated in DOUBLE, as `ref/gdn.py` does (`l2_norm(q.astype(np.float64), eps)`), because the
 /// reference deliberately computes this one in float64 and then casts - so matching its precision is part of
 /// transcribing it.
+///
+/// STRATA_REDUCE_F32=1 (reduce_f32.hpp, LEADS.md Part U U2): F32 = true sums in f32 (same order, correctly rounded adds and products) and takes
+/// 1 / sqrt in f32; false is the original, unchanged.
+template <bool F32>
 __global__ void gdn_l2_kernel(float* __restrict__ x, int cols, float eps) {
+    using Acc = rf32::acc_t<F32>;
     const int row = blockIdx.x;
     float* p = x + (size_t) row * cols;
-    double acc = 0.0;
-    for (int i = threadIdx.x; i < cols; i += blockDim.x) acc += (double) p[i] * (double) p[i];
+    Acc acc = 0;
+    for (int i = threadIdx.x; i < cols; i += blockDim.x) {
+        if constexpr (F32) acc = rf32::fadd(acc, rf32::fmul(p[i], p[i]));
+        else acc += (double) p[i] * (double) p[i];
+    }
     // warp reduction
     for (int off = 16; off > 0; off >>= 1) acc += __shfl_down_sync(0xFFFFFFFFu, acc, off);
-    __shared__ double ssum;
+    __shared__ Acc ssum;
     if (threadIdx.x == 0) ssum = acc;
     __syncthreads();
-    const float inv = (float) (1.0 / sqrt(ssum + (double) eps));
+    float inv;
+    if constexpr (F32) inv = rf32::inv_sqrt(rf32::fadd(ssum, eps));
+    else inv = (float) (1.0 / sqrt(ssum + (double) eps));
     for (int i = threadIdx.x; i < cols; i += blockDim.x) p[i] *= inv;
 }
 
 /// y = rms_norm(o, eps) * ssm_norm * sigmoid(z), one warp per head, norm over that head's S values.
+template <bool F32>   // STRATA_REDUCE_F32 (see gdn_l2_kernel)
 __global__ void gdn_out_norm_kernel(const float* __restrict__ o, const float* __restrict__ z,
                                     const float* __restrict__ ssm_norm, float* __restrict__ y, int S,
                                     float eps) {
+    using Acc = rf32::acc_t<F32>;
     const int h = blockIdx.x;
     const float* po = o + (size_t) h * S;
     const float* pz = z + (size_t) h * S;
     float* py = y + (size_t) h * S;
-    double acc = 0.0;
-    for (int i = threadIdx.x; i < S; i += blockDim.x) acc += (double) po[i] * (double) po[i];
+    Acc acc = 0;
+    for (int i = threadIdx.x; i < S; i += blockDim.x) {
+        if constexpr (F32) acc = rf32::fadd(acc, rf32::fmul(po[i], po[i]));
+        else acc += (double) po[i] * (double) po[i];
+    }
     for (int off = 16; off > 0; off >>= 1) acc += __shfl_down_sync(0xFFFFFFFFu, acc, off);
-    __shared__ double ssum;
+    __shared__ Acc ssum;
     if (threadIdx.x == 0) ssum = acc;
     __syncthreads();
-    const float inv = (float) (1.0 / sqrt(ssum / (double) S + (double) eps));
+    float inv;
+    if constexpr (F32) inv = rf32::inv_sqrt(rf32::fadd(__fdiv_rn(ssum, (float) S), eps));
+    else inv = (float) (1.0 / sqrt(ssum / (double) S + (double) eps));
     for (int i = threadIdx.x; i < S; i += blockDim.x)
         py[i] = po[i] * inv * ssm_norm[i] * sigmoid_f(pz[i]);
 }
@@ -192,7 +210,8 @@ void gdn_l2_norm(float* x, int64_t rows, int64_t cols, float eps, void* stream) 
         std::fprintf(stderr, "gdn_l2_norm: cols = %lld exceeds the 1024-wide warp reduction\n", (long long) cols);
         std::exit(1);
     }
-    gdn_l2_kernel<<<(unsigned) rows, 32, 0, (cudaStream_t) stream>>>(x, (int) cols, eps);
+    if (rf32::requested()) gdn_l2_kernel<true><<<(unsigned) rows, 32, 0, (cudaStream_t) stream>>>(x, (int) cols, eps);
+    else gdn_l2_kernel<false><<<(unsigned) rows, 32, 0, (cudaStream_t) stream>>>(x, (int) cols, eps);
     if (stream == nullptr) {
         const cudaError_t e = cudaDeviceSynchronize();
         if (e != cudaSuccess) {
@@ -235,7 +254,8 @@ void gdn_beta_gate(float* beta, int64_t h_v, void* stream) {
 void gdn_out_norm(const float* o, const float* z, const float* ssm_norm, float* y, int64_t h_v, int64_t S,
                   float eps, void* stream) {
     if (h_v <= 0 || S <= 0) return;
-    gdn_out_norm_kernel<<<(unsigned) h_v, 32, 0, (cudaStream_t) stream>>>(o, z, ssm_norm, y, (int) S, eps);
+    if (rf32::requested()) gdn_out_norm_kernel<true><<<(unsigned) h_v, 32, 0, (cudaStream_t) stream>>>(o, z, ssm_norm, y, (int) S, eps);
+    else gdn_out_norm_kernel<false><<<(unsigned) h_v, 32, 0, (cudaStream_t) stream>>>(o, z, ssm_norm, y, (int) S, eps);
     if (stream == nullptr) {
         const cudaError_t e = cudaDeviceSynchronize();
         if (e != cudaSuccess) {
