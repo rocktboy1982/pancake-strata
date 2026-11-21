@@ -1,0 +1,12 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": ["short", "edit"],
+  "reps": 3,
+  "arms": {
+    "base": {},
+    "chains2": {"env": {"STRATA_VERIFY_GEMV_CHAINS": "2"}},
+    "chains4": {"env": {"STRATA_VERIFY_GEMV_CHAINS": "4"}}
+  },
+  "note": "LEADS.md Part U lead U7 (hcharbonnier/radiance-rdna3 W41a): STRATA_VERIFY_GEMV_CHAINS=2|4 runs the RDNA verify-window GEMVs (rdna_kq_kernel for Q4_K / Q5_K / IQ4_XS, rdna_q6k_kernel for Q6_K, 1..16 columns, src/kernels/cuda/rdna_mmvq.cu) with the lane's i32 dot split into independent sudot4 chains (2) and with every column's integer dots issued before the first f32 fold (4). Exact i32 re-association, f32 order unchanged: the output must be bitwise the base's (TEST_LEDGER.md T-1060: host test, CUDA sm_75 shim check 192 of 192 bitwise; the HIP kernels were never compiled for gfx1100 and never run on the box). Expected gain under 0.5% end to end (LEADS.md U7: 9.0% of decode kernel time, which is itself 40.6% waiting for CPU rows), so this engine arm is a last step: run the kernel gate first (ctest -R rdna_chains_parity, then b6_mmvq_bench / claude_bench with the env per shape), and the engine screen only if a kernel shows >= 5%. The arm acts only where the preset takes the RDNA GEMVs (STRATA_RDNA_Q6K=1 is in the preset) and a verify window of 2..16 rows runs: check STRATA_DISPATCH_REPORT or the engine log, else the arm is inert. Exact text. Stop pancake.service first. NOT MEASURED."
+}

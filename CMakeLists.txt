@@ -109,6 +109,9 @@ option(STRATA_MMQ_RDNA3_J32_ROLLED "HIP prompt MMQ: llama.cpp #31751 J=32 rolled
 # mmvf/mmvq sums).  Lossy risk: approximate transcendentals and denormals flushed to zero.  Opt-in until a build-vs-build
 # A/B with token forcing (LEADS.md Part F, #31625).
 option(STRATA_HIP_FAST_MATH "HIP prompt MMQ: llama.cpp #31625 fast-math flags on strata_mmq (lossy risk; needs STRATA_PREFILL_MMQ)" OFF)
+# LEADS.md Part U U8: the register-prefetch decode attention chunk kernel (attn_chunk_pf_kernel in qsa_decode_attn.cu), compiled in only with
+# this option and switched on at run time by STRATA_ATTN_KV_PREFETCH=1 (off by default); bitwise the default kernel (a parity test, no tolerance).
+option(STRATA_ATTN_KV_PREFETCH "Compile the U8 register-prefetch decode attention kernel (run-time switch STRATA_ATTN_KV_PREFETCH=1, default off)" OFF)
 # The community-made AMD changes (include/strata/core/amd_community.hpp): on by default.  This option is the build half of the one
 # switch STRATA_AMD_COMMUNITY_TUNING: OFF compiles the portable signed-byte dot for gfx1010 again (the SDWA sequence of #4855).
 # The rocBLAS tables are switched at run time (STRATA_AMD_COMMUNITY_TUNING=0).
@@ -718,6 +721,9 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/ngram/ple_reader.cpp
                           src/platform/direct_file.cpp)
   target_link_libraries(strata_kernels PUBLIC strata_core strata_artifact)
+  if(STRATA_ATTN_KV_PREFETCH)   # LEADS.md Part U U8: compiles attn_chunk_pf_kernel (off: nothing new is built)
+    target_compile_definitions(strata_kernels PRIVATE STRATA_ATTN_KV_PREFETCH=1)
+  endif()
   # pancake, opt-in kernels: STRATA_TEAL / _TEAL_UNION / _DOWN_T / _LQER (ffn_sparse.cu)
   target_sources(strata_kernels PRIVATE src/kernels/cuda/ffn_sparse.cu)
   target_sources(strata_kernels PRIVATE src/kernels/cuda/rkv.cu)   # STRATA_RKV
@@ -873,6 +879,12 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     set_tests_properties(qsa_slots_parity_lanecell PROPERTIES ENVIRONMENT "STRATA_ATTN_LANECELL=1")
     # fork: the Daily's decode attention (STRATA_ATTN_DAILY=1: PR #540's chunk kernel on every card and the bounded
     # merge) against upstream's kernels, bitwise; the production entries checked with the variable off and on
+    # LEADS.md Part U U8: the register-prefetch decode attention against the default kernel, bitwise (only in a build with -DSTRATA_ATTN_KV_PREFETCH=ON; exit 77 otherwise)
+    add_executable(qsa_kv_prefetch_parity src/kernels/qsa_kv_prefetch_parity.cpp)
+    target_include_directories(qsa_kv_prefetch_parity PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+    target_link_libraries(qsa_kv_prefetch_parity PRIVATE strata_kernels CUDA::cudart)
+    add_test(NAME qsa_kv_prefetch_parity COMMAND qsa_kv_prefetch_parity)
+    set_tests_properties(qsa_kv_prefetch_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
     add_executable(qsa_merge_daily_parity src/kernels/qsa_merge_daily_parity.cpp)
     target_include_directories(qsa_merge_daily_parity PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
     target_link_libraries(qsa_merge_daily_parity PRIVATE strata_kernels CUDA::cudart)

@@ -1,0 +1,12 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": ["short", "edit", "long3k"],
+  "reps": 3,
+  "arms": {
+    "base": {"exe": "/home/dan/clone-of-d/src/build-win/strata"},
+    "kvpf-off": {"exe": "/home/dan/clone-of-d/src/build-kvpf/strata"},
+    "kvpf-on": {"exe": "/home/dan/clone-of-d/src/build-kvpf/strata", "env": {"STRATA_ATTN_KV_PREFETCH": "1"}}
+  },
+  "note": "LEADS.md Part U lead U8 (hcharbonnier/radiance-rdna3 W41c): a build option plus a run-time switch. build-kvpf = the build-win cmake line plus -DSTRATA_ATTN_KV_PREFETCH=ON (compiles attn_chunk_pf_kernel in src/kernels/cuda/qsa_decode_attn.cu: the K row of the next cell and the V rows of the next STRATA_ATTN_KV_PREFETCH_DEPTH=4 cells are loaded into registers before the current cells' arithmetic); STRATA_ATTN_KV_PREFETCH=1 selects it for qsa_decode_attn_step and the plain batch path (not for lane-cell, split-grid, window, slots or WMMA variants). Prefetch only: same cells, same values, same order of every product and sum, so the output must be bitwise the default's (TEST_LEDGER.md T-1061: CUDA sm_75 parity 288 of 288 bitwise on the GTX 1660 Ti, the default build's sm_75 SASS identical to the previous source; the HIP build never compiled for gfx1100, never run on the box). kvpf-off must equal base (same source, switch off: the build-vs-build control), kvpf-on is the arm. Expected at most 0.3% (QSA decode attention is 3.0% of decode GPU time, LEADS.md U8): run the kernel microbench first (ctest -R qsa_kv_prefetch_parity, then hip_decode_attn_wmma_parity --bench style timing or rocprof on the attention kernel at 2K / 32K) and this engine screen only if the kernel gains >= 10%. Check the engine takes the plain chunk kernel (STRATA_ATTN_LANECELL / SPLIT_GRID / WMMA off in the preset, else the arm is inert). Exact text. Stop pancake.service first. NOT MEASURED."
+}

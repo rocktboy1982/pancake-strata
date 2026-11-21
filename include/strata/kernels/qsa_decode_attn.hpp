@@ -45,6 +45,10 @@ uint64_t qsa_decode_attn_scratch_floats(int64_t cap, const QsaShapes& s);
 void qsa_decode_attn_step(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* step,
                           int64_t cap, const QsaShapes& s, float* scratch, float* attn, void* stream);
 
+/// LEADS.md Part U U8 (STRATA_ATTN_KV_PREFETCH): force the register-prefetch chunk kernel on or off for qsa_decode_attn_step / _batch (parity test,
+/// bench). Returns false when this build was not made with -DSTRATA_ATTN_KV_PREFETCH (nothing changes then).
+bool qsa_attn_kv_prefetch_override(int on);
+
 /// Plan v0.3 P5: `n_q` queries at once, each with its own selection: q [n_q, n_head, 256], ids [n_q, cap], steps
 /// [n_q, kStepCount], attn [n_q, n_head, 256]; scratch is `n_q` times the single-query size.
 void qsa_decode_attn_batch(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* steps,
