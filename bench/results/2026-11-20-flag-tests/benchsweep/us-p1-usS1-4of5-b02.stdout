@@ -34,3 +34,61 @@ STARTLOAD 2026-11-21T04:46:44 loaded 33.02 GiB at 0.19 GiB/s rate=0.19
 rep 0 plus-NO_MMVQ_ROWS2   short 93.2 short 44.3 edit 118.0 edit 133.2 longdec64k 81.0/1601p 65241t  foreign CPU 6% [('kcompactd0', 11), ('kworker/0:2-events', 3), ('kswapd0', 3)]  gpu 2047/1249 MHz 61C 173W gtt 25M cpu 3505MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-NO_MMVQ_ROWS2: every attempt noisy, keeping the quietest (6% foreign CPU)
 SETTLE 120 after a 271 s run
+STARTDIAG 2026-11-21T04:50:05 prev_run_s=271 gap_s=396 rd_sect=144227882008 wr_sect=110760880 io_ticks_ms=111806032 d_rd_sect=77580728 d_wr_sect=144 d_io_ticks_ms=213223 cached_kb=13024712 mlocked_kb=64 memavail_kb=58008312 nvme_temp_c=49 compact_stall_d=6
+STARTLOAD 2026-11-21T04:50:57 loaded 33.02 GiB at 0.99 GiB/s rate=0.99
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.48 38.0 s (0.96 GiB/s; stopped; waited 12.3 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 109.6 short 103.0 edit 161.8 edit 183.2 longdec64k 75.8/2188p 65241t  foreign CPU 2% [('kcompactd0', 2), ('kswapd0', 1), ('localsearch-3', 1)]  gpu 2043/1249 MHz 60C 185W gtt 25M cpu 3665MHz 65C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 102.0 +-  24.1  (n=2)
+                              drafts accepted 0.70
+  short  plus-NORM_ROPE          104.4 +-  21.0  (n=2)   vs updated:  +2.4% +- 44.2%  -> no difference
+                              drafts accepted 0.70
+  short  plus-MTP_TOP2           105.8 +-  32.4  (n=2)   vs updated:  +3.8% +- 55.5%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 103.8 +-   3.8  (n=2)   vs updated:  +1.8% +- 27.4%  -> no difference
+                              drafts accepted 0.71
+  short  plus-MTP_FULL_HEAD      100.8 +-  48.3  (n=2)   vs updated:  -1.2% +- 23.7%  -> no difference
+                              drafts accepted 0.67
+  short  plus-NO_MMVQ_ROWS2       68.8 +- 310.8  (n=2)   vs updated: -32.6% +- 328.3%  -> no difference
+                              drafts accepted 0.66
+  short  base-late               106.3 +-  41.9  (n=2)   vs updated:  +4.2% +- 64.8%  -> no difference
+                              drafts accepted 0.70
+  edit   updated                 165.9 +-  52.7  (n=2)
+                              drafts accepted 0.90
+  edit   plus-NORM_ROPE          172.8 +- 134.7  (n=2)   vs updated:  +4.1% +- 49.4%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-MTP_TOP2           168.8 +-  11.4  (n=2)   vs updated:  +1.7% +- 24.9%  -> no difference
+                              drafts accepted 0.90
+  edit   base-m1                 168.8 +-  14.0  (n=2)   vs updated:  +1.7% +- 23.4%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-MTP_FULL_HEAD      156.3 +-  33.7  (n=2)   vs updated:  -5.8% +- 11.5%  -> no difference
+                              drafts accepted 0.93
+  edit   plus-NO_MMVQ_ROWS2      125.6 +-  96.6  (n=2)   vs updated: -24.3% +- 26.4%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               172.5 +- 136.0  (n=2)   vs updated:  +3.9% +- 50.2%  -> no difference
+                              drafts accepted 0.88
+  longdec64k updated                  86.3 +-   nan  (n=1)
+  longdec64k plus-NORM_ROPE           80.5 +-   nan  (n=1)   vs updated:  -6.7% +-  nan%  -> no difference
+  longdec64k plus-MTP_TOP2            84.0 +-   nan  (n=1)   vs updated:  -2.7% +-  nan%  -> no difference
+  longdec64k base-m1                  86.9 +-   nan  (n=1)   vs updated:  +0.7% +-  nan%  -> no difference
+  longdec64k plus-MTP_FULL_HEAD       80.6 +-   nan  (n=1)   vs updated:  -6.6% +-  nan%  -> no difference
+  longdec64k plus-NO_MMVQ_ROWS2       81.0 +-   nan  (n=1)   vs updated:  -6.1% +-  nan%  -> no difference
+  longdec64k base-late                75.8 +-   nan  (n=1)   vs updated: -12.2% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-NORM_ROPE       DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MTP_TOP2        DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MTP_FULL_HEAD   DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-NO_MMVQ_ROWS2   DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +4.2%  edit +3.9%  longdec64k -12.2%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-NORM_ROPE       short +0.3%  edit +2.1%  longdec64k -0.7%  -> PROMOTE to confirm
+  plus-MTP_TOP2        short +1.6%  edit -0.3%  longdec64k +3.6%  -> PROMOTE to confirm
+  base-m1              short -0.3%  edit -0.3%  longdec64k +7.2%  -> PROMOTE to confirm
+  plus-MTP_FULL_HEAD   short -3.2%  edit -7.6%  longdec64k -0.6%  -> drop
+  plus-NO_MMVQ_ROWS2   short -34.0%  edit -25.8%  longdec64k -0.1%  -> drop
