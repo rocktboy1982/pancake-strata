@@ -17,3 +17,17 @@ STARTDIAG 2026-11-21T05:50:54 prev_run_s=108 gap_s=113 rd_sect=145990179304 wr_s
 STARTLOAD 2026-11-21T05:51:44 loaded 33.02 GiB at 1.06 GiB/s rate=1.06
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.34 35.4 s (1.03 GiB/s; stopped; waited 12.9 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-PF_FUSED_F16    short 107.0 short 103.7 edit 169.5 edit 168.2 longdec64k 86.3/2172p 65241t  foreign CPU 5% [('kcompactd0', 7), ('kswapd0', 2), ('kworker/0:0-events', 2)]  gpu 2045/1249 MHz 61C 183W gtt 25M cpu 3614MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-PF_FUSED_F16: every attempt noisy, keeping the quietest (5% foreign CPU)
+STARTDIAG 2026-11-21T05:52:53 prev_run_s=114 gap_s=119 rd_sect=146075722856 wr_sect=110762728 io_ticks_ms=113267769 d_rd_sect=85543552 d_wr_sect=64 d_io_ticks_ms=43132 cached_kb=15295196 mlocked_kb=64 memavail_kb=58078888 nvme_temp_c=51 compact_stall_d=6
+STARTLOAD 2026-11-21T05:53:45 loaded 33.02 GiB at 0.97 GiB/s rate=0.97
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 34.83 38.7 s (0.90 GiB/s; stopped; waited 11.6 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-PF_FUSED_NATIVE short 102.4 short 97.4 edit 168.6 edit 177.3 longdec64k 82.8/1827p 65241t  foreign CPU 5% [('kcompactd0', 10), ('kworker/9:0-mm_percpu_wq', 6), ('kswapd0', 4)]  gpu 2037/1249 MHz 62C 182W gtt 21M cpu 3579MHz 52C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-PF_FUSED_NATIVE: every attempt noisy, keeping the quietest (5% foreign CPU)
+STARTDIAG 2026-11-21T05:54:59 prev_run_s=121 gap_s=126 rd_sect=146185118176 wr_sect=110762824 io_ticks_ms=113317562 d_rd_sect=109395320 d_wr_sect=96 d_io_ticks_ms=49793 cached_kb=15915852 mlocked_kb=64 memavail_kb=58091088 nvme_temp_c=51 compact_stall_d=12
+STARTLOAD 2026-11-21T05:55:47 loaded 33.02 GiB at 1.13 GiB/s rate=1.13
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.36 33.4 s (1.09 GiB/s; stopped; waited 12.9 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 108.1 short 103.2 edit 161.1 edit 183.2 longdec64k 78.2/2189p 65241t  foreign CPU 4% [('kcompactd0', 13), ('udisksd', 2), ('kswapd0', 2)]  gpu 2038/1249 MHz 63C 186W gtt 25M cpu 3683MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T05:56:52 prev_run_s=107 gap_s=112 rd_sect=146266305408 wr_sect=110762936 io_ticks_ms=113358694 d_rd_sect=81187232 d_wr_sect=112 d_io_ticks_ms=41132 cached_kb=14548856 mlocked_kb=64 memavail_kb=58078368 nvme_temp_c=52 compact_stall_d=9
