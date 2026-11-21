@@ -1,0 +1,89 @@
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+STARTDIAG 2026-11-21T15:12:23 prev_run_s=NA gap_s=NA rd_sect=163023299344 wr_sect=110782928 io_ticks_ms=126752846 d_rd_sect=NA d_wr_sect=NA d_io_ticks_ms=NA cached_kb=16673808 mlocked_kb=64 memavail_kb=58076056 nvme_temp_c=48 compact_stall_d=NA
+SLOWLOAD waiting for the engine: not ready, elapsed 60 s
+STARTLOAD 2026-11-21T15:13:50 loaded 33.02 GiB at 0.47 GiB/s rate=0.47
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 21.78 74.4 s (0.29 GiB/s; stopped; waited 11.2 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 101.4 short 81.5 edit 100.5 edit 181.0 longdec64k 74.1/1526p 65240t  foreign CPU 4% [('kcompactd0', 6), ('kworker/11:1-events_freezable', 4), ('kworker/0:0-events_freezable', 3)]  gpu 1975/1249 MHz 61C 181W gtt 25M cpu 3573MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1526, pack load 0.47 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+SETTLE 120 after a 166 s run
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+STARTDIAG 2026-11-21T15:19:14 prev_run_s=166 gap_s=411 rd_sect=163150466840 wr_sect=110783072 io_ticks_ms=126889609 d_rd_sect=127167496 d_wr_sect=144 d_io_ticks_ms=136763 cached_kb=38848904 mlocked_kb=64 memavail_kb=58044480 nvme_temp_c=46 compact_stall_d=23
+STARTLOAD 2026-11-21T15:19:58 loaded 33.02 GiB at 1.23 GiB/s rate=1.23
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.52 30.6 s (1.19 GiB/s; stopped; waited 11.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 110.4 short 103.3 edit 169.7 edit 171.7 longdec64k 86.1/2184p 65240t  foreign CPU 2% [('kcompactd0', 3), ('migration/1', 0), ('migration/14', 0)]  gpu 1995/1249 MHz 60C 181W gtt 25M cpu 3517MHz 66C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED updated: first start prefill 1526 / load 0.47 GiB/s (paused 15:15:09), second start prefill 2184 / load 1.23 GiB/s
+STARTDIAG 2026-11-21T15:21:03 prev_run_s=104 gap_s=109 rd_sect=163217287216 wr_sect=110783120 io_ticks_ms=126927019 d_rd_sect=66820376 d_wr_sect=48 d_io_ticks_ms=37410 cached_kb=18355824 mlocked_kb=64 memavail_kb=58008804 nvme_temp_c=50 compact_stall_d=1
+STARTLOAD 2026-11-21T15:21:52 loaded 33.02 GiB at 1.08 GiB/s rate=1.08
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.48 34.5 s (1.06 GiB/s; stopped; waited 12.8 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-KV_GROW         short 108.7 short 103.7 edit 169.7 edit 171.7 longdec64k 84.0/2172p 65240t  foreign CPU 4% [('kcompactd0', 8), ('kswapd0', 3), ('kworker/15:0-events', 1)]  gpu 2030/1249 MHz 62C 191W gtt 25M cpu 3596MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-KV_GROW: every attempt noisy, keeping the quietest (4% foreign CPU)
+STARTDIAG 2026-11-21T15:22:57 prev_run_s=109 gap_s=114 rd_sect=163292372472 wr_sect=110783216 io_ticks_ms=126968139 d_rd_sect=75085256 d_wr_sect=96 d_io_ticks_ms=41120 cached_kb=15490928 mlocked_kb=64 memavail_kb=58101692 nvme_temp_c=51 compact_stall_d=1
+STARTLOAD 2026-11-21T15:23:49 loaded 33.02 GiB at 0.98 GiB/s rate=0.98
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 32.61 38.1 s (0.86 GiB/s; stopped; waited 12.2 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-LFUSE_PAIR      short 107.7 short 103.0 edit 162.2 edit 183.4 longdec64k 82.8/2181p 65240t  foreign CPU 3% [('kworker/10:2-mm_percpu_wq', 2), ('kcompactd0', 2), ('claude', 1)]  gpu 2029/1249 MHz 62C 186W gtt 25M cpu 3677MHz 67C igpu 0%/vcn 0% fclk 1600
+STARTDIAG 2026-11-21T15:24:54 prev_run_s=112 gap_s=117 rd_sect=163400965512 wr_sect=110783312 io_ticks_ms=127017481 d_rd_sect=108593040 d_wr_sect=96 d_io_ticks_ms=49342 cached_kb=18091220 mlocked_kb=64 memavail_kb=58115340 nvme_temp_c=52 compact_stall_d=7
+STARTLOAD 2026-11-21T15:25:39 loaded 33.02 GiB at 1.20 GiB/s rate=1.20
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.38 30.9 s (1.18 GiB/s; stopped; waited 12.4 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 109.3 short 102.9 edit 161.4 edit 183.9 longdec64k 83.5/2180p 65240t  foreign CPU 4% [('kcompactd0', 7), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 2020/1249 MHz 63C 183W gtt 25M cpu 3580MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T15:26:43 prev_run_s=104 gap_s=110 rd_sect=163474446544 wr_sect=110783408 io_ticks_ms=127056188 d_rd_sect=73481032 d_wr_sect=96 d_io_ticks_ms=38707 cached_kb=14133592 mlocked_kb=64 memavail_kb=58110296 nvme_temp_c=52 compact_stall_d=6
+STARTLOAD 2026-11-21T15:27:29 loaded 33.02 GiB at 1.12 GiB/s rate=1.12
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.47 33.5 s (1.09 GiB/s; stopped; waited 10.8 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-MTP_FULL_HEAD   short 102.6 short 106.0 edit 155.9 edit 165.1 longdec64k 84.9/2181p 65240t  foreign CPU 4% [('kcompactd0', 5), ('kworker/8:1-mm_percpu_wq', 3), ('kswapd0', 2)]  gpu 2044/1249 MHz 64C 188W gtt 25M cpu 3632MHz 67C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MTP_FULL_HEAD: every attempt noisy, keeping the quietest (4% foreign CPU)
+STARTDIAG 2026-11-21T15:28:37 prev_run_s=109 gap_s=114 rd_sect=163545445504 wr_sect=110783504 io_ticks_ms=127096247 d_rd_sect=70998960 d_wr_sect=96 d_io_ticks_ms=40059 cached_kb=15288196 mlocked_kb=64 memavail_kb=58141796 nvme_temp_c=52 compact_stall_d=8
+STARTLOAD 2026-11-21T15:29:26 loaded 33.02 GiB at 1.01 GiB/s rate=1.01
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 31.42 36.4 s (0.86 GiB/s; stopped; waited 10.9 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 108.2 short 102.7 edit 162.9 edit 182.5 longdec64k 81.3/2184p 65240t  foreign CPU 3% [('kcompactd0', 3), ('kswapd0', 2), ('kworker/1:1-events', 1)]  gpu 2042/1249 MHz 64C 189W gtt 25M cpu 3788MHz 66C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 106.8 +-  45.1  (n=2)
+                              drafts accepted 0.71
+  short  plus-KV_GROW            106.2 +-  31.8  (n=2)   vs updated:  -0.6% +- 12.5%  -> no difference
+                              drafts accepted 0.71
+  short  plus-LFUSE_PAIR         105.3 +-  29.9  (n=2)   vs updated:  -1.4% +- 14.3%  -> no difference
+                              drafts accepted 0.70
+  short  base-m1                 106.1 +-  40.7  (n=2)   vs updated:  -0.7% +-  4.2%  -> no difference
+                              drafts accepted 0.70
+  short  plus-MTP_FULL_HEAD      104.3 +-  21.6  (n=2)   vs updated:  -2.4% +- 62.4%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               105.5 +-  35.0  (n=2)   vs updated:  -1.3% +-  9.5%  -> no difference
+                              drafts accepted 0.70
+  edit   updated                 170.7 +-  12.7  (n=2)
+                              drafts accepted 0.89
+  edit   plus-KV_GROW            170.7 +-  12.7  (n=2)   vs updated:  +0.0% +-  0.0%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-LFUSE_PAIR         172.8 +- 134.7  (n=2)   vs updated:  +1.2% +- 71.5%  -> no difference
+                              drafts accepted 0.88
+  edit   base-m1                 172.7 +- 143.0  (n=2)   vs updated:  +1.1% +- 76.3%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-MTP_FULL_HEAD      160.5 +-  58.5  (n=2)   vs updated:  -6.0% +- 26.8%  -> no difference
+                              drafts accepted 0.87
+  edit   base-late               172.7 +- 124.6  (n=2)   vs updated:  +1.2% +- 65.5%  -> no difference
+                              drafts accepted 0.88
+  longdec64k updated                  86.1 +-   nan  (n=1)
+  longdec64k plus-KV_GROW             84.0 +-   nan  (n=1)   vs updated:  -2.4% +-  nan%  -> no difference
+  longdec64k plus-LFUSE_PAIR          82.8 +-   nan  (n=1)   vs updated:  -3.8% +-  nan%  -> no difference
+  longdec64k base-m1                  83.5 +-   nan  (n=1)   vs updated:  -3.0% +-  nan%  -> no difference
+  longdec64k plus-MTP_FULL_HEAD       84.9 +-   nan  (n=1)   vs updated:  -1.4% +-  nan%  -> no difference
+  longdec64k base-late                81.3 +-   nan  (n=1)   vs updated:  -5.6% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-KV_GROW         identical on every case -> exact
+  plus-LFUSE_PAIR      DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MTP_FULL_HEAD   DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -1.3%  edit +1.2%  longdec64k -5.6%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-KV_GROW         short +0.0%  edit -0.6%  longdec64k +0.4%  -> PROMOTE to confirm
+  plus-LFUSE_PAIR      short -0.8%  edit +0.6%  longdec64k -1.1%  -> PROMOTE to confirm
+  base-m1              short -0.0%  edit +0.6%  longdec64k -0.2%  -> PROMOTE to confirm
+  plus-MTP_FULL_HEAD   short -1.7%  edit -6.5%  longdec64k +1.4%  -> drop
