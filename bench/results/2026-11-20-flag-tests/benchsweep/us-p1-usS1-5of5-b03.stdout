@@ -5,3 +5,15 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 32.9 s (1.1
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 updated              short 110.0 short 102.8 edit 161.1 edit 183.1 longdec64k 82.4/2170p 65240t  foreign CPU 5% [('kcompactd0', 9), ('kswapd0', 3), ('kworker/5:2-mm_percpu_wq', 1)]  gpu 2041/1249 MHz 61C 184W gtt 25M cpu 3681MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 STARTDIAG 2026-11-21T09:56:53 prev_run_s=110 gap_s=115 rd_sect=153544632712 wr_sect=110771072 io_ticks_ms=119233356 d_rd_sect=76455144 d_wr_sect=120 d_io_ticks_ms=41034 cached_kb=13348140 mlocked_kb=64 memavail_kb=58060660 nvme_temp_c=50 compact_stall_d=11
+STARTLOAD 2026-11-21T09:57:44 loaded 33.02 GiB at 0.99 GiB/s rate=0.99
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.30 37.6 s (0.97 GiB/s; stopped; waited 11.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-SH_FORK_LATE    short 107.8 short 103.5 edit 169.5 edit 171.2 longdec64k 87.3/2176p 65240t  foreign CPU 4% [('kcompactd0', 5), ('kworker/1:1-events', 3), ('kswapd0', 3)]  gpu 2022/1249 MHz 62C 183W gtt 25M cpu 3432MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-SH_FORK_LATE: every attempt noisy, keeping the quietest (4% foreign CPU)
+STARTDIAG 2026-11-21T09:58:48 prev_run_s=111 gap_s=116 rd_sect=153643906512 wr_sect=110771184 io_ticks_ms=119281471 d_rd_sect=99273800 d_wr_sect=112 d_io_ticks_ms=48115 cached_kb=16673888 mlocked_kb=64 memavail_kb=58063312 nvme_temp_c=51 compact_stall_d=9
+STARTLOAD 2026-11-21T09:59:34 loaded 33.02 GiB at 1.17 GiB/s rate=1.17
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 32.5 s (1.12 GiB/s; stopped; waited 11.8 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-SELECT_SIMT     short 105.9 short 103.7 edit 167.3 edit 169.7 longdec64k 86.1/2169p 65240t  foreign CPU 6% [('kcompactd0', 7), ('kworker/3:0-events', 5), ('kswapd0', 2)]  gpu 2043/1249 MHz 62C 186W gtt 25M cpu 3667MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-SELECT_SIMT: every attempt noisy, keeping the quietest (6% foreign CPU)
+STARTDIAG 2026-11-21T10:00:42 prev_run_s=108 gap_s=113 rd_sect=153718150472 wr_sect=110771280 io_ticks_ms=119321031 d_rd_sect=74243960 d_wr_sect=96 d_io_ticks_ms=39560 cached_kb=13866864 mlocked_kb=64 memavail_kb=58053844 nvme_temp_c=51 compact_stall_d=13
