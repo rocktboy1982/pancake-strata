@@ -126,9 +126,9 @@ def test_final_round_takes_only_undecided_flags_lost_first_then_by_run1_evidence
     for e in es:
         if e["flag"] in ("STRONG", "WEAK"):
             e["run1"] = e["pass1"] = eff_of(files["us-p1-usS1-1of5v-b01.jsonl"][0], "plus-" + e["flag"])
-    sel, back, info = S.final_round_select(tri_of(*es), files, budget_s=7200)
+    sel, back, info = S.final_round_select(tri_of(*es), files, budget_s=7200, extra_lost=("LOST1",))
     names = [r["flag"] for r in sel]
-    assert names[0] == "UNT" and set(names[:2]) == {"UNT", "LOST1"} and names[2:] == ["STRONG", "WEAK"] and not back
+    assert names[0] == "UNT" and set(names[:2]) == {"UNT", "LOST1"} and names[2:] == ["STRONG", "WEAK"] and not back          # STRONG / WEAK have no clean run either (slow bases?) or do: ranked, not lost
     assert all(r["flag"] not in names for r in [{"flag": x} for x in ("KEPT", "DROPPED", "MIX", "LOWGAIN")])
     assert info["n_lost"] == 2 and info["over"] is False and info["undecided"] == 4
 

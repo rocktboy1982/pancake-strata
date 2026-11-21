@@ -1441,6 +1441,8 @@ FINAL_START_S = 240               # box seconds per planned start measured on th
 FINAL_BUDGET_S = 7200             # owner 2026-11-21: ONE final round <= 2 h
 FINAL_PAIRS = 2                   # clean paired reps a final-round verdict needs
 FINAL_BLOCK, FINAL_MID, FINAL_REPS_N = 12, 6, 2
+FINAL_LOST_BLOCKS = ("STRATA_KV_HOST_DMA", "STRATA_HEAD_MIX_MULTI", "STRATA_STAGER_RING", "STRATA_PREFILL_CPU_SHARE_MAX",      # b02 of usS1-L1of5x (exit=124, cut inside the 64K request)
+                     "STRATA_GDN_CHUNKED_MIN", "STRATA_IQ_STAGE_TABLES", "STRATA_FUSE_HEAD_GR", "STRATA_IQ_STAGE_GRID")             # b03 (same); an UNTESTED flag (no rows) is lost by definition
 UNDECIDED = ("INCONCLUSIVE", "UNTESTED")
 GATE_DEV_BUDGET_S = 5400          # owner 2026-11-21: gates on the developed flags <= 1.5 h
 GATE_DEV_EST_S = 2700             # one quality_gate.py run (stock twice + one variant arm, set-v2): the ~45 min of retest_groups.json
@@ -1489,7 +1491,7 @@ def continuation_spec(spec, lines, mid=0):
 
 def final_round_select(tri, files, budget_s=FINAL_BUDGET_S, block=FINAL_BLOCK, mid=FINAL_MID, reps=FINAL_REPS_N, per_start=FINAL_START_S, extra_lost=()):
     """The flags of the ONE final measurement round (owner 2026-11-21): ONLY the undecided ones (verdict INCONCLUSIVE / UNTESTED in the merged triage; a flag with a two-run KEEP / DROP /
-    MIXED / RETEST-GATE / OPTIONAL verdict is never retested).  FIRST the lost ones (UNTESTED, or no clean run at all, or named in extra_lost: a block time limit took their arm), then
+    MIXED / RETEST-GATE / OPTIONAL verdict is never retested).  FIRST the lost ones (UNTESTED = no rows, or named in extra_lost: a block time limit cut their arm), then
     the rest by run-1 evidence (best case gain first); as many as fit budget_s; the lost ones are never dropped (the round then runs over the budget: `over`).
     Returns (selected, backlog, info): rows {flag, arm, kind, exact, verdict, best, lost, rank, why}."""
     pick = lambda n: not HISTORY_ROWS.match(n)
@@ -1499,9 +1501,9 @@ def final_round_select(tri, files, budget_s=FINAL_BUDGET_S, block=FINAL_BLOCK, m
         if not arm or e.get("bundle") or e.get("verdict") not in UNDECIDED or e.get("runs"):
             continue
         cl = classify_flag(e, gather_views(files, arm, e["kind"], pick))
-        lost = e.get("verdict") == "UNTESTED" or cl["clean_runs"] == 0 or fl in extra_lost
+        lost = e.get("verdict") == "UNTESTED" or fl in extra_lost
         rows.append({"flag": fl, "arm": arm, "kind": e["kind"], "exact": e.get("exact", True), "verdict": e["verdict"], "best": cl["best"], "lost": lost,
-                     "clean_runs": cl["clean_runs"], "why": ("LOST (no clean run: %s)" % ("; ".join(cl["reasons"]) or e["verdict"])) if lost else "ranked by run-1 evidence (best case %+.1f %%)" % cl["best"]})
+                     "clean_runs": cl["clean_runs"], "why": ("LOST (%s: %s)" % ("no rows" if e.get("verdict") == "UNTESTED" else "its arm was cut by a block time limit", "; ".join(cl["reasons"]) or e["verdict"])) if lost else "ranked by run-1 evidence (best case %+.1f %%)" % cl["best"]})
     mand = sorted([r for r in rows if r["lost"]], key=lambda r: (r["verdict"] != "UNTESTED", -r["best"], r["flag"]))
     rest = sorted([r for r in rows if not r["lost"]], key=lambda r: (-r["best"], r["flag"]))
     fit = rigor_fit(budget_s, block, mid, reps, per_start)
@@ -1831,7 +1833,7 @@ def main(argv=None):
     fr.add_argument("--mid", type=int, default=FINAL_MID)
     fr.add_argument("--reps", type=int, default=FINAL_REPS_N)
     fr.add_argument("--per-start-s", type=int, default=FINAL_START_S)
-    fr.add_argument("--extra-lost", default="", help="comma list of flags a time limit took (always in the round)")
+    fr.add_argument("--extra-lost", default=",".join(FINAL_LOST_BLOCKS), help="comma list of flags a block time limit cut (always in the round, first; default = b02 / b03 of usS1-L1of5x)")
     fr.add_argument("--out", required=True)
     fr.add_argument("--backlog", required=True)
     fr.add_argument("--md", help="the selection preview as markdown")
