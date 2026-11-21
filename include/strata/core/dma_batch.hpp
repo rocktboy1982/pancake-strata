@@ -10,10 +10,31 @@
 //   0  one cudaMemcpyAsync per blob: exactly the loop the engine always ran
 //   1  cudaMemcpyBatchAsync (CUDA 13+, groups of 2..128), the copies in any order, the batch in the stream's
 //   2  as 1, plus CUDA 13.4's cudaMemcpyFlagPreferOverlapWithCompute (a hint)
-// Every other build (HIP, CUDA before 13) and every single copy or group over 128 takes the loop.  A batch the
+//   3  HIP only (set by STRATA_DECODE_COPY_BATCH=1 when STRATA_DMA_BATCH is unset or 0; LEADS.md Part T row T7):
+//      hipMemcpyBatchAsync, groups of 2..128 (copy_batch.hpp), compiled from HIP 7.17 (ROCm 10.2) on
+// Every other build (HIP without mode 3, CUDA before 13) and every single copy or group over 128 takes the loop.  A batch the
 // runtime refuses is redone as the loop (with one warning), never dropped: readiness is signalled only for
 // uploads that were submitted.
 #include <cuda_runtime.h>
+
+#include "strata/core/copy_batch.hpp"
+
+// The compile-time guard of mode 3 (copy_batch.hpp: hip_memcpy_batch_compiled is the same rule, tested on the host; keep the
+// two numbers in step): HIP 7.17.0 (ROCm 10.2.0) or newer, or -DSTRATA_HIP_MEMCPY_BATCH=1; never with
+// -DSTRATA_NO_HIP_MEMCPY_BATCH.  -DSTRATA_HIP_MEMCPY_BATCH_NO_FAILIDX selects the 8-argument prototype (no failIdx, the CUDA 13
+// shape) if the header of the build has that one.  UNVERIFIED on a real header: the prototype below follows CUDA 12.8's
+// cudaMemcpyBatchAsync with failIdx; a mismatch is a compile error (the redeclaration below), never a wrong call.
+#if defined(STRATA_USE_HIP) && !defined(STRATA_HIP_GFX906) && !defined(STRATA_NO_HIP_MEMCPY_BATCH) && defined(HIP_VERSION) && \
+    (defined(STRATA_HIP_MEMCPY_BATCH) || HIP_VERSION >= 70170000)
+#define STRATA_HIP_MEMCPY_BATCH_COMPILED 1
+// weak: a build made on 10.2 that runs on a runtime without the symbol still starts (the pointer test below)
+extern "C" hipError_t hipMemcpyBatchAsync(void** dsts, void** srcs, size_t* sizes, size_t count, hipMemcpyAttributes* attrs,
+                                          size_t* attrsIdxs, size_t numAttrs,
+#if !defined(STRATA_HIP_MEMCPY_BATCH_NO_FAILIDX)
+                                          size_t* failIdx,
+#endif
+                                          hipStream_t stream) __attribute__((weak));
+#endif
 
 #include <array>
 #include <cstddef>
@@ -25,12 +46,28 @@
 
 namespace strata::core {
 
+/// STRATA_DECODE_COPY_BATCH=1 (default off): the mode it asks for in this build, 3 or 0 (never batched).  Not 3 where the
+/// build has no hipMemcpyBatchAsync (CUDA, HIP before 7.17, the guard above) or the runtime lacks the symbol: one stderr line.
+inline int decode_copy_batch_mode() {
+    if (!decode_copy_batch_parse(std::getenv("STRATA_DECODE_COPY_BATCH"))) return 0;
+#if defined(STRATA_HIP_MEMCPY_BATCH_COMPILED)
+    if (&hipMemcpyBatchAsync != nullptr) return 3;
+    std::fprintf(stderr, "strata: STRATA_DECODE_COPY_BATCH=1: this HIP runtime has no hipMemcpyBatchAsync: off\n");
+#else
+    std::fprintf(stderr, "strata: STRATA_DECODE_COPY_BATCH=1: this build has no hipMemcpyBatchAsync (needs HIP 7.17 / ROCm 10.2): off\n");
+#endif
+    return 0;
+}
+
 /// The mode: STRATA_DMA_BATCH (0, 1, 2); unset = the engine's default (`default_mode`, set at the call site's first
-/// use; 0 until a measured win makes it 1).
+/// use; 0 until a measured win makes it 1).  With STRATA_DECODE_COPY_BATCH=1 and a mode of 0: 3 on a HIP build that has the
+/// call (see decode_copy_batch_mode).  Switch unset: exactly the old result.
 inline int dma_batch_mode(int default_mode = 0) {
     static const int mode = [default_mode] {
         const char* e = std::getenv("STRATA_DMA_BATCH");
-        return e != nullptr && e[0] != '\0' ? std::atoi(e) : default_mode;
+        const int m = e != nullptr && e[0] != '\0' ? std::atoi(e) : default_mode;
+        if (m == 0 && std::getenv("STRATA_DECODE_COPY_BATCH") != nullptr) return decode_copy_batch_mode();
+        return m;
     }();
     return mode;
 }
@@ -92,6 +129,41 @@ inline cudaError_t copy_blobs(void* const* dst, const void* const* src, const si
             }
             (void) cudaGetLastError();
         }
+    }
+#elif defined(STRATA_HIP_MEMCPY_BATCH_COMPILED)
+    if (batch_mode == 3) {   // STRATA_DECODE_COPY_BATCH=1: groups of 2..128 through hipMemcpyBatchAsync (copy_batch.hpp's driver)
+        struct HipBackend {
+            cudaStream_t stream;
+            int single(void* d, const void* s, size_t b) {
+                return (int) cudaMemcpyAsync(d, s, b, cudaMemcpyHostToDevice, stream);
+            }
+            int batch(void* const* d, const void* const* s, const size_t* sz, size_t k) {
+                hipMemcpyAttributes attr{};
+                attr.srcAccessOrder = (decltype(attr.srcAccessOrder)) 1;   // hipMemcpySrcAccessOrderStream (the host blobs are immutable)
+                size_t idx = 0;
+#if !defined(STRATA_HIP_MEMCPY_BATCH_NO_FAILIDX)
+                size_t fail = 0;
+#endif
+                const hipError_t e = hipMemcpyBatchAsync(const_cast<void**>(d), const_cast<void**>(s), const_cast<size_t*>(sz), k,
+                                                         &attr, &idx, 1,
+#if !defined(STRATA_HIP_MEMCPY_BATCH_NO_FAILIDX)
+                                                         &fail,
+#endif
+                                                         stream);
+                if (e != hipSuccess) {
+                    static bool warned = false;
+                    if (!warned) {
+                        warned = true;
+                        std::fprintf(stderr, "strata: hipMemcpyBatchAsync failed (%s); the uploads go one copy at a time\n",
+                                     hipGetErrorString(e));
+                    }
+                    (void) hipGetLastError();
+                }
+                return (int) e;
+            }
+        } be{stream};
+        static BatchLatch latch;   // a refused batch turns the batch path off for the rest of the process
+        return (cudaError_t) run_copies(be, dst, src, bytes, n, true, latch);
     }
 #else
     (void) batch_mode;

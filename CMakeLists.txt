@@ -2476,6 +2476,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(lookahead_weights_test src/program/lookahead_weights_test.cpp)   # MOD_PLAN.md section 6 item 29: STRATA_LOOKAHEAD_WEIGHTS / STRATA_PRED_DUMP
   target_include_directories(lookahead_weights_test PRIVATE include)
   add_test(NAME lookahead_weights_test COMMAND lookahead_weights_test)
+  add_executable(copy_batch_test src/core/copy_batch_test.cpp)   # LEADS.md Part T row T7: STRATA_DECODE_COPY_BATCH (host logic, fake backend)
+  target_include_directories(copy_batch_test PRIVATE include)
+  add_test(NAME copy_batch_test COMMAND copy_batch_test)
   add_executable(prefetch_prev_test src/program/prefetch_prev_test.cpp)   # MOD_PLAN.md section 6 (BigMoeOnEdge switches): STRATA_PREFETCH_PREV
   target_include_directories(prefetch_prev_test PRIVATE include)
   add_test(NAME prefetch_prev_test COMMAND prefetch_prev_test)
@@ -4130,6 +4133,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     diag_rules_test
     lookahead_weights_test
     prefetch_prev_test
+    copy_batch_test
     route_range_test
     lookahead_skip_test
     lookahead_ctrl_test

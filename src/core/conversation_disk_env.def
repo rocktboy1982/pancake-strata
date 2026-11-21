@@ -520,6 +520,7 @@ STRATA_ENV("STRATA_DISCO", Speed, "drafting/stop policy: the tokens change, the 
 STRATA_ENV("STRATA_DISCO_ENTROPY", Speed, "drafting/stop policy: the drafts' entropy stops the MTP chain / feeds DISCO (LEADS.md B24); verify still exact")
 STRATA_ENV("STRATA_DISJOINT_ADAPT", Speed, "placement/tiering of experts (same math, GPU vs CPU)")
 STRATA_ENV("STRATA_DMA_BATCH", Speed, "copy batching")
+STRATA_ENV("STRATA_DECODE_COPY_BATCH", Speed, "LEADS.md Part T row T7: decode-side expert copies as hipMemcpyBatchAsync groups (HIP 7.17+; same bytes, copy_batch_test)")
 STRATA_ENV("STRATA_DMA_COALESCE", Speed, "copy batching: host-adjacent blobs of the PCIe share go up as one copy, same bytes at the same staging offsets (LEADS.md Part D)")
 STRATA_ENV("STRATA_DMA_FLAG_WRITE", Speed, "graph/stream/doorbell plumbing: flag B written by the copy stream, same values in stream order (android-imdad caa9b00115)")
 STRATA_ENV("STRATA_DOMAIN_PROFILES", Speed, "expert seeding (placement)")
