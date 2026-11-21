@@ -26,3 +26,69 @@ STARTDIAG 2026-11-21T05:04:15 prev_run_s=107 gap_s=112 rd_sect=144677710136 wr_s
 STARTLOAD 2026-11-21T05:05:00 loaded 33.02 GiB at 1.17 GiB/s rate=1.17
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.45 32.2 s (1.13 GiB/s; stopped; waited 11.1 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-NO_MULTI_GR     short 99.7 short 99.8 edit 162.7 edit 175.4 longdec64k 87.4/2169p 65241t  foreign CPU 7% [('kcompactd0', 11), ('kworker/0:1-mm_percpu_wq', 3), ('kswapd0', 2)]  gpu 2041/1249 MHz 62C 187W gtt 25M cpu 3794MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-NO_MULTI_GR: every attempt noisy, keeping the quietest (7% foreign CPU)
+STARTDIAG 2026-11-21T05:06:02 prev_run_s=101 gap_s=106 rd_sect=144750247112 wr_sect=110761432 io_ticks_ms=112215920 d_rd_sect=72536976 d_wr_sect=80 d_io_ticks_ms=39041 cached_kb=12965728 mlocked_kb=64 memavail_kb=57969536 nvme_temp_c=51 compact_stall_d=5
+STARTLOAD 2026-11-21T05:06:52 loaded 33.02 GiB at 1.01 GiB/s rate=1.01
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 37.0 s (0.98 GiB/s; stopped; waited 11.3 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-NO_SUB16_GU     short 108.2 short 103.2 edit 169.3 edit 168.4 longdec64k 85.6/2179p 65241t  foreign CPU 4% [('kcompactd0', 4), ('kworker/12:2-events', 3), ('kswapd0', 2)]  gpu 2033/1249 MHz 62C 184W gtt 25M cpu 3572MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-NO_SUB16_GU: every attempt noisy, keeping the quietest (4% foreign CPU)
+STARTDIAG 2026-11-21T05:07:56 prev_run_s=110 gap_s=115 rd_sect=144842939112 wr_sect=110761512 io_ticks_ms=112261905 d_rd_sect=92692000 d_wr_sect=80 d_io_ticks_ms=45985 cached_kb=16072028 mlocked_kb=64 memavail_kb=58036816 nvme_temp_c=52 compact_stall_d=7
+STARTLOAD 2026-11-21T05:08:42 loaded 33.02 GiB at 1.12 GiB/s rate=1.12
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 33.1 s (1.10 GiB/s; stopped; waited 11.2 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 101.3 short 99.9 edit 166.3 edit 180.9 longdec64k 83.0/2172p 65241t  foreign CPU 6% [('kcompactd0', 9), ('kworker/1:3-events', 5), ('kworker/9:2-events_freezable', 1)]  gpu 2032/1249 MHz 63C 200W gtt 25M cpu 3541MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 103.4 +-   3.8  (n=2)
+                              drafts accepted 0.71
+  short  plus-OLD_Q80_SCALED     105.8 +-  28.0  (n=2)   vs updated:  +2.3% +- 30.7%  -> no difference
+                              drafts accepted 0.71
+  short  plus-OLD_IQ_MMVQ         79.2 +- 144.3  (n=2)   vs updated: -23.4% +- 135.8%  -> no difference
+                              drafts accepted 0.68
+  short  base-m1                 100.8 +-   6.4  (n=2)   vs updated:  -2.5% +-  9.8%  -> no difference
+                              drafts accepted 0.67
+  short  plus-NO_MULTI_GR         99.8 +-   0.6  (n=2)   vs updated:  -3.5% +-  3.1%  -> worse
+                              drafts accepted 0.67
+  short  plus-NO_SUB16_GU        105.7 +-  31.8  (n=2)   vs updated:  +2.2% +- 34.4%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               100.6 +-   8.9  (n=2)   vs updated:  -2.7% +- 12.3%  -> no difference
+                              drafts accepted 0.67
+  edit   updated                 169.4 +-   7.6  (n=2)
+                              drafts accepted 0.90
+  edit   plus-OLD_Q80_SCALED     169.6 +-   5.7  (n=2)   vs updated:  +0.1% +-  1.1%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-OLD_IQ_MMVQ        129.9 +- 223.1  (n=2)   vs updated: -23.3% +- 136.2%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 169.4 +-  82.0  (n=2)   vs updated:  -0.0% +- 52.9%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-NO_MULTI_GR        169.1 +-  80.7  (n=2)   vs updated:  -0.2% +- 52.1%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-NO_SUB16_GU        168.9 +-   5.7  (n=2)   vs updated:  -0.3% +-  1.1%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               173.6 +-  92.8  (n=2)   vs updated:  +2.5% +- 59.3%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  86.9 +-   nan  (n=1)
+  longdec64k plus-OLD_Q80_SCALED      82.4 +-   nan  (n=1)   vs updated:  -5.2% +-  nan%  -> no difference
+  longdec64k plus-OLD_IQ_MMVQ         78.8 +-   nan  (n=1)   vs updated:  -9.3% +-  nan%  -> no difference
+  longdec64k base-m1                  84.9 +-   nan  (n=1)   vs updated:  -2.3% +-  nan%  -> no difference
+  longdec64k plus-NO_MULTI_GR         87.4 +-   nan  (n=1)   vs updated:  +0.6% +-  nan%  -> no difference
+  longdec64k plus-NO_SUB16_GU         85.6 +-   nan  (n=1)   vs updated:  -1.5% +-  nan%  -> no difference
+  longdec64k base-late                83.0 +-   nan  (n=1)   vs updated:  -4.5% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-OLD_Q80_SCALED  identical on every case -> exact
+  plus-OLD_IQ_MMVQ     DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-NO_MULTI_GR     DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-NO_SUB16_GU     identical on every case -> exact
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -2.7%  edit +2.5%  longdec64k -4.5%
+  plus-OLD_Q80_SCALED  short +3.7%  edit -1.1%  longdec64k -3.0%  -> drop
+  plus-OLD_IQ_MMVQ     short -22.3%  edit -24.2%  longdec64k -7.2%  -> drop
+  base-m1              short -1.2%  edit -1.3%  longdec64k -0.1%  -> drop
+  plus-NO_MULTI_GR     short -2.2%  edit -1.4%  longdec64k +2.9%  -> PROMOTE to confirm
+  plus-NO_SUB16_GU     short +3.6%  edit -1.5%  longdec64k +0.8%  -> PROMOTE to confirm
