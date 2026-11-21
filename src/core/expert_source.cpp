@@ -5754,6 +5754,8 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
             }
         }
     }
+    if (d.kept != nullptr && n_tok > 1 && !d.usage.empty())   // STRATA_COUNT_KEPT (LEADS.md Part Q4): the window's rows, for the serial loop
+        d.kept->record(d.layers, ids, adapt_prob_mass_on() && d.plan != nullptr ? d.plan->skip_w : nullptr, n_tok, k);
     // ---- plan v0.3 P6: the GPU's share, decided and published FIRST so the GPU starts while the CPU works.
     // Distinct experts in routing order; resident ones and the last pcie_num/256 of the missed ones go to the GPU.
     const int64_t n = n_tok * k;

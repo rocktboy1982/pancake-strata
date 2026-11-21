@@ -22,6 +22,7 @@
 #pragma once
 
 #include "strata/core/expert_cache.hpp"
+#include "strata/core/kept_count.hpp"   // STRATA_COUNT_KEPT (LEADS.md Part Q4)
 #include "strata/core/pinned.hpp"
 #include "strata/core/exchange_storage.hpp"
 #include "strata/core/hit_hook.hpp"
@@ -717,6 +718,9 @@ struct ExpertDispatch {
     strata::kernels::cpu::ExpertPool* pool = nullptr;
     ExpertSource* src = nullptr;
     RouterLookahead* lookahead = nullptr;   ///< CS-T: warms the next layer's predicted file-tier experts
+    /// STRATA_COUNT_KEPT (LEADS.md Part Q4): when set, each multi-row window records its routing per layer here so the serial decode loop can
+    /// take the rejected rows' share out of `usage` (null: nothing is recorded, as before).
+    KeptCount* kept = nullptr;
     RemoteExperts* remote[3] = {}; ///< optional CUDA1..3 tiers for otherwise CPU-served rows
     int remote_count = 0;
     int64_t n_expert = strata::kernels::cpu::NE;
