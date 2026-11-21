@@ -46,3 +46,8 @@ SLOWLOAD waiting for the engine: not ready, elapsed 180 s
 SLOWLOAD waiting for the engine: not ready, elapsed 240 s
 STARTLOAD 2026-11-21T16:12:18 loaded 33.02 GiB at 0.15 GiB/s rate=0.15
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 92.1 short 75.9 edit 168.4 edit 123.5 longdec64k 83.9/1435p 65241t  foreign CPU 13% [('kcompactd0', 78), ('kworker/9:0-events_freezable', 4), ('kworker/11:3-events_freezable', 3)]  gpu 2013/1249 MHz 61C 183W gtt 25M cpu 3686MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1435, pack load 0.15 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+SETTLE 120 after a 325 s run
+  WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+STARTDIAG 2026-11-21T16:17:47 prev_run_s=325 gap_s=570 rd_sect=165096035016 wr_sect=110785864 io_ticks_ms=128331108 d_rd_sect=130680352 d_wr_sect=112 d_io_ticks_ms=293116 cached_kb=38741996 mlocked_kb=64 memavail_kb=57283004 nvme_temp_c=45 compact_stall_d=21
