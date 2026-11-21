@@ -13,3 +13,12 @@ REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1535, pack load 0.2 GiB/s
 SETTLE 120 after a 272 s run
   WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
 STARTDIAG 2026-11-21T04:08:18 prev_run_s=272 gap_s=517 rd_sect=143121999160 wr_sect=110759736 io_ticks_ms=110691655 d_rd_sect=130397104 d_wr_sect=128 d_io_ticks_ms=243248 cached_kb=38778396 mlocked_kb=64 memavail_kb=57896784 nvme_temp_c=45 compact_stall_d=5
+STARTLOAD 2026-11-21T04:09:07 loaded 33.02 GiB at 1.05 GiB/s rate=1.05
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.50 35.6 s (1.03 GiB/s; stopped; waited 11.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 110.4 short 103.5 edit 166.6 edit 169.4 longdec64k 82.8/2180p 65239t  foreign CPU 2% [('kcompactd0', 4), ('kworker/9:2-events', 2), ('kworker/11:2-mm_percpu_wq', 1)]  gpu 2043/1249 MHz 60C 183W gtt 25M cpu 3683MHz 66C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED updated: first start prefill 1535 / load 0.2 GiB/s (paused 04:04:13), second start prefill 2180 / load 1.05 GiB/s
+STARTDIAG 2026-11-21T04:10:13 prev_run_s=110 gap_s=115 rd_sect=143200603200 wr_sect=110759800 io_ticks_ms=110733527 d_rd_sect=78604040 d_wr_sect=64 d_io_ticks_ms=41872 cached_kb=15924984 mlocked_kb=64 memavail_kb=57863572 nvme_temp_c=50 compact_stall_d=6
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 25.22 146.2 s (0.17 GiB/s; capped; waited 13.7 s for the arena)
+STARTLOAD 2026-11-21T04:13:14 loaded 33.02 GiB at 0.20 GiB/s rate=0.20
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
