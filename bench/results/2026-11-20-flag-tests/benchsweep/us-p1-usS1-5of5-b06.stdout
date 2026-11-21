@@ -25,3 +25,64 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 31.48 37.6 s (0.8
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 plus-VNNI_TIER       short 110.4 short 103.8 edit 169.3 edit 168.5 longdec64k 83.5/2182p 65242t  foreign CPU 3% [('kcompactd0', 3), ('claude', 1), ('kswapd0', 1)]  gpu 1989/1249 MHz 60C 181W gtt 25M cpu 3676MHz 65C igpu 0%/vcn 0% fclk 1600
 STARTDIAG 2026-11-21T11:25:05 prev_run_s=112 gap_s=117 rd_sect=156031754496 wr_sect=110773904 io_ticks_ms=121429692 d_rd_sect=106775760 d_wr_sect=64 d_io_ticks_ms=48707 cached_kb=17802476 mlocked_kb=64 memavail_kb=58114040 nvme_temp_c=50 compact_stall_d=11
+STARTLOAD 2026-11-21T11:25:53 loaded 33.02 GiB at 1.05 GiB/s rate=1.05
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 35.1 s (1.04 GiB/s; stopped; waited 11.2 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 104.4 short 99.7 edit 173.9 edit 178.2 longdec64k 80.3/2179p 65242t  foreign CPU 4% [('kcompactd0', 7), ('claude', 1), ('kworker/3:0-events', 1)]  gpu 1932/1249 MHz 61C 189W gtt 25M cpu 3605MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T11:26:55 prev_run_s=104 gap_s=109 rd_sect=156115632592 wr_sect=110773984 io_ticks_ms=121471899 d_rd_sect=83878096 d_wr_sect=80 d_io_ticks_ms=42207 cached_kb=15285908 mlocked_kb=64 memavail_kb=58129924 nvme_temp_c=51 compact_stall_d=8
+STARTLOAD 2026-11-21T11:27:47 loaded 33.02 GiB at 0.98 GiB/s rate=0.98
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 38.3 s (0.95 GiB/s; stopped; waited 12.0 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-XN_F16          short 107.4 short 103.4 edit 169.8 edit 168.4 longdec64k 84.1/2182p 65242t  foreign CPU 3% [('kcompactd0', 4), ('claude', 1), ('kworker/9:2-mm_percpu_wq', 1)]  gpu 2042/1249 MHz 62C 185W gtt 25M cpu 3677MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-XN_F16: every attempt noisy, keeping the quietest (3% foreign CPU)
+STARTDIAG 2026-11-21T11:28:51 prev_run_s=112 gap_s=117 rd_sect=156219675328 wr_sect=110774064 io_ticks_ms=121520347 d_rd_sect=104042736 d_wr_sect=80 d_io_ticks_ms=48448 cached_kb=16864156 mlocked_kb=64 memavail_kb=58123540 nvme_temp_c=52 compact_stall_d=9
+STARTLOAD 2026-11-21T11:29:39 loaded 33.02 GiB at 1.07 GiB/s rate=1.07
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.38 34.8 s (1.05 GiB/s; stopped; waited 11.5 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 101.6 short 100.4 edit 173.8 edit 180.3 longdec64k 86.7/2172p 65242t  foreign CPU 6% [('kcompactd0', 8), ('kworker/0:0-events', 3), ('kworker/9:0-events', 1)]  gpu 1944/1249 MHz 63C 186W gtt 25M cpu 3758MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 102.2 +-  24.1  (n=2)
+                              drafts accepted 0.67
+  short  plus-WMMA_BF16           88.4 +-   2.5  (n=2)   vs updated: -13.5% +- 26.1%  -> no difference
+                              drafts accepted 0.74
+  short  plus-VNNI_TIER          107.1 +-  41.9  (n=2)   vs updated:  +4.8% +- 17.4%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 102.1 +-  29.9  (n=2)   vs updated:  -0.1% +-  5.6%  -> no difference
+                              drafts accepted 0.67
+  short  plus-XN_F16             105.4 +-  25.4  (n=2)   vs updated:  +3.1% +-  1.2%  -> better
+                              drafts accepted 0.71
+  short  base-late               101.0 +-   7.6  (n=2)   vs updated:  -1.2% +- 16.2%  -> no difference
+                              drafts accepted 0.67
+  edit   updated                 176.0 +-  30.5  (n=2)
+                              drafts accepted 0.89
+  edit   plus-WMMA_BF16          116.0 +- 149.3  (n=2)   vs updated: -34.1% +- 102.2%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-VNNI_TIER          168.9 +-   5.1  (n=2)   vs updated:  -4.0% +- 20.2%  -> no difference
+                              drafts accepted 0.90
+  edit   base-m1                 176.1 +-  27.3  (n=2)   vs updated:  +0.0% +-  1.8%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-XN_F16             169.1 +-   8.9  (n=2)   vs updated:  -3.9% +- 22.4%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               177.1 +-  41.3  (n=2)   vs updated:  +0.6% +-  6.1%  -> no difference
+                              drafts accepted 0.90
+  longdec64k updated                  75.9 +-   nan  (n=1)
+  longdec64k plus-WMMA_BF16           79.9 +-   nan  (n=1)   vs updated:  +5.3% +-  nan%  -> no difference
+  longdec64k plus-VNNI_TIER           83.5 +-   nan  (n=1)   vs updated: +10.0% +-  nan%  -> no difference
+  longdec64k base-m1                  80.3 +-   nan  (n=1)   vs updated:  +5.8% +-  nan%  -> no difference
+  longdec64k plus-XN_F16              84.1 +-   nan  (n=1)   vs updated: +10.8% +-  nan%  -> no difference
+  longdec64k base-late                86.7 +-   nan  (n=1)   vs updated: +14.2% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-WMMA_BF16       DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-VNNI_TIER       DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              identical on every case -> exact
+  plus-XN_F16          DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -1.2%  edit +0.6%  longdec64k +14.2%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-WMMA_BF16       short -13.0%  edit -34.3%  longdec64k -1.7%  -> drop
+  plus-VNNI_TIER       short +5.4%  edit -4.3%  longdec64k +2.7%  -> drop
+  base-m1              short +0.4%  edit -0.3%  longdec64k -1.2%  -> PROMOTE to confirm
+  plus-XN_F16          short +3.7%  edit -4.2%  longdec64k +3.4%  -> drop
