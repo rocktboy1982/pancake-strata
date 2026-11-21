@@ -1,2 +1,10 @@
 case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
 STARTDIAG 2026-11-21T03:57:42 prev_run_s=NA gap_s=NA rd_sect=142890068992 wr_sect=110759504 io_ticks_ms=110391664 d_rd_sect=NA d_wr_sect=NA d_io_ticks_ms=NA cached_kb=15249224 mlocked_kb=64 memavail_kb=57885960 nvme_temp_c=48 compact_stall_d=NA
+STARTLOAD 2026-11-21T03:58:34 loaded 33.02 GiB at 0.95 GiB/s rate=0.95
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 25.47 38.6 s (0.66 GiB/s; stopped; waited 11.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 warmup               short 107.2 short 103.6 edit 167.3 edit 169.1 longdec64k 82.5/2174p 65239t  foreign CPU 5% [('kcompactd0', 6), ('kswapd0', 3), ('kworker/9:1-mm_percpu_wq', 2)]  gpu 2044/1249 MHz 61C 182W gtt 25M cpu 3733MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T03:59:41 prev_run_s=115 gap_s=120 rd_sect=142991602056 wr_sect=110759608 io_ticks_ms=110448407 d_rd_sect=101533064 d_wr_sect=104 d_io_ticks_ms=56743 cached_kb=16175496 mlocked_kb=64 memavail_kb=57906920 nvme_temp_c=52 compact_stall_d=7
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 25.19 138.9 s (0.18 GiB/s; capped; waited 17.0 s for the arena)
+STARTLOAD 2026-11-21T04:02:55 loaded 33.02 GiB at 0.20 GiB/s rate=0.20
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
