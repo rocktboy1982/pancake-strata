@@ -891,6 +891,8 @@ STRATA_ENV("STRATA_Q6_PACKED", Speed, "bitwise: documented (docs/README/code com
 STRATA_ENV("STRATA_Q8_PACKED", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_QFUSE_HC", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_QSA_EARLY_EXIT", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_QSA_SKIP_SHORT", Speed, "LEADS.md Part S row S10 (host rule only, not wired): QSA indexer launches skipped below the exactness bound (the selection is the identity there: bitwise; qsa_skip_short_test)")
+STRATA_ENV("STRATA_QSA_SKIP_BELOW", Speed, "STRATA_QSA_SKIP_SHORT: skip threshold in cells, 1..2051, default 2051 (clamped to the exactness bound)")
 STRATA_ENV("STRATA_QSA_FUSE_NR", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_QSA_ROWS", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_QSA_SLOTS", Speed, "bitwise: documented (docs/README/code comment/parity test)")

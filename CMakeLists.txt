@@ -2494,6 +2494,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(mtp_head_host_test src/core/mtp_head_host_test.cpp)   # LEADS.md Part S row S13: STRATA_MTP_HEAD_HOST (placement rule + budget arithmetic, host only)
   target_include_directories(mtp_head_host_test PRIVATE include)
   add_test(NAME mtp_head_host_test COMMAND mtp_head_host_test)
+  add_executable(qsa_skip_short_test src/core/qsa_skip_short_test.cpp)   # LEADS.md Part S row S10: STRATA_QSA_SKIP_SHORT (the host rule, not wired)
+  target_include_directories(qsa_skip_short_test PRIVATE include)
+  add_test(NAME qsa_skip_short_test COMMAND qsa_skip_short_test)
   add_executable(route_range_test src/program/route_range_test.cpp)   # MOD_PLAN.md section 6 (BigMoeOnEdge switches): STRATA_ROUTE_RANGE
   target_include_directories(route_range_test PRIVATE include)
   add_test(NAME route_range_test COMMAND route_range_test)
@@ -4150,6 +4153,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     swap_budget_residency_test
     decode_order_test
     mtp_head_host_test
+    qsa_skip_short_test
     route_range_test
     lookahead_skip_test
     lookahead_ctrl_test
