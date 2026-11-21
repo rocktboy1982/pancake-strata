@@ -27,3 +27,9 @@ rep 0 plus-IQ_STAGE_TABLES: every attempt noisy, keeping the quietest (4% foreig
 STARTDIAG 2026-11-21T14:49:40 prev_run_s=123 gap_s=128 rd_sect=162587890480 wr_sect=110782448 io_ticks_ms=126180490 d_rd_sect=81644432 d_wr_sect=64 d_io_ticks_ms=60951 cached_kb=14865576 mlocked_kb=64 memavail_kb=58170368 nvme_temp_c=53 compact_stall_d=1
 SLOWLOAD waiting for the engine: not ready, elapsed 60 s
 SLOWLOAD waiting for the engine: not ready, elapsed 120 s
+STARTLOAD 2026-11-21T14:51:59 loaded 33.02 GiB at 0.29 GiB/s rate=0.29
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 27.80 120.2 s (0.23 GiB/s; stopped; waited 15.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 94.9 short 104.7 edit 122.0 edit 136.9 longdec64k 57.9/1583p 65239t  foreign CPU 3% [('kcompactd0', 4), ('kworker/8:2-events_freezable', 2), ('kswapd0', 1)]  gpu 2046/1249 MHz 62C 181W gtt 25M cpu 3623MHz 66C igpu 0%/vcn 0% fclk 1600
+REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1583, pack load 0.29 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+SETTLE 120 after a 219 s run
