@@ -1,0 +1,423 @@
+{
+ "schema": "pancake.sweep-select/1",
+ "verdicts": [
+  "HURTS",
+  "PROMISING"
+ ],
+ "flags": {
+  "plus-Q6_PACKED": {
+   "flag": "STRATA_Q6_PACKED",
+   "kind": "plus",
+   "keys": [
+    "STRATA_Q6_PACKED"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_Q6_PACKED": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-Q6_PACKED",
+   "slice": "usS1-5of5x",
+   "pass1": {
+    "short": -1.38,
+    "edit": 2.73,
+    "longdec64k": -1.76,
+    "longdec64k-prompt": -0.29
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-5of5x-b01",
+   "drift1": {
+    "short": -0.19,
+    "edit": -0.12,
+    "longdec64k": 5.62
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-5of5x-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-5of5x-b01): a case >= +2.0 % (best +2.73 %): HIGH gain, goes to the rescreen"
+  },
+  "plus-QSA_FUSE_GATE": {
+   "flag": "STRATA_QSA_FUSE_GATE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_QSA_FUSE_GATE"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_QSA_FUSE_GATE": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: QSA gate fusion); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-QSA_FUSE_GATE",
+   "slice": "usS1-5of5",
+   "pass1": {
+    "short": -4.34,
+    "edit": 2.91,
+    "longdec64k": -7.1,
+    "longdec64k-prompt": -0.27
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-5of5-b02",
+   "drift1": {
+    "short": 0.0,
+    "edit": -2.04,
+    "longdec64k": -0.96
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-5of5-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k -7.1 %): reported, the confirm decides",
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-5of5-b02): a case >= +2.0 % (best +2.91 %): HIGH gain, goes to the rescreen"
+  },
+  "plus-SH_FORK_LATE": {
+   "flag": "STRATA_SH_FORK_LATE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_SH_FORK_LATE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_SH_FORK_LATE": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-SH_FORK_LATE",
+   "slice": "usS1-5of5",
+   "pass1": {
+    "short": 1.37,
+    "edit": -0.23,
+    "longdec64k": 3.37,
+    "longdec64k-prompt": -0.04
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-5of5-b03",
+   "drift1": {
+    "short": -3.21,
+    "edit": -3.99,
+    "longdec64k": 4.98
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-5of5-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-5of5-b03): a case >= +2.0 % (best +3.37 %): HIGH gain, goes to the rescreen"
+  },
+  "plus-SMALL_UNR": {
+   "flag": "STRATA_SMALL_UNR",
+   "kind": "plus",
+   "keys": [
+    "STRATA_SMALL_UNR"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_SMALL_UNR": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-SMALL_UNR",
+   "slice": "usS1-5of5",
+   "pass1": {
+    "short": -1.79,
+    "edit": 5.14,
+    "longdec64k": 4.77,
+    "longdec64k-prompt": 2.66
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-5of5-b04",
+   "drift1": {
+    "short": -6.88,
+    "edit": 2.87,
+    "longdec64k": 0.74
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-5of5-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-5of5-b04): a case >= +2.0 % (best +5.14 %): HIGH gain, goes to the rescreen"
+  },
+  "plus-STAGE_TRIM": {
+   "flag": "STRATA_STAGE_TRIM",
+   "kind": "plus",
+   "keys": [
+    "STRATA_STAGE_TRIM"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_STAGE_TRIM": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-STAGE_TRIM",
+   "slice": "usS1-5of5",
+   "pass1": {
+    "short": 1.57,
+    "edit": 4.3,
+    "longdec64k": -4.93,
+    "longdec64k-prompt": 3.46
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-5of5-b04",
+   "drift1": {
+    "short": 3.97,
+    "edit": 1.12,
+    "longdec64k": -6.32
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-5of5-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k -4.9 %): reported, the confirm decides",
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-5of5-b04): a case >= +2.0 % (best +4.30 %): HIGH gain, goes to the rescreen"
+  },
+  "plus-TOPK_ACTIVE_ANY": {
+   "flag": "STRATA_TOPK_ACTIVE_ANY",
+   "kind": "plus",
+   "keys": [
+    "STRATA_TOPK_ACTIVE_ANY"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_TOPK_ACTIVE_ANY": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-TOPK_ACTIVE_ANY",
+   "slice": "usS1-5of5",
+   "pass1": {
+    "short": 1.43,
+    "edit": 1.73,
+    "longdec64k": 1.84,
+    "longdec64k-prompt": 3.23
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-5of5-b04",
+   "drift1": {
+    "short": 3.97,
+    "edit": 1.12,
+    "longdec64k": -6.32
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-5of5-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-5of5-b04): a case >= +2.0 % (best +3.23 %): HIGH gain, goes to the rescreen"
+  },
+  "plus-TSUM": {
+   "flag": "STRATA_TSUM",
+   "kind": "plus",
+   "keys": [
+    "STRATA_TSUM"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_TSUM": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-TSUM",
+   "slice": "usS1-5of5x",
+   "pass1": {
+    "short": -2.77,
+    "edit": -3.0,
+    "longdec64k": 6.13,
+    "longdec64k-prompt": -0.57
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-5of5x-b02",
+   "drift1": {
+    "short": 2.2,
+    "edit": 2.75,
+    "longdec64k": 0.74
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-5of5x-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-5of5x-b02): a case >= +2.0 % (best +6.13 %): HIGH gain, goes to the rescreen"
+  },
+  "plus-VERIFY_ASYNC_LAUNCH": {
+   "flag": "STRATA_VERIFY_ASYNC_LAUNCH",
+   "kind": "plus",
+   "keys": [
+    "STRATA_VERIFY_ASYNC_LAUNCH"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_VERIFY_ASYNC_LAUNCH": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-VERIFY_ASYNC_LAUNCH",
+   "slice": "usS1-5of5x",
+   "pass1": {
+    "short": 1.85,
+    "edit": -2.25,
+    "longdec64k": 2.33,
+    "longdec64k-prompt": -0.28
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-5of5x-b02",
+   "drift1": {
+    "short": 2.2,
+    "edit": 2.75,
+    "longdec64k": 0.74
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-5of5x-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-5of5x-b02): a case >= +2.0 % (best +2.33 %): HIGH gain, goes to the rescreen"
+  },
+  "plus-VERIFY_COHERENT": {
+   "flag": "STRATA_VERIFY_COHERENT",
+   "kind": "plus",
+   "keys": [
+    "STRATA_VERIFY_COHERENT"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_VERIFY_COHERENT": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-VERIFY_COHERENT",
+   "slice": "usS1-5of5x",
+   "pass1": {
+    "short": 2.21,
+    "edit": 0.97,
+    "longdec64k": -5.06,
+    "longdec64k-prompt": 0.09
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-5of5x-b03",
+   "drift1": {
+    "short": 3.7,
+    "edit": -2.56,
+    "longdec64k": -3.84
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-5of5x-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k -5.1 %): reported, the confirm decides",
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-5of5x-b03): a case >= +2.0 % (best +2.21 %): HIGH gain, goes to the rescreen"
+  },
+  "plus-XN_F16": {
+   "flag": "STRATA_XN_F16",
+   "kind": "plus",
+   "keys": [
+    "STRATA_XN_F16"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_XN_F16": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-XN_F16",
+   "slice": "usS1-5of5",
+   "pass1": {
+    "short": 3.82,
+    "edit": -4.22,
+    "longdec64k": 0.72,
+    "longdec64k-prompt": 0.3
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-5of5-b06",
+   "drift1": {
+    "short": 0.7,
+    "edit": 1.18,
+    "longdec64k": 7.97
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-5of5-b06"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "floor_note": "a metric below -3 % in pass 1 (edit -4.2 %): reported, the confirm decides",
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-5of5-b06): a case >= +2.0 % (best +3.82 %): HIGH gain, goes to the rescreen"
+  }
+ }
+}

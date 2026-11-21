@@ -28,3 +28,59 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.47 34.7 s (1.0
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-m1              short 108.4 short 103.7 edit 170.1 edit 171.6 longdec64k 85.2/2190p 65242t  foreign CPU 3% [('kcompactd0', 9), ('kswapd0', 2), ('claude', 1)]  gpu 1958/1249 MHz 63C 181W gtt 25M cpu 3570MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 STARTDIAG 2026-11-21T12:28:17 prev_run_s=108 gap_s=113 rd_sect=158064210248 wr_sect=110777288 io_ticks_ms=122916719 d_rd_sect=82490288 d_wr_sect=80 d_io_ticks_ms=42233 cached_kb=15527732 mlocked_kb=64 memavail_kb=58127856 nvme_temp_c=52 compact_stall_d=5
+STARTLOAD 2026-11-21T12:29:10 loaded 33.02 GiB at 0.95 GiB/s rate=0.95
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 31.34 39.2 s (0.80 GiB/s; stopped; waited 12.1 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-WMMA_BF16       short 110.6 short 103.7 edit 168.9 edit 169.0 longdec64k 82.1/2180p 65242t  foreign CPU 3% [('kcompactd0', 7), ('kswapd0', 3), ('claude', 1)]  gpu 2037/1249 MHz 63C 184W gtt 25M cpu 3718MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-WMMA_BF16: every attempt noisy, keeping the quietest (3% foreign CPU)
+STARTDIAG 2026-11-21T12:30:14 prev_run_s=113 gap_s=118 rd_sect=158172462808 wr_sect=110777368 io_ticks_ms=122967196 d_rd_sect=108252560 d_wr_sect=80 d_io_ticks_ms=50477 cached_kb=16415408 mlocked_kb=64 memavail_kb=58126120 nvme_temp_c=53 compact_stall_d=8
+STARTLOAD 2026-11-21T12:31:02 loaded 33.02 GiB at 1.06 GiB/s rate=1.06
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 34.9 s (1.04 GiB/s; stopped; waited 11.4 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 105.5 short 105.2 edit 157.3 edit 171.2 longdec64k 83.8/2179p 65242t  foreign CPU 5% [('kcompactd0', 9), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 2045/1249 MHz 64C 186W gtt 25M cpu 3682MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 102.2 +-  27.3  (n=2)
+                              drafts accepted 0.67
+  short  plus-VERIFY_COHERENT    106.4 +-  43.2  (n=2)   vs updated:  +4.2% +- 15.6%  -> no difference
+                              drafts accepted 0.70
+  short  plus-VNNI_TIER          105.3 +-  21.0  (n=2)   vs updated:  +3.1% +-  6.2%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 106.1 +-  29.9  (n=2)   vs updated:  +3.8% +-  2.5%  -> better
+                              drafts accepted 0.71
+  short  plus-WMMA_BF16          107.2 +-  43.8  (n=2)   vs updated:  +4.9% +- 16.2%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               105.3 +-   1.9  (n=2)   vs updated:  +3.1% +- 24.9%  -> no difference
+                              drafts accepted 0.69
+  edit   updated                 169.6 +-  83.3  (n=2)
+                              drafts accepted 0.89
+  edit   plus-VERIFY_COHERENT    171.8 +- 137.9  (n=2)   vs updated:  +1.4% +- 32.2%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-VNNI_TIER          170.3 +-  10.8  (n=2)   vs updated:  +0.5% +- 42.7%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 170.8 +-   9.5  (n=2)   vs updated:  +0.8% +- 43.5%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-WMMA_BF16          168.9 +-   0.6  (n=2)   vs updated:  -0.4% +- 48.7%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               164.2 +-  88.3  (n=2)   vs updated:  -3.1% +-  3.0%  -> worse
+                              drafts accepted 0.89
+  longdec64k updated                  88.6 +-   nan  (n=1)
+  longdec64k plus-VERIFY_COHERENT     82.5 +-   nan  (n=1)   vs updated:  -6.9% +-  nan%  -> no difference
+  longdec64k plus-VNNI_TIER           84.3 +-   nan  (n=1)   vs updated:  -4.9% +-  nan%  -> no difference
+  longdec64k base-m1                  85.2 +-   nan  (n=1)   vs updated:  -3.8% +-  nan%  -> no difference
+  longdec64k plus-WMMA_BF16           82.1 +-   nan  (n=1)   vs updated:  -7.3% +-  nan%  -> no difference
+  longdec64k base-late                83.8 +-   nan  (n=1)   vs updated:  -5.4% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-VERIFY_COHERENT DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-VNNI_TIER       DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-WMMA_BF16       DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +3.1%  edit -3.1%  longdec64k -5.4%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-VERIFY_COHERENT short +2.6%  edit +3.0%  longdec64k -4.3%  -> drop
+  plus-VNNI_TIER       short +1.5%  edit +2.1%  longdec64k -2.2%  -> PROMOTE to confirm
+  base-m1              short +2.2%  edit +2.4%  longdec64k -1.2%  -> PROMOTE to confirm
+  plus-WMMA_BF16       short +3.3%  edit +1.2%  longdec64k -4.8%  -> drop

@@ -1,0 +1,3 @@
+BLOCK b01 1520 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-5-1of1-b01.json order: plus-QSA_FUSE_GATE plus-SH_FORK_LATE plus-SMALL_UNR plus-Q6_PACKED
+BLOCK b02 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-5-1of1-b02.json order: plus-STAGE_TRIM plus-TOPK_ACTIVE_ANY plus-TSUM
+BLOCK b03 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS2r-5-1of1-b03.json order: plus-VERIFY_ASYNC_LAUNCH plus-VERIFY_COHERENT plus-XN_F16
