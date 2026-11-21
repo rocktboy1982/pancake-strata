@@ -51,3 +51,61 @@ REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1435, pack load 0.15 Gi
 SETTLE 120 after a 325 s run
   WARNING: only 15 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
 STARTDIAG 2026-11-21T16:17:47 prev_run_s=325 gap_s=570 rd_sect=165096035016 wr_sect=110785864 io_ticks_ms=128331108 d_rd_sect=130680352 d_wr_sect=112 d_io_ticks_ms=293116 cached_kb=38741996 mlocked_kb=64 memavail_kb=57283004 nvme_temp_c=45 compact_stall_d=21
+STARTLOAD 2026-11-21T16:18:36 loaded 33.02 GiB at 1.06 GiB/s rate=1.06
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 34.8 s (1.05 GiB/s; stopped; waited 12.5 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.6 short 103.8 edit 168.7 edit 168.5 longdec64k 82.5/2180p 65241t  foreign CPU 2% [('kcompactd0', 4), ('localsearch-3', 1), ('kworker/u65:17-KFD IH', 1)]  gpu 2028/1249 MHz 60C 182W gtt 25M cpu 3669MHz 66C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 1435 / load 0.15 GiB/s (paused 16:13:42), second start prefill 2180 / load 1.06 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 106.6 +-  36.9  (n=2)
+                              drafts accepted 0.71
+  short  minus-GR_RDNA_Q8        102.3 +-  61.6  (n=2)   vs updated:  -4.0% +- 92.4%  -> no difference
+                              drafts accepted 0.73
+  short  minus-SELECT_WMMA        99.2 +-  12.7  (n=2)   vs updated:  -6.9% +- 46.5%  -> no difference
+                              drafts accepted 0.67
+  short  base-m1                 106.6 +-  39.4  (n=2)   vs updated:  +0.0% +-  2.4%  -> no difference
+                              drafts accepted 0.71
+  short  minus-GR_INJ_UP         101.8 +-   8.3  (n=2)   vs updated:  -4.5% +- 42.3%  -> no difference
+                              drafts accepted 0.70
+  short  plus-AMD_COMMUNITY_TUNING    105.3 +-  20.3  (n=2)   vs updated:  -1.2% +- 15.5%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               107.2 +-  43.2  (n=2)   vs updated:  +0.6% +-  6.0%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 170.6 +-  16.5  (n=2)
+                              drafts accepted 0.89
+  edit   minus-GR_RDNA_Q8        166.9 +-  59.1  (n=2)   vs updated:  -2.1% +- 25.0%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-SELECT_WMMA       169.6 +-  83.3  (n=2)   vs updated:  -0.6% +- 39.1%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 169.8 +-  14.0  (n=2)   vs updated:  -0.5% +-  1.5%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-GR_INJ_UP         162.6 +-  45.1  (n=2)   vs updated:  -4.7% +- 16.8%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-AMD_COMMUNITY_TUNING    168.9 +-  14.6  (n=2)   vs updated:  -1.0% +-  1.1%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               168.6 +-   1.3  (n=2)   vs updated:  -1.2% +- 10.4%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  83.1 +-   nan  (n=1)
+  longdec64k minus-GR_RDNA_Q8         67.7 +-   nan  (n=1)   vs updated: -18.5% +-  nan%  -> no difference
+  longdec64k minus-SELECT_WMMA        80.7 +-   nan  (n=1)   vs updated:  -2.9% +-  nan%  -> no difference
+  longdec64k base-m1                  87.1 +-   nan  (n=1)   vs updated:  +4.8% +-  nan%  -> no difference
+  longdec64k minus-GR_INJ_UP          82.5 +-   nan  (n=1)   vs updated:  -0.7% +-  nan%  -> no difference
+  longdec64k plus-AMD_COMMUNITY_TUNING     84.1 +-   nan  (n=1)   vs updated:  +1.2% +-  nan%  -> no difference
+  longdec64k base-late                82.5 +-   nan  (n=1)   vs updated:  -0.7% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-GR_RDNA_Q8     DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-SELECT_WMMA    DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              identical on every case -> exact
+  minus-GR_INJ_UP      DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-AMD_COMMUNITY_TUNING DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.6%  edit -1.2%  longdec64k -0.7%
+  minus-GR_RDNA_Q8     short -4.3%  edit -1.6%  longdec64k -18.2%  -> drop
+  minus-SELECT_WMMA    short -7.2%  edit -0.0%  longdec64k -2.5%  -> drop
+  base-m1              short -0.3%  edit +0.1%  longdec64k +5.2%  -> PROMOTE to confirm
+  minus-GR_INJ_UP      short -4.8%  edit -4.2%  longdec64k -0.4%  -> drop
+  plus-AMD_COMMUNITY_TUNING short -1.5%  edit -0.4%  longdec64k +1.6%  -> PROMOTE to confirm
