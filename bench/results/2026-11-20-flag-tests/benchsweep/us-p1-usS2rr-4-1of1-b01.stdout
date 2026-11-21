@@ -13,3 +13,35 @@ STARTDIAG 2026-11-21T09:04:07 prev_run_s=108 gap_s=113 rd_sect=152006425368 wr_s
 STARTLOAD 2026-11-21T09:04:59 loaded 33.02 GiB at 0.97 GiB/s rate=0.97
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 38.0 s (0.96 GiB/s; stopped; waited 12.3 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-PREFILL_HOST_PLAN short 108.7 short 103.6 edit 170.0 edit 171.4 longdec64k 81.3/2177p 65242t  foreign CPU 4% [('kcompactd0', 4), ('kworker/11:0-mm_percpu_wq', 4), ('kswapd0', 2)]  gpu 2045/1249 MHz 63C 187W gtt 25M cpu 3778MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-PREFILL_HOST_PLAN: every attempt noisy, keeping the quietest (4% foreign CPU)
+STARTDIAG 2026-11-21T09:06:07 prev_run_s=115 gap_s=120 rd_sect=152107212336 wr_sect=110769376 io_ticks_ms=117934093 d_rd_sect=100786968 d_wr_sect=96 d_io_ticks_ms=48023 cached_kb=16931932 mlocked_kb=64 memavail_kb=58185864 nvme_temp_c=51 compact_stall_d=9
+STARTLOAD 2026-11-21T09:06:54 loaded 33.02 GiB at 1.13 GiB/s rate=1.13
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.44 33.2 s (1.10 GiB/s; stopped; waited 12.1 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 100.5 short 100.5 edit 166.8 edit 181.1 longdec64k 81.9/2176p 65242t  foreign CPU 5% [('kcompactd0', 7), ('kswapd0', 2), ('kworker/9:0-events', 2)]  gpu 1987/1249 MHz 63C 188W gtt 25M cpu 3586MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 106.5 +-  35.0  (n=2)
+                              drafts accepted 0.71
+  short  plus-PREFILL_HOST_PLAN    106.2 +-  32.4  (n=2)   vs updated:  -0.3% +-  2.4%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               100.5 +-   0.0  (n=2)   vs updated:  -5.6% +- 32.8%  -> no difference
+                              drafts accepted 0.67
+  edit   updated                 169.1 +-   3.8  (n=2)
+                              drafts accepted 0.89
+  edit   plus-PREFILL_HOST_PLAN    170.7 +-   8.9  (n=2)   vs updated:  +0.9% +-  7.5%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               173.9 +-  90.9  (n=2)   vs updated:  +2.9% +- 56.0%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  86.2 +-   nan  (n=1)
+  longdec64k plus-PREFILL_HOST_PLAN     81.3 +-   nan  (n=1)   vs updated:  -5.7% +-  nan%  -> no difference
+  longdec64k base-late                81.9 +-   nan  (n=1)   vs updated:  -5.0% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-PREFILL_HOST_PLAN DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -5.6%  edit +2.9%  longdec64k -5.0%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-PREFILL_HOST_PLAN short +2.6%  edit -0.5%  longdec64k -3.3%  -> drop

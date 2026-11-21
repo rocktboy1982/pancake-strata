@@ -1,0 +1,76 @@
+{
+ "schema": "pancake.sweep-triage/2",
+ "branch": "us",
+ "slices": [
+  "usS2rr-4-1of1"
+ ],
+ "protected": {
+  "STRATA_VERIFY_ECAP": [
+   "edit"
+  ],
+  "STRATA_RDNA_Q6K": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_GR_RDNA": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_RDNA_MMVQ_WAVE": [
+   "short",
+   "edit",
+   "longdec32k"
+  ]
+ },
+ "drift_max": 5.0,
+ "flags": {
+  "STRATA_PREFILL_HOST_PLAN": {
+   "flag": "STRATA_PREFILL_HOST_PLAN",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PREFILL_HOST_PLAN"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PREFILL_HOST_PLAN": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: chunk shape (generate.cpp:10454: only the chunk shape, i.e. rounding)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": -2.7,
+    "edit": 2.92,
+    "longdec64k": -7.65,
+    "longdec64k-prompt": -0.05
+   },
+   "run1_best": "edit",
+   "arm": "plus-PREFILL_HOST_PLAN",
+   "slice": "usS2rr-4-1of1",
+   "pass1": {
+    "short": 2.59,
+    "edit": -0.48,
+    "longdec64k": -3.27,
+    "longdec64k-prompt": -0.16
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2rr-4-1of1-b01",
+   "drift1": {
+    "short": -3.09,
+    "edit": 7.29,
+    "longdec64k": -4.99
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2rr-4-1of1-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2rr-4-1of1-b01 base drift edit +7.3 % > 5 % (after its re-run): no verdict"
+  }
+ }
+}

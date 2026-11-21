@@ -1,0 +1,6 @@
+BLOCK b01 1520 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-5of5-b01.json order: plus-Q8_GATHER_WIDE plus-Q8_PACKED plus-Q6_PACKED plus-PREFILL_LM_EVEN
+BLOCK b02 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-5of5-b02.json order: plus-QSA_FUSE_GATE plus-RING_BYTES plus-QSA_FUSE_NR plus-QSA_SLOTS
+BLOCK b03 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-5of5-b03.json order: plus-SH_FORK_LATE plus-SELECT_SIMT plus-ROPE_TABLE plus-S2_SWIGLU_Q8
+BLOCK b04 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-5of5-b04.json order: plus-TOPK_ACTIVE_ANY plus-STAGE_TRIM plus-SIDE_MIXER plus-SMALL_UNR
+BLOCK b05 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-5of5-b05.json order: plus-VERIFY_COHERENT plus-VERIFY_ASYNC_LAUNCH plus-TOPK_STREAM plus-TSUM
+BLOCK b06 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-5of5-b06.json order: plus-WMMA_BF16 plus-VNNI_TIER plus-XN_F16
