@@ -1,0 +1,294 @@
+{
+ "note": "LEADS.md Part U U3. flags: a switch -> the served() counters (include/strata/core/dispatch_stats.hpp; names are string literals in src/) that must move when the switch takes the value an abtest arm gives it. up = rises, down = falls; a minus-X arm (sweep.py) reverses them. mode delta = moved by max(1, 2 percent); cross = appeared / vanished (counters of graph captures). unmapped: the other switches of tools/pancake/box_chains/sweep_candidates.json with the reason; they get no INERT verdict. Read by tools/pancake/dispatch_report.py; linted by tools/pancake/test_dispatch_report.py (every counter must exist in src/, every registry switch must be here).",
+ "flags": {
+  "STRATA_ATTN_LANECELL": {
+   "up": [
+    "attn.decode.chunk.lanecell",
+    "attn.decode.chunk_split.lanecell"
+   ],
+   "mode": "cross",
+   "why": "the lane-cell decode chunk kernels (counted per graph capture)"
+  },
+  "STRATA_ATTN_MERGE_V2": {
+   "up": [
+    "attn.decode.merge_v2"
+   ],
+   "down": [
+    "attn.decode.merge"
+   ],
+   "mode": "cross",
+   "why": "the v2 decode merge kernel (1; 0 is the reverse)"
+  },
+  "STRATA_GDN_CHUNKED": {
+   "up": [
+    "pf.gdn.rec.wmma_chunked"
+   ],
+   "down": [
+    "pf.gdn.rec.cols_pipe",
+    "pf.gdn.rec.cols"
+   ],
+   "why": "the chunked prompt GDN recurrence on the matrix cores (HIP: gdn_rec_wmma in gdn_recurrence_impl)"
+  },
+  "STRATA_GR_FUSED": {
+   "up": [
+    "rdna.gr.a8.fused"
+   ],
+   "down": [
+    "rdna.gr.a8.inj"
+   ],
+   "mode": "cross",
+   "why": "the one-launch fused kernel (needs STRATA_GR_INJ_UP and the grid barrier)"
+  },
+  "STRATA_GR_INJ_UP": {
+   "up": [
+    "rdna.gr.a8.inj",
+    "rdna.gr.a8.fused"
+   ],
+   "down": [
+    "rdna.gr.a8"
+   ],
+   "mode": "cross",
+   "why": "inject rows in their own blocks (inside the a8 launch)"
+  },
+  "STRATA_GR_RDNA": {
+   "up": [
+    "rdna.gr.a8",
+    "rdna.gr.a8.inj",
+    "rdna.gr.a8.fused",
+    "rdna.gr.q8",
+    "rdna.gr.bf16"
+   ],
+   "mode": "cross",
+   "why": "the RDNA hyper-connection read: any of its launches (rdna_gr.cu launch<T>) appears"
+  },
+  "STRATA_GR_RDNA_A8": {
+   "up": [
+    "rdna.gr.a8",
+    "rdna.gr.a8.inj",
+    "rdna.gr.a8.fused"
+   ],
+   "down": [
+    "rdna.gr.q8"
+   ],
+   "mode": "cross",
+   "why": "int8 activations: the a8 launches replace the q8 one (needs STRATA_GR_RDNA_Q8)"
+  },
+  "STRATA_GR_RDNA_Q8": {
+   "up": [
+    "rdna.gr.q8",
+    "rdna.gr.a8",
+    "rdna.gr.a8.inj",
+    "rdna.gr.a8.fused"
+   ],
+   "down": [
+    "rdna.gr.bf16"
+   ],
+   "mode": "cross",
+   "why": "int8 hc weights: the q8 / a8 launches replace the bf16 read (needs STRATA_GR_RDNA)"
+  },
+  "STRATA_HCD_EXACT": {
+   "up": [
+    "pf.gemm.hcdown_exact",
+    "pf.hcdown.exact"
+   ],
+   "why": "the exact-order hyper-connection down kernel (needs the hipBLASLt table and solution 1176 / 1177)"
+  },
+  "STRATA_PF_BK64": {
+   "up": [
+    "pf.gemm.pf.256x64"
+   ],
+   "down": [
+    "pf.gemm.pf.bk64"
+   ],
+   "why": "0 runs the BK 32 kernel for wide shapes too (needs STRATA_PF_GEMM)"
+  },
+  "STRATA_PF_FUSED_NATIVE": {
+   "down": [
+    "pf.moe.native",
+    "pf.moe.native_wide"
+   ],
+   "why": "0 takes the prompt MoE off the native fused kernels (moe_fused_iq.cu experts_native)"
+  },
+  "STRATA_PF_GEMM": {
+   "up": [
+    "pf.gemm.f16.pf_gemm",
+    "pf.gemm.pf.bk64",
+    "pf.gemm.pf.256x64",
+    "pf.gemm.pf.128x32"
+   ],
+   "why": "the S23 FP16 prompt GEMM (wmma_gemm.cu strata_pf_gemm_f16_ld)"
+  },
+  "STRATA_PF_HCDOWN": {
+   "up": [
+    "pf.gemm.hcdown_bf16"
+   ],
+   "why": "the hyper-connection down + inject as one WMMA GEMM (wmma_gemm.cu)"
+  },
+  "STRATA_RDNA_Q6K": {
+   "up": [
+    "rdna.q6k.wmma",
+    "rdna.q6k.wave"
+   ],
+   "mode": "cross",
+   "why": "the RDNA Q6_K MMVQ (rdna_q6k_mmvq)"
+  },
+  "STRATA_WMMA_BF16": {
+   "down": [
+    "pf.gemm.bf16.wmma"
+   ],
+   "why": "0 takes the bf16 GEMMs off the WMMA kernel (needs STRATA_WMMA_GEMM)"
+  }
+ },
+ "unmapped": {
+  "--adapt-every": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "--conversation-cache-min-tokens": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "--expert-profile": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "--grammar": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "--pool-affinity": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_ADAPT_CALLBACK_WARMUP": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_ADAPT_NOWAIT": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_ADAPT_OVERLAP_RESIDENT": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_ADAPT_PERSIST": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_ADMIT_MERGE_FIRST": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_AMD_COMMUNITY_TUNING": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_ATTN_DAILY": "attention / selection variant chosen inside a counted launcher (entry counted, variant not split yet)",
+  "STRATA_ATTN_V3": "CUDA-only path (not compiled in the HIP engine): no counter on gfx1100",
+  "STRATA_CKPT_ASYNC": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_CKPT_GATHER": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_CKPT_POOL": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_CKPT_THREADS": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_CPU_IQ_ALL_EXACT1": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_CVEC_FUSE": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_DEQUANT_SIDE": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_DOWN_WS": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_DRAFT_KEEP": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_EARLY_REMOTE_CONTEXTS": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_EMBED_VRAM": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_EMB_REUSE_ACCOUNT": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_ENGINE_NICE": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_EXCHANGE_ROTATE": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_EXPDEC": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_EXPERT_V2": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_EXPERT_V2K": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_EXP_MODE": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_FS_SLOTS": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_FUSE_CONVAB": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_FUSE_DECODE": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_FUSE_HEAD_GR": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_GDN_CHUNKED_MIN": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_GDN_CONVL2": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_GDN_HEAD": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_GDN_NOY": "CUDA-only path (not compiled in the HIP engine): no counter on gfx1100",
+  "STRATA_GDN_TC": "CUDA-only path (not compiled in the HIP engine): no counter on gfx1100",
+  "STRATA_GROUPED_V1": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_GR_Q32_G": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_GR_Q8_PFS": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_HC_Q8_ALL_STAGES": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_HC_Q8_INJECT": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_HC_REQ8": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_HC_UPMIX": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_HC_WN4": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_HEAD_MIX_MULTI": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_HIP_ADAPT_KERNEL_COPY": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_HIP_SWIGLU_FUSED": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_IQ_STAGE_GRID": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_IQ_STAGE_GRID_MMVQ": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_IQ_STAGE_TABLES": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_KVA": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_KVA_ANY_MODEL": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_KVA_DRAFT_FLOOR": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_KVA_MIN_PROMPT": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_KVA_ORACLE_FP32": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_KVA_SUFFIX": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_KV_GROW": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_KV_HOST_DMA": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_KV_HOST_REGISTER": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_KV_PREFETCH": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_LFUSE": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_LFUSE_GATE": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_LFUSE_PAIR": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_LM_HIP": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_MMQ_KQ": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_MMVF_AUX": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_MMVQ_IL": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_MMVQ_IL_120": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_MMVQ_IL_Q3K": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_MMVQ_IL_T1": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_MMVQ_IL_WIDE": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_MMVQ_WAVE": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_MTP_CATCHUP_ALL": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_MTP_FULL_HEAD": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_MTP_TOP2": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_NORM_ROPE": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_NO_MMVQ_ROWS2": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_NO_MULTI_GR": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_NO_NORM_ROPE": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_NO_SUB16_GU": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_OLD_GROUPED": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_OLD_IQ_MMVQ": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_OLD_Q80_SCALED": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_PA_RPF": "CUDA-only path (not compiled in the HIP engine): no counter on gfx1100",
+  "STRATA_PA_TRIM": "CUDA-only path (not compiled in the HIP engine): no counter on gfx1100",
+  "STRATA_PA_V2T": "CUDA-only path (not compiled in the HIP engine): no counter on gfx1100",
+  "STRATA_PCIE_AUTO_CANON": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_PCIE_OFF": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_PF_FUSED_F16": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_PF_FUSED_Q2N": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_PF_FUSED_Q50": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_PF_GROUP_SCRATCH": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_PF_PAD": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_PF_Q8D_F16": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_PF_WMMA2": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_PIN_BY_NEED": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_PIPED_MTP": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_PLE_COMPACT": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_PLE_COPY_STREAM": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_POOL_UMWAIT_C02": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_PREFILL_CPU_SHARE_MAX": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_PREFILL_EQUAL": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_PREFILL_HELP": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_PREFILL_HOST_PLAN": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_PREFILL_LM_EVEN": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_PROMPT_ATTN_IMMA": "CUDA-only path (not compiled in the HIP engine): no counter on gfx1100",
+  "STRATA_PROMPT_ATTN_Q4": "CUDA-only path (not compiled in the HIP engine): no counter on gfx1100",
+  "STRATA_PROMPT_ATTN_Q4_TC": "CUDA-only path (not compiled in the HIP engine): no counter on gfx1100",
+  "STRATA_Q2_BITPLANE": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_Q2_WARP": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_Q6_PACKED": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_Q8_GATHER_WIDE": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_Q8_PACKED": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_QFUSE": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_QSA_FUSE_GATE": "attention / selection variant chosen inside a counted launcher (entry counted, variant not split yet)",
+  "STRATA_QSA_FUSE_NR": "attention / selection variant chosen inside a counted launcher (entry counted, variant not split yet)",
+  "STRATA_QSA_ROWS": "attention / selection variant chosen inside a counted launcher (entry counted, variant not split yet)",
+  "STRATA_QSA_SLOTS": "attention / selection variant chosen inside a counted launcher (entry counted, variant not split yet)",
+  "STRATA_RDNA_MMVQ_WAVE": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_RESIDENT_PIN": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_RING_BYTES": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_ROPE_TABLE": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_ROUTE_TAIL_SKIP": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_S2_SWIGLU_Q8": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_SELECT_SIMT": "attention / selection variant chosen inside a counted launcher (entry counted, variant not split yet)",
+  "STRATA_SELECT_WMMA": "attention / selection variant chosen inside a counted launcher (entry counted, variant not split yet)",
+  "STRATA_SH_FORK_LATE": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_SH_STREAM": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_SIDE_MIXER": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_SLOT_CKPT_MOVE": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_SMALL_UNR": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_SPEC_GUMBEL": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_STAGER_RING": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_STAGE_TRIM": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_TOPK_ACTIVE_ANY": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_TOPK_STREAM": "attention / selection variant chosen inside a counted launcher (entry counted, variant not split yet)",
+  "STRATA_TQ_STAGE": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_TQ_SUB8": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_TSUM": "chooses a variant inside the existing strata::dispatch::kernel() counters (native_mmvq.cu / iq_kernels.cu), which are keyed by shape, not by name",
+  "STRATA_VERIFY_ASYNC_LAUNCH": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_VERIFY_COHERENT": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_VERIFY_ECAP": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_VERIFY_ECAP_MIN_ROWS": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_VERIFY_QDEDUP": "host policy, I/O, scheduling or a non-kernel switch: no kernel path counter to move",
+  "STRATA_VNNI_TIER": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)",
+  "STRATA_XN_F16": "no served() counter at the launch site this switch changes yet (see dispatch_expect.json 'unmapped': add the counter, then map it)"
+ }
+}

@@ -83,6 +83,10 @@ capped.sh's "capped: tier=..." guess; guess: capped.sh's rule on keep_gib and bi
 (the STRATA_RAM_KEEP_GIB the engine used), "big_free_gib_start" and "opts" (the abtest options), so that promote.py can
 refuse mixed-tier or mixed-option comparisons.  select() decides which attempts and requests a summary uses (tools/pancake/
 abtest_replay.py feeds recorded jsonl files through it).
+ABTEST_DISPATCH_REPORT=1 (default off, LEADS.md Part U U3): the served-path census.  Every engine start gets STRATA_DISPATCH_REPORT=<work>/<arm>-r<rep>-a<attempt>.dispatch.json,
+the engine writes the census of the kernel paths it launched there when it exits, each attempt's row keeps a digest ("dispatch"), and the end of the run prints
+per arm INERT (the switch moved none of its expected counters against the base: it did not act) / ACTIVE / DECLINED / NO-REPORT / UNMAPPED
+(tools/pancake/dispatch_report.py, the switch -> counter map tools/pancake/dispatch_expect.json).  Unset: the runs, rows and prints are unchanged.
 Safety (other sessions share this machine and its one GPU): abtest stops only the servers IT started (the Popen it created and the engine
 below it, never found by name), so a second abtest's, another session's or a crashed run's leftover server is not touched.  It refuses to
 start (exit 3, naming the processes) while another real abtest / restore_check / engine runs - the same anchored test as tools/pancake/
@@ -430,6 +434,31 @@ def make_config(base, arm, path):
         c["exe"] = exe
     json.dump(c, open(path, "w"), indent=1)
     return c
+
+
+def dispatch_report_enabled(env=None):
+    """ABTEST_DISPATCH_REPORT=1 (default off; LEADS.md Part U U3): every engine start gets STRATA_DISPATCH_REPORT=<work>/<arm>-r<rep>-a<attempt>.dispatch.json
+    (the engine writes its served-path census there when it exits), the attempt's row keeps a digest of it ("dispatch"), and the summary prints the
+    INERT / ACTIVE verdict of every arm with a switch (dispatch_report.py, dispatch_expect.json).  Unset / 0: nothing of this runs and no row changes."""
+    return str((env if env is not None else os.environ).get("ABTEST_DISPATCH_REPORT", "0")).strip() == "1"
+
+
+def dispatch_report_path(log_out):
+    return Path(log_out).with_suffix(".dispatch.json")
+
+
+def dispatch_digest(path):
+    """The digest of the report the engine wrote at `path` (None: no report - the engine was killed, or the census is off)."""
+    import dispatch_report
+    return dispatch_report.digest(dispatch_report.read_report(path))
+
+
+def print_dispatch_verdicts(records, spec, base_arm):
+    """The INERT census of a finished batch: per arm the verdict of its switches against the base arm's counters."""
+    import dispatch_report
+    digs = dispatch_report.digests_from_rows(records)
+    lines, _ = dispatch_report.report(digs, dispatch_report.load_expect(), spec, base_arm)
+    print(chr(10).join(lines), flush=True)
 
 
 OWN = []   # the server processes (Popen) this abtest started: stop_servers() ends these and what runs below them, nothing else
@@ -1177,6 +1206,12 @@ def _run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1, passes=1, 
     log = cfg.get("log")
     s0, big0 = len(log_lines(log)), big_free_gib()   # the engine log is appended to: this start's lines come after s0
     engine_log = Path(log_out).with_suffix(".engine.log")   # this start's engine lines (promote.py / switch_report.py read it)
+    dsp_path = None
+    if dispatch_report_enabled():   # ABTEST_DISPATCH_REPORT=1: the engine of this start writes its served-path census here when it exits
+        dsp_path = dispatch_report_path(log_out)
+        dsp_path.unlink(missing_ok=True)
+        cfg.setdefault("env", {})["STRATA_DISPATCH_REPORT"] = str(dsp_path)
+        json.dump(cfg, open(cfg_path, "w"), indent=1)
     srv, err = start_server(cfg_path, log_out, port)
     if err:
         save_engine_log(log, s0, engine_log)
@@ -1232,6 +1267,8 @@ def _run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1, passes=1, 
     keep = keep_gib(start_text, cfg.get("env") or {})
     tier, source = tier_of(start_text, keep, big0)
     res.update(tier=tier, tier_source=source, keep_gib=keep, big_free_gib_start=round(big0, 1))
+    if dsp_path is not None:   # (the engine has exited: stop_servers above waits for it)
+        res["dispatch"] = dispatch_digest(dsp_path)
     return res, None
 
 
@@ -1677,6 +1714,8 @@ def main():
     opts = {"test_tier": a.tier, "reps": reps, "block": a.block, "passes": passes, "warmup": a.warmup, "outlier": a.outlier,
             "foreign_cpu": a.foreign_cpu, "reclaim_max": RECLAIM_MAX, "retries": a.retries, "early_stop": not a.no_early_stop,
             "per_run": per_run}
+    if dispatch_report_enabled():
+        opts["dispatch_report"] = True
     robust, deff = a.outlier == "robust", design_effect(passes)
     bar_stop = None
     if a.bar_stop is not None:
@@ -1801,6 +1840,8 @@ def main():
     text_check(results, rarms, cases)
     if a.tier == "screen":
         screen_verdict(results, rarms, cases, drift=drift)
+    if dispatch_report_enabled():
+        print_dispatch_verdicts(records, spec, ref_arm)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,59 @@
+{
+ "base": "@CONFIG_PLAIN@",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "short",
+  "edit",
+  "long10k"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "@UPDATED@/strata"
+  },
+  "plus-STRATA_PF_GEMM": {
+   "exe": "@UPDATED@/strata",
+   "env": {
+    "STRATA_PF_GEMM": "1"
+   }
+  },
+  "plus-STRATA_PF_HCDOWN": {
+   "exe": "@UPDATED@/strata",
+   "env": {
+    "STRATA_PF_HCDOWN": "1"
+   }
+  },
+  "plus-STRATA_HCD_EXACT": {
+   "exe": "@UPDATED@/strata",
+   "env": {
+    "STRATA_HCD_EXACT": "1"
+   }
+  },
+  "plus-STRATA_GDN_CHUNKED": {
+   "exe": "@UPDATED@/strata",
+   "env": {
+    "STRATA_GDN_CHUNKED": "1"
+   }
+  },
+  "plus-STRATA_ATTN_LANECELL": {
+   "exe": "@UPDATED@/strata",
+   "env": {
+    "STRATA_ATTN_LANECELL": "1"
+   }
+  },
+  "plus-STRATA_ATTN_MERGE_V2": {
+   "exe": "@UPDATED@/strata",
+   "env": {
+    "STRATA_ATTN_MERGE_V2": "1"
+   }
+  },
+  "plus-STRATA_PF_FUSED_NATIVE": {
+   "exe": "@UPDATED@/strata",
+   "env": {
+    "STRATA_PF_FUSED_NATIVE": "0"
+   }
+  }
+ },
+ "note": "LEADS.md Part U U3 served-path census (TEST_LEDGER.md T-1050, coded, not run): the mapped switches of tools/pancake/dispatch_expect.json one at a time against a base start, each start with STRATA_DISPATCH_REPORT written by abtest. Run: ABTEST_DISPATCH_REPORT=1 python tools/pancake/abtest.py <this spec, placeholders filled as bench-updatedRD.sh does> --tier screen --out bench/results/<day>-census-u3.jsonl; the end of the run prints per arm INERT / ACTIVE / DECLINED / NO-REPORT (tools/pancake/dispatch_report.py --rows <jsonl> --spec <spec> repeats it). The @UPDATED@ build must contain the lead/U3 counters. The speed numbers of this run are not a verdict (the census is the result): a flag with INERT or DECLINED is re-judged only after its path is shown to act."
+}
