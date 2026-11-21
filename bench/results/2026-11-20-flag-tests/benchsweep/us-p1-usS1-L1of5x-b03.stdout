@@ -3,3 +3,13 @@ STARTDIAG 2026-11-21T14:39:35 prev_run_s=NA gap_s=NA rd_sect=162218592160 wr_sec
 STARTLOAD 2026-11-21T14:40:24 loaded 33.02 GiB at 1.07 GiB/s rate=1.07
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 34.2 s (1.06 GiB/s; stopped; waited 13.1 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 103.8 short 107.4 edit 155.3 edit 169.8 longdec64k 61.6/1664p 65239t  foreign CPU 4% [('kcompactd0', 8), ('kswapd0', 3), ('kworker/7:1-events', 1)]  gpu 2042/1249 MHz 61C 185W gtt 25M cpu 3576MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1664, pack load 1.07 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+  WARNING: only 19 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+STARTDIAG 2026-11-21T14:43:42 prev_run_s=123 gap_s=248 rd_sect=162342756744 wr_sect=110782240 io_ticks_ms=126035638 d_rd_sect=124164584 d_wr_sect=208 d_io_ticks_ms=83418 cached_kb=38588544 mlocked_kb=64 memavail_kb=58170936 nvme_temp_c=49 compact_stall_d=9
+STARTLOAD 2026-11-21T14:44:32 loaded 33.02 GiB at 1.08 GiB/s rate=1.08
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.36 34.4 s (1.06 GiB/s; stopped; waited 12.9 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 104.5 short 99.9 edit 163.4 edit 176.1 longdec64k 85.8/2181p 65239t  foreign CPU 2% [('kcompactd0', 2), ('systemd-journal', 0), ('localsearch-3', 0)]  gpu 1919/1249 MHz 60C 187W gtt 25M cpu 3529MHz 64C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED updated: first start prefill 1664 / load 1.07 GiB/s (paused 14:41:37), second start prefill 2181 / load 1.08 GiB/s
+STARTDIAG 2026-11-21T14:45:34 prev_run_s=106 gap_s=111 rd_sect=162423345352 wr_sect=110782304 io_ticks_ms=126076632 d_rd_sect=80588608 d_wr_sect=64 d_io_ticks_ms=40994 cached_kb=17691740 mlocked_kb=64 memavail_kb=58166040 nvme_temp_c=51 compact_stall_d=1
