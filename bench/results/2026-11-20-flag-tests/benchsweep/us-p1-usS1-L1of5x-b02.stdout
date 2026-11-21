@@ -21,3 +21,10 @@ SLOWLOAD waiting for the engine: not ready, elapsed 60 s
 STARTLOAD 2026-11-21T14:13:31 loaded 33.02 GiB at 0.74 GiB/s rate=0.74
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.34 48.6 s (0.75 GiB/s; stopped; waited 11.7 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 70.2 short 105.6 edit 171.0 edit 124.6 longdec64k 78.4/1492p 65240t  foreign CPU 5% [('kcompactd0', 7), ('kswapd0', 3), ('kworker/5:2-events_freezable', 2)]  gpu 1964/1249 MHz 63C 173W gtt 25M cpu 3491MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1492, pack load 0.74 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+SETTLE 120 after a 144 s run
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+STARTDIAG 2026-11-21T14:18:57 prev_run_s=144 gap_s=389 rd_sect=161770933696 wr_sect=110781616 io_ticks_ms=125367104 d_rd_sect=126679880 d_wr_sect=112 d_io_ticks_ms=109949 cached_kb=38736324 mlocked_kb=64 memavail_kb=58137256 nvme_temp_c=46 compact_stall_d=5
+STARTLOAD 2026-11-21T14:19:46 loaded 33.02 GiB at 1.05 GiB/s rate=1.05
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.44 34.8 s (1.05 GiB/s; stopped; waited 12.5 s for the arena)
