@@ -1,0 +1,5 @@
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+STARTDIAG 2026-11-21T12:16:52 prev_run_s=NA gap_s=NA rd_sect=157614733640 wr_sect=110776832 io_ticks_ms=122664966 d_rd_sect=NA d_wr_sect=NA d_io_ticks_ms=NA cached_kb=17270200 mlocked_kb=64 memavail_kb=58142052 nvme_temp_c=50 compact_stall_d=NA
+STARTLOAD 2026-11-21T12:17:35 loaded 33.02 GiB at 1.26 GiB/s rate=1.26
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.44 30.0 s (1.21 GiB/s; stopped; waited 11.3 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)

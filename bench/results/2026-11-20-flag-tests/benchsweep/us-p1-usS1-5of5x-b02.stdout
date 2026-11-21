@@ -29,3 +29,60 @@ STARTLOAD 2026-11-21T12:11:39 loaded 33.02 GiB at 1.18 GiB/s rate=1.18
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 31.6 s (1.15 GiB/s; stopped; waited 12.7 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-m1              short 108.8 short 102.3 edit 160.9 edit 183.4 longdec64k 81.8/2189p 65242t  foreign CPU 4% [('kcompactd0', 15), ('claude', 1), ('rcu_preempt', 0)]  gpu 2027/1249 MHz 63C 185W gtt 25M cpu 3621MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T12:12:44 prev_run_s=106 gap_s=111 rd_sect=157434649880 wr_sect=110775808 io_ticks_ms=122574178 d_rd_sect=79075320 d_wr_sect=112 d_io_ticks_ms=39737 cached_kb=14300100 mlocked_kb=64 memavail_kb=58063944 nvme_temp_c=51 compact_stall_d=8
+STARTLOAD 2026-11-21T12:13:32 loaded 33.02 GiB at 1.09 GiB/s rate=1.09
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 33.7 s (1.08 GiB/s; stopped; waited 12.6 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-TOPK_STREAM     short 108.0 short 102.7 edit 161.9 edit 183.3 longdec64k 83.5/2186p 65242t  foreign CPU 4% [('kcompactd0', 6), ('kswapd0', 2), ('claude', 1)]  gpu 2042/1249 MHz 63C 186W gtt 25M cpu 3768MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-TOPK_STREAM: every attempt noisy, keeping the quietest (4% foreign CPU)
+STARTDIAG 2026-11-21T12:14:37 prev_run_s=108 gap_s=113 rd_sect=157515310536 wr_sect=110776656 io_ticks_ms=122615785 d_rd_sect=80660656 d_wr_sect=848 d_io_ticks_ms=41607 cached_kb=13622712 mlocked_kb=64 memavail_kb=58106800 nvme_temp_c=51 compact_stall_d=11
+STARTLOAD 2026-11-21T12:15:30 loaded 33.02 GiB at 0.95 GiB/s rate=0.95
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 38.9 s (0.94 GiB/s; stopped; waited 12.4 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 108.4 short 103.1 edit 162.1 edit 183.0 longdec64k 84.9/2180p 65242t  foreign CPU 3% [('kcompactd0', 3), ('kworker/3:1-events', 3), ('kswapd0', 2)]  gpu 2016/1249 MHz 63C 184W gtt 25M cpu 3552MHz 66C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 102.2 +-  26.7  (n=2)
+                              drafts accepted 0.67
+  short  plus-VERIFY_ASYNC_LAUNCH    105.8 +-  34.3  (n=2)   vs updated:  +3.5% +-  7.5%  -> no difference
+                              drafts accepted 0.71
+  short  plus-TSUM               101.0 +-  12.7  (n=2)   vs updated:  -1.2% +- 13.7%  -> no difference
+                              drafts accepted 0.67
+  short  base-m1                 105.5 +-  41.3  (n=2)   vs updated:  +3.3% +- 14.3%  -> no difference
+                              drafts accepted 0.70
+  short  plus-TOPK_STREAM        105.3 +-  33.7  (n=2)   vs updated:  +3.1% +-  6.8%  -> no difference
+                              drafts accepted 0.70
+  short  base-late               105.8 +-  33.7  (n=2)   vs updated:  +3.5% +-  6.8%  -> no difference
+                              drafts accepted 0.70
+  edit   updated                 176.1 +-  30.5  (n=2)
+                              drafts accepted 0.89
+  edit   plus-VERIFY_ASYNC_LAUNCH    170.2 +-  17.8  (n=2)   vs updated:  -3.4% +-  7.2%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-TSUM               168.9 +-  86.4  (n=2)   vs updated:  -4.1% +- 31.8%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 172.2 +- 143.0  (n=2)   vs updated:  -2.2% +- 63.9%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-TOPK_STREAM        172.6 +- 136.0  (n=2)   vs updated:  -2.0% +- 59.9%  -> no difference
+                              drafts accepted 0.88
+  edit   base-late               172.6 +- 132.8  (n=2)   vs updated:  -2.0% +- 58.1%  -> no difference
+                              drafts accepted 0.88
+  longdec64k updated                  81.2 +-   nan  (n=1)
+  longdec64k plus-VERIFY_ASYNC_LAUNCH     83.4 +-   nan  (n=1)   vs updated:  +2.7% +-  nan%  -> no difference
+  longdec64k plus-TSUM                86.5 +-   nan  (n=1)   vs updated:  +6.5% +-  nan%  -> no difference
+  longdec64k base-m1                  81.8 +-   nan  (n=1)   vs updated:  +0.7% +-  nan%  -> no difference
+  longdec64k plus-TOPK_STREAM         83.5 +-   nan  (n=1)   vs updated:  +2.8% +-  nan%  -> no difference
+  longdec64k base-late                84.9 +-   nan  (n=1)   vs updated:  +4.6% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-VERIFY_ASYNC_LAUNCH DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-TSUM            DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-TOPK_STREAM     DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +3.5%  edit -2.0%  longdec64k +4.6%
+  plus-VERIFY_ASYNC_LAUNCH short +1.8%  edit -2.4%  longdec64k +0.4%  -> PROMOTE to confirm
+  plus-TSUM            short -2.9%  edit -3.1%  longdec64k +4.2%  -> drop
+  base-m1              short +1.5%  edit -1.2%  longdec64k -1.5%  -> PROMOTE to confirm
+  plus-TOPK_STREAM     short +1.3%  edit -1.0%  longdec64k +0.5%  -> PROMOTE to confirm
