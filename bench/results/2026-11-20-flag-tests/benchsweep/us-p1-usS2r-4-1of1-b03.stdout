@@ -17,3 +17,18 @@ STARTLOAD 2026-11-21T08:20:02 loaded 33.02 GiB at 0.22 GiB/s rate=0.22
 rep 0 plus-PF_FUSED_F16    short 93.3 short 87.5 edit 154.4 edit 177.1 longdec64k 77.5/1437p 65242t  foreign CPU 3% [('kcompactd0', 5), ('kworker/1:0-events_freezable', 4), ('kswapd0', 3)]  gpu 2040/1249 MHz 61C 188W gtt 25M cpu 3646MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-PF_FUSED_F16: every attempt noisy, keeping the quietest (3% foreign CPU)
 SETTLE 120 after a 257 s run
+STARTDIAG 2026-11-21T08:23:32 prev_run_s=257 gap_s=382 rd_sect=150768570416 wr_sect=110767856 io_ticks_ms=116954506 d_rd_sect=84626336 d_wr_sect=128 d_io_ticks_ms=194390 cached_kb=15929548 mlocked_kb=64 memavail_kb=58102772 nvme_temp_c=47 compact_stall_d=17
+STARTLOAD 2026-11-21T08:24:18 loaded 33.02 GiB at 1.18 GiB/s rate=1.18
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 32.0 s (1.14 GiB/s; stopped; waited 12.1 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 102.0 short 99.5 edit 163.0 edit 175.6 longdec64k 87.2/2169p 65242t  foreign CPU 6% [('kcompactd0', 8), ('kswapd0', 3), ('kworker/13:1-events', 3)]  gpu 2038/1249 MHz 60C 193W gtt 25M cpu 3520MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T08:25:19 prev_run_s=103 gap_s=108 rd_sect=150843444480 wr_sect=110767920 io_ticks_ms=116993893 d_rd_sect=74874064 d_wr_sect=64 d_io_ticks_ms=39387 cached_kb=13277716 mlocked_kb=64 memavail_kb=58086004 nvme_temp_c=50 compact_stall_d=7
+STARTLOAD 2026-11-21T08:26:05 loaded 33.02 GiB at 1.12 GiB/s rate=1.12
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.48 33.1 s (1.10 GiB/s; stopped; waited 11.2 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-PF_BK64         short 101.9 short 100.0 edit 162.0 edit 175.9 longdec64k 87.9/2154p 65242t  foreign CPU 5% [('kcompactd0', 8), ('kworker/12:2-events', 3), ('claude', 1)]  gpu 1916/1249 MHz 62C 180W gtt 25M cpu 3513MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-PF_BK64: every attempt noisy, keeping the quietest (5% foreign CPU)
+STARTDIAG 2026-11-21T08:27:07 prev_run_s=103 gap_s=108 rd_sect=150920009288 wr_sect=110768000 io_ticks_ms=117034363 d_rd_sect=76564808 d_wr_sect=80 d_io_ticks_ms=40470 cached_kb=14173864 mlocked_kb=64 memavail_kb=58082140 nvme_temp_c=51 compact_stall_d=8
+STARTLOAD 2026-11-21T08:27:50 loaded 33.02 GiB at 1.19 GiB/s rate=1.19
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 30.9 s (1.18 GiB/s; stopped; waited 10.4 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
