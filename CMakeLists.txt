@@ -109,6 +109,9 @@ option(STRATA_MMQ_RDNA3_J32_ROLLED "HIP prompt MMQ: llama.cpp #31751 J=32 rolled
 # mmvf/mmvq sums).  Lossy risk: approximate transcendentals and denormals flushed to zero.  Opt-in until a build-vs-build
 # A/B with token forcing (LEADS.md Part F, #31625).
 option(STRATA_HIP_FAST_MATH "HIP prompt MMQ: llama.cpp #31625 fast-math flags on strata_mmq (lossy risk; needs STRATA_PREFILL_MMQ)" OFF)
+# LEADS.md Part U U8: the register-prefetch decode attention chunk kernel (attn_chunk_pf_kernel in qsa_decode_attn.cu), compiled in only with
+# this option and switched on at run time by STRATA_ATTN_KV_PREFETCH=1 (off by default); bitwise the default kernel (a parity test, no tolerance).
+option(STRATA_ATTN_KV_PREFETCH "Compile the U8 register-prefetch decode attention kernel (run-time switch STRATA_ATTN_KV_PREFETCH=1, default off)" OFF)
 # The community-made AMD changes (include/strata/core/amd_community.hpp): on by default.  This option is the build half of the one
 # switch STRATA_AMD_COMMUNITY_TUNING: OFF compiles the portable signed-byte dot for gfx1010 again (the SDWA sequence of #4855).
 # The rocBLAS tables are switched at run time (STRATA_AMD_COMMUNITY_TUNING=0).
@@ -434,6 +437,10 @@ if(STRATA_BUILD_TESTS)
   add_executable(batch_telemetry_test src/core/batch_telemetry_test.cpp)
   target_include_directories(batch_telemetry_test PRIVATE include)
   add_test(NAME batch_telemetry_test COMMAND batch_telemetry_test)
+  # LEADS.md Part U U7: the integer re-association of STRATA_VERIFY_GEMV_CHAINS on the host (no GPU)
+  add_executable(rdna_chain_split_test tests/core/rdna_chain_split_test.cpp)
+  target_include_directories(rdna_chain_split_test PRIVATE include)
+  add_test(NAME rdna_chain_split_test COMMAND rdna_chain_split_test)
   # #5718 follow-up: the stall report's list of GPU streams a host may wait on, and its lines (faked queries, no GPU)
   add_executable(stream_watch_test tests/core/stream_watch_test.cpp)
   target_include_directories(stream_watch_test PRIVATE include)
@@ -773,6 +780,9 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
                           src/ngram/ple_reader.cpp
                           src/platform/direct_file.cpp)
   target_link_libraries(strata_kernels PUBLIC strata_core strata_artifact)
+  if(STRATA_ATTN_KV_PREFETCH)   # LEADS.md Part U U8: compiles attn_chunk_pf_kernel (off: nothing new is built)
+    target_compile_definitions(strata_kernels PRIVATE STRATA_ATTN_KV_PREFETCH=1)
+  endif()
   # pancake, opt-in kernels: STRATA_TEAL / _TEAL_UNION / _DOWN_T / _LQER (ffn_sparse.cu)
   target_sources(strata_kernels PRIVATE src/kernels/cuda/ffn_sparse.cu)
   target_sources(strata_kernels PRIVATE src/kernels/cuda/rkv.cu)   # STRATA_RKV
@@ -928,6 +938,12 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     set_tests_properties(qsa_slots_parity_lanecell PROPERTIES ENVIRONMENT "STRATA_ATTN_LANECELL=1")
     # fork: the Daily's decode attention (STRATA_ATTN_DAILY=1: PR #540's chunk kernel on every card and the bounded
     # merge) against upstream's kernels, bitwise; the production entries checked with the variable off and on
+    # LEADS.md Part U U8: the register-prefetch decode attention against the default kernel, bitwise (only in a build with -DSTRATA_ATTN_KV_PREFETCH=ON; exit 77 otherwise)
+    add_executable(qsa_kv_prefetch_parity src/kernels/qsa_kv_prefetch_parity.cpp)
+    target_include_directories(qsa_kv_prefetch_parity PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
+    target_link_libraries(qsa_kv_prefetch_parity PRIVATE strata_kernels CUDA::cudart)
+    add_test(NAME qsa_kv_prefetch_parity COMMAND qsa_kv_prefetch_parity)
+    set_tests_properties(qsa_kv_prefetch_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
     add_executable(qsa_merge_daily_parity src/kernels/qsa_merge_daily_parity.cpp)
     target_include_directories(qsa_merge_daily_parity PRIVATE ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES})
     target_link_libraries(qsa_merge_daily_parity PRIVATE strata_kernels CUDA::cudart)
@@ -2169,6 +2185,12 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     add_test(NAME rdna_mmvq_parity COMMAND rdna_mmvq_parity)
     # the sweep goes to 32 columns; the kernel takes 17..32 only with this (default limit 16): 193 false FAILs without it
     set_tests_properties(rdna_mmvq_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 ENVIRONMENT "STRATA_RDNA_KQ_MAXCOLS=32")
+    # LEADS.md Part U U7 STRATA_VERIFY_GEMV_CHAINS=2|4: the chain kernels bitwise the original RDNA kernels (GPU; the env is set through rdna_chains_override)
+    add_executable(rdna_chains_parity src/kernels/rdna_chains_parity.cpp)
+    target_include_directories(rdna_chains_parity PRIVATE ${_strata_gpu_include_directories})
+    target_link_libraries(rdna_chains_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+    add_test(NAME rdna_chains_parity COMMAND rdna_chains_parity)
+    set_tests_properties(rdna_chains_parity PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
     # STRATA_MMVQ_SET (jstamagal/Strata-gfx1030 324081287b): the one-launch projection set bitwise native_mmvq, both reductions
     add_executable(mmvq_set_parity src/kernels/mmvq_set_parity.cpp)
     target_include_directories(mmvq_set_parity PRIVATE ${_strata_gpu_include_directories})
@@ -3737,6 +3759,9 @@ if(STRATA_BUILD_PROBES)
     add_executable(wmma_rate_probe EXCLUDE_FROM_ALL tools/pancake/probes/wmma_rate.hip.cpp)
     set_source_files_properties(tools/pancake/probes/wmma_rate.hip.cpp PROPERTIES LANGUAGE HIP)
     target_link_libraries(wmma_rate_probe PRIVATE strata_hip_runtime)   # LEADS.md Part L L2: f16 / iu8 / iu4 WMMA rate, needs a gfx11 GPU
+    add_executable(valu_rate_probe EXCLUDE_FROM_ALL tools/pancake/probes/valu_rate.hip.cpp)
+    set_source_files_properties(tools/pancake/probes/valu_rate.hip.cpp PROPERTIES LANGUAGE HIP)
+    target_link_libraries(valu_rate_probe PRIVATE strata_hip_runtime)   # LEADS.md Part U U4: sudot4 / dot2 / mad24 / VALU / VOPD / LDS / WMMA-f16 rates per CU, needs a gfx11 GPU (tools/pancake/probes/valu_rate_report.py reads the output)
     add_executable(int4_wmma_probe EXCLUDE_FROM_ALL tools/pancake/probes/int4_wmma.hip.cpp)
     set_source_files_properties(tools/pancake/probes/int4_wmma.hip.cpp PROPERTIES LANGUAGE HIP)
     target_include_directories(int4_wmma_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

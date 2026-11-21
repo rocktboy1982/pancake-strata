@@ -180,6 +180,9 @@ bool rdna_q6k_enabled();
 bool rdna_q6k_mmvq(const void* w, const void* xq, float* y, int n_in, int n_out, int ncols, void* stream);
 /// the same layout for Q4_K (12), Q5_K (13), IQ4_XS (23); false = type not handled
 bool rdna_kq_mmvq(int type, const void* w, const void* xq, float* y, int n_in, int n_out, int ncols, void* stream);
+/// STRATA_VERIFY_GEMV_CHAINS (LEADS.md Part U U7): force the chain count of the RDNA GEMVs (0 = the original kernels, 2 or 4);
+/// parity tests and benches only, the engine reads the env once
+void rdna_chains_override(int chains);
 std::size_t native_mmvq_weight_bytes(int ggml_type, int n_in, int n_out);
 void native_mmvq(int ggml_type, const void* weights, const void* x_q8_1, float* y,
                  int n_in, int n_out, int ncols, void* stream);

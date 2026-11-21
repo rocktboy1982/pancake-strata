@@ -926,6 +926,8 @@ STRATA_ENV("STRATA_RDNA2_SGEMM", Speed, "bitwise: documented (docs/README/code c
 STRATA_ENV("STRATA_RDNA_KQ_ALL", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_RDNA_MMVQ_WAVE", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 STRATA_ENV("STRATA_RDNA_Q6K", Speed, "bitwise: documented (docs/README/code comment/parity test)")
+STRATA_ENV("STRATA_VERIFY_GEMV_CHAINS", Speed, "RDNA verify-window GEMVs: split the lane i32 dot into 2 or 4 independent sudot4 chains (exact integer re-association, bitwise the default; LEADS.md Part U U7; unset = off)")
+STRATA_ENV("STRATA_ATTN_KV_PREFETCH", Speed, "decode attention (QSA chunk kernel): register prefetch of the next K cell and the next V run, bitwise the default; needs a build with -DSTRATA_ATTN_KV_PREFETCH; LEADS.md Part U U8; unset = off")
 STRATA_ENV("STRATA_RDNA_KQ_MAXCOLS", Speed, "RDNA K-quant multi-column kernels: widest window they take (A/B knob)")
 STRATA_ENV("STRATA_RDNA_WMMA_MINCOLS", Speed, "RDNA K-quant matrix-core few-column kernel: smallest window it takes (0 = off)")
 STRATA_ENV("STRATA_RDNA_WMMA_MINROWS", Speed, "RDNA K-quant matrix-core few-column kernel: fewest weight rows it takes (default 2048)")

@@ -122,12 +122,63 @@ __device__ __forceinline__ int reduce12_head_of_lane(int lane) {
     return ((lane >> 4) & 1) * 8 + ((lane >> 3) & 1) * 4 + ((lane >> 2) & 1) * 2 + ((lane >> 1) & 1);
 }
 
+// LEADS.md Part U U8 (STRATA_ATTN_KV_PREFETCH, a build macro + the env STRATA_ATTN_KV_PREFETCH=1, both off by default): the value of
+// one V cell for this thread's dimension t - the expression of the value loop of attn_chunk_body, for the prefetching variant only.
+#ifndef STRATA_ATTN_KV_PREFETCH_DEPTH
+#define STRATA_ATTN_KV_PREFETCH_DEPTH 4   // cells whose V loads are in flight (U8: "four pages ahead")
+#endif
+template <int KV_MODE>
+__device__ __forceinline__ float pf_load_v(const QsaAttnPools& p, long long row, int t) {
+    if constexpr (KV_MODE == 0) {
+        return __half2float(__ushort_as_half(p.v_pool[row * HD + t]));
+    } else if constexpr (KV_MODE == 1) {
+        const float sc = __half2float(__ushort_as_half(p.v_scale[row * (HD / KV_Q8_GROUP) + t / KV_Q8_GROUP]));
+        return (float) p.v_q[row * HD + t] * sc;
+    } else {
+        constexpr int bytes_per_head = (HD / QK4_0) * sizeof(block_q4_0);
+        const int b = t / QK4_0;
+        const int rem = t % QK4_0;
+        const block_q4_0* blk = reinterpret_cast<const block_q4_0*>(p.v_q4 + row * bytes_per_head) + b;
+        const float d = __half2float(__ushort_as_half(blk->d));
+        const int j = rem < 16 ? rem : (rem - 16);
+        const uint8_t byte = blk->qs[j];
+        const int nibble = (rem < 16) ? ((byte & 0x0F) - 8) : ((byte >> 4) - 8);
+        return (float) nibble * d;
+    }
+}
+
 // The chunk kernel's body; `p` is the query's KV pools (the call's one set, or blockIdx.z's slot's set).
 // (the body is a device function so the batch window's rows kernel below can run it over each query's own pools without
 // the default kernel's signature, or the function-pointer types the pre-sm_75 / HIP selections build, changing)
 // QMAJOR (STRATA_ATTN_QMAJOR, attn_chunk_qmajor_kernel): the grid is (query, chunk, kv head) instead of (chunk, kv head,
 // query) - only which block computes what moves; every block's arithmetic is the default's.
-template <int KV_MODE, bool LANE_CELL, bool QUERY_SWIZZLE, bool REDUCE12, bool QMAJOR = false>
+// U8: the value loop of attn_chunk_body in runs of STRATA_ATTN_KV_PREFETCH_DEPTH cells: all of a run's V loads are issued before its first product.
+// Cells ascend, masked cells (page -1) are skipped, every acc[h] gets the same fmaf sequence as the default loop (same v, same order).
+template <int KV_MODE>
+__device__ __forceinline__ void pf_values(const QsaAttnPools& p, const long long* srow, const float (*sp)[CHUNK], int n_here, int t, float (&acc)[G]) {
+    constexpr int D = STRATA_ATTN_KV_PREFETCH_DEPTH;
+    for (int cb = 0; cb < n_here; cb += D) {
+        float vv[D];
+#pragma unroll
+        for (int i = 0; i < D; ++i) {
+            vv[i] = 0.0f;
+            const int c = cb + i;
+            if (c < n_here && srow[c] >= 0) vv[i] = pf_load_v<KV_MODE>(p, srow[c], t);
+        }
+#pragma unroll
+        for (int i = 0; i < D; ++i) {
+            const int c = cb + i;
+            if (c < n_here && srow[c] >= 0) {
+#pragma unroll
+                for (int h = 0; h < G; ++h) acc[h] = fmaf(sp[h][c], vv[i], acc[h]);
+            }
+        }
+    }
+}
+
+// PF (U8, attn_chunk_pf_kernel only): the K row of the next cell a warp scores and the V rows of the next STRATA_ATTN_KV_PREFETCH_DEPTH cells are
+// loaded into registers BEFORE the current cells' arithmetic; the cells, the values loaded, the order of every product and sum are the default's.
+template <int KV_MODE, bool LANE_CELL, bool QUERY_SWIZZLE, bool REDUCE12, bool QMAJOR = false, bool PF = false>
 __device__ __forceinline__ void attn_chunk_body(const float* __restrict__ q, QsaAttnPools p,
                                                 const int32_t* __restrict__ ids, const int32_t* __restrict__ step,
                                                 int n_kv_heads, int page_size, float scale,
@@ -212,6 +263,31 @@ __device__ __forceinline__ void attn_chunk_body(const float* __restrict__ q, Qsa
                 sp[h0 + j][c] = a[j][0] * scale;
             }
         }
+    } else if constexpr (PF && !REDUCE12) {
+        // U8: the warp-scoring loop below with the next cell's K row (c + WARPS) already in flight when this cell is scored
+        float kn[8];
+        if (warp < n_here && srow[warp] >= 0) load8<KV_MODE>(p, false, srow[warp], lane * 8, kn);
+        for (int c = warp; c < CHUNK; c += WARPS) {
+            float k8[8];
+#pragma unroll
+            for (int i = 0; i < 8; ++i) k8[i] = kn[i];
+            const int cx = c + WARPS;
+            if (cx < n_here && srow[cx] >= 0) load8<KV_MODE>(p, false, srow[cx], lane * 8, kn);
+            if (c >= n_here || srow[c] < 0) {
+                if (lane < G) sp[lane][c] = -FLT_MAX;
+                continue;
+            }
+#pragma unroll
+            for (int h = 0; h < G; ++h) {
+                const int qflip = QUERY_SWIZZLE ? (lane & 4) : 0;
+                const float4 qa = *reinterpret_cast<const float4*>(&sq[h][lane * 8 + qflip]);
+                const float4 qb = *reinterpret_cast<const float4*>(&sq[h][lane * 8 + (qflip ^ 4)]);
+                float s = k8[0] * qa.x + k8[1] * qa.y + k8[2] * qa.z + k8[3] * qa.w +
+                          k8[4] * qb.x + k8[5] * qb.y + k8[6] * qb.z + k8[7] * qb.w;
+                s = warp_sum(s);
+                if (lane == 0) sp[h][c] = s * scale;
+            }
+        }
     } else
     // scores: each warp takes cells warp, warp+8, ...; each lane holds 8 of the 256 dimensions.
     for (int c = warp; c < CHUNK; c += WARPS) {
@@ -269,6 +345,9 @@ __device__ __forceinline__ void attn_chunk_body(const float* __restrict__ q, Qsa
     float acc[G];
 #pragma unroll
     for (int h = 0; h < G; ++h) acc[h] = 0.0f;
+    if constexpr (PF) {
+        pf_values<KV_MODE>(p, srow, sp, n_here, t, acc);
+    } else {
     for (int c = 0; c < n_here; ++c) {
         if (srow[c] < 0) continue;   // masked above, weight 0
         float v;
@@ -291,6 +370,7 @@ __device__ __forceinline__ void attn_chunk_body(const float* __restrict__ q, Qsa
 #pragma unroll
         for (int h = 0; h < G; ++h) acc[h] = fmaf(sp[h][c], v, acc[h]);
     }
+    }
 #pragma unroll
     for (int h = 0; h < G; ++h) part_acc[((size_t) slot * G + h) * HD + t] = acc[h];
 }
@@ -306,6 +386,28 @@ __global__ void __launch_bounds__(THREADS) attn_chunk_kernel(const float* __rest
                                                                  part_acc, part_m, part_l, n_chunks, cap,
                                                                  scratch_stride);
 }
+
+#if defined(STRATA_ATTN_KV_PREFETCH)
+// LEADS.md Part U U8: attn_chunk_kernel with the register prefetch of attn_chunk_body<..., PF = true> (STRATA_ATTN_KV_PREFETCH=1 at run time, in a
+// build with -DSTRATA_ATTN_KV_PREFETCH): the same cells, values and arithmetic, only the load issue order moves.
+template <int KV_MODE>
+__global__ void __launch_bounds__(THREADS) attn_chunk_pf_kernel(const float* __restrict__ q, QsaAttnPools p,
+                                                                const int32_t* __restrict__ ids,
+                                                                const int32_t* __restrict__ step, int n_kv_heads,
+                                                                int page_size, float scale, float* __restrict__ part_acc,
+                                                                float* __restrict__ part_m, float* __restrict__ part_l,
+                                                                int n_chunks, int cap = 0, long long scratch_stride = 0) {
+    attn_chunk_body<KV_MODE, false, false, false, false, true>(q, p, ids, step, n_kv_heads, page_size, scale,
+                                                               part_acc, part_m, part_l, n_chunks, cap, scratch_stride);
+}
+// 0 = off (default); 1 from STRATA_ATTN_KV_PREFETCH=1, read once; qsa_attn_kv_prefetch_override: parity test and bench
+inline int& kv_prefetch_cell() { static int v = -1; return v; }
+inline bool kv_prefetch_on() {
+    int& v = kv_prefetch_cell();
+    if (v < 0) { const char* e = std::getenv("STRATA_ATTN_KV_PREFETCH"); v = (e != nullptr && e[0] == '1' && e[1] == '\0') ? 1 : 0; }
+    return v == 1;
+}
+#endif
 
 // LEADS.md Part O O9 (STRATA_QSA_SPLIT_GRID=N, opt-in, bitwise): attn_chunk_kernel with FEWER blocks than chunks.  The grid is (blocks, n_kv_heads, n_q)
 // with blocks = qsa_split_blocks(N, ...) < n_chunks; block b runs chunks b, b + blocks, ... one after the other through the unchanged attn_chunk_body
@@ -1514,6 +1616,14 @@ void launch_chunks_batch(const float* q, const QsaAttnPools& pools, const int32_
                                                           scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride);
     else
 #endif
+#if defined(STRATA_ATTN_KV_PREFETCH)
+    if (kernel < 0 && !pre && kv_prefetch_on()) {   // LEADS.md Part U U8 (the parity harness names its kernel: never the environment)
+        if (kv_mode == 3) attn_chunk_pf_kernel<3><<<grid, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride);
+        else if (kv_mode == 2) attn_chunk_pf_kernel<2><<<grid, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride);
+        else if (kv_mode == 1) attn_chunk_pf_kernel<1><<<grid, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride);
+        else attn_chunk_pf_kernel<0><<<grid, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride);
+    } else
+#endif
     if (kv_mode == 3)
         STRATA_ATTN_CHUNK_SEL(3, pre)<<<grid, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv,
                                                                 (int) s.page_size, scale, part_acc, part_m, part_l,
@@ -1680,6 +1790,17 @@ uint64_t qsa_decode_attn_scratch_floats(int64_t cap, const QsaShapes& s) {
     return (uint64_t) chunks * (uint64_t) s.n_head * (HD + 2) + 64;
 }
 
+// LEADS.md Part U U8: parity test / bench hook; false = this build has no prefetch kernel (STRATA_ATTN_KV_PREFETCH not defined)
+bool qsa_attn_kv_prefetch_override(int on) {
+#if defined(STRATA_ATTN_KV_PREFETCH)
+    kv_prefetch_cell() = on ? 1 : 0;
+    return true;
+#else
+    (void) on;
+    return false;
+#endif
+}
+
 void qsa_decode_attn_step(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* step,
                           int64_t cap, const QsaShapes& s, float* scratch, float* attn, void* stream) {
     if (s.head_dim != HD || s.n_head != (int64_t) G * s.n_head_kv || cap <= 0 || !scratch || !ids || !step ||
@@ -1721,6 +1842,14 @@ void qsa_decode_attn_step(const float* q, const QsaAttnPools& pools, const int32
         attn_chunk_q8_v3_kernel<<<grid, THREADS, 0, st>>>(q, pools, ids, step, (int) s.n_head_kv, (int) s.page_size,
                                                           scale, part_acc, part_m, part_l, n_chunks, 0, 0);
     else
+#endif
+#if defined(STRATA_ATTN_KV_PREFETCH)
+    if (kv_prefetch_on()) {   // LEADS.md Part U U8: the register-prefetch chunk kernel (the merge below is the same)
+        if (kv_mode == 3) attn_chunk_pf_kernel<3><<<grid, THREADS, 0, st>>>(q, pools, ids, step, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, 0, 0);
+        else if (kv_mode == 2) attn_chunk_pf_kernel<2><<<grid, THREADS, 0, st>>>(q, pools, ids, step, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, 0, 0);
+        else if (kv_mode == 1) attn_chunk_pf_kernel<1><<<grid, THREADS, 0, st>>>(q, pools, ids, step, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, 0, 0);
+        else attn_chunk_pf_kernel<0><<<grid, THREADS, 0, st>>>(q, pools, ids, step, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, 0, 0);
+    } else
 #endif
     if (kv_mode == 3)
         STRATA_ATTN_CHUNK(3)<<<grid, THREADS, 0, st>>>(q, pools, ids, step, (int) s.n_head_kv, (int) s.page_size,
