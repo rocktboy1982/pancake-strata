@@ -1408,6 +1408,8 @@ def turbo_build(tri, rigor, gates, default_arm, trusted=(), removed=OWNER_REMOVE
         from_rigor = fl in rig and rig[fl].get("verdict") in DECIDED_RIGOR
         if not from_rigor and fl not in trusted:
             continue
+        if fl in removed and not from_rigor:
+            continue                                                 # an owner-removed flag comes back only on a RIGOR verdict (the screen's KEEP of it is what the owner overrode)
         ship = r.get("ship") or {}
         env, args = {**(r.get("env") or {}), **(ship.get("env") or {})}, {**(r.get("args") or {}), **(ship.get("args") or {})}
         if not (env or args):
