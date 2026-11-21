@@ -22,3 +22,20 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 27.44 37.0 s (0.7
 rep 0 minus-GR_RDNA_Q8     short 102.8 short 107.0 edit 163.0 edit 170.8 longdec64k 80.1/2285p 65241t  foreign CPU 6% [('kcompactd0', 7), ('kworker/12:0-events_freezable', 3), ('kworker/4:1-mm_percpu_wq', 2)]  gpu 2030/1249 MHz 64C 191W gtt 25M cpu 3822MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 minus-GR_RDNA_Q8: every attempt noisy, keeping the quietest (6% foreign CPU)
 STARTDIAG 2026-11-21T03:21:10 prev_run_s=108 gap_s=113 rd_sect=141808627680 wr_sect=110757584 io_ticks_ms=109587807 d_rd_sect=101208896 d_wr_sect=128 d_io_ticks_ms=47337 cached_kb=15655156 mlocked_kb=64 memavail_kb=57938008 nvme_temp_c=53 compact_stall_d=12
+STARTLOAD 2026-11-21T03:21:58 loaded 33.02 GiB at 1.07 GiB/s rate=1.07
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 34.8 s (1.05 GiB/s; stopped; waited 11.5 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 103.4 short 103.7 edit 168.9 edit 169.1 longdec64k 81.0/2176p 65241t  foreign CPU 7% [('kcompactd0', 12), ('kworker/1:1-events', 3), ('kswapd0', 3)]  gpu 2043/1249 MHz 64C 189W gtt 25M cpu 3650MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T03:23:05 prev_run_s=110 gap_s=115 rd_sect=141887524312 wr_sect=110757648 io_ticks_ms=109630014 d_rd_sect=78896632 d_wr_sect=64 d_io_ticks_ms=42207 cached_kb=13899068 mlocked_kb=64 memavail_kb=57914004 nvme_temp_c=53 compact_stall_d=13
+STARTLOAD 2026-11-21T03:23:56 loaded 33.02 GiB at 0.99 GiB/s rate=0.99
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.44 38.0 s (0.96 GiB/s; stopped; waited 11.3 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-AMD_COMMUNITY_TUNING short 103.8 short 102.2 edit 163.6 edit 183.8 longdec64k 85.6/2179p 65241t  foreign CPU 6% [('kcompactd0', 7), ('kworker/3:0-mm_percpu_wq', 4), ('kswapd0', 3)]  gpu 2043/1249 MHz 64C 186W gtt 25M cpu 3698MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-AMD_COMMUNITY_TUNING: every attempt noisy, keeping the quietest (6% foreign CPU)
+STARTDIAG 2026-11-21T03:25:04 prev_run_s=113 gap_s=118 rd_sect=141985235376 wr_sect=110757744 io_ticks_ms=109677162 d_rd_sect=97711064 d_wr_sect=96 d_io_ticks_ms=47148 cached_kb=15278692 mlocked_kb=64 memavail_kb=57883920 nvme_temp_c=53 compact_stall_d=11
+STARTLOAD 2026-11-21T03:25:51 loaded 33.02 GiB at 1.12 GiB/s rate=1.12
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 33.3 s (1.09 GiB/s; stopped; waited 12.0 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-GR_RDNA        short 98.5 short 94.2 edit 149.2 edit 159.1 longdec64k 73.7/2277p 65241t  foreign CPU 7% [('kcompactd0', 9), ('kworker/1:0-mm_percpu_wq', 4), ('kswapd0', 2)]  gpu 1988/1249 MHz 64C 181W gtt 25M cpu 3694MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GR_RDNA: every attempt noisy, keeping the quietest (7% foreign CPU)
+STARTDIAG 2026-11-21T03:26:59 prev_run_s=110 gap_s=116 rd_sect=142064860040 wr_sect=110757856 io_ticks_ms=109717751 d_rd_sect=79624664 d_wr_sect=112 d_io_ticks_ms=40589 cached_kb=13554956 mlocked_kb=64 memavail_kb=57914260 nvme_temp_c=52 compact_stall_d=12
