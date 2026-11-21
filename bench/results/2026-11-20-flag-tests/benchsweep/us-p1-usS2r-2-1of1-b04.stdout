@@ -30,3 +30,14 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.47 33.6 s (1.0
 rep 0 base-m1              short 104.5 short 100.3 edit 167.4 edit 183.9 longdec64k 77.3/2178p 65241t  foreign CPU 2% [('kcompactd0', 5), ('claude', 1), ('localsearch-3', 1)]  gpu 1931/1249 MHz 60C 187W gtt 25M cpu 3572MHz 65C igpu 0%/vcn 0% fclk 1600
 REGIME-RECOVERED base-m1: first start prefill 1505 / load 0.17 GiB/s (paused 02:44:33), second start prefill 2178 / load 1.11 GiB/s
 STARTDIAG 2026-11-21T02:50:28 prev_run_s=104 gap_s=109 rd_sect=140567221000 wr_sect=110756216 io_ticks_ms=108915321 d_rd_sect=74504240 d_wr_sect=64 d_io_ticks_ms=40144 cached_kb=16190676 mlocked_kb=64 memavail_kb=57917116 nvme_temp_c=50 compact_stall_d=6
+STARTLOAD 2026-11-21T02:51:17 loaded 33.02 GiB at 1.10 GiB/s rate=1.10
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.45 34.1 s (1.07 GiB/s; stopped; waited 13.2 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-ADAPT_NOWAIT    short 99.1 short 109.5 edit 155.3 edit 171.2 longdec64k 84.5/2179p 65241t  foreign CPU 6% [('kcompactd0', 15), ('kworker/1:1-events_freezable', 4), ('kworker/15:1-events', 3)]  gpu 2036/1249 MHz 62C 183W gtt 25M cpu 3738MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-ADAPT_NOWAIT: every attempt noisy, keeping the quietest (6% foreign CPU)
+STARTDIAG 2026-11-21T02:52:25 prev_run_s=113 gap_s=118 rd_sect=140644631512 wr_sect=110756280 io_ticks_ms=108956393 d_rd_sect=77410512 d_wr_sect=64 d_io_ticks_ms=41072 cached_kb=14563808 mlocked_kb=64 memavail_kb=57928632 nvme_temp_c=51 compact_stall_d=12
+STARTLOAD 2026-11-21T02:53:45 loaded 33.02 GiB at 0.53 GiB/s rate=0.53
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 25.86 66.6 s (0.39 GiB/s; stopped; waited 12.0 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-HIPBLASLT_TUNING short 76.9 short 97.3 edit 155.9 edit 173.2 longdec64k 77.6/1424p 65241t  foreign CPU 3% [('kcompactd0', 5), ('kworker/1:1-events', 3), ('kswapd0', 1)]  gpu 2031/1249 MHz 62C 190W gtt 25M cpu 3753MHz 64C igpu 0%/vcn 0% fclk 1600
+SETTLE 120 after a 162 s run
