@@ -42,3 +42,9 @@ STARTDIAG 2026-11-21T12:47:06 prev_run_s=128 gap_s=133 rd_sect=158830045448 wr_s
 SLOWLOAD waiting for the engine: not ready, elapsed 60 s
 SLOWLOAD waiting for the engine: not ready, elapsed 120 s
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 16.95 132.5 s (0.13 GiB/s; capped; waited 17.5 s for the arena)
+SLOWLOAD waiting for the engine: not ready, elapsed 180 s
+STARTLOAD 2026-11-21T12:50:17 loaded 33.02 GiB at 0.20 GiB/s rate=0.20
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 101.7 short 81.9 edit 162.4 edit 148.6 longdec64k 79.0/1605p 65241t  foreign CPU 5% [('kcompactd0', 9), ('kworker/3:0-events_freezable', 6), ('kswapd0', 3)]  gpu 2036/1249 MHz 62C 183W gtt 25M cpu 3704MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1605, pack load 0.2 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+SETTLE 120 after a 266 s run
