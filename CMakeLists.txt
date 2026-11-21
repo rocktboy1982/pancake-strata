@@ -2642,6 +2642,14 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   add_executable(gdn_state_f16_test src/core/gdn_state_f16_test.cpp)
   target_include_directories(gdn_state_f16_test PRIVATE include)
   add_test(NAME gdn_state_f16_test COMMAND gdn_state_f16_test)
+  # the compact snapshot store: blob blocks of any size, header flag both ways, streamed live state (STRATA_SNAP_STATE_F16, S6 follow-up) (CPU)
+  add_executable(gdn_snap_blob_test src/core/gdn_snap_blob_test.cpp src/core/conversation_file.cpp)
+  target_include_directories(gdn_snap_blob_test PRIVATE include)
+  add_test(NAME gdn_snap_blob_test COMMAND gdn_snap_blob_test)
+  # the device form of block verification: kernel flow on the flat layout against the rule, engine loop law, route (STRATA_MTP_BLOCK_VERIFY, S12 follow-up) (CPU)
+  add_executable(spec_block_dev_test src/core/spec_block_dev_test.cpp)
+  target_include_directories(spec_block_dev_test PRIVATE include)
+  add_test(NAME spec_block_dev_test COMMAND spec_block_dev_test)
   # gated proposal packets (STRATA_SPEC_PROB=1, pick gate): masked measure, NULL tail, root rescue (header-only, CPU)
   add_executable(gated_proposal_test src/core/gated_proposal_test.cpp)
   target_include_directories(gated_proposal_test PRIVATE include)
@@ -4144,7 +4152,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     persist_tape_test persist_launch_test qsa_split_test gdn_snap_test act_f16_test
     draft_vocab_test spec_start_test message_boundary_test fork_bugfix_rules_test moe_tile_rule_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_stat_policy_test tier_victim_test tier_spec_copy_test tier_protect_test head_shortlist_test head_gather_test tier_miss_budget_test expert_entropy_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
-    coupled_draft_test penalty_window_test slot_history_test spec_prob_test spec_block_test gdn_state_f16_test gated_proposal_test
+    coupled_draft_test penalty_window_test slot_history_test spec_prob_test spec_block_test gdn_state_f16_test gdn_snap_blob_test spec_block_dev_test gated_proposal_test
     spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test expert_tiers_test ngram_mod_test verify_ecap_test miss_budget_test fragile_recheck_test kv_ring_test
     subfit_trace_test subfit_samples_test subfit_learn_test subfit_ladder_test subfit_apply_host_test subfit_fit_math_test
     bf16_bits_test batch_rows_test batch_groups_test dequant_q5_1_test native_arithmetic_parity
