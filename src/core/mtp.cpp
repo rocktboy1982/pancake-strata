@@ -1,5 +1,6 @@
 // src/core/mtp.cpp - see include/strata/core/mtp.hpp.
 #include "strata/core/mtp.hpp"
+#include "strata/core/mtp_head_host.hpp"   // STRATA_MTP_HEAD_HOST (LEADS.md Part S row S13)
 #include "strata/core/pin_budget.hpp"
 #include "strata/kernels/qsa_prompt_attn.hpp"
 #include "strata/core/coupled_draft.hpp"
@@ -213,7 +214,8 @@ MtpDrafter::~MtpDrafter() {
             if (t.kind == "q8_0") strata::kernels::native_q8_0_sm60_release(dense_ + t.off);
         cudaFree(dense_);
     }
-    if (owns_weights_ && experts_) cudaFree(experts_);
+    if (owns_weights_ && experts_host_map_) cudaFreeHost(experts_host_map_);   // STRATA_MTP_HEAD_HOST: experts_ is a device alias of this block
+    else if (owns_weights_ && experts_) cudaFree(experts_);
     if (experts_host_) cudaFreeHost(experts_host_);   // the prompt room's host snapshot (the device copy never left)
     if (state_arena_) cudaFree(state_arena_);
     if (arena_) cudaFree(arena_);
@@ -436,7 +438,30 @@ bool MtpDrafter::load(const std::string& rt_dir, const ModelGeometry& g, Session
             FILE* f;
             ~Closer() { if (f != nullptr) std::fclose(f); }
         } closer{f};
-        if (cudaMalloc((void**) &experts_, bytes) != cudaSuccess) { err = "mtp: the 512 experts do not fit in VRAM"; return false; }
+        // STRATA_MTP_HEAD_HOST=1 (LEADS.md Part S row S13, default off): the 512 experts stay in page-locked, device-mapped host
+        // memory and the draft kernels read them through the link (zero copy); experts_ is the device alias of that block.  The
+        // ~675 MiB are not taken from VRAM, so the expert cache, sized after the drafter loads from what is free, gets them.
+        // Not lendable to a prompt (experts_bytes() is 0 then: STRATA_MTP_ROOM_MIN has nothing to lend).  No pinned room or no
+        // device alias: the experts go to VRAM as before (one stderr line).
+        static const bool head_host = mtp_head_host_parse(std::getenv("STRATA_MTP_HEAD_HOST"));
+        if (head_host) {
+            void* hp = nullptr;
+            void* dp = nullptr;
+            const bool host_ok = cudaHostAlloc(&hp, (size_t) bytes, cudaHostAllocMapped) == cudaSuccess &&
+                                 cudaHostGetDevicePointer(&dp, hp, 0) == cudaSuccess;
+            if (head_placement(true, host_ok) == HeadPlacement::HostMapped) {
+                experts_host_map_ = hp;
+                experts_ = (uint8_t*) dp;
+                std::fprintf(stderr, "strata mtp: STRATA_MTP_HEAD_HOST=1: the 512 experts (%.0f MiB) stay in mapped host memory, read through the link by the draft pass\n",
+                             (double) bytes / 1048576.0);
+            } else {
+                if (hp != nullptr) cudaFreeHost(hp);
+                (void) cudaGetLastError();
+                std::fprintf(stderr, "strata mtp: STRATA_MTP_HEAD_HOST=1: no mapped host memory for the 512 experts (%.0f MiB): they go to VRAM\n",
+                             (double) bytes / 1048576.0);
+            }
+        }
+        if (experts_host_map_ == nullptr && cudaMalloc((void**) &experts_, bytes) != cudaSuccess) { err = "mtp: the 512 experts do not fit in VRAM"; return false; }
 #if !defined(_WIN32)
         strata::platform::advise_willneed(fileno(f), 0, bytes);
 #endif
@@ -444,10 +469,11 @@ bool MtpDrafter::load(const std::string& rt_dir, const ModelGeometry& g, Session
         for (uint64_t off = 0; off < bytes;) {
             const uint64_t n = std::min<uint64_t>(chunk.size(), bytes - off);
             if (std::fread(chunk.data(), 1, (size_t) n, f) != (size_t) n) { err = "mtp: experts.bin is truncated"; return false; }
-            cudaMemcpy(experts_ + off, chunk.data(), n, cudaMemcpyHostToDevice);
+            if (experts_host_map_ != nullptr) std::memcpy((uint8_t*) experts_host_map_ + off, chunk.data(), (size_t) n);   // STRATA_MTP_HEAD_HOST
+            else cudaMemcpy(experts_ + off, chunk.data(), n, cudaMemcpyHostToDevice);
             off += n;
         }
-        vram_ += bytes;
+        vram_ += head_vram_bytes(experts_host_map_ != nullptr ? HeadPlacement::HostMapped : HeadPlacement::Device, bytes);   // (host-mapped experts are not VRAM)
     }
     const char* required[] = {"fc_embedding.weight", "fc_hidden.weight", "self_attn.q_proj.weight", "self_attn.k_proj.weight",
                               "self_attn.v_proj.weight", "self_attn.o_proj.weight", "mlp.shared_expert.gate_proj.weight",
@@ -709,6 +735,8 @@ void MtpDrafter::record_top2(int j) {
 // ---- the prompt room (see the header): the 512 experts leave the device while a prompt is read, and come back
 uint64_t MtpDrafter::experts_bytes() const {
     if (!owns_weights_ || g_ == nullptr || experts_ == nullptr) return 0;   // a shared drafter's experts are the owner's
+    // STRATA_MTP_HEAD_HOST: host memory, not a block of VRAM the prompt room could carve slots from
+    if (!head_lendable(experts_host_map_ != nullptr ? HeadPlacement::HostMapped : HeadPlacement::Device)) return 0;
     return (uint64_t) g_->n_expert * strata::kernels::cpu::BLOB;
 }
 

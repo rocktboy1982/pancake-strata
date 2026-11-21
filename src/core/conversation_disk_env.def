@@ -691,6 +691,7 @@ STRATA_ENV("STRATA_MTP_CATCHUP_ALL", Speed, "drafting/stop policy: the tokens ch
 STRATA_ENV("STRATA_MTP_EAGER", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_MTP_FULL_HEAD", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_MTP_HC_Q8", Speed, "drafting/stop policy: the draft layer's hc reads from Q8_0 copies; the drafts change, the state of given tokens does not (zsariboga 01fc2c80fc)")
+STRATA_ENV("STRATA_MTP_HEAD_HOST", Speed, "LEADS.md Part S row S13: the MTP head's 512 experts in mapped host memory (zero copy), their VRAM goes to the expert cache; outputs unchanged (mtp_head_host_test)")
 STRATA_ENV("STRATA_MTP_HIP_PRIO", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_MTP_KEEP", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_MTP_MULTI_COPY", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
