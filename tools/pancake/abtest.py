@@ -1690,9 +1690,25 @@ def main():
         return max((x["attempt"] for x in records if x["arm"] == arm and x["rep"] == rep), default=-1) + 1
 
     begun, i = set(), 0   # rounds begun: early stop is judged when a new even round begins
+    t_begin = time.time()
+    soft_stop = [False]
+
+    def soft_over():   # T-1025: ABTEST_SOFT_STOP_S: past it no NEW engine start begins (a started arm always finishes its requests, the 64K one included)
+        try:
+            lim = float(os.environ.get("ABTEST_SOFT_STOP_S", "0") or 0)
+        except ValueError:
+            lim = 0.0
+        return lim > 0 and time.time() - t_begin > lim
+
     while i < len(order):   # (robust: a slow start's slot is put back into the order, see below)
         r, arm = order[i]
         i += 1
+        if soft_over() and not soft_stop[0]:   # the arms still planned are skipped (named below), except the closing base: the arms already run stay judged against it
+            soft_stop[0] = True
+            skipped = [x for _, x in order[i - 1:] if x != DRIFT_ARM]
+            print(f"SOFT-STOP after {time.time() - t_begin:.0f} s (ABTEST_SOFT_STOP_S): no new start for {len(skipped)} planned arm(s): {' '.join(dict.fromkeys(skipped))}", flush=True)
+        if soft_stop[0] and arm != DRIFT_ARM:
+            continue
         if (not a.no_early_stop and a.tier == "confirm" and r >= 2 and r % 2 == 0 and r not in begun
                 and (decided_bar(select(records)[0], arms, cases, bar_stop, least=ROBUST_MIN if robust else 2, deff=deff)
                      if bar_stop is not None else
@@ -1713,7 +1729,12 @@ def main():
             while n < limit + extra[0]:
                 yield n
                 n += 1
+        first_attempt = True
         for attempt in attempts(next_attempt(r, arm), a.retries + 1 + (regime_max if regime_arm else 0)):
+            if not first_attempt and soft_over():   # T-1025: a redo (slow box state, noise) does not begin past the soft limit: the start before it stands
+                print(f"rep {r} {arm}: SOFT-STOP: no redo past ABTEST_SOFT_STOP_S", flush=True)
+                break
+            first_attempt = False
             cfg_path = str(work / f"{arm}.json")
             cfg = make_config(base, spec["arms"][arm], cfg_path)
             settle_after_long(lambda s: print(s, flush=True))   # T-1006: ABTEST_SETTLE_AFTER_LONG_S, idle before anything of ours runs

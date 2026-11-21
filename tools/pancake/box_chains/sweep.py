@@ -929,12 +929,15 @@ def gate_entries(docs, base_path, upd, prefix="", bar=3.0):
     return out
 
 
-def retest_blocks(groups, slice_name, bases, registry, src, carry_docs=(), offset=0, limit=None, gate_docs=(), gate_prefix=""):
+def retest_blocks(groups, slice_name, bases, registry, src, carry_docs=(), offset=0, limit=None, gate_docs=(), gate_prefix="", gate_dev_file=None):
     """offset / limit: a carry slice takes the carried flags [offset:offset+limit] (strongest first): the stage-2 slices of the US queue."""
     if slice_name.startswith("carry"):
         parts = slice_name.split("-")
         br = parts[1] if len(parts) > 1 and parts[1] in ("us", "rd") else None
         ents = carried(carry_docs, br)
+        ents = ents[offset:] if limit is None else ents[offset:offset + limit]
+    elif slice_name.startswith("gates-dev"):
+        ents = json.load(open(gate_dev_file, encoding="utf-8"))["gates"]
         ents = ents[offset:] if limit is None else ents[offset:offset + limit]
     elif slice_name.startswith("gates"):
         ents = [resolve_entry(k, groups["entries"].get(k, {}), bases, registry, src) for k in groups["slices"]["gates-us"]]    # every gates-* slice: the static gate(s) + the dynamic ones, cut by offset / limit
@@ -1304,7 +1307,7 @@ def rigor_pairs(entry, files):
     return gather_views(files, entry["arm"], entry["kind"], lambda n: bool(RIGOR_ROWS.match(n)))
 
 
-def rigor_verdict(entry, views):
+def rigor_verdict(entry, views, need=RIGOR_PAIRS, drop_mean=RIGOR_DROP_MEAN, every=False):
     """(verdict, reason, mean, n_clean) of one flag from its RIGOR pairs (owner 2026-11-21).  A pair = one block: the arm start against the two base starts around it, counted only
     when arm and both bases started FAST (a pair with a slow start is invalid and reported).  < 3 clean pairs: INCONCLUSIVE.  OPTIONAL: a non-prompt case with mean >= +10 % (>= 2 of
     the clean pairs positive on it) and another case with mean <= -3 %.  KEEP (ADD for an off-by-default flag; RETEST-GATE when lossy): a non-prompt case with mean >= +2 %, >= 2 clean pairs
@@ -1312,13 +1315,13 @@ def rigor_verdict(entry, views):
     with no pair >= +2 % there, or a repeated loss (>= 2 clean pairs and the mean <= -3 % on the same case).  Otherwise INCONCLUSIVE (reported, never silently dropped)."""
     cp = [v for v in views if v["clean"]]
     n = len(cp)
-    if n < RIGOR_PAIRS:
-        return "INCONCLUSIVE", "RIGOR: %d clean pair(s) of %d (need %d); invalid: %s" % (n, len(views), RIGOR_PAIRS, "; ".join(v["why"] for v in views if not v["clean"]) or "none"), {}, n
+    if n < need:
+        return "INCONCLUSIVE", "RIGOR: %d clean pair(s) of %d (need %d); invalid: %s" % (n, len(views), need, "; ".join(v["why"] for v in views if not v["clean"]) or "none"), {}, n
     mets = sorted({m for v in cp for m in v["eff"]})
     mean = {m: round(sum(v["eff"][m] for v in cp if m in v["eff"]) / max(1, sum(1 for v in cp if m in v["eff"])), 2) for m in mets}
     pos = lambda m: sum(1 for v in cp if v["eff"].get(m, 0) > 0)
     fmt = lambda ms: ", ".join("%s %+.2f %% (pairs %s)" % (m, mean[m], "/".join("%+.1f" % v["eff"].get(m, 0) for v in cp)) for m in ms)
-    gain = [m for m in NONPROMPT if m in mean and mean[m] >= HIGH_GAIN and pos(m) >= 2]
+    gain = [m for m in NONPROMPT if m in mean and mean[m] >= HIGH_GAIN and pos(m) >= (n if every else 2) and (not every or all(v["eff"].get(m, 0) >= HIGH_GAIN for v in cp))]
     big = [m for m in gain if mean[m] >= OPT_GAIN]
     lossc = [m for m in mets if mean[m] <= OPT_LOSS]
     floor_hit = [m for m in mets if any(v["eff"].get(m, 0) <= FLOOR for v in cp) and m not in gain]
@@ -1336,19 +1339,20 @@ def rigor_verdict(entry, views):
     nonp = [m for m in NONPROMPT if m in mean]
     if rep_loss:
         return "DROP", "RIGOR %d clean pairs: repeated loss %s: having the flag ON hurts" % (n, fmt(rep_loss)), mean, n
-    if nonp and all(mean[m] <= RIGOR_DROP_MEAN for m in nonp) and not any(v["eff"].get(m, 0) >= HIGH_GAIN for v in cp for m in nonp):
-        return "DROP", "RIGOR %d clean pairs: mean <= %+.1f %% on every non-prompt case (%s), no pair >= +%.0f %%: no gain" % (n, RIGOR_DROP_MEAN, fmt(nonp), HIGH_GAIN), mean, n
+    chk = mets if every else nonp                    # FINAL ROUND (every=True): DROP needs the mean <= drop_mean on EVERY case, the prompt metrics too
+    if chk and all(mean[m] <= drop_mean for m in chk) and not any(v["eff"].get(m, 0) >= HIGH_GAIN for v in cp for m in nonp):
+        return "DROP", "RIGOR %d clean pairs: mean <= %+.1f %% on every %scase (%s), no pair >= +%.0f %%: no gain" % (n, drop_mean, "" if every else "non-prompt ", fmt(chk), HIGH_GAIN), mean, n
     return "INCONCLUSIVE", "RIGOR %d clean pairs: between the bars (%s): reported, not dropped" % (n, fmt(nonp)), mean, n
 
 
-def rigor_triage(meta, files, tag="usS2rR"):
+def rigor_triage(meta, files, tag="usS2rR", **vkw):
     """The RIGOR triage doc (written to us-triage-rigor.json, NEVER merged over the screen triage): per flag of `meta` (the rigor-select file) the verdict of rigor_verdict.  The records
     keep the screen triage's fields (kind, exact, env, args, arm) and carry pass2 = the mean, pass2_clean True and slice `tag` so apply_triage / gate_entries read them like a two-run record;
     `rigor` holds the pairs."""
     flags = {}
     for fl, e in meta["flags"].items():
         views = rigor_pairs(e, files)
-        v, why, mean, n = rigor_verdict(e, views)
+        v, why, mean, n = rigor_verdict(e, views, **vkw)
         rec = {k: e[k] for k in ("flag", "kind", "exact", "env", "args", "arm", "keys", "why", "source", "ship") if k in e}
         rec.update({"slice": tag, "verdict": v, "reason": why, "pass1": views[-1]["eff"] if views else None, "pass2": mean or None, "pass2_clean": bool(mean),
                     "carry": False, "n_clean": n, "n_pairs": len(views), "design": "RIGOR (owner 2026-11-21): >= 3 clean pairs, arm and bases FAST, ABBA over 3 blocks",
@@ -1427,6 +1431,191 @@ def turbo_build(tri, rigor, gates, default_arm, trusted=(), removed=OWNER_REMOVE
         arm.setdefault("env", {}).update(row["env"])
         arm.setdefault("args", {}).update(row["args"])
     return {"schema": "pancake.turbo/1", "arm": arm, "flags": take, "excluded": skip, "removed_from_default": list(removed)}
+
+
+# ------------------------------------------------------------------ T-1024 (owner 2026-11-21): block limits, continuation blocks, the FINAL ROUND, the developed-flag quality gates
+SETTLE_S, PAUSE_S = 120, 120      # ABTEST_SETTLE_AFTER_LONG_S, --regime-pause (both exported by the queue): the overhead of a slow start (pause + settle + the redo)
+SOFT_SLOW_RATE = 0.3              # allowance: this share of the planned starts of a block may be slow and be redone (b02 / b03 of usS1-L1of5x: 2 of 7 were)
+HARD_EXTRA_S = 900                # after the soft limit only the running start finishes: its load (<= 180 s slow), 64K request (<= 280 s slow), TERM + KILL margin
+FINAL_START_S = 240               # box seconds per planned start measured on the L1 rerun blocks (b01 201, b04 183, b02 / b03 >= 276 s per planned start): mean ~ 240
+FINAL_BUDGET_S = 7200             # owner 2026-11-21: ONE final round <= 2 h
+FINAL_PAIRS = 2                   # clean paired reps a final-round verdict needs
+FINAL_BLOCK, FINAL_MID, FINAL_REPS_N = 12, 6, 2
+UNDECIDED = ("INCONCLUSIVE", "UNTESTED")
+GATE_DEV_BUDGET_S = 5400          # owner 2026-11-21: gates on the developed flags <= 1.5 h
+GATE_DEV_EST_S = 2700             # one quality_gate.py run (stock twice + one variant arm, set-v2): the ~45 min of retest_groups.json
+GATE_FIRST = ("STRATA_HC_UPMIX", "STRATA_PF_HCDOWN")
+OFF_VALUES = ("0", "off", "false", "")
+DATA_ARGS = ("--expert-profile",)
+
+
+def block_limits(est_s, nstarts=None):
+    """(soft, hard) seconds of one screen block.  The old limit was est + 600 with est = planned starts x START_S: it did not count what the queue added since us13 (a 120 s settle after every
+    run >= 130 s, a 120 s regime pause + the redo of a slow base / arm start, a capped 150 s prefetch, a slow 64K decode): b02 / b03 of usS1-L1of5x (7 planned starts, 9 real) were cut
+    at 1930 s inside the 64K request of the redo of the closing base.  soft = planned starts x START_S + 600 + ceil(SOFT_SLOW_RATE x starts) x (settle + pause + START_S): past it abtest
+    begins no new start (ABTEST_SOFT_STOP_S); hard = soft + HARD_EXTRA_S: the watchdog (TERM) of the shell."""
+    n = nstarts if nstarts else max(1, int(round(est_s / float(START_S))))
+    soft = n * START_S + 600 + int(math.ceil(SOFT_SLOW_RATE * n)) * (SETTLE_S + PAUSE_S + START_S)
+    return soft, soft + HARD_EXTRA_S
+
+
+def unfinished_arms(spec, lines):
+    """The planned flag arms of a block spec that the block did not finish: no row at all (a time limit, a soft stop, an abort), or only rows before no base start at all after them (no base
+    after them: they cannot be judged)."""
+    planned = [a for a in spec["arms"] if a not in (WARM, "updated") and not str(a).startswith(MID) and a != "base-late"]
+    recs = records(lines)
+    seq = [r.get("arm") for r in recs]
+    last_base = max((i for i, r in enumerate(recs) if is_base(r.get("arm")) and not (r.get("regime") or {}).get("discarded")), default=-1)    # a discarded (slow-state) base start is no base
+    out = []
+    for a in planned:
+        idx = [i for i, x in enumerate(seq) if x == a]
+        if not idx or idx[-1] > last_base:
+            out.append(a)
+    return out
+
+
+def continuation_spec(spec, lines, mid=0):
+    """The immediate continuation block of a block that ended early: base `updated`, the unfinished arms (a mid base after every `mid` arms), abtest's base-late.  None when nothing is left."""
+    left = unfinished_arms(spec, lines)
+    if not left:
+        return None
+    arms = {"updated": spec["arms"]["updated"]}
+    for j, a in enumerate(left):
+        if mid and j and j % mid == 0:
+            arms["%s%d" % (MID, j // mid)] = spec["arms"]["updated"]
+        arms[a] = spec["arms"][a]
+    return {**spec, "arms": arms, "drift_check": True, "note": ("%s; continuation block of %d arm(s) the block before it did not finish" % (spec.get("note", ""), len(left))).lstrip("; ")}
+
+
+def final_round_select(tri, files, budget_s=FINAL_BUDGET_S, block=FINAL_BLOCK, mid=FINAL_MID, reps=FINAL_REPS_N, per_start=FINAL_START_S, extra_lost=()):
+    """The flags of the ONE final measurement round (owner 2026-11-21): ONLY the undecided ones (verdict INCONCLUSIVE / UNTESTED in the merged triage; a flag with a two-run KEEP / DROP /
+    MIXED / RETEST-GATE / OPTIONAL verdict is never retested).  FIRST the lost ones (UNTESTED, or no clean run at all, or named in extra_lost: a block time limit took their arm), then
+    the rest by run-1 evidence (best case gain first); as many as fit budget_s; the lost ones are never dropped (the round then runs over the budget: `over`).
+    Returns (selected, backlog, info): rows {flag, arm, kind, exact, verdict, best, lost, rank, why}."""
+    pick = lambda n: not HISTORY_ROWS.match(n)
+    rows = []
+    for fl, e in tri["flags"].items():
+        arm = e.get("arm")
+        if not arm or e.get("bundle") or e.get("verdict") not in UNDECIDED or e.get("runs"):
+            continue
+        cl = classify_flag(e, gather_views(files, arm, e["kind"], pick))
+        lost = e.get("verdict") == "UNTESTED" or cl["clean_runs"] == 0 or fl in extra_lost
+        rows.append({"flag": fl, "arm": arm, "kind": e["kind"], "exact": e.get("exact", True), "verdict": e["verdict"], "best": cl["best"], "lost": lost,
+                     "clean_runs": cl["clean_runs"], "why": ("LOST (no clean run: %s)" % ("; ".join(cl["reasons"]) or e["verdict"])) if lost else "ranked by run-1 evidence (best case %+.1f %%)" % cl["best"]})
+    mand = sorted([r for r in rows if r["lost"]], key=lambda r: (r["verdict"] != "UNTESTED", -r["best"], r["flag"]))
+    rest = sorted([r for r in rows if not r["lost"]], key=lambda r: (-r["best"], r["flag"]))
+    fit = rigor_fit(budget_s, block, mid, reps, per_start)
+    take = mand + rest[:max(0, fit - len(mand))]
+    back = rest[max(0, fit - len(mand)):]
+    for i, r in enumerate(take, 1):
+        r["rank"] = i
+    eta = rigor_estimate(len(take), block, mid, reps, per_start)[0]
+    return take, back, {"fit": fit, "n_lost": len(mand), "over": len(mand) > fit, "eta_s": eta, "undecided": len(rows)}
+
+
+def final_round_triage(meta, files, tag="usSRF"):
+    """The final-round triage doc (to us-triage-rigor.json): per flag the verdict of rigor_verdict with FINAL_PAIRS clean pairs (KEEP / ADD: the gain in EVERY clean pair >= +2 % on a non-prompt
+    case, no pair <= -3 % elsewhere; DROP: mean <= 0 on every case; otherwise INCONCLUSIVE, reported)."""
+    doc = rigor_triage(meta, files, tag, need=FINAL_PAIRS, drop_mean=0.0, every=True)
+    doc["design"] = "rigor"
+    for r in doc["flags"].values():
+        r["design"] = "FINAL ROUND (owner 2026-11-21): %d clean pairs, arm and bases FAST, ABBA over 2 passes" % FINAL_PAIRS
+    return doc
+
+
+def developed_flags(plain, upd, turbo=None):
+    """The flags of OUR preset that plain upstream Strata does not have: [{flag, kind env|arg, value, source preset|turbo, off}].  `off` = the preset turns a switch OFF (value 0): not a
+    developed behaviour, no gate.  Data paths (--expert-profile) are not flags.  turbo: the turbo draft's additions over the updated config."""
+    out = []
+    pe, ue = plain.get("env") or {}, upd.get("env") or {}
+    for k, v in ue.items():
+        if pe.get(k) != v:
+            out.append({"flag": k, "kind": "env", "value": v, "source": "preset", "off": str(v).lower() in OFF_VALUES})
+    pa, ua = argmap(plain.get("args") or []), argmap(upd.get("args") or [])
+    for k, v in ua.items():
+        if k not in DATA_ARGS and pa.get(k) != v:
+            out.append({"flag": k, "kind": "arg", "value": v, "source": "preset", "off": False})
+    if turbo:
+        te, ta = turbo.get("env") or {}, argmap(turbo.get("args") or [])
+        for k, v in te.items():
+            if ue.get(k) != v:
+                out.append({"flag": k, "kind": "env", "value": v, "source": "turbo", "off": str(v).lower() in OFF_VALUES})
+        for k, v in ta.items():
+            if k not in DATA_ARGS and ua.get(k) != v:
+                out.append({"flag": k, "kind": "arg", "value": v, "source": "turbo", "off": False})
+    return out
+
+
+def gate_dev_select(plain, upd, turbo, tri, lossy_registry, base_path, upd_arm=None, budget_s=GATE_DEV_BUDGET_S, est_s=GATE_DEV_EST_S):
+    """The quality gates of OUR developed flags only (owner 2026-11-21).  Lossy = the triage says exact False, or the registry lists the flag.  Groups, in this order: G1 = HC_UPMIX + PF_HCDOWN
+    (the two RETEST-GATE flags), G2 = every other lossy developed flag of the preset, G3 = the lossy flags the turbo draft adds (--lookup-max-t).  One gate = updated against updated MINUS the group
+    (G1, G2) or PLUS it (G3).  As many gates as fit budget_s; the rest, and the per-flag attribution arms of every group, go to the backlog (a failed group never removes a flag by itself).
+    Returns {developed, neutral, exact, lossy, gates, backlog}; gates / backlog entries have the retest-gate shape (type gate, arms, est, flags); the FIRST arm is the quality-gate reference (scored twice):
+    for a MINUS group the reference is updated minus the group and the judged arm is `updated`, so PASS = the group ON is not worse than OFF; for G3 the reference is updated."""
+    dev = developed_flags(plain, upd, turbo)
+    flags_tri = tri.get("flags", {})
+    lossy_reg = set(lossy_registry or [])
+    is_lossy = lambda d: (flags_tri.get(d["flag"], {}).get("exact") is False) or d["flag"] in lossy_reg
+    neutral = [d for d in dev if d["off"]]
+    live = [d for d in dev if not d["off"]]
+    lossy = [d for d in live if is_lossy(d)]
+    exact = [d for d in live if not is_lossy(d)]
+    g1 = [d for d in lossy if d["source"] == "preset" and d["flag"] in GATE_FIRST]
+    g2 = [d for d in lossy if d["source"] == "preset" and d["flag"] not in GATE_FIRST]
+    g3 = [d for d in lossy if d["source"] == "turbo"]
+    if upd_arm:                                                  # spec 220's `updated` arm (the abtest arm: exe, env, args) without the owner-removed flags = the default arm
+        base_arm = drop_flags(upd_arm)[0]
+        base_arm.setdefault("env", {})
+        base_arm.setdefault("args", {})
+    else:
+        base_arm = {"env": dict(upd.get("env") or {}), "args": argmap(upd.get("args") or [])}
+
+    def arm_of(group, sign):
+        env, amap = dict(base_arm["env"]), dict(base_arm["args"])
+        out = {k: v for k, v in base_arm.items() if k not in ("env", "args")}
+        for d in group:
+            tgt = env if d["kind"] == "env" else amap
+            if sign < 0:
+                tgt.pop(d["flag"], None)
+            else:
+                tgt[d["flag"]] = d["value"]
+        return {**out, "env": env, "args": amap}
+
+    def entry(name, group, sign):
+        an = ("minus-" if sign < 0 else "plus-") + name
+        names = [d["flag"] for d in group]
+        return {"key": "us:GATE-DEV-" + name, "branch": "us", "flag": name, "flags": names, "type": "gate", "base_name": "updated", "base": base_path,
+                "arms": ({an: arm_of(group, sign), "updated": base_arm} if sign < 0 else {"updated": base_arm, an: arm_of(group, sign)}),
+                "arm_name": an, "verdict_arm": "updated" if sign < 0 else an, "est": est_s, "cases": list(CASES), "bundle": False,
+                "why": "quality gate of the developed flag group %s (%s): %s" % (name, ", ".join(names), "reference = updated MINUS the group (scored twice), judged arm = updated (the group ON)" if sign < 0 else "reference = updated (scored twice), judged arm = updated PLUS the group")}
+    order = [(n, g, sg) for n, g, sg in (("G1-hc-upmix-pf-hcdown", g1, -1), ("G2-other-lossy-preset-flags", g2, -1), ("G3-turbo-lookup-max-t", g3, +1)) if g]
+    fit = int(budget_s // est_s)
+    gates = [entry(*x) for x in order[:fit]]
+    backlog = [entry(*x) for x in order[fit:]]
+    for n, g, sg in order:                                       # attribution arms: one per flag of a group of several (run only when the group fails and time allows)
+        if len(g) > 1:
+            for d in g:
+                backlog.append({**entry("%s-%s" % (n.split("-")[0], d["flag"].replace("STRATA_", "").lstrip("-")), [d], sg), "attribution_of": n})
+    return {"schema": "pancake.gate-dev/1", "developed": dev, "neutral": [d["flag"] for d in neutral], "exact": [d["flag"] for d in exact],
+            "lossy": [d["flag"] for d in lossy], "gates": gates, "backlog": backlog, "budget_s": budget_s, "est_s": est_s}
+
+
+def gate_dev_collect(select, dirs):
+    """us-gate-dev.json from the gate output dirs (verdicts.json {arm name: verdict}) and the select file: {flags: {flag: verdict}, groups: [...]}.  A PASS of a group is a PASS of each of its
+    flags; any other verdict is that verdict for each flag of the group (for the turbo build only PASS counts; nothing is removed from the preset by it)."""
+    got = {}
+    for d in dirs:
+        p = os.path.join(d, "verdicts.json")
+        if os.path.exists(p):
+            got.update(json.load(open(p, encoding="utf-8")))
+    flags, groups = {}, []
+    for g in select.get("gates", []):
+        v = got.get(g.get("verdict_arm") or g["arm_name"])
+        groups.append({"group": g["flag"], "flags": g["flags"], "arm": g.get("verdict_arm") or g["arm_name"], "verdict": v or "NOT-RUN"})
+        if v:
+            for f in g["flags"]:
+                flags[f] = v
+    return {"schema": "pancake.gate-dev/1", "flags": flags, "groups": groups, "not_run": [g["flag"] for g in select.get("backlog", []) if not g.get("attribution_of")]}
 
 
 def read_lines(f):
@@ -1530,6 +1719,7 @@ def main(argv=None):
     c.add_argument("--tag", required=True)
     c.add_argument("--out", required=True)
     rt = sub.add_parser("retest")
+    rt.add_argument("--gate-dev-file", help="slice gates-dev*: gate-dev-select's file (its `gates` are the blocks)")
     rt.add_argument("--groups", default=os.path.join(HERE, "retest_groups.json"))
     rt.add_argument("--registry", default=REGISTRY)
     rt.add_argument("--slice", required=True)
@@ -1623,7 +1813,47 @@ def main(argv=None):
     tb.add_argument("--us-arm-spec", required=True)
     tb.add_argument("--us-exact-spec", required=True)
     tb.add_argument("--removed", default=",".join(OWNER_REMOVED))
+    tb.add_argument("--gate-dev", help="us-gate-dev.json (gate-dev-collect): its verdicts of the developed flags are laid over the gate results")
     tb.add_argument("--out", required=True)
+    bl = sub.add_parser("block-limits")
+    bl.add_argument("--est", type=int, default=0, help="the BLOCK line's estimate (planned starts x START_S)")
+    bl.add_argument("--starts", type=int, default=0, help="the planned starts (instead of --est)")
+    cb = sub.add_parser("continue-block")
+    cb.add_argument("--spec", required=True)
+    cb.add_argument("--rows", required=True)
+    cb.add_argument("--mid", type=int, default=0)
+    cb.add_argument("--out", required=True)
+    fr = sub.add_parser("final-round-select")
+    fr.add_argument("--triage", required=True)
+    fr.add_argument("--rows-dir", required=True)
+    fr.add_argument("--budget-s", type=float, default=FINAL_BUDGET_S)
+    fr.add_argument("--block", type=int, default=FINAL_BLOCK)
+    fr.add_argument("--mid", type=int, default=FINAL_MID)
+    fr.add_argument("--reps", type=int, default=FINAL_REPS_N)
+    fr.add_argument("--per-start-s", type=int, default=FINAL_START_S)
+    fr.add_argument("--extra-lost", default="", help="comma list of flags a time limit took (always in the round)")
+    fr.add_argument("--out", required=True)
+    fr.add_argument("--backlog", required=True)
+    fr.add_argument("--md", help="the selection preview as markdown")
+    fv = sub.add_parser("final-round-verdict")
+    fv.add_argument("--meta", required=True)
+    fv.add_argument("--rows-dir", required=True)
+    fv.add_argument("--out", required=True)
+    gd = sub.add_parser("gate-dev-select")
+    gd.add_argument("--plain", required=True)
+    gd.add_argument("--updated", required=True)
+    gd.add_argument("--turbo")
+    gd.add_argument("--triage", required=True)
+    gd.add_argument("--registry", default=REGISTRY)
+    gd.add_argument("--base-spec", required=True, help="spec 220 (the base path of the gate blocks is its `base`)")
+    gd.add_argument("--budget-s", type=float, default=GATE_DEV_BUDGET_S)
+    gd.add_argument("--est-s", type=float, default=GATE_DEV_EST_S)
+    gd.add_argument("--out", required=True)
+    gd.add_argument("--backlog", required=True)
+    gc = sub.add_parser("gate-dev-collect")
+    gc.add_argument("--select", required=True)
+    gc.add_argument("--dirs", nargs="*", default=[])
+    gc.add_argument("--out", required=True)
     pd = sub.add_parser("paired-drift")
     pd.add_argument("--rows", required=True)
     pd.add_argument("--base", required=True)
@@ -1773,7 +2003,7 @@ def main(argv=None):
             raise SystemExit("sweep retest: no base configs for branch(es) %s" % ", ".join(miss))
         docs = [json.load(open(f, encoding="utf-8")) for f in a.carry if os.path.exists(f)]
         gdocs = [json.load(open(f, encoding="utf-8")) for f in a.gate_from if os.path.exists(f)]
-        blocks = retest_blocks(groups, a.slice, bases, registry, src, docs, a.carry_offset, a.carry_max, gdocs, a.gate_prefix)
+        blocks = retest_blocks(groups, a.slice, bases, registry, src, docs, a.carry_offset, a.carry_max, gdocs, a.gate_prefix, a.gate_dev_file)
         first_paired = True
         for e in blocks:
             e["slice"] = a.slice
@@ -1826,7 +2056,7 @@ def main(argv=None):
     elif a.cmd == "lost-arms":
         def rows_of(bid):
             names = []
-            for f in (a.rows_prefix + bid + ".jsonl", a.rows_prefix + bid + "r.jsonl"):       # the block and its re-run
+            for f in (a.rows_prefix + bid + ".jsonl", a.rows_prefix + bid + "r.jsonl", a.rows_prefix + bid + "c.jsonl", a.rows_prefix + bid + "cc.jsonl"):       # the block and its re-run
                 if os.path.exists(f):
                     for x in open(f, encoding="utf-8"):
                         try:
@@ -1925,7 +2155,10 @@ def main(argv=None):
         arms, changes, _ = final_default(tri, s220, s222, rig, removed)
         files = load_rows(a.rows_dir)
         trusted = {r["flag"] for r in rigor_select(tri, files, (), (), 0)[2] if r["tier"] == "TRUSTED"}
-        doc = turbo_build(tri, rig, gate_results(a.gate_dirs, overlay_rigor(tri, rig)), arms["updated"], trusted, removed)
+        gres = gate_results(a.gate_dirs, overlay_rigor(tri, rig))
+        if a.gate_dev and os.path.exists(a.gate_dev):
+            gres.update(json.load(open(a.gate_dev, encoding="utf-8")).get("flags", {}))      # T-1024: the gates of the developed flags
+        doc = turbo_build(tri, rig, gres, arms["updated"], trusted, removed)
         doc["changes"] = changes
         json.dump(doc, open(a.out, "w"), indent=1)
         for t in doc["flags"]:
@@ -1933,6 +2166,65 @@ def main(argv=None):
         for t in doc["excluded"]:
             print("TURBO-OUT %-26s %-12s %s" % (t["flag"], t["verdict"], t["excluded"]))
         print("TURBOSUM %d flag(s) join the default arm, %d left out" % (len(doc["flags"]), len(doc["excluded"])))
+    elif a.cmd == "block-limits":
+        soft, hard = block_limits(a.est, a.starts or None)
+        print("BLOCKLIMITS %d %d" % (soft, hard))
+    elif a.cmd == "continue-block":
+        spec = json.load(open(a.spec, encoding="utf-8"))
+        cs = continuation_spec(spec, read_lines(a.rows) or [], a.mid)
+        if cs is None:
+            print("CONTINUE none: every planned arm has its rows and a base after it")
+            return 3
+        json.dump(cs, open(a.out, "w"), indent=1)
+        n = len(cs["arms"]) - 1 - sum(1 for x in cs["arms"] if str(x).startswith(MID))
+        print("CONTINUE %d %d arm(s): %s" % (n, n, " ".join(x for x in cs["arms"] if x != "updated" and not str(x).startswith(MID))))
+    elif a.cmd == "final-round-select":
+        tri = json.load(open(a.triage, encoding="utf-8"))
+        files = load_rows(a.rows_dir)
+        sel, back, info = final_round_select(tri, files, a.budget_s, a.block, a.mid, a.reps, a.per_start_s, [x for x in a.extra_lost.split(",") if x])
+        fl = {r["arm"]: {**tri["flags"][r["flag"]], "final_rank": r["rank"], "final_why": r["why"], "final_lost": r["lost"]} for r in sel}
+        json.dump({"schema": "pancake.sweep-select/1", "verdicts": ["FINAL-ROUND"], "flags": fl}, open(a.out, "w"), indent=1)
+        json.dump({"schema": "pancake.final-round-backlog/1", "note": "undecided flags the FINAL ROUND budget did not reach (nothing is dropped); rerun final-round-select with a larger --budget-s", "flags": back}, open(a.backlog, "w"), indent=1)
+        for r in sel:
+            print("FINALARM %d %s [%s] %s: %s" % (r["rank"], r["flag"], r["verdict"], "LOST" if r["lost"] else "ranked", r["why"][:200]))
+        for r in back:
+            print("FINALBACKLOG %s [%s] best %+.1f %%" % (r["flag"], r["verdict"], r["best"]))
+        print("FINALETA %d arm(s) (%d lost, %d undecided in all), %d s (%.2f h; %d s per planned start, %d passes), budget %d s%s; %d in the backlog" % (
+            len(sel), info["n_lost"], info["undecided"], info["eta_s"], info["eta_s"] / 3600.0, a.per_start_s, a.reps, a.budget_s, " OVER BUDGET (the lost flags are never dropped)" if info["over"] else "", len(back)))
+        if a.md:
+            rows = ["| rank | flag | verdict now | kind | best run-1 case % | why in the round |", "|---|---|---|---|---|---|"] + [
+                "| %d | %s | %s | %s | %+.1f | %s |" % (r["rank"], r["flag"], r["verdict"], r["kind"], r["best"], r["why"].replace("|", "/")) for r in sel] + [
+                "| - | %s | %s | %s | %+.1f | BACKLOG (did not fit) |" % (r["flag"], r["verdict"], r["kind"], r["best"]) for r in back]
+            open(a.md, "w", encoding="utf-8").write("\n".join(rows) + "\n")
+        print("SELECT %d flag(s) with verdict FINAL-ROUND: %s" % (len(sel), ", ".join(r["flag"] for r in sel)))
+    elif a.cmd == "final-round-verdict":
+        meta = json.load(open(a.meta, encoding="utf-8"))
+        doc = final_round_triage(meta, load_rows(a.rows_dir, "us-p1-usSRF-*.jsonl"))
+        json.dump(doc, open(a.out, "w"), indent=1)
+        for fl, r in sorted(doc["flags"].items(), key=lambda kv: kv[1]["verdict"]):
+            print("FINALROUND %-12s %-34s clean %d of %d pairs  [%s]" % (r["verdict"], fl, r["n_clean"], r["n_pairs"], r["reason"][:300]))
+        cnt = {}
+        for r in doc["flags"].values():
+            cnt[r["verdict"]] = cnt.get(r["verdict"], 0) + 1
+        print("FINALROUNDSUM %s" % ", ".join("%s %d" % kv for kv in sorted(cnt.items())))
+    elif a.cmd == "gate-dev-select":
+        ld = lambda f: json.load(open(f, encoding="utf-8"))
+        res = gate_dev_select(ld(a.plain), ld(a.updated), ld(a.turbo) if a.turbo and os.path.exists(a.turbo) else None, ld(a.triage), ld(a.registry).get("lossy"),
+                              ld(a.base_spec)["base"], ld(a.base_spec)["arms"]["updated"], a.budget_s, a.est_s)
+        back = {"schema": "pancake.gate-dev-backlog/1", "note": "gates / attribution arms the budget did not reach (nothing is dropped)", "gates": res["backlog"]}
+        json.dump(back, open(a.backlog, "w"), indent=1)
+        json.dump(res, open(a.out, "w"), indent=1)
+        print("GATEDEV developed %d flag(s) (%d switched off by the preset: no gate, %d exact: no gate, %d lossy)" % (len(res["developed"]), len(res["neutral"]), len(res["exact"]), len(res["lossy"])))
+        for g in res["gates"]:
+            print("GATEDEV-GATE %s est %d s: %s" % (g["flag"], g["est"], ", ".join(g["flags"])))
+        for g in res["backlog"]:
+            print("GATEDEV-BACKLOG %s%s: %s" % (g["flag"], " (attribution of %s)" % g["attribution_of"] if g.get("attribution_of") else "", ", ".join(g["flags"])))
+        print("GATEDEVCOUNT %d" % len(res["gates"]))
+    elif a.cmd == "gate-dev-collect":
+        doc = gate_dev_collect(json.load(open(a.select, encoding="utf-8")), a.dirs)
+        json.dump(doc, open(a.out, "w"), indent=1)
+        for g in doc["groups"]:
+            print("GATEDEVRESULT %s %s: %s" % (g["group"], g["verdict"], ", ".join(g["flags"])))
     elif a.cmd == "paired-drift":
         lines = read_lines(a.rows) or []
         eff, dd, per = paired_eval(lines, a.base, a.arm, "plus", a.cases.split(","), layout=a.layout)
