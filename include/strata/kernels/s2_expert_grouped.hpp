@@ -130,6 +130,29 @@ inline void moe_grouped_s2_window(const unsigned long long* grp_ptr, const int32
 void moe_group_resident(const int32_t* ids, int n, int k_per_tok, const uint8_t* base, int64_t blob,
                         unsigned long long* grp_ptr, int32_t* grp_start, int32_t* counts, int32_t* ent_dst,
                         int32_t* ent_tok, void* stream);
+/// STRATA_MTP_SLOTS (LEADS.md Part Q3): the device-side record of what the slot-aware grouping saw, in DEVICE memory (one block,
+/// serial between launches, so plain stores: no atomics, nothing written over PCIe).  The host copies it out and clears it when the
+/// drafter's stream is idle (MtpDrafter::slot_service).  `want` holds the experts that missed at rank 0-1 (`want_n` counts every one,
+/// even past the ring), `used[e]` is 1 for every resident expert a round read.
+struct MtpSlotDev {
+    static constexpr int kWant = 64;
+    static constexpr int kExperts = 512;
+    uint32_t want_n;
+    uint32_t hit_entries;    ///< routed entries whose expert was in a slot
+    uint32_t miss_entries;   ///< routed entries read from the host copy
+    uint32_t pad;
+    int32_t want[kWant];
+    uint8_t used[kExperts];
+};
+/// The same grouping as `moe_group_resident`, with a table lookup instead of `base + id * blob`: group pointer = `ptr_of[id]`
+/// (512 device addresses).  An address in [host_lo, host_hi) is a miss (the experts' pinned host copy): counted in `dev`, and
+/// the first rank 0-1 entry (`i % k_per_tok < 2`) of each missing expert is appended to `dev->want`.  With every expert resident
+/// and `ptr_of[id] = base + id * blob` the five outputs are bit-identical to `moe_group_resident`'s.  `dev` may be null (no record).
+/// Separate kernel: `moe_group_resident` itself is untouched.  n must be 1..128, ids in [0, 512).
+void moe_group_resident_ptr(const int32_t* ids, int n, int k_per_tok, const unsigned long long* ptr_of,
+                            unsigned long long host_lo, unsigned long long host_hi, MtpSlotDev* dev,
+                            unsigned long long* grp_ptr, int32_t* grp_start, int32_t* counts, int32_t* ent_dst,
+                            int32_t* ent_tok, void* stream);
 void moe_hit_select_multi(const int32_t* ids, const int32_t* res_row, int n, int n_expert, int32_t* slot, int32_t* dst,
                           int32_t* count, void* stream);
 void moe_hit_grouped_s2_multi(const uint8_t* blob_base, const int32_t* slot_index, const int32_t* dst_index,

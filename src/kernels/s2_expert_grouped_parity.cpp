@@ -13,6 +13,9 @@
 //   4. `moe_grouped_s2`              host-built groups of 1..8 entries, one of them a mapped HOST blob (the PCIe
 //                                    share), and more group capacity than groups
 //   5. `moe_group_resident` + `moe_grouped_s2`   the MTP layer's shape, with and without fp32 scales
+//   5b. `moe_group_resident_ptr` (STRATA_MTP_SLOTS): the table-driven grouping equals `moe_group_resident` with the identity
+//                                    table; with half the experts behind a 'host range' the groups, the record and the output agree
+//   5c. the same through a CAPTURED graph replayed with the slot service between replays (STRATA_MTP_SLOTS end to end)
 //   6. an activation row that is only 2-byte aligned: the new path must fall back to the previous kernels
 //   7. a slot stride that is not a multiple of 8 (BLOB + 4), and 8. an arena 4 bytes past an aligned address: the
 //      per-hit path must fall back as well (its codes are read as uint2)
@@ -23,6 +26,7 @@
 // the projection.  Bitwise equality with the previous kernels is the contract; on top of it a double-precision
 // host reference of every up row and every down row checks that the fixture computes an expert at all - two
 // kernels agreeing on garbage would otherwise pass.
+#include "strata/core/mtp_slots.hpp"
 #include "strata/kernels/f16_bits.hpp"
 #include "strata/kernels/s2_expert_grouped.hpp"
 
@@ -37,6 +41,7 @@
 #include <functional>
 #include <numeric>
 #include <random>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -460,6 +465,111 @@ void check_all() {
         }
     }
 
+    // ---- 5b. moe_group_resident_ptr (STRATA_MTP_SLOTS, LEADS.md Part Q3): the same grouping with the expert address read from a table.
+    //   (a) the identity table (base + id * BLOB) and no host range: the five outputs are bit-identical to moe_group_resident's, the
+    //       device record counts every entry a hit and marks exactly the routed experts;
+    //   (b) the odd experts at another address (a stand-in for the pinned host copy, same bytes) inside the host range: the groups
+    //       and entries are unchanged, each group's pointer is its table entry, the miss counter and the rank 0-1 `want` list equal a
+    //       host count, and the grouped experts' output is bitwise the same (a miss reads the same bytes).
+    for (const int T : {1, 5}) {
+        const int n = T * K;
+        std::vector<int32_t> ids(n);
+        for (int t = 0; t < T; ++t) {
+            std::vector<int32_t> pick(fx.nb);
+            std::iota(pick.begin(), pick.end(), 0);
+            std::shuffle(pick.begin(), pick.end(), rng);
+            for (int j = 0; j < K; ++j) ids[(size_t) t * K + j] = pick[j];
+        }
+        int32_t* d_ids = dalloc<int32_t>(n);
+        up(d_ids, ids);
+        auto make_groups = [&](unsigned long long** gp, int32_t** gs, int32_t** gc, int32_t** ed, int32_t** et) {
+            *gp = dalloc<unsigned long long>(n);
+            *gs = dalloc<int32_t>(n + 1);
+            *gc = dalloc<int32_t>(2);
+            *ed = dalloc<int32_t>(n);
+            *et = dalloc<int32_t>(n);
+        };
+        unsigned long long *r_gp, *a_gp;
+        int32_t *r_gs, *r_gc, *r_ed, *r_et, *a_gs, *a_gc, *a_ed, *a_et;
+        make_groups(&r_gp, &r_gs, &r_gc, &r_ed, &r_et);
+        make_groups(&a_gp, &a_gs, &a_gc, &a_ed, &a_et);
+        k::moe_group_resident(d_ids, n, K, fx.d, (int64_t) BLOB, r_gp, r_gs, r_gc, r_ed, r_et, nullptr);
+        ck(cudaDeviceSynchronize(), "group_resident (reference)");
+        std::vector<unsigned long long> tab_a((size_t) fx.nb);
+        for (int e = 0; e < fx.nb; ++e) tab_a[(size_t) e] = (unsigned long long) (uintptr_t) (fx.d + (size_t) e * BLOB);
+        unsigned long long* d_tab_a = dalloc<unsigned long long>(tab_a.size());
+        up(d_tab_a, tab_a);
+        k::MtpSlotDev* d_rec = dalloc<k::MtpSlotDev>(1);
+        k::moe_group_resident_ptr(d_ids, n, K, d_tab_a, 0, 0, d_rec, a_gp, a_gs, a_gc, a_ed, a_et, nullptr);
+        ck(cudaDeviceSynchronize(), "group_resident_ptr (identity)");
+        const auto cmp = [&](const char* what, bool same) {
+            std::printf("  %-44s %s\n", what, same ? "bitwise equal" : "DIFFERENT");
+            if (!same) ++g_fail;
+        };
+        const std::string tag = std::string("T=") + std::to_string(T);
+        const int ng = down(r_gc, 2)[0];
+        cmp(("moe_group_resident_ptr identity " + tag + " groups").c_str(),
+            down(r_gc, 2) == down(a_gc, 2) && down(r_gs, (size_t) ng + 1) == down(a_gs, (size_t) ng + 1) &&
+            down(r_gp, (size_t) ng) == down(a_gp, (size_t) ng) && down(r_ed, (size_t) n) == down(a_ed, (size_t) n) &&
+            down(r_et, (size_t) n) == down(a_et, (size_t) n));
+        {
+            const k::MtpSlotDev rec = down(d_rec, 1)[0];
+            std::set<int> routed(ids.begin(), ids.end());
+            bool used_ok = true;
+            for (int e = 0; e < k::MtpSlotDev::kExperts; ++e) used_ok = used_ok && ((rec.used[e] != 0) == (routed.count(e) != 0));
+            cmp(("moe_group_resident_ptr record, all hits " + tag).c_str(),
+                rec.hit_entries == (uint32_t) n && rec.miss_entries == 0 && rec.want_n == 0 && used_ok);
+        }
+        // (b) odd experts "on the host"
+        uint8_t* d_cp = dalloc<uint8_t>((size_t) fx.nb * BLOB);
+        up(d_cp, fx.h);
+        std::vector<unsigned long long> tab_b = tab_a;
+        for (int e = 1; e < fx.nb; e += 2) tab_b[(size_t) e] = (unsigned long long) (uintptr_t) (d_cp + (size_t) e * BLOB);
+        unsigned long long* d_tab_b = dalloc<unsigned long long>(tab_b.size());
+        up(d_tab_b, tab_b);
+        ck(cudaMemset(d_rec, 0, sizeof(k::MtpSlotDev)), "clear record");
+        unsigned long long *b_gp;
+        int32_t *b_gs, *b_gc, *b_ed, *b_et;
+        make_groups(&b_gp, &b_gs, &b_gc, &b_ed, &b_et);
+        k::moe_group_resident_ptr(d_ids, n, K, d_tab_b, (unsigned long long) (uintptr_t) d_cp,
+                                  (unsigned long long) (uintptr_t) d_cp + (unsigned long long) fx.nb * BLOB, d_rec, b_gp, b_gs, b_gc,
+                                  b_ed, b_et, nullptr);
+        ck(cudaDeviceSynchronize(), "group_resident_ptr (odd on the host)");
+        const std::vector<unsigned long long> bgp = down(b_gp, (size_t) ng);
+        const std::vector<int32_t> bgs = down(b_gs, (size_t) ng + 1), bed = down(b_ed, (size_t) n);
+        bool ptr_ok = down(b_gc, 2) == down(r_gc, 2) && bgs == down(r_gs, (size_t) ng + 1) && bed == down(r_ed, (size_t) n) &&
+                      down(b_et, (size_t) n) == down(r_et, (size_t) n);
+        for (int gi = 0; gi < ng; ++gi) ptr_ok = ptr_ok && bgp[(size_t) gi] == tab_b[(size_t) ids[(size_t) bed[(size_t) bgs[(size_t) gi]]]];
+        cmp(("moe_group_resident_ptr host range " + tag + " groups").c_str(), ptr_ok);
+        {
+            const k::MtpSlotDev rec = down(d_rec, 1)[0];
+            uint32_t miss = 0, hit = 0;
+            std::vector<int32_t> want;
+            for (int i = 0; i < n; ++i) {
+                if (ids[(size_t) i] % 2 == 1) {
+                    ++miss;
+                    bool first = (i % K) < 2;
+                    for (int j = 0; first && j < i; ++j)
+                        if (ids[(size_t) j] == ids[(size_t) i] && (j % K) < 2) first = false;
+                    if (first) want.push_back(ids[(size_t) i]);
+                } else ++hit;
+            }
+            bool want_ok = rec.want_n == (uint32_t) want.size();
+            for (size_t w = 0; want_ok && w < want.size() && w < (size_t) k::MtpSlotDev::kWant; ++w) want_ok = rec.want[w] == want[w];
+            bool used_ok = true;
+            for (int e = 0; e < fx.nb; ++e) used_ok = used_ok && ((rec.used[e] != 0) == (e % 2 == 0 && std::count(ids.begin(), ids.end(), e) > 0));
+            cmp(("moe_group_resident_ptr record " + tag + " (" + std::to_string(miss) + " miss entries)").c_str(),
+                rec.hit_entries == hit && rec.miss_entries == miss && want_ok && used_ok);
+        }
+        const Scratch s = make_scratch(n);
+        float* d_o1 = dalloc<float>((size_t) n * H);
+        float* d_o2 = dalloc<float>((size_t) n * H);
+        k::moe_grouped_s2(r_gp, r_gs, r_gc, r_ed, r_et, n, n, d_x, d_xs, s.p, d_o1, nullptr);
+        k::moe_grouped_s2(b_gp, b_gs, b_gc, b_ed, b_et, n, n, d_x, d_xs, s.p, d_o2, nullptr);
+        ck(cudaDeviceSynchronize(), "grouped (ptr)");
+        cmp(("moe_grouped_s2 through the table " + tag).c_str(), down(d_o1, (size_t) n * H) == down(d_o2, (size_t) n * H));
+    }
+
     // ---- 6. a 2-byte aligned activation row: the new path must decline and the previous kernels run
     {
         uint8_t* d_x2 = dalloc<uint8_t>(x.size() + 2);
@@ -662,6 +772,119 @@ void bench() {
         });
     }
 }
+
+// ---- 5c. STRATA_MTP_SLOTS end to end on the GPU (LEADS.md Part Q3): the drafter's shape.  The grouping and the grouped experts are
+// CAPTURED once in a graph and replayed every round; between replays the host does what MtpDrafter::slot_service does (copy the
+// device record out and clear it, sync, choose installs, queue the slot copies and then the table copy, all on the same stream), and
+// a pinned MAPPED host copy serves every expert that is not in a slot.  Every round's output is held bitwise against the same
+// pipeline run eagerly on the full blob.  This is the check the box cannot do while it is busy: that a table changed between replays
+// of ONE captured graph, ordered on its stream, is what the next replay reads.
+void check_slots_graph() {
+    std::mt19937 rng(777);
+    constexpr int K = 10, NB = 48, NS = 24, T = 3, ROUNDS = 160;
+    const int n = T * K;
+    const Fixture fx = make_blobs(NB, rng);
+    std::vector<uint8_t> x;
+    std::vector<float> xs;
+    fill_x(x, xs, 8, rng);
+    uint8_t* d_x = dalloc<uint8_t>(x.size());
+    float* d_xs = dalloc<float>(xs.size());
+    up(d_x, x);
+    up(d_xs, xs);
+    uint8_t* h_map = nullptr;   // the pinned host copy, read by the kernels through its device address
+    ck(cudaHostAlloc((void**) &h_map, (size_t) NB * BLOB, cudaHostAllocMapped), "host copy");
+    std::memcpy(h_map, fx.h.data(), (size_t) NB * BLOB);
+    uint8_t* d_map = nullptr;
+    ck(cudaHostGetDevicePointer((void**) &d_map, h_map, 0), "host copy device pointer");
+    uint8_t* d_slots = dalloc<uint8_t>((size_t) NS * BLOB);
+    strata::core::MtpSlots slots;
+    if (!slots.init(NS, NB)) { std::fprintf(stderr, "slot map\n"); ++g_fail; return; }
+    for (int s = 0; s < NS; ++s) ck(cudaMemcpy(d_slots + (size_t) s * BLOB, fx.hb(slots.expert_of(s)), BLOB, cudaMemcpyHostToDevice), "fill slot");
+    unsigned long long* d_tab = dalloc<unsigned long long>(NB);
+    unsigned long long* h_tab = nullptr;
+    ck(cudaMallocHost((void**) &h_tab, NB * sizeof(unsigned long long)), "pinned table");
+    slots.pointer_table((uint64_t) (uintptr_t) d_slots, (uint64_t) (uintptr_t) d_map, BLOB, (uint64_t*) h_tab);
+    ck(cudaMemcpy(d_tab, h_tab, NB * sizeof(unsigned long long), cudaMemcpyHostToDevice), "table");
+    k::MtpSlotDev* d_rec = dalloc<k::MtpSlotDev>(1);
+    k::MtpSlotDev* h_rec = nullptr;
+    ck(cudaMallocHost((void**) &h_rec, sizeof(k::MtpSlotDev)), "pinned record");
+    cudaStream_t cs = nullptr;
+    ck(cudaStreamCreateWithFlags(&cs, cudaStreamNonBlocking), "stream");
+    int32_t* d_ids = dalloc<int32_t>(n);
+    int32_t* h_ids = nullptr;
+    ck(cudaMallocHost((void**) &h_ids, n * sizeof(int32_t)), "pinned ids");
+    auto groups = [&](unsigned long long** gp, int32_t** gs, int32_t** gc, int32_t** ed, int32_t** et) {
+        *gp = dalloc<unsigned long long>(n);
+        *gs = dalloc<int32_t>(n + 1);
+        *gc = dalloc<int32_t>(2);
+        *ed = dalloc<int32_t>(n);
+        *et = dalloc<int32_t>(n);
+    };
+    unsigned long long *p_gp, *r_gp;
+    int32_t *p_gs, *p_gc, *p_ed, *p_et, *r_gs, *r_gc, *r_ed, *r_et;
+    groups(&p_gp, &p_gs, &p_gc, &p_ed, &p_et);
+    groups(&r_gp, &r_gs, &r_gc, &r_ed, &r_et);
+    const Scratch sp = make_scratch(n), sr = make_scratch(n);
+    float* d_out = dalloc<float>((size_t) n * H);
+    float* d_ref = dalloc<float>((size_t) n * H);
+    const unsigned long long lo = (unsigned long long) (uintptr_t) d_map, hi = lo + (unsigned long long) NB * BLOB;
+    // the captured round: the grouping through the table, then the grouped experts
+    cudaGraph_t graph = nullptr;
+    cudaGraphExec_t exec = nullptr;
+    ck(cudaStreamBeginCapture(cs, cudaStreamCaptureModeThreadLocal), "begin capture");
+    k::moe_group_resident_ptr(d_ids, n, K, d_tab, lo, hi, d_rec, p_gp, p_gs, p_gc, p_ed, p_et, cs);
+    k::moe_grouped_s2(p_gp, p_gs, p_gc, p_ed, p_et, n, n, d_x, d_xs, sp.p, d_out, cs);
+    ck(cudaStreamEndCapture(cs, &graph), "end capture");
+    ck(cudaGraphInstantiate(&exec, graph, nullptr, nullptr, 0), "instantiate");
+    int bad_rounds = 0, count_bad = 0;
+    uint64_t exp_hit = 0, exp_miss = 0;
+    std::vector<uint8_t> dev_ref_out((size_t) n * H * 4), dev_out((size_t) n * H * 4);
+    for (int r = 0; r < ROUNDS; ++r) {
+        // a skewed trace: 3 tokens, 10 distinct experts each, mostly from a hot window that moves
+        const int hot = (r / 20) * 11 % NB;
+        for (int t = 0; t < T; ++t) {
+            std::set<int> pick;
+            while ((int) pick.size() < K) pick.insert((int) (rng() % 4 != 0 ? (hot + rng() % 14) % NB : rng() % NB));
+            std::vector<int> v(pick.begin(), pick.end());
+            std::shuffle(v.begin(), v.end(), rng);
+            for (int j = 0; j < K; ++j) h_ids[t * K + j] = v[(size_t) j];
+        }
+        for (int i = 0; i < n; ++i) (slots.resident(h_ids[i]) ? exp_hit : exp_miss)++;
+        ck(cudaMemcpyAsync(d_ids, h_ids, n * sizeof(int32_t), cudaMemcpyHostToDevice, cs), "ids");
+        ck(cudaGraphLaunch(exec, cs), "graph launch");
+        // the reference on the full blob, eagerly, on the same stream
+        k::moe_group_resident(d_ids, n, K, fx.d, (int64_t) BLOB, r_gp, r_gs, r_gc, r_ed, r_et, cs);
+        k::moe_grouped_s2(r_gp, r_gs, r_gc, r_ed, r_et, n, n, d_x, d_xs, sr.p, d_ref, cs);
+        ck(cudaStreamSynchronize(cs), "round");
+        ck(cudaMemcpy(dev_out.data(), d_out, dev_out.size(), cudaMemcpyDeviceToHost), "out");
+        ck(cudaMemcpy(dev_ref_out.data(), d_ref, dev_ref_out.size(), cudaMemcpyDeviceToHost), "ref");
+        if (dev_out != dev_ref_out) ++bad_rounds;
+        // the service (MtpDrafter::slot_service): record out + clear + sync, installs, slot copies, then the table
+        ck(cudaMemcpyAsync(h_rec, d_rec, sizeof(k::MtpSlotDev), cudaMemcpyDeviceToHost, cs), "record");
+        ck(cudaMemsetAsync(d_rec, 0, sizeof(k::MtpSlotDev), cs), "clear record");
+        ck(cudaStreamSynchronize(cs), "service sync");
+        slots.ingest(h_rec->used, h_rec->hit_entries, h_rec->miss_entries);
+        const int nw = (int) std::min<uint32_t>(h_rec->want_n, (uint32_t) k::MtpSlotDev::kWant);
+        strata::core::MtpSlotInstall inst[16];
+        const int ni = slots.choose_installs(h_rec->want, nw, 4, inst, 16);
+        for (int i = 0; i < ni; ++i)
+            ck(cudaMemcpyAsync(d_slots + (size_t) inst[i].slot * BLOB, h_map + (size_t) inst[i].expert * BLOB, BLOB, cudaMemcpyHostToDevice, cs), "install");
+        if (ni > 0) {
+            slots.pointer_table((uint64_t) (uintptr_t) d_slots, (uint64_t) (uintptr_t) d_map, BLOB, (uint64_t*) h_tab);
+            ck(cudaMemcpyAsync(d_tab, h_tab, NB * sizeof(unsigned long long), cudaMemcpyHostToDevice, cs), "table copy");
+        }
+        if (!slots.consistent()) ++count_bad;
+    }
+    ck(cudaStreamSynchronize(cs), "end");
+    const bool counters_ok = slots.hits() == exp_hit && slots.misses() == exp_miss;
+    std::printf("  %-44s %d of %d rounds differ from the full blob; hits %llu misses %llu (%s the host count), %llu installs\n",
+                "STRATA_MTP_SLOTS graph replay + service", bad_rounds, ROUNDS, (unsigned long long) slots.hits(),
+                (unsigned long long) slots.misses(), counters_ok ? "equal to" : "DIFFERENT FROM", (unsigned long long) slots.installs());
+    if (bad_rounds != 0 || count_bad != 0 || !counters_ok || slots.installs() == 0 || slots.misses() == 0) ++g_fail;
+    ck(cudaGraphExecDestroy(exec), "destroy exec");
+    ck(cudaGraphDestroy(graph), "destroy graph");
+    ck(cudaStreamDestroy(cs), "destroy stream");
+}
 }  // namespace
 
 int main(int argc, char** argv) {
@@ -675,6 +898,7 @@ int main(int argc, char** argv) {
     }
     std::printf("s2_expert_grouped_parity: new expert kernels vs the previous ones, bitwise\n");
     check_all();
+    check_slots_graph();   // STRATA_MTP_SLOTS (LEADS.md Part Q3)
     if (do_bench) bench();
     std::printf("s2_expert_grouped_parity: %d failures\n%s\n", g_fail, g_fail ? "FAIL" : "PASS");
     return g_fail ? 1 : 0;
