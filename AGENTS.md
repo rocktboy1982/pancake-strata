@@ -229,6 +229,7 @@ T-1003). These rules came out of that. Each flag is judged on its own numbers.
     the box to `bench/results/<date>-flag-tests/` every 5 min and pushes); results also live on the box under
     `/home/dan/auto-runs/`. Every run still gets a ledger row; large files (> 1.5 MB, engine logs, traces, build logs)
     stay on the box and the row names their path.
+11. **Owner order 2026-11-21:** `--lookup-max-t`, `--adapt-every` and `STRATA_PIN_BY_NEED` are removed from the shipped default configs (optional / not default, `optional` in the tuned-flags file; T-1020); start presets are default and turbo (`flashnext-iq2_xs-turbo-hip.json`, a DRAFT until the turbo-build step at the end of the queue), both raced against stock at the end.
 
 ## Box operations (Linux box 192.168.100.82, RX 7900 XT)
 

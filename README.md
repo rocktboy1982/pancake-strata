@@ -56,7 +56,7 @@ What moved pancake from Strata-rdna3's level to today's preset (each measured on
 | GPU router lookahead (default on) | +10% decode on mmap'd experts; CPU cost 30 -> 0.6 ms per window | T-192 |
 | Learned expert profile (`data/expert-profile-pancake.bin`) | +6.7% decode, mostly cold start | T-194 |
 | hipBLASLt table matched to the runtime (100401) | prompt reading 1,345 -> 1,850-1,920 tok/s | T-096 |
-| `--lookup-max-t 12` (suffix-draft window) | edit +8.8% +-6.8, quality PASS | T-126, T-127 |
+| `--lookup-max-t 12` (suffix-draft window; optional, out of the preset since 2026-11-21) | edit +8.8% +-6.8, quality PASS | T-126, T-127, T-1020 |
 | `STRATA_POOL_FUSE_PHASES` (one CPU pool phase per layer) | edit +2.5% +-1.7 | T-224 |
 | `STRATA_EXPDEC_DOWN` (Q2_0 down rows on the EXPDEC kernel) | short +1.7% +-0.5 | T-037, T-040 |
 
@@ -703,7 +703,7 @@ The preset set in `configs/pancake/` (one JSON per model, quant, speed level, an
 | `flashnext-iq2_xs-fast` | Flash-Next IQ2_XS | CUDA | fast |
 | `retired/flashnext-iq2_xs-turbo` | Flash-Next IQ2_XS | CUDA | retired 2026-11-15 |
 | `retired/flashnext-iq2_xs-hip` | Flash-Next IQ2_XS | HIP | retired 2026-11-15 |
-| `flashnext-iq2_xs-fast-hip` | Flash-Next IQ2_XS | HIP | fast, the one daily preset (ECAP=1 + cache 2048/8192; edit 147.6 tok/s, T-560) |
+| `flashnext-iq2_xs-fast-hip` | Flash-Next IQ2_XS | HIP | fast, the one daily preset (ECAP=1 + cache 2048/8192; edit 147.6 tok/s, T-560; since 2026-11-21 without `--adapt-every`, `--lookup-max-t`, `STRATA_PIN_BY_NEED`: optional, T-1020) |
 | `retired/flashnext-iq2_xs-turbo-hip` | Flash-Next IQ2_XS | HIP | retired 2026-11-15 (lossy; no significant gain, T-245, T-387) |
 | `flashnext-iq2_xs-rdna3test` | Flash-Next IQ2_XS | HIP | RDNA3 kernel test bench |
 | `flashnext-q2_0` | Flash-Next Q2_0 | CUDA | exact |
