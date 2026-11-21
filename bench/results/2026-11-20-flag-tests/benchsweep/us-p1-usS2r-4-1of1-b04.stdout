@@ -17,3 +17,14 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.47 37.7 s (0.9
 rep 0 plus-PREFILL_HELP    short 108.3 short 103.0 edit 161.1 edit 183.4 longdec64k 78.5/2180p 65240t  foreign CPU 3% [('kcompactd0', 4), ('kswapd0', 2), ('kworker/12:1-events', 1)]  gpu 2045/1249 MHz 63C 186W gtt 25M cpu 3638MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-PREFILL_HELP: every attempt noisy, keeping the quietest (3% foreign CPU)
 STARTDIAG 2026-11-21T08:44:07 prev_run_s=114 gap_s=119 rd_sect=151468991232 wr_sect=110768568 io_ticks_ms=117389414 d_rd_sect=100229112 d_wr_sect=96 d_io_ticks_ms=47387 cached_kb=16471116 mlocked_kb=64 memavail_kb=58104692 nvme_temp_c=52 compact_stall_d=8
+STARTLOAD 2026-11-21T08:44:53 loaded 33.02 GiB at 1.14 GiB/s rate=1.14
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 32.2 s (1.13 GiB/s; stopped; waited 12.1 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 100.7 short 100.5 edit 168.0 edit 179.7 longdec64k 79.1/2168p 65240t  foreign CPU 5% [('kcompactd0', 6), ('kworker/5:0-events', 3), ('kworker/2:2-events', 2)]  gpu 1848/1249 MHz 63C 181W gtt 25M cpu 3511MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T08:45:55 prev_run_s=103 gap_s=108 rd_sect=151546470304 wr_sect=110768632 io_ticks_ms=117429786 d_rd_sect=77479072 d_wr_sect=64 d_io_ticks_ms=40372 cached_kb=15085828 mlocked_kb=64 memavail_kb=58119524 nvme_temp_c=51 compact_stall_d=8
+STARTLOAD 2026-11-21T08:46:46 loaded 33.02 GiB at 0.98 GiB/s rate=0.98
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 23.70 38.1 s (0.62 GiB/s; stopped; waited 11.5 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-PREFILL_HOST_PLAN short 101.6 short 84.5 edit 178.8 edit 182.0 longdec64k 77.9/1563p 65240t  foreign CPU 4% [('kcompactd0', 6), ('kworker/3:2-mm_percpu_wq', 3), ('kswapd0', 3)]  gpu 1944/1249 MHz 63C 184W gtt 25M cpu 3637MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-PREFILL_HOST_PLAN: every attempt noisy, keeping the quietest (4% foreign CPU)
+STARTDIAG 2026-11-21T08:48:09 prev_run_s=129 gap_s=134 rd_sect=151640029912 wr_sect=110768744 io_ticks_ms=117503075 d_rd_sect=93559608 d_wr_sect=112 d_io_ticks_ms=73289 cached_kb=15630396 mlocked_kb=64 memavail_kb=58123024 nvme_temp_c=55 compact_stall_d=12
