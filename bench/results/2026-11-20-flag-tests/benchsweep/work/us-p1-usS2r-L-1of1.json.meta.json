@@ -1,0 +1,267 @@
+{
+ "branch": "us",
+ "slice": "usS2r-L-1of1",
+ "flags": {
+  "minus-SELECT_WMMA": {
+   "flag": "STRATA_SELECT_WMMA",
+   "kind": "minus",
+   "keys": [
+    "STRATA_SELECT_WMMA"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_SELECT_WMMA": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-GR_RDNA_Q8": {
+   "flag": "STRATA_GR_RDNA_Q8",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GR_RDNA_Q8"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GR_RDNA_Q8": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "minus-GR_INJ_UP": {
+   "flag": "STRATA_GR_INJ_UP",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GR_INJ_UP"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GR_INJ_UP": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm"
+  },
+  "plus-AMD_COMMUNITY_TUNING": {
+   "flag": "STRATA_AMD_COMMUNITY_TUNING",
+   "kind": "plus",
+   "keys": [
+    "STRATA_AMD_COMMUNITY_TUNING"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_AMD_COMMUNITY_TUNING": "0"
+   },
+   "args": {},
+   "why": "ported / named switch not in the updated arm; no gfx1100 ledger row, no box verdict",
+   "source": "owner list 2026-11-20 + branch code"
+  },
+  "minus-GR_RDNA": {
+   "flag": "STRATA_GR_RDNA",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GR_RDNA"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GR_RDNA": "1"
+   },
+   "args": {},
+   "why": "core preset flag: pass-1 minus-arm gain, confirm it individually",
+   "source": "owner list (stage 1: the named retest flags that are not in the untested registry)"
+  },
+  "plus-ADAPT_NOWAIT": {
+   "flag": "STRATA_ADAPT_NOWAIT",
+   "kind": "plus",
+   "keys": [
+    "STRATA_ADAPT_NOWAIT"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_ADAPT_NOWAIT": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-ATTN_LANECELL": {
+   "flag": "STRATA_ATTN_LANECELL",
+   "kind": "plus",
+   "keys": [
+    "STRATA_ATTN_LANECELL"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_ATTN_LANECELL": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-GDN_TC": {
+   "flag": "STRATA_GDN_TC",
+   "kind": "plus",
+   "keys": [
+    "STRATA_GDN_TC"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GDN_TC": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class KeyIfSet: tensor-core GDN scan (opt-in)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MTP_CATCHUP_ALL": {
+   "flag": "STRATA_MTP_CATCHUP_ALL",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MTP_CATCHUP_ALL"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MTP_CATCHUP_ALL": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MTP_FULL_HEAD": {
+   "flag": "STRATA_MTP_FULL_HEAD",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MTP_FULL_HEAD"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MTP_FULL_HEAD": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-MTP_TOP2": {
+   "flag": "STRATA_MTP_TOP2",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MTP_TOP2"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MTP_TOP2": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-PREFILL_HOST_PLAN": {
+   "flag": "STRATA_PREFILL_HOST_PLAN",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PREFILL_HOST_PLAN"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PREFILL_HOST_PLAN": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: chunk shape (generate.cpp:10454: only the chunk shape, i.e. rounding)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-PREFILL_LM_EVEN": {
+   "flag": "STRATA_PREFILL_LM_EVEN",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PREFILL_LM_EVEN"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PREFILL_LM_EVEN": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: even vs largest-that-fits super-chunks: changes the super-chunk geometry (like N); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-VERIFY_ASYNC_LAUNCH": {
+   "flag": "STRATA_VERIFY_ASYNC_LAUNCH",
+   "kind": "plus",
+   "keys": [
+    "STRATA_VERIFY_ASYNC_LAUNCH"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_VERIFY_ASYNC_LAUNCH": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  },
+  "plus-VERIFY_COHERENT": {
+   "flag": "STRATA_VERIFY_COHERENT",
+   "kind": "plus",
+   "keys": [
+    "STRATA_VERIFY_COHERENT"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_VERIFY_COHERENT": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code"
+  }
+ },
+ "protected": {
+  "STRATA_VERIFY_ECAP": [
+   "edit"
+  ],
+  "STRATA_RDNA_Q6K": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_GR_RDNA": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_RDNA_MMVQ_WAVE": [
+   "short",
+   "edit",
+   "longdec32k"
+  ]
+ },
+ "measured": {
+  "STRATA_PF_HC_REGION": "ledger T-800",
+  "STRATA_HC_Q8": "ledger T-012",
+  "STRATA_PREFILL_CPU_SHARE": "ledger T-827",
+  "STRATA_HIP_WMMA": "ledger T-072",
+  "STRATA_PREFILL_AUTO_MAX": "ledger T-106, T-614",
+  "STRATA_PF_FUSED": "ledger T-803",
+  "GPU_MAX_HW_QUEUES": "ledger T-010",
+  "STRATA_GDN_PP": "ledger T-474, T-527, T-642, T-921",
+  "STRATA_PA_FAST": "ledger T-768",
+  "STRATA_PF_F16": "diag rerun 2026-11-19 (plain build) NO-GAIN",
+  "STRATA_PREFILL_RING": "ledger T-920",
+  "STRATA_ADAPT_OVERLAP": "ledger T-845",
+  "STRATA_HIPBLASLT_TUNING": "diag rerun 2026-11-19 (plain build)",
+  "STRATA_RDNA_MMVQ_WAVE": "diag rerun 2026-11-19",
+  "STRATA_GR_RDNA": "diag rerun 2026-11-19",
+  "STRATA_RDNA_Q6K": "diag rerun 2026-11-19 (UNSUPPORTED, text; owner: invalid, kept)",
+  "STRATA_VERIFY_ECAP": "diag rerun 2026-11-19 NO-GAIN short; spec 222 updated vs updated-exact",
+  "STRATA_COMBINE_CPU": "diag rerun 2026-11-19",
+  "STRATA_WAIT_FUSE": "diag rerun 2026-11-19 (with COMBINE_CPU)",
+  "STRATA_ROUTE_PUBLISH": "ledger T-009, T-549, T-839",
+  "STRATA_POOL_FUSE_PHASES": "ledger T-224",
+  "STRATA_EXPDEC_DOWN": "ledger T-037, T-040, T-222",
+  "--adapt-swaps": "ledger T-248, T-827",
+  "--pcie-frac": "ledger T-197, T-268, T-605, T-640 (+1)",
+  "--lookup-max-t": "ledger T-116, T-126, T-127, T-561",
+  "--conversation-cache-mib": "ledger T-690",
+  "STRATA_DENSE_MMQ": "ledger T-615"
+ },
+ "design": "blocked",
+ "block_size": 4
+}
