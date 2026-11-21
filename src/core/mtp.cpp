@@ -2,6 +2,7 @@
 #include "strata/core/mtp.hpp"
 #include "strata/core/mtp_head_host.hpp"   // STRATA_MTP_HEAD_HOST (LEADS.md Part S row S13)
 #include "strata/core/pin_budget.hpp"
+#include "strata/core/mtp_kv_policy.hpp"
 #include "strata/kernels/qsa_prompt_attn.hpp"
 #include "strata/core/coupled_draft.hpp"
 #include "strata/core/spec_prob.hpp"
@@ -511,8 +512,17 @@ bool MtpDrafter::load(const std::string& rt_dir, const ModelGeometry& g, Session
     // only, whatever ring shape it takes (0, a window, or the -1 fully-resident fallback).
     const bool kv_hybrid_was = qsa_kv_hybrid();
     const bool kv_int8_was = qsa_kv_int8();
-    qsa_set_kv_hybrid(false);
-    if (kv_hybrid_was) qsa_set_kv_int8(true);   // the drafter under --kv k8v4: plain INT8
+    // STRATA_MTP_KV_FP16 (LEADS.md Part Q5, include/strata/core/mtp_kv_policy.hpp): off, this is the rule below as it
+    // always was (plain INT8 under --kv k8v4); on, the drafter's K/V is FP16 beside an INT8 / K8V4 main
+    const MtpKvPlan kv_plan = mtp_kv_plan(mtp_kv_fp16_on(), kv_int8_was, kv_hybrid_was, qsa_kv_q4());
+    qsa_set_kv_hybrid(kv_plan.hybrid);
+    if (kv_plan.int8 != kv_int8_was) qsa_set_kv_int8(kv_plan.int8);   // the drafter under --kv k8v4: plain INT8
+    static bool kv_fp16_said = false;
+    if (mtp_kv_fp16_on() && !kv_plan.int8 && (kv_int8_was || kv_hybrid_was) && !kv_fp16_said) {
+        kv_fp16_said = true;
+        std::fprintf(stderr, "strata mtp: STRATA_MTP_KV_FP16=1: the draft layer's K/V is FP16 beside the main model's %s\n",
+                     kv_hybrid_was ? "K8V4" : "INT8");
+    }
     uint64_t sb = qsa_state_bytes(g, max_cells, false, ring);
     if (cudaMalloc(&state_arena_, sb) != cudaSuccess) { err = "mtp: the K/V state does not fit"; return false; }
     if (qsa_state_init(g, max_cells, state_arena_, st_, &ss.qsa_states[ss.qsa_primary()], ring) == 0) {

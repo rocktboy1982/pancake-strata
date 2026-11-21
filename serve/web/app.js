@@ -1307,6 +1307,7 @@ async function generateReply() {
   saveChat();
   scrollDown();
   settlePending(cut, !m.stopped && !m.error);
+  if (prefillWaiting && prefillOn()) prefillSchedule(300);          // STRATA_PREFILL_TYPING: the draft typed during the answer
 }
 
 $("composer").onsubmit = (e) => { e.preventDefault(); send(); };
@@ -1316,6 +1317,37 @@ $("input").addEventListener("keydown", (e) => {
 });
 function autosize() { const t = $("input"); t.style.height = "auto"; t.style.height = `${Math.min(t.scrollHeight, innerHeight * 0.4)}px`; }
 $("input").addEventListener("input", autosize);
+
+// STRATA_PREFILL_TYPING (LEADS.md Part Q1; the server says so in /health as prefill_typing, and without it none of this runs):
+// the draft in the message box is read ahead.  After a 1.2 s typing pause, or at once for a paste, the chat so far plus the
+// draft goes to v1/prefill; the server reads its stable part, so the send that follows reads only the rest.  A draft typed
+// while an answer is written is sent when the answer ends.  Pictures and files are not warmed.
+let prefillTimer = 0, prefillSent = "", prefillCtl = null, prefillWaiting = false;
+function prefillOn() { return !!(health && health.prefill_typing); }
+function prefillSchedule(delay) {
+  if (!prefillOn()) return;
+  clearTimeout(prefillTimer);
+  prefillTimer = setTimeout(prefillWarm, delay);
+}
+async function prefillWarm() {
+  if (!prefillOn()) return;
+  if (busy || panel) { prefillWaiting = true; return; }              // an answer is being written: after it
+  prefillWaiting = false;
+  const text = $("input").value.trim();
+  if (!text || text === prefillSent || attachments.length) return;
+  prefillSent = text;
+  if (prefillCtl) prefillCtl.abort();                               // a newer draft replaces the one still on its way
+  const ctl = prefillCtl = new AbortController();
+  const body = {model: health.model, messages: [...apiMessages(), {role: "user", content: text}], strata_prefill: true,
+                reasoning_effort: settings.thinking};
+  if (settings.mcp !== false && mcpInfo.tools > 0) body.strata_mcp = true;   // as the real request, or the prompt differs
+  try {
+    await fetch("v1/prefill", {method: "POST", headers: headers(true), body: JSON.stringify(body), signal: ctl.signal});
+  } catch (e) { /* aborted or the server is busy: the real request just reads everything */ }
+  if (prefillCtl === ctl) prefillCtl = null;
+}
+$("input").addEventListener("input", () => prefillSchedule(1200));
+$("input").addEventListener("paste", () => prefillSchedule(50));
 
 // one chat, as before: New chat clears it, with an Undo (with the saved-chats list on, its own New chat button does this job)
 $("new-btn").onclick = () => {
