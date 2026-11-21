@@ -2451,6 +2451,10 @@ if(STRATA_BUILD_TESTS)
   add_executable(kept_count_test tests/program/kept_count_test.cpp)
   target_include_directories(kept_count_test PRIVATE include)
   add_test(NAME kept_count_test COMMAND kept_count_test)
+  # LEADS.md Part Q3: STRATA_MTP_SLOTS, the host map + CLOCK policy of the MTP drafter's expert slots and the acceptance proxy (header-only, no GPU)
+  add_executable(mtp_slots_test tests/core/mtp_slots_test.cpp)
+  target_include_directories(mtp_slots_test PRIVATE include)
+  add_test(NAME mtp_slots_test COMMAND mtp_slots_test)
   add_executable(head_shortlist_test src/program/head_shortlist_test.cpp)   # MOD_PLAN.md section 6 item 38: STRATA_HEAD_SHORTLIST
   target_include_directories(head_shortlist_test PRIVATE include)
   add_test(NAME head_shortlist_test COMMAND head_shortlist_test)
@@ -4136,7 +4140,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     knob_trial_test
     ckpt_async_plan_test
     ckpt_stride_test
-    swap_budget_paired_test swap_grace_test kept_count_test
+    swap_budget_paired_test swap_grace_test kept_count_test mtp_slots_test
     ple_warm_test
     free_settle_test
     copy_lane_test
