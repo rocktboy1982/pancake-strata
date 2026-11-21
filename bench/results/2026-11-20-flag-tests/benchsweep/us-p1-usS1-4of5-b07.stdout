@@ -37,3 +37,53 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 28.62 38.5 s (0.7
 rep 0 plus-PREFILL_HELP    short 102.5 short 100.1 edit 163.2 edit 175.8 longdec64k 85.1/2187p 65242t  foreign CPU 4% [('kcompactd0', 5), ('kworker/0:3-events', 2), ('kworker/5:2-mm_percpu_wq', 2)]  gpu 1954/1249 MHz 63C 188W gtt 25M cpu 3651MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-PREFILL_HELP: every attempt noisy, keeping the quietest (4% foreign CPU)
 STARTDIAG 2026-11-21T06:38:13 prev_run_s=108 gap_s=113 rd_sect=147532500000 wr_sect=110764216 io_ticks_ms=114396002 d_rd_sect=105940696 d_wr_sect=32 d_io_ticks_ms=49864 cached_kb=16141348 mlocked_kb=64 memavail_kb=58043596 nvme_temp_c=52 compact_stall_d=7
+STARTLOAD 2026-11-21T06:39:02 loaded 33.02 GiB at 1.04 GiB/s rate=1.04
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.31 35.5 s (1.02 GiB/s; stopped; waited 11.8 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 101.5 short 100.5 edit 163.2 edit 175.2 longdec64k 84.2/2180p 65242t  foreign CPU 5% [('kcompactd0', 8), ('kworker/1:2-mm_percpu_wq', 4), ('claude', 1)]  gpu 1955/1249 MHz 63C 189W gtt 25M cpu 3555MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.2 +-  43.8  (n=2)
+                              drafts accepted 0.71
+  short  plus-PREFILL_EQUAL       85.0 +-  13.3  (n=2)   vs updated: -20.7% +- 28.5%  -> no difference
+                              drafts accepted 0.70
+  short  plus-PREFILL_HOST_PLAN    106.4 +-  15.3  (n=2)   vs updated:  -0.7% +- 26.7%  -> no difference
+                              drafts accepted 0.69
+  short  base-m1                 104.8 +-  21.0  (n=2)   vs updated:  -2.2% +- 21.4%  -> no difference
+                              drafts accepted 0.70
+  short  plus-PREFILL_HELP       101.3 +-  15.3  (n=2)   vs updated:  -5.5% +- 26.7%  -> no difference
+                              drafts accepted 0.67
+  short  base-late               101.0 +-   6.4  (n=2)   vs updated:  -5.7% +- 35.0%  -> no difference
+                              drafts accepted 0.67
+  edit   updated                 168.8 +-  21.0  (n=2)
+                              drafts accepted 0.90
+  edit   plus-PREFILL_EQUAL      121.3 +- 204.6  (n=2)   vs updated: -28.1% +- 108.8%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-PREFILL_HOST_PLAN    164.8 +-  76.3  (n=2)   vs updated:  -2.3% +- 32.8%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 173.2 +- 132.8  (n=2)   vs updated:  +2.7% +- 66.3%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-PREFILL_HELP       169.5 +-  80.1  (n=2)   vs updated:  +0.4% +- 35.0%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               169.2 +-  76.3  (n=2)   vs updated:  +0.3% +- 32.8%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  77.4 +-   nan  (n=1)
+  longdec64k plus-PREFILL_EQUAL       74.3 +-   nan  (n=1)   vs updated:  -4.0% +-  nan%  -> no difference
+  longdec64k plus-PREFILL_HOST_PLAN     83.5 +-   nan  (n=1)   vs updated:  +7.9% +-  nan%  -> no difference
+  longdec64k base-m1                  80.0 +-   nan  (n=1)   vs updated:  +3.4% +-  nan%  -> no difference
+  longdec64k plus-PREFILL_HELP        85.1 +-   nan  (n=1)   vs updated:  +9.9% +-  nan%  -> no difference
+  longdec64k base-late                84.2 +-   nan  (n=1)   vs updated:  +8.8% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-PREFILL_EQUAL   DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-PREFILL_HOST_PLAN DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-PREFILL_HELP    DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -5.7%  edit +0.3%  longdec64k +8.8%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-PREFILL_EQUAL   short -18.4%  edit -28.2%  longdec64k -8.0%  -> drop
+  plus-PREFILL_HOST_PLAN short +2.2%  edit -2.5%  longdec64k +3.3%  -> PROMOTE to confirm
+  base-m1              short +0.6%  edit +2.5%  longdec64k -1.0%  -> PROMOTE to confirm
+  plus-PREFILL_HELP    short -2.7%  edit +0.3%  longdec64k +5.3%  -> PROMOTE to confirm

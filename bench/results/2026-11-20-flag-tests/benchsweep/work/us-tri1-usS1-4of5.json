@@ -1,0 +1,1040 @@
+{
+ "schema": "pancake.sweep-triage/2",
+ "branch": "us",
+ "slices": [
+  "usS1-4of5"
+ ],
+ "protected": {
+  "STRATA_VERIFY_ECAP": [
+   "edit"
+  ],
+  "STRATA_RDNA_Q6K": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_GR_RDNA": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_RDNA_MMVQ_WAVE": [
+   "short",
+   "edit",
+   "longdec32k"
+  ]
+ },
+ "drift_max": 5.0,
+ "flags": {
+  "STRATA_MMVQ_IL_T1": {
+   "flag": "STRATA_MMVQ_IL_T1",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MMVQ_IL_T1"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_MMVQ_IL_T1": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: IL kernel for one token); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-MMVQ_IL_T1",
+   "slice": "usS1-4of5",
+   "pass1": {},
+   "promising": false,
+   "pass2": null,
+   "block": null,
+   "drift1": {},
+   "clean1": false,
+   "blocks_run": [],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "UNTESTED",
+   "reason": "no pass-1 rows for this arm"
+  },
+  "STRATA_MMVQ_IL_WIDE": {
+   "flag": "STRATA_MMVQ_IL_WIDE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MMVQ_IL_WIDE"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_MMVQ_IL_WIDE": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: wide IL kernels); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-MMVQ_IL_WIDE",
+   "slice": "usS1-4of5",
+   "pass1": {},
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b01",
+   "drift1": {},
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "UNTESTED",
+   "reason": "no pass-1 rows for this arm"
+  },
+  "STRATA_MMVQ_WAVE": {
+   "flag": "STRATA_MMVQ_WAVE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MMVQ_WAVE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MMVQ_WAVE": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-MMVQ_WAVE",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": 0.93,
+    "edit": 1.11,
+    "longdec64k": -3.34,
+    "longdec64k-prompt": 0.02
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b01",
+   "drift1": {
+    "short": -3.09,
+    "edit": 8.03,
+    "longdec64k": -0.85
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-4of5-b01 base drift edit +8.0 % > 5 % (after its re-run): no verdict"
+  },
+  "STRATA_MTP_CATCHUP_ALL": {
+   "flag": "STRATA_MTP_CATCHUP_ALL",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MTP_CATCHUP_ALL"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MTP_CATCHUP_ALL": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-MTP_CATCHUP_ALL",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -3.66,
+    "edit": -23.01,
+    "longdec64k": -8.67,
+    "longdec64k-prompt": -28.35
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b01",
+   "drift1": {
+    "short": -3.09,
+    "edit": 8.03,
+    "longdec64k": -0.85
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-4of5-b01 base drift edit +8.0 % > 5 % (after its re-run): no verdict"
+  },
+  "STRATA_MTP_FULL_HEAD": {
+   "flag": "STRATA_MTP_FULL_HEAD",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MTP_FULL_HEAD"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MTP_FULL_HEAD": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-MTP_FULL_HEAD",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -4.05,
+    "edit": -8.38,
+    "longdec64k": -0.92,
+    "longdec64k-prompt": -0.03
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b02",
+   "drift1": {
+    "short": -0.48,
+    "edit": 7.83,
+    "longdec64k": -12.77
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-4of5-b02 base drift longdec64k -12.8 % > 5 % (after its re-run): no verdict"
+  },
+  "STRATA_MTP_TOP2": {
+   "flag": "STRATA_MTP_TOP2",
+   "kind": "plus",
+   "keys": [
+    "STRATA_MTP_TOP2"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_MTP_TOP2": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-MTP_TOP2",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": 2.87,
+    "edit": 0.85,
+    "longdec64k": -3.0,
+    "longdec64k-prompt": 0.39
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b02",
+   "drift1": {
+    "short": -0.38,
+    "edit": -0.12,
+    "longdec64k": 0.7
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-4of5-b02): a case >= +2.0 % (best +2.87 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_NORM_ROPE": {
+   "flag": "STRATA_NORM_ROPE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_NORM_ROPE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_NORM_ROPE": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-NORM_ROPE",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": 1.51,
+    "edit": 3.24,
+    "longdec64k": -7.04,
+    "longdec64k-prompt": 0.25
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b02",
+   "drift1": {
+    "short": -0.38,
+    "edit": -0.12,
+    "longdec64k": 0.7
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k -7.0 %): reported, the confirm decides",
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-4of5-b02): a case >= +2.0 % (best +3.24 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_NO_MMVQ_ROWS2": {
+   "flag": "STRATA_NO_MMVQ_ROWS2",
+   "kind": "plus",
+   "keys": [
+    "STRATA_NO_MMVQ_ROWS2"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_NO_MMVQ_ROWS2": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: rows-2 MMVQ layout off); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-NO_MMVQ_ROWS2",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -34.55,
+    "edit": -26.4,
+    "longdec64k": -0.43,
+    "longdec64k-prompt": -26.51
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b02",
+   "drift1": {
+    "short": -0.48,
+    "edit": 7.83,
+    "longdec64k": -12.77
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-4of5-b02 base drift longdec64k -12.8 % > 5 % (after its re-run): no verdict"
+  },
+  "STRATA_NO_MULTI_GR": {
+   "flag": "STRATA_NO_MULTI_GR",
+   "kind": "plus",
+   "keys": [
+    "STRATA_NO_MULTI_GR"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_NO_MULTI_GR": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-NO_MULTI_GR",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -0.94,
+    "edit": -1.41,
+    "longdec64k": 4.11,
+    "longdec64k-prompt": -0.03
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b03",
+   "drift1": {
+    "short": -0.4,
+    "edit": 2.9,
+    "longdec64k": -2.24
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-4of5-b03): a case >= +2.0 % (best +4.11 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_NO_SUB16_GU": {
+   "flag": "STRATA_NO_SUB16_GU",
+   "kind": "plus",
+   "keys": [
+    "STRATA_NO_SUB16_GU"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_NO_SUB16_GU": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-NO_SUB16_GU",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": 4.97,
+    "edit": -1.53,
+    "longdec64k": 1.97,
+    "longdec64k-prompt": 0.43
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b03",
+   "drift1": {
+    "short": -0.4,
+    "edit": 2.9,
+    "longdec64k": -2.24
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-4of5-b03): a case >= +2.0 % (best +4.97 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_OLD_IQ_MMVQ": {
+   "flag": "STRATA_OLD_IQ_MMVQ",
+   "kind": "plus",
+   "keys": [
+    "STRATA_OLD_IQ_MMVQ"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_OLD_IQ_MMVQ": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-OLD_IQ_MMVQ",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -22.38,
+    "edit": -23.28,
+    "longdec64k": -8.27,
+    "longdec64k-prompt": -26.54
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b03",
+   "drift1": {
+    "short": -3.28,
+    "edit": 4.15,
+    "longdec64k": -2.3
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "NO-GAIN-P1",
+   "reason": "dropped after pass 1: no benefit observed (bar 1.0 %; clean block us-p1-usS1-4of5-b03; n=1, not a refutation): no shipped change"
+  },
+  "STRATA_OLD_Q80_SCALED": {
+   "flag": "STRATA_OLD_Q80_SCALED",
+   "kind": "plus",
+   "keys": [
+    "STRATA_OLD_Q80_SCALED"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_OLD_Q80_SCALED": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: old Q8_0 scaled activation quantizer); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-OLD_Q80_SCALED",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": 3.62,
+    "edit": 0.1,
+    "longdec64k": -4.07,
+    "longdec64k-prompt": 0.37
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b03",
+   "drift1": {
+    "short": -3.28,
+    "edit": 4.15,
+    "longdec64k": -2.3
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k -4.1 %): reported, the confirm decides",
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-4of5-b03): a case >= +2.0 % (best +3.62 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_PA_RPF": {
+   "flag": "STRATA_PA_RPF",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PA_RPF"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PA_RPF": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-PA_RPF",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -1.78,
+    "edit": -0.38,
+    "longdec64k": -0.6,
+    "longdec64k-prompt": -0.09
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b04",
+   "drift1": {
+    "short": 0.1,
+    "edit": -0.64,
+    "longdec64k": 0.0
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "NO-GAIN-P1",
+   "reason": "dropped after pass 1: no benefit observed (bar 1.0 %; clean block us-p1-usS1-4of5-b04; n=1, not a refutation): no shipped change"
+  },
+  "STRATA_PA_TRIM": {
+   "flag": "STRATA_PA_TRIM",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PA_TRIM"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PA_TRIM": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-PA_TRIM",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -5.37,
+    "edit": 0.12,
+    "longdec64k": 0.36,
+    "longdec64k-prompt": -22.17
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b04",
+   "drift1": {
+    "short": 0.1,
+    "edit": -0.64,
+    "longdec64k": 0.0
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "PROMISING-LOW",
+   "reason": "run 1 (clean block us-p1-usS1-4of5-b04): best case +0.36 % (0 < gain < 2.0 %): LOW gain, not rescreened this round: backlog (us-backlog-low.json, run-1 numbers kept)"
+  },
+  "STRATA_PCIE_AUTO_CANON": {
+   "flag": "STRATA_PCIE_AUTO_CANON",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PCIE_AUTO_CANON"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PCIE_AUTO_CANON": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-PCIE_AUTO_CANON",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -5.2,
+    "edit": -3.48,
+    "longdec64k": -29.14,
+    "longdec64k-prompt": -28.31
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b04",
+   "drift1": {
+    "short": -0.68,
+    "edit": -0.06,
+    "longdec64k": 1.45
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "NO-GAIN-P1",
+   "reason": "dropped after pass 1: no benefit observed (bar 1.0 %; clean block us-p1-usS1-4of5-b04; n=1, not a refutation): no shipped change"
+  },
+  "STRATA_PF_BK64": {
+   "flag": "STRATA_PF_BK64",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PF_BK64"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PF_BK64": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-PF_BK64",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": 1.73,
+    "edit": 0.74,
+    "longdec64k": 8.63,
+    "longdec64k-prompt": -0.82
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b04",
+   "drift1": {
+    "short": -0.68,
+    "edit": -0.06,
+    "longdec64k": 1.45
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-4of5-b04): a case >= +2.0 % (best +8.63 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_PF_FUSED_F16": {
+   "flag": "STRATA_PF_FUSED_F16",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PF_FUSED_F16"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PF_FUSED_F16": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Key: F16 products in the fused prompt experts (rounding level)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-PF_FUSED_F16",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -1.01,
+    "edit": -0.78,
+    "longdec64k": 8.55,
+    "longdec64k-prompt": -0.68
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b05",
+   "drift1": {
+    "short": -0.48,
+    "edit": 7.83,
+    "longdec64k": -3.22
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b05"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-4of5-b05): a case >= +2.0 % (best +8.55 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_PF_FUSED_NATIVE": {
+   "flag": "STRATA_PF_FUSED_NATIVE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PF_FUSED_NATIVE"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PF_FUSED_NATIVE": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: native fused kernel); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-PF_FUSED_NATIVE",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -6.13,
+    "edit": 1.63,
+    "longdec64k": 4.15,
+    "longdec64k-prompt": -16.44
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b05",
+   "drift1": {
+    "short": -0.48,
+    "edit": 7.83,
+    "longdec64k": -3.22
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b05"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k-prompt -16.4 %): reported, the confirm decides",
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-4of5-b05): a case >= +2.0 % (best +4.15 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_PF_Q8D_F16": {
+   "flag": "STRATA_PF_Q8D_F16",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PF_Q8D_F16"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PF_Q8D_F16": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: F16 q8 down variant); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-PF_Q8D_F16",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": 1.0,
+    "edit": -1.52,
+    "longdec64k": 7.78,
+    "longdec64k-prompt": -0.02
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b05",
+   "drift1": {
+    "short": 0.29,
+    "edit": -7.21,
+    "longdec64k": 5.5
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b05"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-4of5-b05): a case >= +2.0 % (best +7.78 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_PF_WMMA2": {
+   "flag": "STRATA_PF_WMMA2",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PF_WMMA2"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PF_WMMA2": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: second WMMA expert kernel); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-PF_WMMA2",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -3.05,
+    "edit": 4.17,
+    "longdec64k": -41.7,
+    "longdec64k-prompt": -9.15
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b06",
+   "drift1": {
+    "short": -6.11,
+    "edit": 7.17,
+    "longdec64k": 3.87
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b06"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k -41.7 %): reported, the confirm decides",
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-4of5-b06): a case >= +2.0 % (best +4.17 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_PIPED_MTP": {
+   "flag": "STRATA_PIPED_MTP",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PIPED_MTP"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_PIPED_MTP": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: drafting/stop policy: the tokens change, the state of given tokens does not); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-PIPED_MTP",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -1.99,
+    "edit": -11.59,
+    "longdec64k": -26.64,
+    "longdec64k-prompt": -29.61
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b06",
+   "drift1": {
+    "short": -6.11,
+    "edit": 7.17,
+    "longdec64k": 3.87
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b06"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "NO-GAIN-P1",
+   "reason": "dropped after pass 1: no benefit observed (bar 1.0 %; clean block us-p1-usS1-4of5-b06; n=1, not a refutation): no shipped change"
+  },
+  "STRATA_POOL_UMWAIT_C02": {
+   "flag": "STRATA_POOL_UMWAIT_C02",
+   "kind": "plus",
+   "keys": [
+    "STRATA_POOL_UMWAIT_C02"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_POOL_UMWAIT_C02": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: cache/threads/park policy); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-POOL_UMWAIT_C02",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": 1.47,
+    "edit": 0.28,
+    "longdec64k": -0.12,
+    "longdec64k-prompt": 0.19
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b06",
+   "drift1": {
+    "short": 3.8,
+    "edit": -5.37,
+    "longdec64k": 1.2
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b06"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "PROMISING-LOW",
+   "reason": "run 1 (clean block us-p1-usS1-4of5-b06): best case +1.47 % (0 < gain < 2.0 %): LOW gain, not rescreened this round: backlog (us-backlog-low.json, run-1 numbers kept)"
+  },
+  "STRATA_PREFILL_EQUAL": {
+   "flag": "STRATA_PREFILL_EQUAL",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PREFILL_EQUAL"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PREFILL_EQUAL": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class KeyIfSet: equal-size chunks: changes rounding); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-PREFILL_EQUAL",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -19.82,
+    "edit": -29.06,
+    "longdec64k": -5.59,
+    "longdec64k-prompt": -19.1
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b07",
+   "drift1": {
+    "short": -0.58,
+    "edit": 7.81,
+    "longdec64k": 3.36
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b07"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-4of5-b07 base drift edit +7.8 % > 5 % (after its re-run): no verdict"
+  },
+  "STRATA_PREFILL_HELP": {
+   "flag": "STRATA_PREFILL_HELP",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PREFILL_HELP"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PREFILL_HELP": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class KeyIfSet: idle stage computes a share of streamed experts (not bit-identical)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-PREFILL_HELP",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": -1.53,
+    "edit": -1.01,
+    "longdec64k": 3.65,
+    "longdec64k-prompt": 0.54
+   },
+   "promising": true,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b07",
+   "drift1": {
+    "short": -2.52,
+    "edit": -4.63,
+    "longdec64k": 5.25
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b07"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": true,
+   "verdict": "PROMISING",
+   "reason": "stage-1 screen (n=1, clean block us-p1-usS1-4of5-b07): a case >= +2.0 % (best +3.65 %): HIGH gain, goes to the rescreen"
+  },
+  "STRATA_PREFILL_HOST_PLAN": {
+   "flag": "STRATA_PREFILL_HOST_PLAN",
+   "kind": "plus",
+   "keys": [
+    "STRATA_PREFILL_HOST_PLAN"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_PREFILL_HOST_PLAN": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: chunk shape (generate.cpp:10454: only the chunk shape, i.e. rounding)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": null,
+   "run1_best": null,
+   "arm": "plus-PREFILL_HOST_PLAN",
+   "slice": "usS1-4of5",
+   "pass1": {
+    "short": 0.42,
+    "edit": -3.63,
+    "longdec64k": 6.1,
+    "longdec64k-prompt": 12.24
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS1-4of5-b07",
+   "drift1": {
+    "short": -0.58,
+    "edit": 7.81,
+    "longdec64k": 3.36
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS1-4of5-b07"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k-prompt +12.2 %): reported, the confirm decides",
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS1-4of5-b07 base drift edit +7.8 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  }
+ }
+}
