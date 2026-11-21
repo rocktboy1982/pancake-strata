@@ -5,6 +5,7 @@
 #define STRATA_VERIFY_HGL 1
 #endif
 #include "strata/core/batch_rows.hpp"
+#include "strata/core/window_canary.hpp"
 #include "strata/core/sm75_series.hpp"
 #include "strata/core/sm120_series.hpp"
 #include "strata/core/defaults_026.hpp"
@@ -4845,6 +4846,8 @@ bool Verifier::capture_commit(std::string& err) {
 
 void Verifier::stage_inputs(int T, const int32_t* tokens, int64_t pos0) {
     using namespace strata::kernels;
+    if (strata::core::window_canary::enabled() && h_out_ != nullptr)   // STRATA_WINDOW_CANARY (debug, off): guard the output rows past this window
+        strata::core::window_canary::fill(h_out_, (size_t) T, (size_t) max_t_ + 4);
     const ModelGeometry& g = *g_;
     const QsaShapes s = shapes_of(g);
     int32_t* const pk = h_pos_ + (size_t) max_t_ * g.n_head;
@@ -5652,6 +5655,11 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
                 err = "verify: invalid proposal candidate or zero NULL residual";
                 return false;
             }
+    }
+    if (strata::core::window_canary::enabled() && h_out_ != nullptr) {   // STRATA_WINDOW_CANARY: the window is synchronised here; log only, never fails the window
+        const long bad = strata::core::window_canary::first_bad(h_out_, (size_t) T, (size_t) max_t_ + 4);
+        if (bad >= 0)
+            std::fprintf(stderr, "%s\n", strata::core::window_canary::describe("h_out_", T, (size_t) T, (size_t) max_t_ + 4, bad).c_str());
     }
     for (int t = 0; t < T; ++t) out[t] = ((volatile int32_t*) h_out_)[t];
     if (ecap_win && wpol_.on()) {   // STRATA_WINDOW_POLICY: the accepted drafts of this window (the matching prefix)

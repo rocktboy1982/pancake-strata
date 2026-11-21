@@ -2759,6 +2759,10 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   add_executable(draft_cap_test src/core/draft_cap_test.cpp)
   target_include_directories(draft_cap_test PRIVATE include)
   add_test(NAME draft_cap_test COMMAND draft_cap_test)
+  # STRATA_WINDOW_CANARY: the fill-and-check helpers of the capacity canary (header-only, CPU; LEADS.md Part U U9)
+  add_executable(window_canary_test src/core/window_canary_test.cpp)
+  target_include_directories(window_canary_test PRIVATE include)
+  add_test(NAME window_canary_test COMMAND window_canary_test)
   # STRATA_LIGHT_EXPERT_CPU's prior ranking (expert_tiers.hpp, tctien342/strata-x 5576b48144)
   add_executable(expert_tiers_test src/core/expert_tiers_test.cpp)
   target_include_directories(expert_tiers_test PRIVATE include)
@@ -4259,7 +4263,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     draft_vocab_test spec_start_test message_boundary_test fork_bugfix_rules_test moe_tile_rule_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_stat_policy_test tier_victim_test tier_spec_copy_test tier_protect_test head_shortlist_test head_gather_test tier_miss_budget_test expert_entropy_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test spec_block_test gdn_state_f16_test gdn_snap_blob_test spec_block_dev_test gated_proposal_test
-    spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test expert_tiers_test ngram_mod_test verify_ecap_test miss_budget_test fragile_recheck_test kv_ring_test
+    spec_admission_default spec_admission_pick spec_admission_top spec_admission_exact_top_only draft_cap_test window_canary_test expert_tiers_test ngram_mod_test verify_ecap_test miss_budget_test fragile_recheck_test kv_ring_test
     subfit_trace_test subfit_samples_test subfit_learn_test subfit_ladder_test subfit_apply_host_test subfit_fit_math_test
     bf16_bits_test batch_rows_test batch_groups_test dequant_q5_1_test native_arithmetic_parity
     native_arithmetic_parity_avx native_arithmetic_parity_kq256 native_arithmetic_parity_mt1
