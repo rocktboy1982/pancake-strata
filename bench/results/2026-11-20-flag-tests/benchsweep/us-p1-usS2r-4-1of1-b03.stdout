@@ -1,0 +1,13 @@
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+STARTDIAG 2026-11-21T08:13:18 prev_run_s=NA gap_s=NA rd_sect=150507031168 wr_sect=110767520 io_ticks_ms=116658048 d_rd_sect=NA d_wr_sect=NA d_io_ticks_ms=NA cached_kb=12929884 mlocked_kb=64 memavail_kb=58128152 nvme_temp_c=50 compact_stall_d=NA
+STARTLOAD 2026-11-21T08:14:11 loaded 33.02 GiB at 0.94 GiB/s rate=0.94
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 27.91 39.4 s (0.71 GiB/s; stopped; waited 11.9 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 109.8 short 102.9 edit 170.0 edit 171.1 longdec64k 82.9/2186p 65242t  foreign CPU 3% [('kcompactd0', 5), ('kswapd0', 2), ('claude', 1)]  gpu 2007/1249 MHz 63C 183W gtt 25M cpu 3592MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T08:15:16 prev_run_s=112 gap_s=118 rd_sect=150606919760 wr_sect=110767616 io_ticks_ms=116707723 d_rd_sect=99888592 d_wr_sect=96 d_io_ticks_ms=49675 cached_kb=16786648 mlocked_kb=64 memavail_kb=58138132 nvme_temp_c=52 compact_stall_d=7
+STARTLOAD 2026-11-21T08:16:04 loaded 33.02 GiB at 1.08 GiB/s rate=1.08
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.45 34.4 s (1.06 GiB/s; stopped; waited 11.9 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-PF_Q8D_F16      short 99.8 short 100.1 edit 162.6 edit 176.1 longdec64k 62.4/2046p 65242t  foreign CPU 5% [('kcompactd0', 6), ('kswapd0', 2), ('kworker/0:0-events_freezable', 2)]  gpu 2044/1249 MHz 63C 185W gtt 25M cpu 3744MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-PF_Q8D_F16: every attempt noisy, keeping the quietest (5% foreign CPU)
+STARTDIAG 2026-11-21T08:17:09 prev_run_s=109 gap_s=114 rd_sect=150683944080 wr_sect=110767728 io_ticks_ms=116760116 d_rd_sect=77024320 d_wr_sect=112 d_io_ticks_ms=52393 cached_kb=13652548 mlocked_kb=64 memavail_kb=58123944 nvme_temp_c=54 compact_stall_d=12
