@@ -221,6 +221,38 @@ inline std::string describe_equal_tail(int64_t tokens, int64_t cap, int64_t plai
     return b;
 }
 
+// ---- LEADS.md S9: no separate tail chunk (STRATA_PREFILL_NO_TAIL_CHUNK=1, default off) ----------------------------------
+//
+// A segment read as full chunks plus a short last chunk pays for that stub in full: a chunk of few rows still routes to a
+// large share of the experts (radiance: a 76-row tail read 77% of them, 0.65-0.75 s of 2.04 s; `--tail-anchor off` was
+// 1.42x on a W7900, their number, not ours).  The rule: when the last chunk is at most `tail_max` tokens, the segment is
+// read in one chunk fewer, each chunk a little larger (the tail folded into the others), as long as no chunk passes `cap`
+// (the chunk the buffers were laid out for).  Nothing here runs unless the switch is on.
+
+inline constexpr int64_t kNoTailMax = 1024;   ///< a last chunk of at most this many tokens is "a tail"
+
+/// True when STRATA_PREFILL_NO_TAIL_CHUNK is set as `on` (null: unset), read as STRATA_PREFILL_EQUAL reads its switch.
+inline bool no_tail_on_from(const char* on) { return on != nullptr && on[0] == '1'; }
+
+/// The chunk to read a segment of `tokens` in, given today's `chunk`, with the tail folded in, or 0 where the rule does not
+/// apply and the caller keeps `chunk`: the segment fits one chunk; its last chunk is longer than `tail_max`; the folded
+/// chunk (ceil(tokens / (n - 1)) rounded up to `align`) would pass `cap`; or the folded plan would end in a new stub
+/// (a last chunk of `tail_max` or less beside another chunk).  The same chunks for the same segment every time.
+inline int64_t no_tail_chunk(int64_t tokens, int64_t chunk, int64_t cap, int64_t tail_max = kNoTailMax, int64_t align = 256) {
+    if (tokens <= 0 || chunk <= 0 || cap <= 0 || tail_max < 1 || align < 1 || tokens > INT64_MAX / 2) return 0;
+    const int64_t n = tokens / chunk + (tokens % chunk != 0);
+    if (n < 2) return 0;
+    const int64_t last = tokens - (n - 1) * chunk;
+    if (last > tail_max) return 0;
+    const int64_t per = tokens / (n - 1) + (tokens % (n - 1) != 0);
+    const int64_t c = (per + align - 1) / align * align;
+    if (c > cap || c <= chunk) return 0;
+    const int64_t n2 = tokens / c + (tokens % c != 0);
+    const int64_t last2 = tokens - (n2 - 1) * c;
+    if (n2 >= 2 && last2 <= tail_max) return 0;
+    return c;
+}
+
 /// One log line: what was chosen, why, and the reads it expects per prompt.
 inline std::string describe(const Pick& p, const Host& h, int64_t tokens) {
     char b[768];

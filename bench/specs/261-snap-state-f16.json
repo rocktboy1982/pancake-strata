@@ -1,0 +1,29 @@
+{
+ "drift_check": false,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "cases": [
+  "short",
+  "edit",
+  "long3k"
+ ],
+ "reps": 3,
+ "arms": {
+  "base": {},
+  "plus-snap-f16": {
+   "env": {
+    "STRATA_SNAP_STATE_F16": "1"
+   }
+  }
+ },
+ "note": "LEADS.md S6 (radiance RADIANCE_GDN_STATE_F16: KL +0.9..+1.1%, their number) reduced to the snapshot, coded on lead/S6-S9-S12, NOT RUN. STRATA_SNAP_STATE_F16=1: a restored checkpoint's recurrent state is read through FP16 rounding (include/strata/core/gdn_state_f16.hpp, host test gdn_state_f16_test: relative error <= 2^-11 per value); the stored size is NOT halved yet (checkpoint bytes, disk image and VRAM slots keep FP32 size), so this spec measures the QUALITY and the restore cost of the numbers an FP16 store would give, not the size saving. A one-shot abtest case never restores a checkpoint, so the abtest part is only a no-regression check; the part that matters is the returning conversation: python3 tools/pancake/replay_turns.py bench/specs/261-snap-state-f16.json --out bench/results/<day>-261-snap-state-f16 (the 2026-11-09 agent session of spec 128, same replay block), then python3 tools/pancake/quality_gate.py on the plus-snap-f16 arm (token forcing after a restore) and tools/pancake/task_gate.py. Snapshot size to take with it: the engine log's park / restore lines with STRATA_TRACE=1 and tools/pancake/state_cost.py on the base arm (MOD_PLAN.md section 6: about 111-118 MiB per GDN state; half of that is the saving a compact store would give). STRATA_PARK_VRAM_MIB must stay unset: with the switch on a VRAM-slot restore takes the host copy instead. Stop pancake.service first. NOT run on the busy flag-screen box.",
+ "replay": {
+  "session": "2026-11-09T16:13/2026-11-09T16:43",
+  "turns": "/home/dan/clone-of-d/src/Strata/pancake-turns.jsonl",
+  "arms": [
+   "base",
+   "plus-snap-f16"
+  ],
+  "reps": 2
+ }
+}
