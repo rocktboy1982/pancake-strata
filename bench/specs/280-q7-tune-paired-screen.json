@@ -1,0 +1,34 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "drift_check": true,
+  "prefill": true,
+  "cases": [
+    "short",
+    "edit",
+    "longdec32k",
+    "longdec64k"
+  ],
+  "reps": 1,
+  "arms": {
+    "base": {},
+    "plus-swaps-auto": {
+      "env": {
+        "STRATA_ADAPT_SWAPS_AUTO": "1"
+      }
+    },
+    "plus-swaps-auto-paired": {
+      "env": {
+        "STRATA_ADAPT_SWAPS_AUTO": "1",
+        "STRATA_TUNE_PAIRED": "1"
+      }
+    },
+    "plus-swaps-auto-paired-p2": {
+      "env": {
+        "STRATA_ADAPT_SWAPS_AUTO": "1",
+        "STRATA_TUNE_PAIRED": "1",
+        "STRATA_TUNE_PAIRED_PERIOD": "2"
+      }
+    }
+  },
+  "note": "LEADS.md Part Q7 (Strata-HotRod paired_test.hpp + docs/SPEC-tuner-paired-test.md, MIT), coded on lead/Q3-Q7-Q4, NOT RUN. The one on-line tuner of ours that decides on a point gap is the swaps-per-round climb (include/strata/program/swap_budget.hpp, STRATA_ADAPT_SWAPS_AUTO=1: keep a trial when ms <= best * 1.01). STRATA_TUNE_PAIRED=1 replaces that comparison with a paired sequential test: base period, candidate period, base, ...; d = ln(base_ms / cand_ms) per pair; the budget moves only after >= 12 pairs with mean - 2 se > ln(1.03) (STRATA_TUNE_MIN_EFFECT), default keep. Placement only (the swaps change which experts the GPU holds, never a token): the text hash must equal base up to the placement rounding every adaptive-tier spec shows (drift_check). Arms: plus-swaps-auto = the OLD climb alone (the comparison arm that tells whether STRATA_ADAPT_SWAPS_AUTO itself does anything; not tested before on this tree); plus-swaps-auto-paired = the paired rule with periods of 8 rounds (default); -p2 = periods of 2 rounds, so a long case sees more pairs. HONEST LIMIT: one period is STRATA_TUNE_PAIRED_PERIOD adaptive rounds (one round = --adapt-every windows, default 4), and a decision needs 12 pairs = 24 periods, so the paired arm needs about 200 rounds (about 800 windows) of decode to move once; short and edit cases are too short to show a move and must read FLAT (that is the check that the arm costs nothing); longdec32k and longdec64k are the cases where a move can show. The log lines are the evidence, not the tok/s: 'STRATA_TUNE_PAIRED=1: the swaps climb decides on paired periods' at start and 'STRATA_TUNE_PAIRED: swaps A vs B: pairs N, mean d ..., -> keep|move (reason)' per decision (grep them in the arm's engine log); with a flat machine the expected outcome is all 'keep'. No tok/s gain is expected by itself (LEADS.md Q7): the gain claimed is fewer random moves. Protocol: AGENTS.md flag testing protocol (one arm per flag, run 1 screen, HIGH >= 2% any case, rescreen, two-run verdict). Stop pancake.service first. Run with --tier screen."
+}
