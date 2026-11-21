@@ -494,8 +494,7 @@ bool MtpDrafter::load(const std::string& rt_dir, const ModelGeometry& g, Session
     static bool kv_fp16_said = false;
     if (mtp_kv_fp16_on() && !kv_plan.int8 && (kv_int8_was || kv_hybrid_was) && !kv_fp16_said) {
         kv_fp16_said = true;
-        std::fprintf(stderr, "strata mtp: STRATA_MTP_KV_FP16=1: the draft layer's K/V is FP16 beside the main model's %s
-",
+        std::fprintf(stderr, "strata mtp: STRATA_MTP_KV_FP16=1: the draft layer's K/V is FP16 beside the main model's %s\n",
                      kv_hybrid_was ? "K8V4" : "INT8");
     }
     uint64_t sb = qsa_state_bytes(g, max_cells, false, ring);
