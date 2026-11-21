@@ -1108,6 +1108,7 @@ Credits, in the order the stack was built:
   prompt attention (`4fe0284da5`, `f74984a171`, `e4fc07ee57`, `161309c707`); **ElXreno**, for the streamed / two-pass session
   restore and the disk-only cache (`9c18aed118`, `7efef35d0d`, `2271ee21a1`); **svgop** (`511bece612`), **dardeaw** (`580e251e69`),
   **bsorensen110** (`cd3a3ded7b`) and **zsariboga** (`21107e9d05`). Ported 2026-11-16, default off.
+- **sangharshadhyeta** (Strata-HotRod, MIT), for the idea of the MTP drafter's expert slots with exact zero-copy misses (`STRATA_MTP_SLOTS`, `STRATA_MTP_SLOTS_RANK`, `STRATA_MTP_ZC_INSTALLS`; commits `8423fd685`, `5e13e762c`, `cb59a8130`, read 2026-11-21 as data and re-implemented without copying code: `include/strata/core/mtp_slots.hpp`, `moe_group_resident_ptr`; no stand-in mode). Default off, TEST_LEDGER.md T-1100, not measured.
 - **Lamina** (`ab808b133e`, `STRATA_CACHE_FORK_POINT`), **Ben1078** (`8b90ab8077`, `STRATA_TRAILING_REMINDER`) and **jesdga95**
   (basalt `64167ba73`, `--idle-sleep`), ported 2026-11-16, default off.
 - **ewhacc** and **itlab-cl** (tandem.cpp), for the pool pre-read. **JakeATX** (llamAmpere), **Zagitta**

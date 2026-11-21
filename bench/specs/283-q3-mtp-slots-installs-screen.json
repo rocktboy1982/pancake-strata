@@ -1,0 +1,28 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "drift_check": true,
+  "prefill": true,
+  "cases": [
+    "short",
+    "edit",
+    "longdec32k",
+    "longdec64k"
+  ],
+  "reps": 1,
+  "arms": {
+    "base": {},
+    "plus-mtp-slots-256-installs-1": {
+      "env": {
+        "STRATA_MTP_SLOTS": "256",
+        "STRATA_MTP_ZC_INSTALLS": "1"
+      }
+    },
+    "plus-mtp-slots-256-installs-16": {
+      "env": {
+        "STRATA_MTP_SLOTS": "256",
+        "STRATA_MTP_ZC_INSTALLS": "16"
+      }
+    }
+  },
+  "note": "LEADS.md Part Q3, second screen, coded on lead/Q3, NOT RUN: how many rank 0-1 misses a finished round copies into slots (STRATA_MTP_ZC_INSTALLS, default 4, range 1..16) with STRATA_MTP_SLOTS=256. Run ONLY if spec 282's plus-mtp-slots-256 arm is within -2% of base on every case or better (a slot cache that loses by more than that is not tuned back by the install rate). Arms: installs 1 (fewest copies, slowest to learn the hot set), installs 16 (the cap); installs 4 is spec 282's arm. Each copy is 1.32 MiB H2D queued on the drafter's stream before the next round, so a high count can cost round time; a low count leaves misses to the zero-copy reads. Same live-line and acceptance checks as spec 282. STRATA_MTP_SLOTS_RANK=<file> (512 u16 ids, most used first) is not an arm here: it needs a usage dump of the drafter's routing that no run has written yet (plain run with the drafter's routing histogram first). Protocol: AGENTS.md flag testing protocol. Stop pancake.service first. Run with --tier screen."
+}

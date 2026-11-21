@@ -1,0 +1,26 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "drift_check": true,
+  "prefill": true,
+  "cases": [
+    "short",
+    "edit",
+    "longdec32k",
+    "longdec64k"
+  ],
+  "reps": 1,
+  "arms": {
+    "base": {},
+    "plus-mtp-slots-256": {
+      "env": {
+        "STRATA_MTP_SLOTS": "256"
+      }
+    },
+    "plus-mtp-slots-128": {
+      "env": {
+        "STRATA_MTP_SLOTS": "128"
+      }
+    }
+  },
+  "note": "LEADS.md Part Q3 (Strata-HotRod 8423fd685 / 5e13e762c / cb59a8130, MIT; re-implemented, nothing copied), coded on lead/Q3, NOT RUN. STRATA_MTP_SLOTS=N keeps N of the MTP drafter's 512 experts in VRAM (N slots of 1,382,400 B; 256 hands 337.5 MiB back to the main expert cache, 128 hands 506 MiB) and reads every other expert EXACTLY from a pinned host copy of experts.bin by address (zero copy, no stand-in: the drafts are the same tokens as the full blob, only the time differs); after every finished round up to STRATA_MTP_ZC_INSTALLS (default 4) distinct rank 0-1 misses are copied into slots (CLOCK) on the drafter's own stream, the slot table is uploaded after the copies (include/strata/core/mtp_slots.hpp, src/core/mtp.cpp slot_service; ordering argument in TEST_LEDGER.md T-1100). One arm per N (never together: AGENTS.md flag testing protocol). Expected within noise or negative (LEADS.md Q3: a miss reads 1.32 MiB over PCIe 4.0 x16, about 55-65 us, and a drafted token touches 10 experts per row; HotRod measured no tok/s and reverted its default for Qwen the same day, 8df38c1d6). The engine log proves each arm is live: 'STRATA_MTP_SLOTS=N: N of the drafter's 512 experts in VRAM' at load, and 'strata mtp slots: ... hit rate' every 300 rounds with the zero-copy miss count; a line 'STRATA_MTP_SLOTS=N refused (...)' means the arm is the base. STRATA_MTP_IN_VERIFY and STRATA_MTP_ROOM_MIN are refused while slots are on (each logs a line); the preset must not rely on either for this arm to mean anything: check the base's log for them before reading a result. drift_check stays on: the drafts are exact, so the text hash must equal base (a difference is a bug, not noise); acceptance (accept rate / tokens per window) must equal base too, and a drop there means a wrong stream order (T-1100). Protocol: AGENTS.md flag testing protocol (run 1 screen, HIGH >= 2% any case, rescreen, two-run verdict). Stop pancake.service first. Run with --tier screen."
+}
