@@ -30,3 +30,64 @@ STARTDIAG 2026-11-21T11:01:17 prev_run_s=106 gap_s=111 rd_sect=155478566784 wr_s
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 23.05 137.5 s (0.17 GiB/s; capped; waited 12.5 s for the arena)
 STARTLOAD 2026-11-21T11:03:54 loaded 33.02 GiB at 0.24 GiB/s rate=0.24
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-TSUM            short 93.9 short 92.6 edit 168.6 edit 172.5 longdec64k 71.4/1641p 65242t  foreign CPU 5% [('kcompactd0', 7), ('kworker/0:1-events', 3), ('kswapd0', 3)]  gpu 2005/1249 MHz 61C 185W gtt 25M cpu 3525MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-TSUM: every attempt noisy, keeping the quietest (5% foreign CPU)
+SETTLE 120 after a 229 s run
+STARTDIAG 2026-11-21T11:07:11 prev_run_s=229 gap_s=354 rd_sect=155565154608 wr_sect=110773416 io_ticks_ms=121037191 d_rd_sect=86587824 d_wr_sect=152 d_io_ticks_ms=172775 cached_kb=15606748 mlocked_kb=64 memavail_kb=58117916 nvme_temp_c=51 compact_stall_d=10
+STARTLOAD 2026-11-21T11:07:56 loaded 33.02 GiB at 1.19 GiB/s rate=1.19
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 31.0 s (1.17 GiB/s; stopped; waited 12.3 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 100.3 short 113.6 edit 160.5 edit 174.9 longdec64k 83.7/2169p 65242t  foreign CPU 5% [('kcompactd0', 10), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 2039/1249 MHz 60C 184W gtt 25M cpu 3673MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 106.2 +-  31.8  (n=2)
+                              drafts accepted 0.71
+  short  plus-VERIFY_COHERENT    105.5 +-  34.3  (n=2)   vs updated:  -0.7% +-  2.4%  -> no difference
+                              drafts accepted 0.70
+  short  plus-VERIFY_ASYNC_LAUNCH    101.0 +-  19.7  (n=2)   vs updated:  -4.9% +- 11.4%  -> no difference
+                              drafts accepted 0.67
+  short  base-m1                 104.9 +-  24.1  (n=2)   vs updated:  -1.2% +-  7.2%  -> no difference
+                              drafts accepted 0.70
+  short  plus-TOPK_STREAM        105.2 +-  31.1  (n=2)   vs updated:  -1.0% +-  0.6%  -> worse
+                              drafts accepted 0.70
+  short  plus-TSUM                93.2 +-   8.3  (n=2)   vs updated: -12.2% +- 22.1%  -> no difference
+                              drafts accepted 0.67
+  short  base-late               106.9 +-  84.5  (n=2)   vs updated:  +0.7% +- 109.5%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 168.9 +-   5.7  (n=2)
+                              drafts accepted 0.89
+  edit   plus-VERIFY_COHERENT    172.2 +- 139.2  (n=2)   vs updated:  +2.0% +- 85.8%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-VERIFY_ASYNC_LAUNCH    174.9 +- 107.4  (n=2)   vs updated:  +3.6% +- 67.0%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 173.1 +- 136.0  (n=2)   vs updated:  +2.5% +- 83.9%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-TOPK_STREAM        172.5 +- 139.8  (n=2)   vs updated:  +2.1% +- 86.1%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-TSUM               170.6 +-  24.8  (n=2)   vs updated:  +0.9% +- 18.1%  -> no difference
+                              drafts accepted 0.88
+  edit   base-late               167.7 +-  91.5  (n=2)   vs updated:  -0.7% +- 57.6%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  83.1 +-   nan  (n=1)
+  longdec64k plus-VERIFY_COHERENT     84.8 +-   nan  (n=1)   vs updated:  +2.0% +-  nan%  -> no difference
+  longdec64k plus-VERIFY_ASYNC_LAUNCH     82.8 +-   nan  (n=1)   vs updated:  -0.4% +-  nan%  -> no difference
+  longdec64k base-m1                  80.7 +-   nan  (n=1)   vs updated:  -2.9% +-  nan%  -> no difference
+  longdec64k plus-TOPK_STREAM         82.6 +-   nan  (n=1)   vs updated:  -0.6% +-  nan%  -> no difference
+  longdec64k plus-TSUM                71.4 +-   nan  (n=1)   vs updated: -14.1% +-  nan%  -> no difference
+  longdec64k base-late                83.7 +-   nan  (n=1)   vs updated:  +0.7% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-VERIFY_COHERENT DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-VERIFY_ASYNC_LAUNCH DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-TOPK_STREAM     DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-TSUM            DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.7%  edit -0.7%  longdec64k +0.7%
+  plus-VERIFY_COHERENT short -1.0%  edit +2.3%  longdec64k +1.7%  -> PROMOTE to confirm
+  plus-VERIFY_ASYNC_LAUNCH short -5.3%  edit +3.9%  longdec64k -0.7%  -> drop
+  base-m1              short -1.6%  edit +2.8%  longdec64k -3.2%  -> drop
+  plus-TOPK_STREAM     short -1.3%  edit +2.5%  longdec64k -1.0%  -> PROMOTE to confirm
+  plus-TSUM            short -12.5%  edit +1.3%  longdec64k -14.4%  -> drop
