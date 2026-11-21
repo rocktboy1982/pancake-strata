@@ -1,6 +1,7 @@
 // src/prefill/kernels.cu - see include/strata/prefill/kernels.hpp.
 #include "strata/prefill/kernels.hpp"
 #include "strata/prefill/gdn_chunk.hpp"
+#include "strata/prefill/gdn_wmma_ck.hpp"   // STRATA_GDN_WMMA_PREFILL (LEADS.md Part S S5)
 #include "strata/prefill/gdn_probe.hpp"
 #include "strata/kernels/mrope.hpp"
 #include "strata/kernels/gfx_arch.hpp"
@@ -24,6 +25,7 @@ namespace {
 
 constexpr int N = 2560, HC = 4, D = N * HC, LR = 320;
 constexpr int S = 128, HK = 16, HV = 48, C = 10240;
+static unsigned long long g_gdn_ck_launches = 0;   // launches of the STRATA_GDN_WMMA_PREFILL kernels in this process (the default-path test: stays 0 unless the switch is on)
 
 __device__ __forceinline__ float warp_sum(float v) {
 #pragma unroll
@@ -2273,6 +2275,7 @@ __global__ void __launch_bounds__(GW_NW * 32) gdn_wmma_scan_kernel(float* __rest
         for (int v = 0; v < 8; ++v) state[(size_t) (16 * j + 2 * v + hi) * rs + (size_t) vh * S + col] = s[j][v];
 }
 #include "gdn_wmma12.inc"
+#include "gdn_wmma_ck.inc"   // STRATA_GDN_WMMA_PREFILL=1: chunk 32 on gfx11 (default off)
 // The opt-in chunked recurrence on gfx11 and gfx12 (STRATA_GDN_CHUNKED=1): false (nothing launched) on another part.  y, the
 // FP32 scratch of the other kernels (T x 6144 floats), holds T and P (1 KB per chunk and value head: T x 3 KB).
 bool gdn_rec_wmma(float* state, const float* h, const float* gate, const float* beta, const float* z, const float* gamma,
@@ -2292,6 +2295,13 @@ bool gdn_rec_wmma(float* state, const float* h, const float* gate, const float* 
         last_device = dev;
     }
     if (!gfx11 && !gfx12) return false;
+    {   // STRATA_GDN_WMMA_PREFILL=1 (default off, gfx11 only): the chunk-32 kernels (gdn_wmma_ck.inc); unset or 0 never gets here
+        static const int ck_env = strata::prefill::gdn_ck::parse_env(std::getenv("STRATA_GDN_WMMA_PREFILL"));
+        if (strata::prefill::gdn_ck::route(ck_env, gdn_chunked_env(), gfx11, T, ld16)) {
+            gdn_rec_wmma_ck(state, h, gate, beta, z, gamma, eps, y, y16, T, s, ld16);
+            return true;
+        }
+    }
     if (gfx12 && T < kGdnW12MinT) return false;
     if (gdn_chunked_env() < 0 && !(gfx12 && gdn_chunked_auto(T))) return false;   // unset: gfx12, long chunks only
     const int64_t nch = (T + GW_CK - 1) / GW_CK;
@@ -3397,6 +3407,7 @@ void gdn_recurrence_snapshots(float* state, const float* h, const float* gate, c
     gdn_rec_cols_snap_kernel<<<HV * NCB, dim3(CB, RG), 0, (cudaStream_t) stream>>>(state, h, gate, beta, y, T, snap_pos, n_snap, snap_out);
 }
 int64_t gdn_snapshot_state_floats() { return (int64_t) S * HV * S; }
+unsigned long long gdn_wmma_ck_launches() { return g_gdn_ck_launches; }
 void gdn_recurrence_variant(int variant, float* state, const float* h, const float* gate, const float* beta,
                             const float* z, const float* gamma, float eps, float* y, uint16_t* y16, int64_t T,
                             void* stream, int64_t ld16) {

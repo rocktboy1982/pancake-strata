@@ -1585,7 +1585,10 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
     add_test(NAME hip_gdn_chunked COMMAND hip_gdn_chunked)
     add_test(NAME hip_gdn_chunked_off COMMAND hip_gdn_chunked --off)
     add_test(NAME hip_gdn_chunked_default COMMAND hip_gdn_chunked --default)
-    list(APPEND _strata_hip_tests hip_gdn_chunked hip_gdn_chunked_off hip_gdn_chunked_default)
+    # LEADS.md Part S S5: the chunk-32 WMMA kernels (STRATA_GDN_WMMA_PREFILL=1, gfx11), parity against the FP32 recurrence within the bounds of the
+    # chunk-16 kernels; the off / default runs above assert that the new kernels never launched (hip_gdn_chunked_ck prints the launch count).
+    add_test(NAME hip_gdn_chunked_ck COMMAND hip_gdn_chunked --ck)
+    list(APPEND _strata_hip_tests hip_gdn_chunked hip_gdn_chunked_off hip_gdn_chunked_default hip_gdn_chunked_ck)
     # GDN prompt stage bench (gates + conv + recurrence, per-piece times and output/state hashes at 4K/16K/32K); a measurement
     # tool, run by hand with the STRATA_GDN_* knobs under test - no add_test
     add_executable(hip_gdn_stage_bench tests/hip/gdn_stage_bench.cpp)
@@ -2560,6 +2563,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(qsa_split_test src/kernels/qsa_split_test.cpp)   # LEADS.md Part O O9: STRATA_QSA_SPLIT_GRID's blocks-per-head rule and chunk visit order
   target_include_directories(qsa_split_test PRIVATE include)
   add_test(NAME qsa_split_test COMMAND qsa_split_test)
+  add_executable(gdn_wmma_ck_test src/prefill/gdn_wmma_ck_test.cpp)   # LEADS.md Part S S5: routing rule, shared index math and the CPU reference of the chunk-32 gfx11 GDN scan (no GPU)
+  target_include_directories(gdn_wmma_ck_test PRIVATE include)
+  add_test(NAME gdn_wmma_ck_test COMMAND gdn_wmma_ck_test)
   add_executable(gdn_snap_test src/prefill/gdn_snap_test.cpp)   # LEADS.md Part O O6: in-chunk snapshot chunk plan, layout, host reference of the recurrence
   target_include_directories(gdn_snap_test PRIVATE include)
   add_test(NAME gdn_snap_test COMMAND gdn_snap_test)
@@ -4221,7 +4227,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     route_range_test
     lookahead_skip_test
     lookahead_ctrl_test
-    persist_tape_test persist_launch_test qsa_split_test gdn_snap_test act_f16_test
+    persist_tape_test persist_launch_test qsa_split_test gdn_snap_test gdn_wmma_ck_test act_f16_test
     draft_vocab_test spec_start_test message_boundary_test fork_bugfix_rules_test moe_tile_rule_test split_ring_test conv_cache_test adapt_decay_test tier_policy_score_test tier_stat_policy_test tier_victim_test tier_spec_copy_test tier_protect_test head_shortlist_test head_gather_test tier_miss_budget_test expert_entropy_test
     window_limits_test serve_stop_bound_test stream_watch_test gpu_pause_time_test lookup_default_test window_evict_test draft_kv_plan_test
     coupled_draft_test penalty_window_test slot_history_test spec_prob_test spec_block_test gdn_state_f16_test gdn_snap_blob_test spec_block_dev_test gated_proposal_test

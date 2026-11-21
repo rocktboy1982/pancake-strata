@@ -78,6 +78,8 @@ void gdn_recurrence_cols(float* state, const float* h, const float* gate, const 
 void gdn_recurrence_snapshots(float* state, const float* h, const float* gate, const float* beta, float* y, int64_t T,
                               const int64_t* snap_pos, int n_snap, float* snap_out, void* stream);
 int64_t gdn_snapshot_state_floats();
+/// LEADS.md Part S S5: launches of the STRATA_GDN_WMMA_PREFILL=1 chunk-32 kernels (gfx11) in this process; stays 0 on every default path (tests/hip/gdn_chunked.cpp --default).
+unsigned long long gdn_wmma_ck_launches();
 /// The kernels behind gdn_recurrence, for the parity test: 0 = the column-split kernels + the norm kernel (or the
 /// one-block-per-head kernel under STRATA_GDN_REC_HEADS), 1 = four lanes per column (no barrier per token) + the grid-stride norm, 2 = the
 /// one-block-per-head kernel (its fused norm rounds differently).  0 and 1 give the same bits.  On HIP, 0 and 1 run the opt-in

@@ -187,9 +187,19 @@ void bench(const char* path) {
 }
 }
 int main(int argc, char** argv) {
+    // --ck / --ck-bench: STRATA_GDN_WMMA_PREFILL=1 (LEADS.md Part S S5, the chunk-32 gfx11 kernels); every other mode must never reach them
+    const bool use_ck = argc > 1 && (std::strcmp(argv[1], "--ck") == 0 || std::strcmp(argv[1], "--ck-bench") == 0);
     const bool bench_default = argc > 1 && std::strcmp(argv[1], "--bench-default") == 0;
     const bool off = argc > 1 && (std::strcmp(argv[1], "--off") == 0 || std::strcmp(argv[1], "--default") == 0 || bench_default);
     setting("STRATA_GDN_CHUNKED", off ? "0" : "1");
+    if (use_ck) setting("STRATA_GDN_WMMA_PREFILL", "1");
+    else {
+#ifdef _WIN32
+        _putenv_s("STRATA_GDN_WMMA_PREFILL", "");
+#else
+        unsetenv("STRATA_GDN_WMMA_PREFILL");
+#endif
+    }
     setting("STRATA_GDN_HEAD", "1"); setting("STRATA_GDN_PP", "2");
     if (argc > 1 && std::strncmp(argv[1], "--bench", 7) == 0) setting("STRATA_GDN_NOY", "1");   // gfx1151's default
 #ifdef _WIN32
@@ -204,7 +214,9 @@ int main(int argc, char** argv) {
     ck(cudaGetDevice(&device), "device"); ck(cudaGetDeviceProperties(&props, device), "properties");
     const bool wmma = strata::kernels::gfx_arch_is_gfx11_wmma(props.gcnArchName) || strata::kernels::gfx_arch_is_gfx12_wmma(props.gcnArchName);
     std::printf("device=%s chunked=%d wmma=%d\n", props.gcnArchName, !off, wmma);
+    const bool gfx11 = strata::kernels::gfx_arch_is_gfx11_wmma(props.gcnArchName);
     if (argc > 1 && std::strcmp(argv[1], "--bench") == 0) { bench("chunked"); return 0; }
+    if (argc > 1 && std::strcmp(argv[1], "--ck-bench") == 0) { bench("ck32"); return 0; }
     if (bench_default) { bench("default"); return 0; }
     int failures = 0;
     for (int64_t t : {0, 1, 15, 16, 17, 63, 64, 65, 79, 80, 81, 257, 2051, 16385}) {
