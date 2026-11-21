@@ -14,3 +14,13 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 34.8 s (1.0
 rep 0 warmup               short 110.4 short 103.7 edit 169.2 edit 168.8 longdec64k 87.0/2182p 65241t  foreign CPU 2% [('kcompactd0', 2), ('systemd', 0), ('migration/1', 0)]  gpu 2037/1249 MHz 60C 189W gtt 25M cpu 3738MHz 66C igpu 0%/vcn 0% fclk 1600
 REGIME-RECOVERED warmup: first start prefill 1524 / load 0.88 GiB/s (paused 11:34:33), second start prefill 2182 / load 1.07 GiB/s
 STARTDIAG 2026-11-21T11:40:32 prev_run_s=110 gap_s=115 rd_sect=156527887224 wr_sect=110774512 io_ticks_ms=121706639 d_rd_sect=80607984 d_wr_sect=64 d_io_ticks_ms=41003 cached_kb=17789940 mlocked_kb=64 memavail_kb=58073468 nvme_temp_c=50 compact_stall_d=0
+STARTLOAD 2026-11-21T11:41:23 loaded 33.02 GiB at 1.09 GiB/s rate=1.09
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 34.0 s (1.07 GiB/s; stopped; waited 15.3 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 110.7 short 103.7 edit 166.8 edit 169.8 longdec64k 80.0/2181p 65241t  foreign CPU 2% [('kcompactd0', 4), ('claude', 1), ('kworker/u65:0-KFD IH', 1)]  gpu 2044/1249 MHz 61C 183W gtt 25M cpu 3674MHz 64C igpu 0%/vcn 0% fclk 1600
+STARTDIAG 2026-11-21T11:42:28 prev_run_s=111 gap_s=116 rd_sect=156613705848 wr_sect=110774584 io_ticks_ms=121749070 d_rd_sect=85818624 d_wr_sect=72 d_io_ticks_ms=42431 cached_kb=17153552 mlocked_kb=64 memavail_kb=58110052 nvme_temp_c=51 compact_stall_d=5
+STARTLOAD 2026-11-21T11:43:17 loaded 33.02 GiB at 1.10 GiB/s rate=1.10
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 33.5 s (1.09 GiB/s; stopped; waited 13.8 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-Q6_PACKED       short 107.1 short 103.0 edit 162.4 edit 183.5 longdec64k 80.8/2174p 65241t  foreign CPU 3% [('kcompactd0', 8), ('kworker/5:0-events_freezable', 2), ('kworker/0:1-events_freezable', 1)]  gpu 2044/1249 MHz 62C 184W gtt 25M cpu 3782MHz 65C igpu 0%/vcn 0% fclk 1600
+STARTDIAG 2026-11-21T11:44:26 prev_run_s=112 gap_s=117 rd_sect=156694835216 wr_sect=110774696 io_ticks_ms=121795331 d_rd_sect=81129368 d_wr_sect=112 d_io_ticks_ms=46261 cached_kb=15925776 mlocked_kb=64 memavail_kb=58094828 nvme_temp_c=52 compact_stall_d=3
