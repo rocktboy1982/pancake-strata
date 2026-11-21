@@ -34,3 +34,69 @@ STARTDIAG 2026-11-21T02:27:51 prev_run_s=108 gap_s=114 rd_sect=139792324848 wr_s
 STARTLOAD 2026-11-21T02:28:48 loaded 33.02 GiB at 0.98 GiB/s rate=0.98
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 35.77 38.2 s (0.94 GiB/s; stopped; waited 16.1 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-GR_RDNA        short 98.7 short 93.7 edit 155.3 edit 161.0 longdec64k 78.4/2285p 65238t  foreign CPU 6% [('kcompactd0', 8), ('kworker/11:1-events', 3), ('kswapd0', 2)]  gpu 2019/1249 MHz 62C 182W gtt 25M cpu 3894MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-GR_RDNA: every attempt noisy, keeping the quietest (6% foreign CPU)
+STARTDIAG 2026-11-21T02:29:56 prev_run_s=120 gap_s=125 rd_sect=139903222768 wr_sect=110755568 io_ticks_ms=108388195 d_rd_sect=110897920 d_wr_sect=80 d_io_ticks_ms=48831 cached_kb=15967164 mlocked_kb=64 memavail_kb=57893904 nvme_temp_c=52 compact_stall_d=15
+STARTLOAD 2026-11-21T02:30:44 loaded 33.02 GiB at 1.07 GiB/s rate=1.07
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.38 34.5 s (1.05 GiB/s; stopped; waited 11.8 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-AMD_COMMUNITY_TUNING short 104.9 short 102.9 edit 161.9 edit 183.5 longdec64k 80.4/2183p 65238t  foreign CPU 7% [('kcompactd0', 16), ('kswapd0', 2), ('kworker/9:1-events_freezable', 2)]  gpu 2040/1249 MHz 63C 186W gtt 25M cpu 3628MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-AMD_COMMUNITY_TUNING: every attempt noisy, keeping the quietest (7% foreign CPU)
+STARTDIAG 2026-11-21T02:31:52 prev_run_s=111 gap_s=116 rd_sect=139988258816 wr_sect=110755648 io_ticks_ms=108430341 d_rd_sect=85036048 d_wr_sect=80 d_io_ticks_ms=42146 cached_kb=13077924 mlocked_kb=64 memavail_kb=57883896 nvme_temp_c=52 compact_stall_d=14
+STARTLOAD 2026-11-21T02:32:43 loaded 33.02 GiB at 0.99 GiB/s rate=0.99
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 31.36 37.6 s (0.83 GiB/s; stopped; waited 11.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 108.1 short 103.1 edit 162.1 edit 183.2 longdec64k 77.7/2178p 65238t  foreign CPU 5% [('kcompactd0', 8), ('kworker/1:1-events', 4), ('kswapd0', 3)]  gpu 2043/1249 MHz 64C 187W gtt 25M cpu 3629MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 105.3 +-  18.4  (n=2)
+                              drafts accepted 0.71
+  short  minus-lookup-max-t      112.0 +-   5.7  (n=2)   vs updated:  +6.4% +- 22.9%  -> no difference
+                              drafts accepted 0.74
+  short  minus-RDNA_Q6K           93.3 +-  26.7  (n=2)   vs updated: -11.4% +- 42.8%  -> no difference
+                              drafts accepted 0.70
+  short  base-m1                 107.0 +-  40.7  (n=2)   vs updated:  +1.6% +- 21.1%  -> no difference
+                              drafts accepted 0.71
+  short  minus-GR_RDNA            96.2 +-  31.8  (n=2)   vs updated:  -8.7% +- 12.7%  -> no difference
+                              drafts accepted 0.71
+  short  plus-AMD_COMMUNITY_TUNING    103.9 +-  12.7  (n=2)   vs updated:  -1.4% +-  5.4%  -> no difference
+                              drafts accepted 0.70
+  short  base-late               105.6 +-  31.8  (n=2)   vs updated:  +0.2% +- 12.7%  -> no difference
+                              drafts accepted 0.70
+  edit   updated                 163.0 +-  94.1  (n=2)
+                              drafts accepted 0.88
+  edit   minus-lookup-max-t      137.8 +- 167.8  (n=2)   vs updated: -15.5% +- 45.2%  -> no difference
+                              drafts accepted 0.95
+  edit   minus-RDNA_Q6K          127.2 +- 129.0  (n=2)   vs updated: -22.0% +- 136.8%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 169.2 +-   7.0  (n=2)   vs updated:  +3.8% +- 62.0%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-GR_RDNA           158.2 +-  36.2  (n=2)   vs updated:  -3.0% +- 35.5%  -> no difference
+                              drafts accepted 0.91
+  edit   plus-AMD_COMMUNITY_TUNING    172.7 +- 137.3  (n=2)   vs updated:  +6.0% +- 26.5%  -> no difference
+                              drafts accepted 0.88
+  edit   base-late               172.6 +- 134.1  (n=2)   vs updated:  +5.9% +- 24.6%  -> no difference
+                              drafts accepted 0.88
+  longdec64k updated                  84.7 +-   nan  (n=1)
+  longdec64k minus-lookup-max-t       85.0 +-   nan  (n=1)   vs updated:  +0.4% +-  nan%  -> no difference
+  longdec64k minus-RDNA_Q6K           58.2 +-   nan  (n=1)   vs updated: -31.3% +-  nan%  -> no difference
+  longdec64k base-m1                  81.4 +-   nan  (n=1)   vs updated:  -3.9% +-  nan%  -> no difference
+  longdec64k minus-GR_RDNA            78.4 +-   nan  (n=1)   vs updated:  -7.4% +-  nan%  -> no difference
+  longdec64k plus-AMD_COMMUNITY_TUNING     80.4 +-   nan  (n=1)   vs updated:  -5.1% +-  nan%  -> no difference
+  longdec64k base-late                77.7 +-   nan  (n=1)   vs updated:  -8.3% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  minus-lookup-max-t   DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-RDNA_Q6K       DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GR_RDNA        DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-AMD_COMMUNITY_TUNING DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.2%  edit +5.9%  longdec64k -8.3%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  minus-lookup-max-t   short +6.2%  edit -17.9%  longdec64k +4.7%  -> drop
+  minus-RDNA_Q6K       short -11.5%  edit -24.2%  longdec64k -28.3%  -> drop
+  base-m1              short +1.4%  edit +0.8%  longdec64k +0.2%  -> PROMOTE to confirm
+  minus-GR_RDNA        short -8.8%  edit -5.8%  longdec64k -3.4%  -> drop
+  plus-AMD_COMMUNITY_TUNING short -1.5%  edit +2.9%  longdec64k -1.0%  -> PROMOTE to confirm
