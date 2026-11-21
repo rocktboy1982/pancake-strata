@@ -1,0 +1,305 @@
+  DIFF src/kernels/cuda/elementwise.cu ['silu_kernel']
+  SPILL elementwise.cu ('copy_rows_from_mapped_kernel', 0, 0, 144)
+  DIFF src/kernels/cuda/gdn.cu ['gdn_l2_kernel', 'gdn_out_norm_kernel']
+  DIFF src/kernels/cuda/ple.cu ['gnorm_kernel', 'gate_kernel', 'bf16_gemv_kernel']
+  DIFF src/kernels/cuda/qsa.cu ['indexer_key_append_kernel']
+  SPILL qsa_decode_attn.cu ('attn_chunk_lc12_kernel', 7, 0, 32)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 80)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 560)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 144)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 272)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 560)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 80)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 560)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 144)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 272)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 560)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 80)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 560)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 144)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 272)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 560)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 80)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 560)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 144)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 272)
+  SPILL qsa_decode_attn.cu ('attn_chunk_kernel_pre75', 0, 0, 560)
+  SPILL qsa_decode_attn.cu ('attn_chunk_slots_lc12_kernel', 7, 0, 32)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_kernel', 34, 0, 140)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_kernel', 30, 0, 124)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_kernel', 34, 0, 140)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_kernel', 30, 0, 124)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_kernel', 13, 0, 56)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_kernel', 11, 0, 48)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_kernel', 33, 0, 136)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_kernel', 31, 0, 128)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_kernel', 33, 0, 136)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_kernel', 31, 0, 128)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_kernel', 12, 0, 52)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_kernel', 10, 0, 44)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_q4_kernel', 126, 0, 380)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_q4_kernel', 130, 0, 396)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_q4_kernel', 126, 0, 380)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_q4_kernel', 130, 0, 396)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_q4_kernel', 165, 0, 536)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_q4_kernel', 157, 0, 504)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_q4_kernel', 165, 0, 536)
+  SPILL qsa_prompt_attn.cu ('prompt_attn_wmma_q4_kernel', 157, 0, 504)
+  SPILL qsa_select.cu ('block_scores_multi_kernel', 0, 0, 48)
+  SPILL qsa_select.cu ('block_scores_slots_kernel', 0, 0, 48)
+  SPILL qsa_select.cu ('block_scores_rows_kernel', 0, 0, 144)
+  SPILL qsa_select.cu ('block_scores_rows_kernel', 0, 0, 208)
+  SPILL qsa_select.cu ('block_scores_rows_kernel', 0, 0, 272)
+  SPILL qsa_select.cu ('block_topk_opt_kernel', 60, 4, 132)
+  SPILL qsa_select.cu ('block_topk_opt_kernel', 0, 4, 12)
+  SPILL qsa_select.cu ('block_topk_reg_kernel', 0, 40, 0)
+  SPILL qsa_select.cu ('block_topk_reg_kernel', 188, 200, 380)
+  SPILL rdna_gr.cu ('rdna_gr_down_q8', 3, 0, 16)
+  SPILL rdna_gr.cu ('rdna_gr_down', 56, 0, 228)
+  SPILL rdna_gr.cu ('rdna_gr_down_q8', 3, 0, 16)
+  SPILL rdna_gr.cu ('rdna_gr_down', 56, 0, 228)
+  SPILL rdna_gr.cu ('rdna_gr_down_q8', 2, 0, 12)
+  SPILL rdna_gr.cu ('rdna_gr_down', 56, 0, 228)
+  SPILL rdna_gr.cu ('rdna_gr_down_q8', 2, 0, 12)
+  SPILL rdna_gr.cu ('rdna_gr_down', 56, 0, 228)
+  SPILL rdna_gr.cu ('rdna_gr_down_q8', 2, 0, 12)
+  SPILL rdna_gr.cu ('rdna_gr_down', 56, 0, 228)
+  SPILL rdna_gr.cu ('rdna_gr_down_q8', 2, 0, 12)
+  SPILL rdna_gr.cu ('rdna_gr_down', 56, 0, 228)
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 69 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 95 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 77 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 91 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 74 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 83 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 92 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 70 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 59 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 63 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 67 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 71 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 75 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 79 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 83 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 87 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 70 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 94 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 76 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 90 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 73 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 82 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 91 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 61 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 60 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 64 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 68 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 72 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 76 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 80 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 84 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 88 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 79 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 81 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 84 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 73 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 79 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 88 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 67 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 73 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 63 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 67 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 71 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 75 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 79 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 83 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 87 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 91 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 81 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 81 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 83 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 71 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 78 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 87 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 62 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 66 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 64 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 68 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 72 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 76 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 80 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 84 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 88 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 92 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 76 sgpr 22 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 92 sgpr 21 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 74 sgpr 19 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 84 sgpr 19 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 71 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 78 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 85 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 92 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 59 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 63 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 67 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 71 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 75 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 79 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 83 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 87 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 75 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 91 sgpr 21 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 73 sgpr 19 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 83 sgpr 19 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 70 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 77 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 84 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 91 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 58 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 62 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 66 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 70 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 74 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 78 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 82 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_kq_chain_kernel vgpr 86 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 65 sgpr 20 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 90 sgpr 19 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 73 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 81 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 69 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 76 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 83 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 90 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 59 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 63 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 67 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 71 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 75 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 79 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 83 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 87 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 68 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 88 sgpr 19 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 70 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 77 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 66 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 73 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 80 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 87 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 57 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 61 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 65 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 69 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 73 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 77 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 81 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED rdna_mmvq.cu::rdna_q6k_chain_kernel vgpr 85 sgpr 18 spillV 0 spillS 0 scratch 0 lds 0
+  ADDED s2_expert_grouped.cu::group_resident_ptr_kernel vgpr 15 sgpr 41 spillV 0 spillS 0 scratch 0 lds 3088
+  ADDED sampler.cu::spec_block_rows_kernel vgpr 17 sgpr 47 spillV 0 spillS 0 scratch 0 lds 33792
+  ADDED sampler.cu::spec_block_verify_kernel vgpr 27 sgpr 80 spillV 0 spillS 0 scratch 0 lds 648
+  ADDED kernels.cu::gdn_wmma_ck_prep_kernel vgpr 120 sgpr 22 spillV 0 spillS 0 scratch 0 lds 13056
+  ADDED kernels.cu::gdn_wmma_ck_scan_kernel vgpr 256 sgpr 59 spillV 311 spillS 0 scratch 1200 lds 60160
+  SPILL kernels.cu ('gdn_wmma_ck_scan_kernel', 311, 0, 1200)
+  SPILL wmma_gemm.cu ('kernel_hcd_exact', 170, 0, 556)
+  SPILL wmma_gemm.cu ('kernel', 80, 0, 196)
+  SPILL moe_f16_kq.cu ('gate_up_kernel', 0, 0, 96)
+  SPILL moe_f16_kq.cu ('gate_up_kernel', 0, 0, 96)
+  SPILL moe_f16_kq.cu ('gate_up_kernel', 0, 0, 320)
+  SPILL moe_f16_kq.cu ('gate_up_kernel', 0, 0, 320)
+  SPILL moe_f16_kq.cu ('gate_up_kernel', 0, 0, 192)
+  SPILL moe_f16_kq.cu ('gate_up_kernel', 0, 0, 192)
+  SPILL moe_f16_kq.cu ('down_kernel', 0, 0, 96)
+  SPILL moe_f16_kq.cu ('down_kernel', 0, 0, 96)
+  SPILL moe_f16_kq.cu ('down_kernel', 0, 0, 288)
+  SPILL moe_f16_kq.cu ('down_kernel', 0, 0, 288)
+  SPILL moe_f16_kq.cu ('down_kernel', 0, 0, 160)
+  SPILL moe_f16_kq.cu ('down_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 19, 0, 80)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 25, 0, 104)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 147, 0, 352)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 20, 0, 84)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 146, 0, 348)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 28, 0, 116)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 29, 0, 120)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 26, 0, 108)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 114, 0, 320)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 0, 0, 40)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 164, 0, 416)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 5, 0, 56)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 29, 0, 120)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 96)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 288)
+  SPILL moe_fused_iq.cu ('native_f16_kernel', 0, 0, 160)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 24, 0, 100)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 29, 0, 120)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 101, 0, 296)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 0, 0, 40)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 31, 0, 128)
+  SPILL moe_fused_iq.cu ('native_w11_kernel', 28, 0, 116)
+('src/kernels/cuda/elementwise.cu', 'ok', 'base 19 new 20 | identical 18 DIFF 1 added 0 gone 0 | spill/scratch kernels new 1 (base 0)')
+('src/kernels/cuda/fused_gdn.cu', 'ok', 'base 4 new 4 | identical 4 DIFF 0 added 0 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/kernels/cuda/gdn.cu', 'ok', 'base 5 new 7 | identical 3 DIFF 2 added 0 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/kernels/cuda/ple.cu', 'ok', 'base 9 new 12 | identical 6 DIFF 3 added 0 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/kernels/cuda/qsa.cu', 'ok', 'base 8 new 9 | identical 7 DIFF 1 added 0 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/kernels/cuda/qsa_decode_attn.cu', 'ok', 'base 71 new 71 | identical 71 DIFF 0 added 0 gone 0 | spill/scratch kernels new 22 (base 2)')
+('src/kernels/cuda/qsa_pattn.cu', 'ok', 'base 0 new 0 | identical 0 DIFF 0 added 0 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/kernels/cuda/qsa_prompt_attn.cu', 'ok', 'base 45 new 45 | identical 45 DIFF 0 added 0 gone 0 | spill/scratch kernels new 20 (base 20)')
+('src/kernels/cuda/qsa_select.cu', 'ok', 'base 30 new 30 | identical 30 DIFF 0 added 0 gone 0 | spill/scratch kernels new 9 (base 4)')
+('src/kernels/cuda/rdna_gr.cu', 'ok', 'base 82 new 82 | identical 82 DIFF 0 added 0 gone 0 | spill/scratch kernels new 12 (base 12)')
+('src/kernels/cuda/rdna_mmvq.cu', 'ok', 'base 158 new 286 | identical 158 DIFF 0 added 128 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/kernels/cuda/s2_expert_grouped.cu', 'ok', 'base 25 new 26 | identical 25 DIFF 0 added 1 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/kernels/cuda/sampler.cu', 'ok', 'base 17 new 19 | identical 17 DIFF 0 added 2 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/prefill/gemm.cu', 'COMPILE-FAIL (base too)', 'C:\\Users\\iancu\\repos\\ps-wt-integration\\src\\prefill\\gemm.cu:997:10: error: use of undeclare')
+('src/prefill/kernels.cu', 'ok', 'base 71 new 73 | identical 71 DIFF 0 added 2 gone 0 | spill/scratch kernels new 1 (base 0)')
+('src/prefill/moe_f16_kq.cu', 'COMPILE-FAIL (base too)', "C:\\Users\\iancu\\repos\\ps-wt-integration\\src\\prefill\\moe_f16_kq.cu:34:10: fatal error: 'ggml")
+('src/prefill/moe_fused.cu', 'ok', 'base 6 new 6 | identical 6 DIFF 0 added 0 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/prefill/moe_fused_iq.cu', 'COMPILE-FAIL (base too)', 'C:\\Users\\iancu\\repos\\ps-wt-integration\\src\\prefill\\moe_fused_iq_fence.cu:38:10: fatal erro')
+('src/prefill/moe_iq4_w4a8.cu', 'COMPILE-FAIL (base too)', "C:\\Users\\iancu\\repos\\ps-wt-integration\\src\\prefill\\moe_iq4_w4a8.cu:32:10: fatal error: 'gg")
+('src/prefill/moe_mmq.cu', 'COMPILE-FAIL (base too)', "C:\\Users\\iancu\\repos\\ps-wt-integration\\src\\prefill\\moe_mmq.cu:7:10: fatal error: 'common.c")
+('src/prefill/wmma_gemm.cu', 'ok', 'base 9 new 9 | identical 9 DIFF 0 added 0 gone 0 | spill/scratch kernels new 2 (base 2)')
+('src/kernels/rdna_chains_parity.cpp', 'ok', 'base 0 new 0 | identical 0 DIFF 0 added 0 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/kernels/s2_expert_grouped_parity.cpp', 'ok', 'base 0 new 0 | identical 0 DIFF 0 added 0 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/kernels/qsa_kv_prefetch_parity.cpp', 'ok', 'base 0 new 0 | identical 0 DIFF 0 added 0 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/prefill/moe_f16_kq.cu', 'ok', 'base 16 new 16 | identical 16 DIFF 0 added 0 gone 0 | spill/scratch kernels new 12 (base 0)')
+('src/prefill/moe_fused_iq.cu', 'ok', 'base 112 new 112 | identical 112 DIFF 0 added 0 gone 0 | spill/scratch kernels new 61 (base 17)')
+('src/prefill/moe_iq4_w4a8.cu', 'ok', 'base 0 new 0 | identical 0 DIFF 0 added 0 gone 0 | spill/scratch kernels new 0 (base 0)')
+('src/prefill/moe_mmq.cu', 'COMPILE-FAIL (base too)', 'C:/Users/iancu/repos/pancake-strata-us/engine/third_party/strata-llama/ggml/src/ggml-cuda\\')

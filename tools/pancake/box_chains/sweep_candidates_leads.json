@@ -1,0 +1,458 @@
+{
+ "note": "Registry of the lead arms of integration/leads-2026-11-21 for tools/pancake/box_chains/sweep.py (--registry sweep_candidates_leads.json --branch us). The frozen sweep_candidates.json is NOT edited. Every arm is a default-OFF lead switch with no gfx1100 verdict; env-only arms (spec arms that need another build, another config or arguments are run by their own spec: 255, 260, 261, 275, 276, 274 head-host + --mtp-q4). Generated from bench/specs/ (TEST_LEDGER.md T-1104).",
+ "lossy": [
+  "STRATA_ATTN_LANECELL",
+  "STRATA_ATTN_MERGE_V2",
+  "STRATA_DECODE_COPY_BATCH",
+  "STRATA_GDN_CHUNKED",
+  "STRATA_GDN_WMMA_PREFILL",
+  "STRATA_HCD_EXACT",
+  "STRATA_MTP_KV_FP16",
+  "STRATA_PF_AHEAD",
+  "STRATA_PF_FUSED_NATIVE",
+  "STRATA_PF_GEMM",
+  "STRATA_PF_HCDOWN",
+  "STRATA_REDUCE_F32",
+  "STRATA_SNAP_STATE_F16",
+  "pf-ahead-batch16",
+  "pf-ahead-batch4",
+  "pf-ahead-decode-copy-batch"
+ ],
+ "groups": {},
+ "protected": {},
+ "untested": {
+  "us": [
+   {
+    "name": "STRATA_PROMPT_TAIL",
+    "env": {
+     "STRATA_PROMPT_TAIL": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 224-q2-prompt-tail-screen.json",
+    "source": "bench/specs/224-q2-prompt-tail-screen.json",
+    "exact": true
+   },
+   {
+    "name": "plus-prompt-tail-w4",
+    "env": {
+     "STRATA_PROMPT_TAIL": "1",
+     "STRATA_PROMPT_TAIL_W": "4"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 224-q2-prompt-tail-screen.json",
+    "source": "bench/specs/224-q2-prompt-tail-screen.json",
+    "exact": true
+   },
+   {
+    "name": "plus-prompt-tail-w48",
+    "env": {
+     "STRATA_PROMPT_TAIL": "1",
+     "STRATA_PROMPT_TAIL_W": "48"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 224-q2-prompt-tail-screen.json",
+    "source": "bench/specs/224-q2-prompt-tail-screen.json",
+    "exact": true
+   },
+   {
+    "name": "plus-prompt-tail-r4",
+    "env": {
+     "STRATA_PROMPT_TAIL": "1",
+     "STRATA_PROMPT_TAIL_RANKS": "4"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 224-q2-prompt-tail-screen.json",
+    "source": "bench/specs/224-q2-prompt-tail-screen.json",
+    "exact": true
+   },
+   {
+    "name": "STRATA_MTP_KV_FP16",
+    "env": {
+     "STRATA_MTP_KV_FP16": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 225-q5-mtp-kv-fp16-screen.json",
+    "source": "bench/specs/225-q5-mtp-kv-fp16-screen.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PREFILL_NO_TAIL_CHUNK",
+    "env": {
+     "STRATA_PREFILL_NO_TAIL_CHUNK": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 256-pf-no-tail-chunk.json",
+    "source": "bench/specs/256-pf-no-tail-chunk.json",
+    "exact": true
+   },
+   {
+    "name": "STRATA_SNAP_STATE_F16",
+    "env": {
+     "STRATA_SNAP_STATE_F16": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 257-snap-state-f16.json",
+    "source": "bench/specs/257-snap-state-f16.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MTP_BLOCK_VERIFY",
+    "env": {
+     "STRATA_MTP_BLOCK_VERIFY": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 258-mtp-block-verify.json",
+    "source": "bench/specs/258-mtp-block-verify.json",
+    "exact": true
+   },
+   {
+    "name": "STRATA_ADAPT_SWAPS_AUTO",
+    "env": {
+     "STRATA_ADAPT_SWAPS_AUTO": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 259-q7-tune-paired-screen.json",
+    "source": "bench/specs/259-q7-tune-paired-screen.json",
+    "exact": true
+   },
+   {
+    "name": "plus-swaps-auto-paired",
+    "env": {
+     "STRATA_ADAPT_SWAPS_AUTO": "1",
+     "STRATA_TUNE_PAIRED": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 259-q7-tune-paired-screen.json",
+    "source": "bench/specs/259-q7-tune-paired-screen.json",
+    "exact": true
+   },
+   {
+    "name": "plus-swaps-auto-paired-p2",
+    "env": {
+     "STRATA_ADAPT_SWAPS_AUTO": "1",
+     "STRATA_TUNE_PAIRED": "1",
+     "STRATA_TUNE_PAIRED_PERIOD": "2"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 259-q7-tune-paired-screen.json",
+    "source": "bench/specs/259-q7-tune-paired-screen.json",
+    "exact": true
+   },
+   {
+    "name": "STRATA_SWAP_GRACE",
+    "env": {
+     "STRATA_SWAP_GRACE": "2"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 262-q4-swap-grace-count-kept-screen.json",
+    "source": "bench/specs/262-q4-swap-grace-count-kept-screen.json",
+    "exact": true
+   },
+   {
+    "name": "plus-swap-grace-8",
+    "env": {
+     "STRATA_SWAP_GRACE": "8"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 262-q4-swap-grace-count-kept-screen.json",
+    "source": "bench/specs/262-q4-swap-grace-count-kept-screen.json",
+    "exact": true
+   },
+   {
+    "name": "STRATA_COUNT_KEPT",
+    "env": {
+     "STRATA_COUNT_KEPT": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 262-q4-swap-grace-count-kept-screen.json",
+    "source": "bench/specs/262-q4-swap-grace-count-kept-screen.json",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PF_GEMM",
+    "env": {
+     "STRATA_PF_GEMM": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 263-census-mapped-switches.json",
+    "source": "bench/specs/263-census-mapped-switches.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PF_HCDOWN",
+    "env": {
+     "STRATA_PF_HCDOWN": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 263-census-mapped-switches.json",
+    "source": "bench/specs/263-census-mapped-switches.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_HCD_EXACT",
+    "env": {
+     "STRATA_HCD_EXACT": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 263-census-mapped-switches.json",
+    "source": "bench/specs/263-census-mapped-switches.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GDN_CHUNKED",
+    "env": {
+     "STRATA_GDN_CHUNKED": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 263-census-mapped-switches.json",
+    "source": "bench/specs/263-census-mapped-switches.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_ATTN_LANECELL",
+    "env": {
+     "STRATA_ATTN_LANECELL": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 263-census-mapped-switches.json",
+    "source": "bench/specs/263-census-mapped-switches.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_ATTN_MERGE_V2",
+    "env": {
+     "STRATA_ATTN_MERGE_V2": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 263-census-mapped-switches.json",
+    "source": "bench/specs/263-census-mapped-switches.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_PF_FUSED_NATIVE",
+    "env": {
+     "STRATA_PF_FUSED_NATIVE": "0"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 263-census-mapped-switches.json",
+    "source": "bench/specs/263-census-mapped-switches.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_VERIFY_GEMV_CHAINS",
+    "env": {
+     "STRATA_VERIFY_GEMV_CHAINS": "2"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 264-verify-gemv-chains.json",
+    "source": "bench/specs/264-verify-gemv-chains.json",
+    "exact": true
+   },
+   {
+    "name": "chains4",
+    "env": {
+     "STRATA_VERIFY_GEMV_CHAINS": "4"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 264-verify-gemv-chains.json",
+    "source": "bench/specs/264-verify-gemv-chains.json",
+    "exact": true
+   },
+   {
+    "name": "STRATA_PF_AHEAD",
+    "env": {
+     "STRATA_PF_AHEAD": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 270-copy-batch-rocm102.json",
+    "source": "bench/specs/270-copy-batch-rocm102.json",
+    "exact": false
+   },
+   {
+    "name": "pf-ahead-batch4",
+    "env": {
+     "STRATA_PF_AHEAD": "1",
+     "STRATA_PF_COPY_BATCH": "4"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 270-copy-batch-rocm102.json",
+    "source": "bench/specs/270-copy-batch-rocm102.json",
+    "exact": false
+   },
+   {
+    "name": "pf-ahead-batch16",
+    "env": {
+     "STRATA_PF_AHEAD": "1",
+     "STRATA_PF_COPY_BATCH": "16"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 270-copy-batch-rocm102.json",
+    "source": "bench/specs/270-copy-batch-rocm102.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_DECODE_COPY_BATCH",
+    "env": {
+     "STRATA_DECODE_COPY_BATCH": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 270-copy-batch-rocm102.json",
+    "source": "bench/specs/270-copy-batch-rocm102.json",
+    "exact": false
+   },
+   {
+    "name": "pf-ahead-decode-copy-batch",
+    "env": {
+     "STRATA_PF_AHEAD": "1",
+     "STRATA_DECODE_COPY_BATCH": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 270-copy-batch-rocm102.json",
+    "source": "bench/specs/270-copy-batch-rocm102.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_POOL_PREREAD",
+    "env": {
+     "STRATA_POOL_PREREAD": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 271-pcopy-rest-usage.json",
+    "source": "bench/specs/271-pcopy-rest-usage.json",
+    "exact": true
+   },
+   {
+    "name": "preread-rest",
+    "env": {
+     "STRATA_POOL_PREREAD": "1",
+     "STRATA_PCOPY_REST_USAGE": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 271-pcopy-rest-usage.json",
+    "source": "bench/specs/271-pcopy-rest-usage.json",
+    "exact": true
+   },
+   {
+    "name": "preread-stats",
+    "env": {
+     "STRATA_POOL_PREREAD": "1",
+     "STRATA_LOOKAHEAD_STATS": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 271-pcopy-rest-usage.json",
+    "source": "bench/specs/271-pcopy-rest-usage.json",
+    "exact": true
+   },
+   {
+    "name": "preread-stats-rest",
+    "env": {
+     "STRATA_POOL_PREREAD": "1",
+     "STRATA_LOOKAHEAD_STATS": "1",
+     "STRATA_PCOPY_REST_USAGE": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 271-pcopy-rest-usage.json",
+    "source": "bench/specs/271-pcopy-rest-usage.json",
+    "exact": true
+   },
+   {
+    "name": "STRATA_SWAP_BUDGET_RESIDENCY",
+    "env": {
+     "STRATA_SWAP_BUDGET_RESIDENCY": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 272-swap-budget-residency.json",
+    "source": "bench/specs/272-swap-budget-residency.json",
+    "exact": true
+   },
+   {
+    "name": "residency-gate80",
+    "env": {
+     "STRATA_SWAP_BUDGET_RESIDENCY": "1",
+     "STRATA_SWAP_BUDGET_RESIDENCY_GATE": "0.8"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 272-swap-budget-residency.json",
+    "source": "bench/specs/272-swap-budget-residency.json",
+    "exact": true
+   },
+   {
+    "name": "residency-gate90",
+    "env": {
+     "STRATA_SWAP_BUDGET_RESIDENCY": "1",
+     "STRATA_SWAP_BUDGET_RESIDENCY_GATE": "0.9"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 272-swap-budget-residency.json",
+    "source": "bench/specs/272-swap-budget-residency.json",
+    "exact": true
+   },
+   {
+    "name": "STRATA_DECODE_ORDER_SMALL",
+    "env": {
+     "STRATA_DECODE_ORDER_SMALL": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 273-decode-order-small.json",
+    "source": "bench/specs/273-decode-order-small.json",
+    "exact": true
+   },
+   {
+    "name": "STRATA_MTP_HEAD_HOST",
+    "env": {
+     "STRATA_MTP_HEAD_HOST": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 274-mtp-head-host.json",
+    "source": "bench/specs/274-mtp-head-host.json",
+    "exact": true
+   },
+   {
+    "name": "STRATA_REDUCE_F32",
+    "env": {
+     "STRATA_REDUCE_F32": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 277-reduce-f32.json",
+    "source": "bench/specs/277-reduce-f32.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_GDN_WMMA_PREFILL",
+    "env": {
+     "STRATA_GDN_WMMA_PREFILL": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 280-gdn-wmma-prefill.json",
+    "source": "bench/specs/280-gdn-wmma-prefill.json",
+    "exact": false
+   },
+   {
+    "name": "STRATA_MTP_SLOTS",
+    "env": {
+     "STRATA_MTP_SLOTS": "256"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 282-q3-mtp-slots-screen.json",
+    "source": "bench/specs/282-q3-mtp-slots-screen.json",
+    "exact": true
+   },
+   {
+    "name": "plus-mtp-slots-128",
+    "env": {
+     "STRATA_MTP_SLOTS": "128"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 282-q3-mtp-slots-screen.json",
+    "source": "bench/specs/282-q3-mtp-slots-screen.json",
+    "exact": true
+   },
+   {
+    "name": "plus-mtp-slots-256-installs-1",
+    "env": {
+     "STRATA_MTP_SLOTS": "256",
+     "STRATA_MTP_ZC_INSTALLS": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 283-q3-mtp-slots-installs-screen.json",
+    "source": "bench/specs/283-q3-mtp-slots-installs-screen.json",
+    "exact": true
+   },
+   {
+    "name": "plus-mtp-slots-256-installs-16",
+    "env": {
+     "STRATA_MTP_SLOTS": "256",
+     "STRATA_MTP_ZC_INSTALLS": "16"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 283-q3-mtp-slots-installs-screen.json",
+    "source": "bench/specs/283-q3-mtp-slots-installs-screen.json",
+    "exact": true
+   },
+   {
+    "name": "GPU_MAX_HW_QUEUES",
+    "env": {
+     "GPU_MAX_HW_QUEUES": "1"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 253-hwq-decode.json",
+    "source": "bench/specs/253-hwq-decode.json",
+    "exact": true
+   },
+   {
+    "name": "hwq2",
+    "env": {
+     "GPU_MAX_HW_QUEUES": "2"
+    },
+    "why": "lead switch, default OFF, coded on an integration lead branch (integration/leads-2026-11-21); never run on gfx1100; A/B spec 253-hwq-decode.json",
+    "source": "bench/specs/253-hwq-decode.json",
+    "exact": true
+   }
+  ]
+ },
+ "measured": {
+  "us": {}
+ },
+ "pruned": {
+  "us": []
+ },
+ "backlog": {
+  "us": []
+ }
+}

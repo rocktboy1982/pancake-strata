@@ -1,0 +1,41 @@
+s2_expert_grouped_parity: new expert kernels vs the previous ones, bitwise
+  moe_hit_grouped_s2 (fp32 scales)             bitwise identical
+  moe_hit_grouped_s2 (fp32 scales)             host reference: 2601 rows, 0 outside tolerance, worst 9.35e-08 of sum|term|
+  moe_hit_grouped_s2 (fp16 d)                  bitwise identical
+  moe_hit_grouped_s2 (fp16 d)                  host reference: 2601 rows, 0 outside tolerance, worst 9.22e-08 of sum|term|
+  moe_hit_grouped_s2_dev (count 7 of 10)       bitwise identical
+  moe_hit_grouped_s2_dev (count 7 of 10)       host reference: 2023 rows, 0 outside tolerance, worst 9.35e-08 of sum|term|
+  moe_hit_grouped_s2_dev (count 7 of 10)       rows past the count written: 0
+  moe_hit_grouped_s2_multi (4 tokens, 29 hits) bitwise identical
+  moe_hit_grouped_s2_multi (4 tokens, 29 hits) host reference: 8381 rows, 0 outside tolerance, worst 1.06e-07 of sum|term|
+  moe_grouped_s2 (20 groups, fp32 scales)      bitwise identical
+  moe_grouped_s2 (20 groups, fp32 scales)      host reference: 23120 rows, 0 outside tolerance, worst 1.18e-07 of sum|term|
+  moe_grouped_s2 (20 groups, fp16 d)           bitwise identical
+  moe_grouped_s2 (20 groups, fp16 d)           host reference: 23120 rows, 0 outside tolerance, worst 9.45e-08 of sum|term|
+  moe_group_resident + moe_grouped_s2 T=1 (fp32) bitwise identical
+  moe_group_resident + moe_grouped_s2 T=1 (fp32) host reference: 2890 rows, 0 outside tolerance, worst 9.35e-08 of sum|term|
+  moe_group_resident + moe_grouped_s2 T=1 (fp16) bitwise identical
+  moe_group_resident + moe_grouped_s2 T=1 (fp16) host reference: 2890 rows, 0 outside tolerance, worst 9.22e-08 of sum|term|
+  moe_group_resident + moe_grouped_s2 T=5 (fp32) bitwise identical
+  moe_group_resident + moe_grouped_s2 T=5 (fp32) host reference: 14450 rows, 0 outside tolerance, worst 1.18e-07 of sum|term|
+  moe_group_resident + moe_grouped_s2 T=5 (fp16) bitwise identical
+  moe_group_resident + moe_grouped_s2 T=5 (fp16) host reference: 14450 rows, 0 outside tolerance, worst 9.45e-08 of sum|term|
+  moe_group_resident_ptr identity T=1 groups   bitwise equal
+  moe_group_resident_ptr record, all hits T=1  bitwise equal
+  moe_group_resident_ptr host range T=1 groups bitwise equal
+  moe_group_resident_ptr record T=1 (5 miss entries) bitwise equal
+  moe_grouped_s2 through the table T=1         bitwise equal
+  moe_group_resident_ptr identity T=5 groups   bitwise equal
+  moe_group_resident_ptr record, all hits T=5  bitwise equal
+  moe_group_resident_ptr host range T=5 groups bitwise equal
+  moe_group_resident_ptr record T=5 (24 miss entries) bitwise equal
+  moe_grouped_s2 through the table T=5         bitwise equal
+  moe_hit_grouped_s2 (2-byte aligned x)        bitwise identical
+  moe_hit_grouped_s2 (2-byte aligned x)        host reference: 867 rows, 0 outside tolerance, worst 9.35e-08 of sum|term|
+  moe_hit_grouped_s2 (slot stride BLOB + 4)    bitwise identical
+  moe_hit_grouped_s2 (slot stride BLOB + 4)    host reference: 1156 rows, 0 outside tolerance, worst 7.91e-08 of sum|term|
+  moe_hit_grouped_s2 (arena 4 mod 8)           bitwise identical
+  moe_hit_grouped_s2 (arena 4 mod 8)           host reference: 1156 rows, 0 outside tolerance, worst 7.91e-08 of sum|term|
+  STRATA_MTP_SLOTS graph replay + service      0 of 160 rounds differ from the full blob; hits 3742 misses 1058 (equal to the host count), 209 installs
+s2_expert_grouped_parity: 0 failures
+PASS

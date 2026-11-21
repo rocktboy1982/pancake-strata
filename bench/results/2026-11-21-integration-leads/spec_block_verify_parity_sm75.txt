@@ -1,0 +1,1 @@
+spec_block_verify_parity: 432 windows, 3312 rows, accepted-count histogram [230 114 43 22 12 6 2 2 0 0 1 0 0 0 0 0 0]: 0 mismatches, 0 wrong refusals

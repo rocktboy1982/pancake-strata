@@ -1,0 +1,271 @@
+FAIL fp16 cap 1000 n_q 1 widths 1
+FAIL fp16 cap 1000 n_q 1 widths 1073741824
+FAIL fp16 cap 1000 n_q 1 widths 1
+FAIL fp16 cap 1000 n_q 1 widths 2051
+FAIL fp16 cap 1000 n_q 1 widths 63
+FAIL fp16 cap 1000 n_q 2 widths 1023 1023
+FAIL fp16 cap 1000 n_q 2 widths 1023 1073741824
+FAIL fp16 cap 1000 n_q 2 widths 63 1073741824
+FAIL fp16 cap 1000 n_q 2 widths 1 65
+FAIL fp16 cap 1000 n_q 2 widths 0 65
+FAIL fp16 cap 1000 n_q 2 widths 65 4096
+FAIL fp16 cap 1000 n_q 4 widths 64 64 1023 0
+FAIL fp16 cap 1000 n_q 4 widths 2051 2051 1073741824 0
+FAIL fp16 cap 1000 n_q 4 widths 64 2051 63 1073741824
+FAIL fp16 cap 1000 n_q 4 widths 64 64 4096 1
+FAIL fp16 cap 1000 n_q 4 widths 4096 2051 1073741824 0
+FAIL fp16 cap 1000 n_q 4 widths 1073741824 2051 1073741824 0
+FAIL fp16 cap 2051 n_q 1 widths 1073741824
+FAIL fp16 cap 2051 n_q 1 widths 1073741824
+FAIL fp16 cap 2051 n_q 1 widths 64
+FAIL fp16 cap 2051 n_q 1 widths 4096
+FAIL fp16 cap 2051 n_q 1 widths 65
+FAIL fp16 cap 2051 n_q 2 widths 63 4096
+FAIL fp16 cap 2051 n_q 2 widths 63 1
+FAIL fp16 cap 2051 n_q 2 widths 2051 1073741824
+FAIL fp16 cap 2051 n_q 2 widths 65 64
+FAIL fp16 cap 2051 n_q 2 widths 65 2051
+FAIL fp16 cap 2051 n_q 2 widths 2051 63
+FAIL fp16 cap 2051 n_q 4 widths 1073741824 65 64 63
+FAIL fp16 cap 2051 n_q 4 widths 4096 0 4096 64
+FAIL fp16 cap 2051 n_q 4 widths 4096 2051 0 2051
+FAIL fp16 cap 2051 n_q 4 widths 64 1023 1023 2051
+FAIL fp16 cap 2051 n_q 4 widths 1 1023 1 63
+FAIL fp16 cap 2051 n_q 4 widths 63 0 1073741824 1
+FAIL fp16 cap 2112 n_q 1 widths 2051
+FAIL fp16 cap 2112 n_q 1 widths 1023
+FAIL fp16 cap 2112 n_q 1 widths 4096
+FAIL fp16 cap 2112 n_q 1 widths 4096
+FAIL fp16 cap 2112 n_q 1 widths 1023
+FAIL fp16 cap 2112 n_q 1 widths 64
+FAIL fp16 cap 2112 n_q 2 widths 1073741824 4096
+FAIL fp16 cap 2112 n_q 2 widths 63 65
+FAIL fp16 cap 2112 n_q 2 widths 1 1
+FAIL fp16 cap 2112 n_q 2 widths 0 1
+FAIL fp16 cap 2112 n_q 2 widths 63 0
+FAIL fp16 cap 2112 n_q 4 widths 1073741824 2051 65 0
+FAIL fp16 cap 2112 n_q 4 widths 2051 1073741824 1073741824 65
+FAIL fp16 cap 2112 n_q 4 widths 63 64 1 1
+FAIL fp16 cap 2112 n_q 4 widths 4096 64 63 1023
+FAIL fp16 cap 2112 n_q 4 widths 0 4096 1 1073741824
+FAIL fp16 cap 2112 n_q 4 widths 1073741824 64 1023 1
+FAIL fp16 cap 4096 n_q 1 widths 1073741824
+FAIL fp16 cap 4096 n_q 1 widths 1073741824
+FAIL fp16 cap 4096 n_q 1 widths 1073741824
+FAIL fp16 cap 4096 n_q 1 widths 63
+FAIL fp16 cap 4096 n_q 1 widths 2051
+FAIL fp16 cap 4096 n_q 1 widths 65
+FAIL fp16 cap 4096 n_q 2 widths 1073741824 4096
+FAIL fp16 cap 4096 n_q 2 widths 4096 64
+FAIL fp16 cap 4096 n_q 2 widths 1073741824 64
+FAIL fp16 cap 4096 n_q 2 widths 0 1073741824
+FAIL fp16 cap 4096 n_q 2 widths 64 65
+FAIL fp16 cap 4096 n_q 2 widths 2051 64
+FAIL fp16 cap 4096 n_q 4 widths 1073741824 1 1073741824 0
+FAIL fp16 cap 4096 n_q 4 widths 1073741824 63 1023 65
+FAIL fp16 cap 4096 n_q 4 widths 1073741824 0 4096 65
+FAIL fp16 cap 4096 n_q 4 widths 1023 1023 2051 64
+FAIL fp16 cap 4096 n_q 4 widths 63 2051 64 2051
+FAIL fp16 cap 4096 n_q 4 widths 63 1073741824 1 0
+FAIL int8 cap 1000 n_q 1 widths 1023
+FAIL int8 cap 1000 n_q 1 widths 1
+FAIL int8 cap 1000 n_q 1 widths 2051
+FAIL int8 cap 1000 n_q 1 widths 1
+FAIL int8 cap 1000 n_q 2 widths 1073741824 1
+FAIL int8 cap 1000 n_q 2 widths 63 1073741824
+FAIL int8 cap 1000 n_q 2 widths 1073741824 63
+FAIL int8 cap 1000 n_q 2 widths 63 64
+FAIL int8 cap 1000 n_q 2 widths 1073741824 1
+FAIL int8 cap 1000 n_q 2 widths 1023 1
+FAIL int8 cap 1000 n_q 4 widths 1023 63 65 2051
+FAIL int8 cap 1000 n_q 4 widths 63 65 1073741824 1
+FAIL int8 cap 1000 n_q 4 widths 2051 63 63 1
+FAIL int8 cap 1000 n_q 4 widths 65 63 63 2051
+FAIL int8 cap 1000 n_q 4 widths 1023 2051 64 63
+FAIL int8 cap 1000 n_q 4 widths 1073741824 63 2051 63
+FAIL int8 cap 2051 n_q 1 widths 1023
+FAIL int8 cap 2051 n_q 1 widths 65
+FAIL int8 cap 2051 n_q 1 widths 4096
+FAIL int8 cap 2051 n_q 1 widths 1
+FAIL int8 cap 2051 n_q 1 widths 63
+FAIL int8 cap 2051 n_q 2 widths 1023 1
+FAIL int8 cap 2051 n_q 2 widths 1073741824 65
+FAIL int8 cap 2051 n_q 2 widths 65 64
+FAIL int8 cap 2051 n_q 2 widths 1 1023
+FAIL int8 cap 2051 n_q 2 widths 1023 1
+FAIL int8 cap 2051 n_q 2 widths 4096 2051
+FAIL int8 cap 2051 n_q 4 widths 63 1023 0 1073741824
+FAIL int8 cap 2051 n_q 4 widths 64 63 0 64
+FAIL int8 cap 2051 n_q 4 widths 63 63 1 4096
+FAIL int8 cap 2051 n_q 4 widths 0 1023 63 65
+FAIL int8 cap 2051 n_q 4 widths 0 1073741824 63 63
+FAIL int8 cap 2051 n_q 4 widths 2051 1 1 4096
+FAIL int8 cap 2112 n_q 1 widths 1073741824
+FAIL int8 cap 2112 n_q 1 widths 1073741824
+FAIL int8 cap 2112 n_q 1 widths 4096
+FAIL int8 cap 2112 n_q 1 widths 64
+FAIL int8 cap 2112 n_q 1 widths 1023
+FAIL int8 cap 2112 n_q 2 widths 1073741824 64
+FAIL int8 cap 2112 n_q 2 widths 63 63
+FAIL int8 cap 2112 n_q 2 widths 0 65
+FAIL int8 cap 2112 n_q 2 widths 65 65
+FAIL int8 cap 2112 n_q 2 widths 2051 0
+FAIL int8 cap 2112 n_q 2 widths 1 1073741824
+FAIL int8 cap 2112 n_q 4 widths 1023 64 1023 0
+FAIL int8 cap 2112 n_q 4 widths 1023 65 64 65
+FAIL int8 cap 2112 n_q 4 widths 0 2051 1073741824 1023
+FAIL int8 cap 2112 n_q 4 widths 65 2051 1073741824 65
+FAIL int8 cap 2112 n_q 4 widths 63 65 64 4096
+FAIL int8 cap 2112 n_q 4 widths 1023 63 1073741824 64
+FAIL int8 cap 4096 n_q 1 widths 1023
+FAIL int8 cap 4096 n_q 1 widths 4096
+FAIL int8 cap 4096 n_q 1 widths 4096
+FAIL int8 cap 4096 n_q 1 widths 1023
+FAIL int8 cap 4096 n_q 2 widths 1073741824 1023
+FAIL int8 cap 4096 n_q 2 widths 63 65
+FAIL int8 cap 4096 n_q 2 widths 0 4096
+FAIL int8 cap 4096 n_q 2 widths 4096 2051
+FAIL int8 cap 4096 n_q 2 widths 64 63
+FAIL int8 cap 4096 n_q 4 widths 64 0 63 65
+FAIL int8 cap 4096 n_q 4 widths 2051 4096 0 0
+FAIL int8 cap 4096 n_q 4 widths 4096 1023 1073741824 2051
+FAIL int8 cap 4096 n_q 4 widths 4096 1023 63 4096
+FAIL int8 cap 4096 n_q 4 widths 64 64 2051 1073741824
+FAIL int8 cap 4096 n_q 4 widths 1023 64 65 1
+FAIL q4_0 cap 1000 n_q 1 widths 4096
+FAIL q4_0 cap 1000 n_q 1 widths 65
+FAIL q4_0 cap 1000 n_q 1 widths 2051
+FAIL q4_0 cap 1000 n_q 1 widths 64
+FAIL q4_0 cap 1000 n_q 1 widths 2051
+FAIL q4_0 cap 1000 n_q 2 widths 65 1
+FAIL q4_0 cap 1000 n_q 2 widths 4096 0
+FAIL q4_0 cap 1000 n_q 2 widths 0 4096
+FAIL q4_0 cap 1000 n_q 2 widths 64 1023
+FAIL q4_0 cap 1000 n_q 2 widths 4096 63
+FAIL q4_0 cap 1000 n_q 2 widths 1023 0
+FAIL q4_0 cap 1000 n_q 4 widths 0 1 1073741824 0
+FAIL q4_0 cap 1000 n_q 4 widths 1023 64 4096 65
+FAIL q4_0 cap 1000 n_q 4 widths 0 4096 0 1073741824
+FAIL q4_0 cap 1000 n_q 4 widths 1 1 1073741824 2051
+FAIL q4_0 cap 1000 n_q 4 widths 1073741824 63 65 1023
+FAIL q4_0 cap 1000 n_q 4 widths 63 0 4096 64
+FAIL q4_0 cap 2051 n_q 1 widths 4096
+FAIL q4_0 cap 2051 n_q 1 widths 1
+FAIL q4_0 cap 2051 n_q 1 widths 1073741824
+FAIL q4_0 cap 2051 n_q 1 widths 1
+FAIL q4_0 cap 2051 n_q 1 widths 2051
+FAIL q4_0 cap 2051 n_q 2 widths 64 1
+FAIL q4_0 cap 2051 n_q 2 widths 63 1
+FAIL q4_0 cap 2051 n_q 2 widths 4096 0
+FAIL q4_0 cap 2051 n_q 2 widths 63 1023
+FAIL q4_0 cap 2051 n_q 2 widths 63 4096
+FAIL q4_0 cap 2051 n_q 2 widths 63 1023
+FAIL q4_0 cap 2051 n_q 4 widths 1023 0 65 1
+FAIL q4_0 cap 2051 n_q 4 widths 0 65 2051 1073741824
+FAIL q4_0 cap 2051 n_q 4 widths 2051 64 1073741824 0
+FAIL q4_0 cap 2051 n_q 4 widths 1023 1 0 4096
+FAIL q4_0 cap 2051 n_q 4 widths 1073741824 1 63 1023
+FAIL q4_0 cap 2051 n_q 4 widths 1073741824 65 63 1023
+FAIL q4_0 cap 2112 n_q 1 widths 2051
+FAIL q4_0 cap 2112 n_q 1 widths 1023
+FAIL q4_0 cap 2112 n_q 1 widths 1073741824
+FAIL q4_0 cap 2112 n_q 1 widths 4096
+FAIL q4_0 cap 2112 n_q 1 widths 63
+FAIL q4_0 cap 2112 n_q 2 widths 4096 1023
+FAIL q4_0 cap 2112 n_q 2 widths 2051 4096
+FAIL q4_0 cap 2112 n_q 2 widths 64 65
+FAIL q4_0 cap 2112 n_q 2 widths 1 2051
+FAIL q4_0 cap 2112 n_q 2 widths 65 63
+FAIL q4_0 cap 2112 n_q 2 widths 1 0
+FAIL q4_0 cap 2112 n_q 4 widths 64 64 1073741824 1
+FAIL q4_0 cap 2112 n_q 4 widths 1023 1073741824 1023 0
+FAIL q4_0 cap 2112 n_q 4 widths 1073741824 1 1023 4096
+FAIL q4_0 cap 2112 n_q 4 widths 64 65 0 0
+FAIL q4_0 cap 2112 n_q 4 widths 2051 2051 1073741824 1
+FAIL q4_0 cap 2112 n_q 4 widths 4096 2051 4096 1073741824
+FAIL q4_0 cap 4096 n_q 1 widths 65
+FAIL q4_0 cap 4096 n_q 1 widths 1073741824
+FAIL q4_0 cap 4096 n_q 1 widths 63
+FAIL q4_0 cap 4096 n_q 1 widths 1
+FAIL q4_0 cap 4096 n_q 2 widths 1 2051
+FAIL q4_0 cap 4096 n_q 2 widths 4096 63
+FAIL q4_0 cap 4096 n_q 2 widths 64 65
+FAIL q4_0 cap 4096 n_q 2 widths 2051 2051
+FAIL q4_0 cap 4096 n_q 2 widths 65 2051
+FAIL q4_0 cap 4096 n_q 2 widths 1073741824 0
+FAIL q4_0 cap 4096 n_q 4 widths 2051 64 0 4096
+FAIL q4_0 cap 4096 n_q 4 widths 63 0 0 4096
+FAIL q4_0 cap 4096 n_q 4 widths 64 65 0 2051
+FAIL q4_0 cap 4096 n_q 4 widths 1023 64 63 64
+FAIL q4_0 cap 4096 n_q 4 widths 64 1073741824 1023 63
+FAIL q4_0 cap 4096 n_q 4 widths 0 0 2051 1073741824
+FAIL k8v4 cap 1000 n_q 1 widths 1
+FAIL k8v4 cap 1000 n_q 1 widths 1023
+FAIL k8v4 cap 1000 n_q 1 widths 1
+FAIL k8v4 cap 1000 n_q 1 widths 65
+FAIL k8v4 cap 1000 n_q 1 widths 1073741824
+FAIL k8v4 cap 1000 n_q 1 widths 63
+FAIL k8v4 cap 1000 n_q 2 widths 63 1
+FAIL k8v4 cap 1000 n_q 2 widths 64 1
+FAIL k8v4 cap 1000 n_q 2 widths 64 1073741824
+FAIL k8v4 cap 1000 n_q 2 widths 1 64
+FAIL k8v4 cap 1000 n_q 2 widths 1073741824 2051
+FAIL k8v4 cap 1000 n_q 2 widths 0 2051
+FAIL k8v4 cap 1000 n_q 4 widths 0 1073741824 0 1
+FAIL k8v4 cap 1000 n_q 4 widths 64 1 1023 1
+FAIL k8v4 cap 1000 n_q 4 widths 2051 1 0 0
+FAIL k8v4 cap 1000 n_q 4 widths 1 1023 65 64
+FAIL k8v4 cap 1000 n_q 4 widths 1023 1023 64 63
+FAIL k8v4 cap 1000 n_q 4 widths 1 4096 2051 65
+FAIL k8v4 cap 2051 n_q 1 widths 1
+FAIL k8v4 cap 2051 n_q 1 widths 63
+FAIL k8v4 cap 2051 n_q 1 widths 64
+FAIL k8v4 cap 2051 n_q 1 widths 1073741824
+FAIL k8v4 cap 2051 n_q 2 widths 1023 4096
+FAIL k8v4 cap 2051 n_q 2 widths 0 63
+FAIL k8v4 cap 2051 n_q 2 widths 63 1
+FAIL k8v4 cap 2051 n_q 2 widths 63 1023
+FAIL k8v4 cap 2051 n_q 2 widths 63 1073741824
+FAIL k8v4 cap 2051 n_q 4 widths 1073741824 63 64 4096
+FAIL k8v4 cap 2051 n_q 4 widths 2051 2051 0 0
+FAIL k8v4 cap 2051 n_q 4 widths 0 2051 1073741824 4096
+FAIL k8v4 cap 2051 n_q 4 widths 1073741824 1023 1023 63
+FAIL k8v4 cap 2051 n_q 4 widths 2051 1073741824 63 65
+FAIL k8v4 cap 2051 n_q 4 widths 1023 0 64 0
+FAIL k8v4 cap 2112 n_q 1 widths 65
+FAIL k8v4 cap 2112 n_q 1 widths 63
+FAIL k8v4 cap 2112 n_q 1 widths 65
+FAIL k8v4 cap 2112 n_q 1 widths 2051
+FAIL k8v4 cap 2112 n_q 1 widths 1073741824
+FAIL k8v4 cap 2112 n_q 1 widths 1073741824
+FAIL k8v4 cap 2112 n_q 2 widths 1 1073741824
+FAIL k8v4 cap 2112 n_q 2 widths 2051 65
+FAIL k8v4 cap 2112 n_q 2 widths 63 1073741824
+FAIL k8v4 cap 2112 n_q 2 widths 1073741824 2051
+FAIL k8v4 cap 2112 n_q 2 widths 0 1023
+FAIL k8v4 cap 2112 n_q 2 widths 65 63
+FAIL k8v4 cap 2112 n_q 4 widths 64 64 0 4096
+FAIL k8v4 cap 2112 n_q 4 widths 65 2051 4096 0
+FAIL k8v4 cap 2112 n_q 4 widths 64 4096 0 65
+FAIL k8v4 cap 2112 n_q 4 widths 1 64 63 64
+FAIL k8v4 cap 2112 n_q 4 widths 1023 64 1 1073741824
+FAIL k8v4 cap 2112 n_q 4 widths 1073741824 1 63 2051
+FAIL k8v4 cap 4096 n_q 1 widths 63
+FAIL k8v4 cap 4096 n_q 1 widths 1073741824
+FAIL k8v4 cap 4096 n_q 1 widths 4096
+FAIL k8v4 cap 4096 n_q 1 widths 1023
+FAIL k8v4 cap 4096 n_q 1 widths 2051
+FAIL k8v4 cap 4096 n_q 1 widths 1
+FAIL k8v4 cap 4096 n_q 2 widths 1073741824 1073741824
+FAIL k8v4 cap 4096 n_q 2 widths 65 4096
+FAIL k8v4 cap 4096 n_q 2 widths 2051 1
+FAIL k8v4 cap 4096 n_q 2 widths 1 63
+FAIL k8v4 cap 4096 n_q 2 widths 1023 2051
+FAIL k8v4 cap 4096 n_q 2 widths 1023 1
+FAIL k8v4 cap 4096 n_q 4 widths 2051 1073741824 1023 65
+FAIL k8v4 cap 4096 n_q 4 widths 1073741824 4096 63 2051
+FAIL k8v4 cap 4096 n_q 4 widths 1 0 65 65
+FAIL k8v4 cap 4096 n_q 4 widths 1023 4096 1 0
+FAIL k8v4 cap 4096 n_q 4 widths 4096 0 65 0
+FAIL k8v4 cap 4096 n_q 4 widths 64 65 0 63
+FAIL: 18 of 288 prefetch attention cases bitwise equal to the default

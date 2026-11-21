@@ -1,0 +1,30 @@
+def2  src/kernels/cuda/elementwise.cu            base  19 new  20 identical  19 DIFF 0 GONE 0 added 1 
+        added kernels: silu_kernel
+def2  src/kernels/cuda/fused_gdn.cu              base   4 new   4 identical   4 DIFF 0 GONE 0 added 0 
+def2  src/kernels/cuda/gdn.cu                    base   5 new   7 identical   5 DIFF 0 GONE 0 added 2 
+        added kernels: gdn_l2_kernel, gdn_out_norm_kernel
+def2  src/kernels/cuda/ple.cu                    base  10 new  13 identical  10 DIFF 0 GONE 0 added 3 
+        added kernels: bf16_gemv_kernel, gate_kernel, gnorm_kernel
+def2  src/kernels/cuda/qsa.cu                    base   8 new   9 identical   8 DIFF 0 GONE 0 added 1 
+        added kernels: indexer_key_append_kernel
+def2  src/kernels/cuda/qsa_decode_attn.cu        base  71 new  71 identical  71 DIFF 0 GONE 0 added 0 
+def2  src/kernels/cuda/qsa_pattn.cu              base   0 new   0 identical   0 DIFF 0 GONE 0 added 0 
+def2  src/kernels/cuda/qsa_prompt_attn.cu        base  45 new  45 identical  45 DIFF 0 GONE 0 added 0 
+def2  src/kernels/cuda/qsa_select.cu             base  30 new  30 identical  30 DIFF 0 GONE 0 added 0 
+def2  src/kernels/cuda/rdna_gr.cu                base  82 new  82 identical  82 DIFF 0 GONE 0 added 0 
+def2  src/kernels/cuda/rdna_mmvq.cu              base 158 new 286 identical 158 DIFF 0 GONE 0 added 128 
+        added kernels: rdna_kq_chain_kernel, rdna_q6k_chain_kernel
+def2  src/kernels/cuda/s2_expert_grouped.cu      base  25 new  26 identical  25 DIFF 0 GONE 0 added 1 
+        added kernels: group_resident_ptr_kernel
+def2  src/kernels/cuda/sampler.cu                base  17 new  19 identical  17 DIFF 0 GONE 0 added 2 
+        added kernels: spec_block_rows_kernel, spec_block_verify_kernel
+def2  src/kernels/s2_expert_grouped_parity.cpp   base   0 new   0 identical   0 DIFF 0 GONE 0 added 0 
+def2  src/prefill/kernels.cu                     base  75 new  77 identical  75 DIFF 0 GONE 0 added 2 
+        added kernels: gdn_wmma_ck_prep_kernel, gdn_wmma_ck_scan_kernel
+def2  src/prefill/moe_fused.cu                   base   6 new   6 identical   6 DIFF 0 GONE 0 added 0 
+def2  src/prefill/wmma_gemm.cu                   base   9 new   9 identical   9 DIFF 0 GONE 0 added 0 
+ggml2 src/prefill/moe_f16_kq.cu                  base  16 new  16 identical  16 DIFF 0 GONE 0 added 0 
+ggml2 src/prefill/moe_fused_iq.cu                base 117 new 117 identical 117 DIFF 0 GONE 0 added 0 
+ggml2 src/prefill/moe_iq4_w4a8.cu                base   0 new   0 identical   0 DIFF 0 GONE 0 added 0 
+kvpf  src/kernels/cuda/qsa_decode_attn.cu        base  71 new  75 identical  71 DIFF 0 GONE 0 added 4 
+        added kernels: attn_chunk_pf_kernel
