@@ -1,0 +1,2282 @@
+[
+ {
+  "flag": "STRATA_ROUTE_TAIL_SKIP",
+  "arm": "minus-ROUTE_TAIL_SKIP",
+  "kind": "minus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 1,
+  "label": "preset flag, failing verdict (removal candidate)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: base start SLOW (prefill 2188/1501); pair drift edit -17.9 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -0.68,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PIN_BY_NEED",
+  "arm": "minus-PIN_BY_NEED",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "MIXED",
+  "rank": 0,
+  "label": "owner-forced",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1688); base start SLOW (prefill 2188/1501); pair drift edit -17.9 %",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 4.69,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_EXPDEC",
+  "arm": "minus-EXPDEC",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 1,
+  "label": "preset flag, failing verdict (removal candidate)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1398); base start SLOW (prefill 1501/2184); pair drift edit +21.9 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 19.79,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_EXCHANGE_ROTATE",
+  "arm": "minus-EXCHANGE_ROTATE",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 3,
+  "label": "HIGH (+9.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1542); base start SLOW (prefill 1501/2184); pair drift edit +21.9 %",
+   "DISAGREE: short +9.5/-0.6 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 9.53,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_ATTN_DAILY",
+  "arm": "minus-ATTN_DAILY",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 2,
+  "label": "big gain in one run (+30.3 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1562)",
+   "DISAGREE: edit +30.3/-1.5, longdec64k-prompt +33.3/-0.4 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 30.32,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PROMPT_ATTN_IMMA",
+  "arm": "minus-PROMPT_ATTN_IMMA",
+  "kind": "minus",
+  "exact": false,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +1.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.47,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_KV_PREFETCH",
+  "arm": "minus-KV_PREFETCH",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 4,
+  "label": "KEEP that fails the strict rule",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 1.38,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PF_GROUP_SCRATCH",
+  "arm": "minus-PF_GROUP_SCRATCH",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 2,
+  "label": "big gain in one run (+17.6 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1619)",
+   "SLOW run 2: arm start SLOW (prefill 1461)",
+   "DISAGREE: longdec64k -0.3/+10.0 (opposite sign, > 10 points)",
+   "ONE-RUN: 0 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 17.56,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_SELECT_WMMA",
+  "arm": "minus-SELECT_WMMA",
+  "kind": "minus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 1,
+  "label": "preset flag, failing verdict (removal candidate)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1554); base start SLOW (prefill 1583/1863); pair drift longdec64k +5.8 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 37.8,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_SH_STREAM",
+  "arm": "minus-SH_STREAM",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 1,
+  "label": "preset flag, failing verdict (removal candidate)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1658); pair drift longdec64k +5.5 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 37.46,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_QFUSE",
+  "arm": "minus-QFUSE",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 2,
+  "label": "big gain in one run (+12.8 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1473)",
+   "DISAGREE: longdec64k -0.6/+12.8 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 12.75,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_VERIFY_QDEDUP",
+  "arm": "minus-VERIFY_QDEDUP",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +1.6 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.61,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_STAGER_RING",
+  "arm": "minus-STAGER_RING",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 1,
+  "label": "preset flag, failing verdict (removal candidate)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1567); pair drift longdec64k +5.5 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 24.95,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PREFILL_CPU_SHARE_MAX",
+  "arm": "minus-PREFILL_CPU_SHARE_MAX",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 1,
+  "label": "preset flag, failing verdict (removal candidate)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: base start SLOW (prefill 1583/1863); pair drift longdec64k +5.8 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 7.7,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GDN_HEAD",
+  "arm": "minus-GDN_HEAD",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +0.1 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 0.09,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GDN_CHUNKED",
+  "arm": "minus-GDN_CHUNKED",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 3,
+  "label": "HIGH (+5.5 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 5.55,
+  "candidate": false
+ },
+ {
+  "flag": "STRATA_GDN_CONVL2",
+  "arm": "minus-GDN_CONVL2",
+  "kind": "minus",
+  "exact": false,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +1.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.95,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GDN_NOY",
+  "arm": "minus-GDN_NOY",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 3,
+  "label": "HIGH (+4.4 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 4.44,
+  "candidate": false
+ },
+ {
+  "flag": "STRATA_PF_GEMM",
+  "arm": "minus-PF_GEMM",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 2,
+  "label": "big gain in one run (+13.0 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1502)",
+   "DISAGREE: edit -1.3/+13.0 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 13.04,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PF_PAD",
+  "arm": "minus-PF_PAD",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 2,
+  "label": "big gain in one run (+19.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1468)",
+   "DISAGREE: edit -0.4/+19.9 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 19.93,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_HC_UPMIX",
+  "arm": "minus-HC_UPMIX",
+  "kind": "minus",
+  "exact": false,
+  "verdict": "RETEST-GATE",
+  "rank": 2,
+  "label": "big gain in one run (+29.2 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1484)",
+   "SLOW run 2: arm start SLOW (prefill 1602)",
+   "ONE-RUN: 0 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 29.22,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PF_HCDOWN",
+  "arm": "minus-PF_HCDOWN",
+  "kind": "minus",
+  "exact": false,
+  "verdict": "RETEST-GATE",
+  "rank": 2,
+  "label": "big gain in one run (+28.4 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1454)",
+   "DISAGREE: edit -2.1/+19.0 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 28.36,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_FUSE_CONVAB",
+  "arm": "minus-FUSE_CONVAB",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +1.1 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.14,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_HEAD_MIX_MULTI",
+  "arm": "minus-HEAD_MIX_MULTI",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 1,
+  "label": "preset flag, failing verdict (removal candidate)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: pair drift edit +8.0 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 2.26,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_KV_HOST_DMA",
+  "arm": "minus-KV_HOST_DMA",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 1,
+  "label": "preset flag, failing verdict (removal candidate)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: pair drift edit +8.0 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.35,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_QSA_ROWS",
+  "arm": "minus-QSA_ROWS",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 3,
+  "label": "HIGH (+4.1 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 4.09,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GR_RDNA_Q8",
+  "arm": "minus-GR_RDNA_Q8",
+  "kind": "minus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 1,
+  "label": "preset flag, failing verdict (removal candidate)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: pair drift short -11.0 %",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 13.35,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GR_RDNA_A8",
+  "arm": "minus-GR_RDNA_A8",
+  "kind": "minus",
+  "exact": false,
+  "verdict": "KEEP",
+  "rank": 3,
+  "label": "HIGH (+4.1 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 4.09,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GR_INJ_UP",
+  "arm": "minus-GR_INJ_UP",
+  "kind": "minus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 1,
+  "label": "preset flag, failing verdict (removal candidate)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: pair drift short -11.0 %",
+   "DISAGREE: longdec64k +7.0/-4.5 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 7.41,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GR_FUSED",
+  "arm": "minus-GR_FUSED",
+  "kind": "minus",
+  "exact": false,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +1.1 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: base start SLOW (prefill 2190/1490)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.11,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_ENGINE_NICE",
+  "arm": "minus-ENGINE_NICE",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 2,
+  "label": "big gain in one run (+36.8 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1727)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 36.78,
+  "candidate": true
+ },
+ {
+  "flag": "--expert-profile",
+  "arm": "minus-expert-profile",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 3,
+  "label": "HIGH (+7.8 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1494); base start SLOW (prefill 2190/1490)",
+   "DISAGREE: edit -16.3/+4.2 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 7.79,
+  "candidate": true
+ },
+ {
+  "flag": "--pool-affinity",
+  "arm": "minus-pool-affinity",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 1,
+  "label": "preset flag, failing verdict (removal candidate)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "run 1: rows not found",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -0.72,
+  "candidate": true
+ },
+ {
+  "flag": "--adapt-every",
+  "arm": "minus-adapt-every",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 0,
+  "label": "owner-forced",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 3.05,
+  "candidate": true
+ },
+ {
+  "flag": "--conversation-cache-min-tokens",
+  "arm": "minus-conversation-cache-min-tokens",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 2,
+  "label": "big gain in one run (+15.1 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1459)",
+   "DISAGREE: longdec64k-prompt +38.6/-0.2 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 15.1,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_AMD_COMMUNITY_TUNING",
+  "arm": "plus-AMD_COMMUNITY_TUNING",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 3,
+  "label": "HIGH (+7.3 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: pair drift edit +8.4 %",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 7.34,
+  "candidate": true
+ },
+ {
+  "flag": "--lookup-max-t",
+  "arm": "minus-lookup-max-t",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 0,
+  "label": "owner-forced",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1370)",
+   "DISAGREE: short +23.2/-5.2 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 47.23,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GR_RDNA",
+  "arm": "minus-GR_RDNA",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 1,
+  "label": "preset flag, failing verdict (removal candidate)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1685)",
+   "SLOW run 2: pair drift edit +8.4 %",
+   "DISAGREE: longdec64k-prompt +20.0/-4.5 (opposite sign, > 10 points)",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 49.81,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_RDNA_MMVQ_WAVE",
+  "arm": "minus-RDNA_MMVQ_WAVE",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +0.1 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 0.12,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_RDNA_Q6K",
+  "arm": "minus-RDNA_Q6K",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 2,
+  "label": "big gain in one run (+42.7 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1691)",
+   "DISAGREE: longdec64k-prompt -0.0/+28.7 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 42.7,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_HIPBLASLT_TUNING",
+  "arm": "minus-HIPBLASLT_TUNING",
+  "kind": "minus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 3,
+  "label": "HIGH (+8.4 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "DISAGREE: longdec64k +8.4/-2.2 (opposite sign, > 10 points)"
+  ],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 8.45,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_ADAPT_CALLBACK_WARMUP",
+  "arm": "plus-ADAPT_CALLBACK_WARMUP",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +1.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.54,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_ADAPT_NOWAIT",
+  "arm": "plus-ADAPT_NOWAIT",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 3,
+  "label": "HIGH (+7.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1691); base start SLOW (prefill 1754/2174); pair drift longdec64k +7.0 %",
+   "DISAGREE: edit +7.9/-18.1, longdec64k-prompt +0.0/-13.9 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 7.93,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_ADAPT_OVERLAP_RESIDENT",
+  "arm": "plus-ADAPT_OVERLAP_RESIDENT",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -10.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1565)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -10.47,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_ATTN_LANECELL",
+  "arm": "plus-ATTN_LANECELL",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 3,
+  "label": "HIGH (+6.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1678); base start SLOW (prefill 1754/2174); pair drift longdec64k +7.0 %",
+   "DISAGREE: longdec64k-prompt +0.1/-14.5 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 6.93,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_ATTN_MERGE_V2",
+  "arm": "plus-ATTN_MERGE_V2",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 0,
+  "label": "owner-added",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 3.74,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_ATTN_V3",
+  "arm": "plus-ATTN_V3",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "KEEP",
+  "rank": 4,
+  "label": "KEEP that fails the strict rule",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 0.89,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_CPU_IQ_ALL_EXACT1",
+  "arm": "plus-CPU_IQ_ALL_EXACT1",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -2.0 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1464)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -2.03,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_CVEC_FUSE",
+  "arm": "plus-CVEC_FUSE",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "DROP",
+  "rank": 3,
+  "label": "HIGH (+2.5 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 2.48,
+  "candidate": false
+ },
+ {
+  "flag": "STRATA_DEQUANT_SIDE",
+  "arm": "plus-DEQUANT_SIDE",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "MIXED",
+  "rank": 3,
+  "label": "HIGH (+3.2 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 3.22,
+  "candidate": false
+ },
+ {
+  "flag": "STRATA_DOWN_WS",
+  "arm": "plus-DOWN_WS",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "DROP",
+  "rank": 3,
+  "label": "HIGH (+2.9 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 2.93,
+  "candidate": false
+ },
+ {
+  "flag": "STRATA_EMBED_VRAM",
+  "arm": "plus-EMBED_VRAM",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "MIXED",
+  "rank": 3,
+  "label": "HIGH (+2.7 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 2.72,
+  "candidate": false
+ },
+ {
+  "flag": "STRATA_EMB_REUSE_ACCOUNT",
+  "arm": "plus-EMB_REUSE_ACCOUNT",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 3,
+  "label": "HIGH (+8.2 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 8.17,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_FS_SLOTS",
+  "arm": "plus-FS_SLOTS",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -0.7 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -0.7,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_FUSE_DECODE",
+  "arm": "plus-FUSE_DECODE",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +2.0 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.99,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_FUSE_HEAD_GR",
+  "arm": "plus-FUSE_HEAD_GR",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 2,
+  "label": "big gain in one run (+11.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1578); pair drift longdec64k +33.7 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 11.51,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GDN_CHUNKED_MIN",
+  "arm": "plus-GDN_CHUNKED_MIN",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 3,
+  "label": "HIGH (+4.4 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1686); pair drift longdec64k +33.7 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 4.44,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GDN_TC",
+  "arm": "plus-GDN_TC",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 3,
+  "label": "HIGH (+4.7 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: pair drift longdec64k -9.5 %",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 4.66,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GROUPED_V1",
+  "arm": "plus-GROUPED_V1",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "DROP",
+  "rank": 3,
+  "label": "HIGH (+2.7 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1538)",
+   "DISAGREE: longdec64k +2.7/-24.2, longdec64k-prompt +0.3/-29.6 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 2.66,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GR_Q32_G",
+  "arm": "plus-GR_Q32_G",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +1.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.95,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_GR_Q8_PFS",
+  "arm": "plus-GR_Q8_PFS",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +0.6 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 0.61,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_HCD_EXACT",
+  "arm": "plus-HCD_EXACT",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -4.4 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1465)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -4.4,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_HC_Q8_ALL_STAGES",
+  "arm": "plus-HC_Q8_ALL_STAGES",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -0.3 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1754)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -0.32,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_HC_Q8_INJECT",
+  "arm": "plus-HC_Q8_INJECT",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -7.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1612)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -7.55,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_HIP_ADAPT_KERNEL_COPY",
+  "arm": "plus-HIP_ADAPT_KERNEL_COPY",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best -1.6 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -1.6,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_HIP_SWIGLU_FUSED",
+  "arm": "plus-HIP_SWIGLU_FUSED",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -1.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1476)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -1.52,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_IQ_STAGE_GRID",
+  "arm": "plus-IQ_STAGE_GRID",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 3,
+  "label": "HIGH (+3.8 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: pair drift edit +8.8 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 3.78,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_IQ_STAGE_GRID_MMVQ",
+  "arm": "plus-IQ_STAGE_GRID_MMVQ",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -0.7 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1646)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -0.71,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_IQ_STAGE_TABLES",
+  "arm": "plus-IQ_STAGE_TABLES",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 2,
+  "label": "big gain in one run (+13.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1576); pair drift longdec64k +41.3 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 13.49,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_KV_GROW",
+  "arm": "plus-KV_GROW",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 2,
+  "label": "big gain in one run (+16.7 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: pair drift longdec64k +41.3 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 16.69,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_KV_HOST_REGISTER",
+  "arm": "plus-KV_HOST_REGISTER",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +0.2 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 0.22,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_LFUSE",
+  "arm": "plus-LFUSE",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +0.3 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 0.28,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_LFUSE_GATE",
+  "arm": "plus-LFUSE_GATE",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +0.8 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 0.84,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_LFUSE_PAIR",
+  "arm": "plus-LFUSE_PAIR",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 5,
+  "label": "rest (best +1.7 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1425); base start SLOW (prefill 2187/1659); pair drift edit -18.8 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.67,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_LM_HIP",
+  "arm": "plus-LM_HIP",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "DROP",
+  "rank": 3,
+  "label": "HIGH (+2.6 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1754)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 2.63,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_MMVQ_IL",
+  "arm": "plus-MMVQ_IL",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "DROP",
+  "rank": 3,
+  "label": "HIGH (+3.8 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 3.76,
+  "candidate": false
+ },
+ {
+  "flag": "STRATA_MMVQ_IL_T1",
+  "arm": "plus-MMVQ_IL_T1",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "DROP",
+  "rank": 3,
+  "label": "HIGH (+2.7 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1663)",
+   "DISAGREE: longdec64k +2.7/-8.6, longdec64k-prompt +0.3/-23.7 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 2.66,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_MMVQ_IL_WIDE",
+  "arm": "plus-MMVQ_IL_WIDE",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "DROP",
+  "rank": 3,
+  "label": "HIGH (+4.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1642)",
+   "DISAGREE: longdec64k +4.9/-10.5, longdec64k-prompt +0.1/-24.7 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 4.88,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_MMVQ_WAVE",
+  "arm": "plus-MMVQ_WAVE",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +0.8 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 0.77,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_MTP_CATCHUP_ALL",
+  "arm": "plus-MTP_CATCHUP_ALL",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "UNTESTED",
+  "rank": 3,
+  "label": "HIGH (+6.4 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 6.42,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_MTP_FULL_HEAD",
+  "arm": "plus-MTP_FULL_HEAD",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 5,
+  "label": "rest (best +1.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: pair drift longdec64k +8.8 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.85,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_MTP_TOP2",
+  "arm": "plus-MTP_TOP2",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "UNTESTED",
+  "rank": 3,
+  "label": "HIGH (+2.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 2.87,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_NORM_ROPE",
+  "arm": "plus-NORM_ROPE",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 3,
+  "label": "HIGH (+3.2 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 3.24,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_NO_MMVQ_ROWS2",
+  "arm": "plus-NO_MMVQ_ROWS2",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +0.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 0.49,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_NO_MULTI_GR",
+  "arm": "plus-NO_MULTI_GR",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 0,
+  "label": "owner-added",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 6.42,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_NO_SUB16_GU",
+  "arm": "plus-NO_SUB16_GU",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "DROP",
+  "rank": 3,
+  "label": "HIGH (+5.0 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 4.97,
+  "candidate": false
+ },
+ {
+  "flag": "STRATA_OLD_IQ_MMVQ",
+  "arm": "plus-OLD_IQ_MMVQ",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -8.3 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1592)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -8.27,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_OLD_Q80_SCALED",
+  "arm": "plus-OLD_Q80_SCALED",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "KEEP",
+  "rank": 3,
+  "label": "HIGH (+3.6 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 3.62,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PA_RPF",
+  "arm": "plus-PA_RPF",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -0.4 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -0.38,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PA_TRIM",
+  "arm": "plus-PA_TRIM",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +0.4 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1701)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 0.36,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PCIE_AUTO_CANON",
+  "arm": "plus-PCIE_AUTO_CANON",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -3.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1565)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -3.48,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PF_BK64",
+  "arm": "plus-PF_BK64",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "KEEP",
+  "rank": 3,
+  "label": "HIGH (+8.6 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 8.63,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PF_FUSED_F16",
+  "arm": "plus-PF_FUSED_F16",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "DROP",
+  "rank": 3,
+  "label": "HIGH (+8.6 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: arm start SLOW (prefill 1437)",
+   "DISAGREE: longdec64k +8.6/-8.9 (opposite sign, > 10 points)",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 8.55,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PF_FUSED_NATIVE",
+  "arm": "plus-PF_FUSED_NATIVE",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "MIXED",
+  "rank": 3,
+  "label": "HIGH (+8.0 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 7.96,
+  "candidate": false
+ },
+ {
+  "flag": "STRATA_PF_Q8D_F16",
+  "arm": "plus-PF_Q8D_F16",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "DROP",
+  "rank": 3,
+  "label": "HIGH (+7.8 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "DISAGREE: longdec64k +7.8/-26.6 (opposite sign, > 10 points)"
+  ],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 7.78,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PF_WMMA2",
+  "arm": "plus-PF_WMMA2",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "DROP",
+  "rank": 3,
+  "label": "HIGH (+4.2 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 4.17,
+  "candidate": false
+ },
+ {
+  "flag": "STRATA_PIPED_MTP",
+  "arm": "plus-PIPED_MTP",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -2.0 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1530)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -1.99,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_POOL_UMWAIT_C02",
+  "arm": "plus-POOL_UMWAIT_C02",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +1.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.47,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PREFILL_EQUAL",
+  "arm": "plus-PREFILL_EQUAL",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 5,
+  "label": "rest (best +1.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1529); pair drift longdec64k +8.8 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.95,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PREFILL_HELP",
+  "arm": "plus-PREFILL_HELP",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "KEEP",
+  "rank": 3,
+  "label": "HIGH (+3.6 %)",
+  "tier": "TRUSTED",
+  "reasons": [],
+  "clean_runs": 2,
+  "n_runs": 2,
+  "keep_fails_strict": true,
+  "best": 3.65,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PREFILL_HOST_PLAN",
+  "arm": "plus-PREFILL_HOST_PLAN",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 3,
+  "label": "HIGH (+2.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 2: pair drift edit +7.3 %",
+   "ONE-RUN: 1 clean run(s) of the 2 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 2,
+  "keep_fails_strict": false,
+  "best": 2.92,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_PREFILL_LM_EVEN",
+  "arm": "plus-PREFILL_LM_EVEN",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 3,
+  "label": "HIGH (+6.0 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1458); pair drift longdec64k +34.2 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 6.04,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_Q6_PACKED",
+  "arm": "plus-Q6_PACKED",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 5,
+  "label": "rest (best -1.7 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1608); pair drift longdec64k +34.2 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -1.69,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_Q8_GATHER_WIDE",
+  "arm": "plus-Q8_GATHER_WIDE",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 2,
+  "label": "big gain in one run (+12.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: pair drift longdec64k -25.8 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 12.54,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_Q8_PACKED",
+  "arm": "plus-Q8_PACKED",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 2,
+  "label": "big gain in one run (+20.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: pair drift longdec64k -25.8 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 20.95,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_QSA_FUSE_GATE",
+  "arm": "plus-QSA_FUSE_GATE",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "PROMISING",
+  "rank": 3,
+  "label": "HIGH (+2.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 2.91,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_QSA_FUSE_NR",
+  "arm": "plus-QSA_FUSE_NR",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +1.2 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.25,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_QSA_SLOTS",
+  "arm": "plus-QSA_SLOTS",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -12.0 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1491)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -11.96,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_RING_BYTES",
+  "arm": "plus-RING_BYTES",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -1.6 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1943)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -1.56,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_ROPE_TABLE",
+  "arm": "plus-ROPE_TABLE",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +1.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.91,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_S2_SWIGLU_Q8",
+  "arm": "plus-S2_SWIGLU_Q8",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +1.8 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1561)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.8,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_SELECT_SIMT",
+  "arm": "plus-SELECT_SIMT",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "PROMISING-LOW",
+  "rank": 5,
+  "label": "rest (best +1.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.95,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_SH_FORK_LATE",
+  "arm": "plus-SH_FORK_LATE",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING",
+  "rank": 3,
+  "label": "HIGH (+3.4 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 3.37,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_SIDE_MIXER",
+  "arm": "plus-SIDE_MIXER",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "NO-GAIN-P1",
+  "rank": 5,
+  "label": "rest (best -12.3 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1559)",
+   "ONE-RUN: 0 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": -12.26,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_SMALL_UNR",
+  "arm": "plus-SMALL_UNR",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING",
+  "rank": 3,
+  "label": "HIGH (+5.1 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 5.14,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_STAGE_TRIM",
+  "arm": "plus-STAGE_TRIM",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING",
+  "rank": 3,
+  "label": "HIGH (+4.3 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 4.3,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_TOPK_ACTIVE_ANY",
+  "arm": "plus-TOPK_ACTIVE_ANY",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING",
+  "rank": 5,
+  "label": "rest (best +1.8 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.84,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_TOPK_STREAM",
+  "arm": "plus-TOPK_STREAM",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 5,
+  "label": "rest (best +1.2 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: pair drift short +10.3 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 1.23,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_TSUM",
+  "arm": "plus-TSUM",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 5,
+  "label": "rest (best +0.1 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1641); pair drift short +10.3 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 0.09,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_VERIFY_ASYNC_LAUNCH",
+  "arm": "plus-VERIFY_ASYNC_LAUNCH",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 3,
+  "label": "HIGH (+2.3 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: pair drift edit +9.1 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 2.29,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_VERIFY_COHERENT",
+  "arm": "plus-VERIFY_COHERENT",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "INCONCLUSIVE",
+  "rank": 3,
+  "label": "HIGH (+3.5 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: pair drift edit +9.1 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 3.54,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_VNNI_TIER",
+  "arm": "plus-VNNI_TIER",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 3,
+  "label": "HIGH (+6.9 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: base start SLOW (prefill 1662/2179); pair drift longdec64k +5.8 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 6.91,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_WMMA_BF16",
+  "arm": "plus-WMMA_BF16",
+  "kind": "plus",
+  "exact": false,
+  "verdict": "INCONCLUSIVE",
+  "rank": 3,
+  "label": "HIGH (+2.3 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "SLOW run 1: arm start SLOW (prefill 1526); base start SLOW (prefill 1662/2179); pair drift longdec64k +5.8 %",
+   "NO-RUN: no usable run"
+  ],
+  "clean_runs": 0,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 2.3,
+  "candidate": true
+ },
+ {
+  "flag": "STRATA_XN_F16",
+  "arm": "plus-XN_F16",
+  "kind": "plus",
+  "exact": true,
+  "verdict": "PROMISING",
+  "rank": 3,
+  "label": "HIGH (+3.8 %)",
+  "tier": "UNTRUSTED",
+  "reasons": [
+   "ONE-RUN: 1 clean run(s) of the 1 behind the verdict"
+  ],
+  "clean_runs": 1,
+  "n_runs": 1,
+  "keep_fails_strict": false,
+  "best": 3.82,
+  "candidate": true
+ }
+]
