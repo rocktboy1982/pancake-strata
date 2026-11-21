@@ -1,0 +1,13 @@
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+STARTDIAG 2026-11-21T15:30:53 prev_run_s=NA gap_s=NA rd_sect=163641853792 wr_sect=110783600 io_ticks_ms=127143305 d_rd_sect=NA d_wr_sect=NA d_io_ticks_ms=NA cached_kb=17967428 mlocked_kb=64 memavail_kb=58146728 nvme_temp_c=50 compact_stall_d=NA
+STARTLOAD 2026-11-21T15:31:38 loaded 33.02 GiB at 1.14 GiB/s rate=1.14
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.44 32.0 s (1.14 GiB/s; stopped; waited 11.3 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 102.3 short 100.1 edit 163.2 edit 176.1 longdec64k 82.3/2170p 65238t  foreign CPU 6% [('kcompactd0', 7), ('kworker/9:3-mm_percpu_wq', 4), ('kswapd0', 3)]  gpu 2020/1249 MHz 64C 195W gtt 25M cpu 3569MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T15:32:40 prev_run_s=102 gap_s=107 rd_sect=163719749024 wr_sect=110783688 io_ticks_ms=127182961 d_rd_sect=77895232 d_wr_sect=88 d_io_ticks_ms=39656 cached_kb=13594916 mlocked_kb=64 memavail_kb=58145080 nvme_temp_c=52 compact_stall_d=15
+STARTLOAD 2026-11-21T15:33:30 loaded 33.02 GiB at 1.02 GiB/s rate=1.02
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 37.0 s (0.98 GiB/s; stopped; waited 11.3 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-PREFILL_LM_EVEN short 102.2 short 99.2 edit 162.6 edit 175.2 longdec64k 86.6/2176p 65238t  foreign CPU 4% [('kcompactd0', 5), ('kworker/8:2-mm_percpu_wq', 2), ('localsearch-3', 1)]  gpu 1942/1249 MHz 64C 188W gtt 25M cpu 3509MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-PREFILL_LM_EVEN: every attempt noisy, keeping the quietest (4% foreign CPU)
+STARTDIAG 2026-11-21T15:34:31 prev_run_s=106 gap_s=111 rd_sect=163813748864 wr_sect=110783816 io_ticks_ms=127228320 d_rd_sect=93999840 d_wr_sect=128 d_io_ticks_ms=45359 cached_kb=15762088 mlocked_kb=64 memavail_kb=58117872 nvme_temp_c=53 compact_stall_d=11

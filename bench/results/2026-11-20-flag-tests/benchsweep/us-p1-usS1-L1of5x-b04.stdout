@@ -40,3 +40,50 @@ STARTDIAG 2026-11-21T15:28:37 prev_run_s=109 gap_s=114 rd_sect=163545445504 wr_s
 STARTLOAD 2026-11-21T15:29:26 loaded 33.02 GiB at 1.01 GiB/s rate=1.01
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 31.42 36.4 s (0.86 GiB/s; stopped; waited 10.9 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 108.2 short 102.7 edit 162.9 edit 182.5 longdec64k 81.3/2184p 65240t  foreign CPU 3% [('kcompactd0', 3), ('kswapd0', 2), ('kworker/1:1-events', 1)]  gpu 2042/1249 MHz 64C 189W gtt 25M cpu 3788MHz 66C igpu 0%/vcn 0% fclk 1600
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 106.8 +-  45.1  (n=2)
+                              drafts accepted 0.71
+  short  plus-KV_GROW            106.2 +-  31.8  (n=2)   vs updated:  -0.6% +- 12.5%  -> no difference
+                              drafts accepted 0.71
+  short  plus-LFUSE_PAIR         105.3 +-  29.9  (n=2)   vs updated:  -1.4% +- 14.3%  -> no difference
+                              drafts accepted 0.70
+  short  base-m1                 106.1 +-  40.7  (n=2)   vs updated:  -0.7% +-  4.2%  -> no difference
+                              drafts accepted 0.70
+  short  plus-MTP_FULL_HEAD      104.3 +-  21.6  (n=2)   vs updated:  -2.4% +- 62.4%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               105.5 +-  35.0  (n=2)   vs updated:  -1.3% +-  9.5%  -> no difference
+                              drafts accepted 0.70
+  edit   updated                 170.7 +-  12.7  (n=2)
+                              drafts accepted 0.89
+  edit   plus-KV_GROW            170.7 +-  12.7  (n=2)   vs updated:  +0.0% +-  0.0%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-LFUSE_PAIR         172.8 +- 134.7  (n=2)   vs updated:  +1.2% +- 71.5%  -> no difference
+                              drafts accepted 0.88
+  edit   base-m1                 172.7 +- 143.0  (n=2)   vs updated:  +1.1% +- 76.3%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-MTP_FULL_HEAD      160.5 +-  58.5  (n=2)   vs updated:  -6.0% +- 26.8%  -> no difference
+                              drafts accepted 0.87
+  edit   base-late               172.7 +- 124.6  (n=2)   vs updated:  +1.2% +- 65.5%  -> no difference
+                              drafts accepted 0.88
+  longdec64k updated                  86.1 +-   nan  (n=1)
+  longdec64k plus-KV_GROW             84.0 +-   nan  (n=1)   vs updated:  -2.4% +-  nan%  -> no difference
+  longdec64k plus-LFUSE_PAIR          82.8 +-   nan  (n=1)   vs updated:  -3.8% +-  nan%  -> no difference
+  longdec64k base-m1                  83.5 +-   nan  (n=1)   vs updated:  -3.0% +-  nan%  -> no difference
+  longdec64k plus-MTP_FULL_HEAD       84.9 +-   nan  (n=1)   vs updated:  -1.4% +-  nan%  -> no difference
+  longdec64k base-late                81.3 +-   nan  (n=1)   vs updated:  -5.6% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-KV_GROW         identical on every case -> exact
+  plus-LFUSE_PAIR      DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-MTP_FULL_HEAD   DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -1.3%  edit +1.2%  longdec64k -5.6%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-KV_GROW         short +0.0%  edit -0.6%  longdec64k +0.4%  -> PROMOTE to confirm
+  plus-LFUSE_PAIR      short -0.8%  edit +0.6%  longdec64k -1.1%  -> PROMOTE to confirm
+  base-m1              short -0.0%  edit +0.6%  longdec64k -0.2%  -> PROMOTE to confirm
+  plus-MTP_FULL_HEAD   short -1.7%  edit -6.5%  longdec64k +1.4%  -> drop
