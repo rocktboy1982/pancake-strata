@@ -72,6 +72,7 @@ import json
 import math
 import os
 import random
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -1032,6 +1033,55 @@ def final_estimate(specs, reps=FINAL_REPS):
     return {"final-short": starts * start_s(FINAL_SHORT), "final-long": starts * start_s(specs["final-long"]["cases"]), "final-gate": 2700}
 
 
+def leftover_select(tri, mode, forced=()):
+    """T-1006 LEFTOVER (run-queue-us14.sh): the flags the cycles of the screen slices left without a usable run, picked from the MERGED triage.  A flag with a `runs` entry (the two-run rule
+    ran: KEEP / DROP / MIXED / OPTIONAL / RETEST-GATE) or any other decided verdict is never touched.  mode "rescreen" = run 2 for a flag that is HIGH / HURTS after a clean run 1 and has no
+    run-2 numbers: verdict PROMISING / HURTS (rescreen not run yet), or INCONCLUSIVE / UNTESTED that carries its run-1 numbers in `run1` (its rescreen drifted twice, or the block time limit cut
+    the arm: UNTESTED, no rows).  mode "rerun1" = a run 1 once more for an INCONCLUSIVE / UNTESTED flag of a screen slice (usS1-*) that never had a clean run 1 (drifted twice, or cut by the
+    time limit); a flag without an arm (inert, not testable) is skipped.  forced: owner-forced flags (SWEEP_FORCE_RESCREEN) not decided yet always join: the rescreen when they have a run-1
+    result (PROMISING / PROMISING-LOW / NO-GAIN-P1 / HURTS, or `run1`), else the rerun1.  Returns {arm: record + "leftover": reason}."""
+    forced = set(forced)
+    out = {}
+    for fl, r in tri["flags"].items():
+        v, arm = r.get("verdict"), r.get("arm")
+        if not arm or r.get("runs") or v not in WEAK:
+            continue
+        has1 = bool(r.get("run1")) or (v in ("PROMISING", "HURTS", "PROMISING-LOW", NOGAIN) and bool(r.get("pass1")))
+        why = None
+        if mode == "rescreen":
+            if v in ("PROMISING", "HURTS"):
+                why = "%s after run 1, no run-2 numbers: rescreen not run" % v
+            elif v in ("INCONCLUSIVE", "UNTESTED") and r.get("run1"):
+                why = ("%s: its rescreen has no rows (time limit cut)" % v) if v == "UNTESTED" else "INCONCLUSIVE: its rescreen drifted (no run-2 numbers)"
+            elif fl in forced and has1:
+                why = "owner-forced, no run 2 yet"
+        elif mode == "rerun1":
+            if v in ("INCONCLUSIVE", "UNTESTED") and not r.get("run1") and str(r.get("slice") or "").startswith("usS1-"):
+                why = ("UNTESTED: no rows (time limit cut)" if v == "UNTESTED" else "INCONCLUSIVE: run-1 block drifted twice, no clean run 1")
+            elif fl in forced and not has1:
+                why = "owner-forced, no clean run 1 yet"
+        else:
+            raise ValueError("leftover_select: mode must be rescreen or rerun1")
+        if why:
+            out[arm] = {**r, "leftover": why, **({"forced": True} if fl in forced else {})}
+    return out
+
+
+def lost_arms(blocks_text, rows_of):
+    """The arms a screen lost to a block time limit (exit=124) or an abort: `blocks_text` = the work/us-blocks-<tag>.txt lines ("BLOCK b01 1520 path order: plus-A plus-B ..."),
+    rows_of(bid) = the arm names of the block's jsonl rows.  Per block: planned arms, the arms with no row at all, and whether the closing base (base-late) is missing, i.e. no arm after
+    the last mid base can be judged.  Returns [(bid, planned, no_rows, no_late_base)]."""
+    res = []
+    for ln in blocks_text.splitlines():
+        m = re.match(r"BLOCK (\S+) \d+ \S+ order: (.*)", ln)
+        if not m:
+            continue
+        bid, planned = m.group(1), m.group(2).split()
+        got = set(rows_of(bid))
+        res.append((bid, planned, [a for a in planned if a not in got], "base-late" not in got))
+    return res
+
+
 def read_lines(f):
     return open(f, encoding="utf-8").read().splitlines() if f and os.path.exists(f) else None
 
@@ -1145,6 +1195,14 @@ def main(argv=None):
     sl.add_argument("--min-gain", type=float, default=None, help="only flags whose best screen case is >= this (percent)")
     sl.add_argument("--max-gain", type=float, default=None, help="only flags whose best screen case is < this (percent)")
     sl.add_argument("--out", required=True)
+    lo = sub.add_parser("leftover-select")
+    lo.add_argument("--triage", required=True)
+    lo.add_argument("--mode", required=True, choices=["rescreen", "rerun1"])
+    lo.add_argument("--forced", default="", help="comma list of owner-forced flags")
+    lo.add_argument("--out", required=True)
+    la = sub.add_parser("lost-arms")
+    la.add_argument("--blocks", required=True, help="work/us-blocks-<tag>.txt")
+    la.add_argument("--rows-prefix", required=True, help="the block rows are <prefix><bid>.jsonl, e.g. $O/us-p1-usS1-4of5-")
     rv = sub.add_parser("retest-triage")
     rv.add_argument("--blocks", required=True)
     rv.add_argument("--run", action="append", default=[], help="BID=FILE.jsonl (a block's run; its re-run after it)")
@@ -1352,6 +1410,30 @@ def main(argv=None):
               and (a.min_gain is None or max((r.get("pass1") or {0: -1e9}).values()) >= a.min_gain) and (a.max_gain is None or max((r.get("pass1") or {0: -1e9}).values()) < a.max_gain)}
         json.dump({"schema": "pancake.sweep-select/1", "verdicts": sorted(vs), "flags": fl}, open(a.out, "w"), indent=1)
         print("SELECT %d flag(s) with verdict %s: %s" % (len(fl), "/".join(sorted(vs)), ", ".join(r["flag"] for r in fl.values())))
+    elif a.cmd == "leftover-select":
+        tri = json.load(open(a.triage, encoding="utf-8"))
+        fl = leftover_select(tri, a.mode, [x.strip() for x in a.forced.split(",") if x.strip()])
+        json.dump({"schema": "pancake.sweep-select/1", "verdicts": ["LEFTOVER-" + a.mode], "flags": fl}, open(a.out, "w"), indent=1)
+        for r in fl.values():
+            print("LEFTOVER %s [%s] %s" % (r["flag"], r["verdict"], r["leftover"]))
+        print("SELECT %d flag(s) with verdict LEFTOVER/%s: %s" % (len(fl), a.mode, ", ".join(r["flag"] for r in fl.values())))
+    elif a.cmd == "lost-arms":
+        def rows_of(bid):
+            names = []
+            for f in (a.rows_prefix + bid + ".jsonl", a.rows_prefix + bid + "r.jsonl"):       # the block and its re-run
+                if os.path.exists(f):
+                    for x in open(f, encoding="utf-8"):
+                        try:
+                            names.append(json.loads(x).get("arm"))
+                        except ValueError:
+                            pass
+            return names
+        lost = lost_arms(open(a.blocks, encoding="utf-8").read(), rows_of)
+        for bid, planned, no_rows, no_late in lost:
+            if no_rows or no_late:
+                print("LOSTARMS %s: %d of %d planned arm(s) have no rows (%s)%s" % (bid, len(no_rows), len(planned), ", ".join(no_rows) or "-",
+                                                                                   "; closing base-late missing: the arms after the last mid base cannot be judged" if no_late else ""))
+        print("LOSTARMS-TOTAL %d of %d planned arm(s) without rows in %d block(s)" % (sum(len(x[2]) for x in lost), sum(len(x[1]) for x in lost), len(lost)))
     elif a.cmd == "retest-triage":
         blocks = json.load(open(a.blocks, encoding="utf-8"))
         runs = {}

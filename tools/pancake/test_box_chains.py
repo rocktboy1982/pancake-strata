@@ -4165,6 +4165,93 @@ def test_run_queue_us13_waits_for_the_slice2_rerun_exports_settle_and_prefetch_a
     assert subprocess.run([SH, "-n", str(CHAINS / "run-queue-us13.sh")]).returncode == 0 and b"\x01" not in (CHAINS / "run-queue-us13.sh").read_bytes()
 
 
+def _tri(*rows):
+    return {"flags": {fl: {"flag": fl, "arm": ("minus-" if fl.startswith("M") else "plus-") + fl, "verdict": v, "slice": sl, **extra} for fl, v, sl, extra in rows}}
+
+
+def test_leftover_select_picks_cut_drifted_and_forced_flags_and_leaves_decided_verdicts_alone():
+    """T-1019: the gap of us13: a rescreen arm cut by the block time limit (UNTESTED, run-1 numbers in run1) or drifted twice (INCONCLUSIVE with run1) was never selected again."""
+    mod = sweep_mod()
+    runs = {"runs": [{"short": 3.0}, {"short": 2.0}]}
+    tri = _tri(
+        ("CUT", "UNTESTED", "usS2r-4-1of1", {"run1": {"short": 6.4}, "pass1": {}}),                    # rescreen arm without rows (time limit)
+        ("DRIFT", "INCONCLUSIVE", "usS2rr-2-1of1", {"run1": {"edit": 5.0}}),                          # rescreen drifted twice
+        ("NEVER", "PROMISING", "usS1-5of5", {"pass1": {"short": 4.0}}),                               # rescreen not run yet
+        ("MHURT", "HURTS", "usS1-5of5", {"pass1": {"short": -1.0}}),
+        ("RUN1U", "UNTESTED", "usS1-4of5", {"pass1": {}}),                                            # run 1 cut by the time limit
+        ("RUN1I", "INCONCLUSIVE", "usS1-3of5x", {"pass1": {"short": 9.0}}),                           # run-1 block drifted twice
+        ("OLDI", "INCONCLUSIVE", "usS2r-1-1of1", {}),                                                 # not a screen slice, no run 1
+        ("KEPT", "KEEP", "usS2r-1-1of1", runs), ("DROPPED", "DROP", "usS2r-1-1of1", runs), ("LOW", "PROMISING-LOW", "usS1-1of5", {"pass1": {"short": 0.5}}),
+        ("NOGAIN", "NO-GAIN-P1", "usS1-1of5", {"pass1": {"short": -2.0}}),
+        ("FORCEDA", "NO-GAIN-P1", "usS1-1of5v", {"pass1": {"short": -1.0}}), ("FORCEDB", "INCONCLUSIVE", "usS1-1of5v", {}),
+        ("FORCEDK", "KEEP", "usS2r-1-1of1", runs))
+    tri["flags"]["INERT"] = {"flag": "--pool-affinity", "arm": None, "verdict": "INCONCLUSIVE", "slice": None}
+    resc = mod.leftover_select(tri, "rescreen", ["FORCEDA", "FORCEDB", "FORCEDK"])
+    assert set(resc) == {"plus-CUT", "plus-DRIFT", "plus-NEVER", "minus-MHURT", "plus-FORCEDA"}
+    assert resc["plus-CUT"]["leftover"].startswith("UNTESTED") and "time limit" in resc["plus-CUT"]["leftover"] and resc["plus-FORCEDA"]["forced"] is True and "forced" not in resc["plus-CUT"]
+    rer = mod.leftover_select(tri, "rerun1", ["FORCEDA", "FORCEDB", "FORCEDK"])
+    assert set(rer) == {"plus-RUN1U", "plus-RUN1I", "plus-FORCEDB"} and rer["plus-FORCEDB"]["forced"] is True       # forced without a clean run 1: a run 1; KEEP never; no arm: skipped
+    assert set(mod.leftover_select(tri, "rescreen")) == {"plus-CUT", "plus-DRIFT", "plus-NEVER", "minus-MHURT"}
+    both = set(resc) | set(rer)
+    assert not {"plus-KEPT", "plus-DROPPED", "plus-FORCEDK", "plus-LOW", "plus-NOGAIN", "plus-OLDI"} & both
+    try:
+        mod.leftover_select(tri, "x")
+        raise AssertionError("mode check")
+    except ValueError:
+        pass
+
+
+def test_lost_arms_of_a_cut_block_and_the_leftover_cli(tmp_path):
+    mod = sweep_mod()
+    blocks = "BLOCK b01 1520 /w/b01.json order: plus-A plus-B plus-C\nBLOCK b02 1330 /w/b02.json order: plus-D plus-E\nnoise\n"
+    rows = {"b01": ["warmup", "updated", "plus-A", "base-m1", "plus-B"], "b02": ["updated", "plus-D", "plus-E", "base-late"]}
+    res = mod.lost_arms(blocks, lambda bid: rows.get(bid, []))
+    assert res == [("b01", ["plus-A", "plus-B", "plus-C"], ["plus-C"], True), ("b02", ["plus-D", "plus-E"], [], False)]
+    (tmp_path / "us-blocks-T.txt").write_text(blocks)
+    for bid, names in rows.items():
+        (tmp_path / ("us-p1-T-%s.jsonl" % bid)).write_text("\n".join(json.dumps({"arm": a}) for a in names) + "\nnot json\n")
+    out = subprocess.run([sys.executable, str(CHAINS / "sweep.py"), "lost-arms", "--blocks", str(tmp_path / "us-blocks-T.txt"), "--rows-prefix", str(tmp_path / "us-p1-T-")], capture_output=True, text=True).stdout
+    assert "LOSTARMS b01: 1 of 3 planned arm(s) have no rows (plus-C); closing base-late missing" in out and "LOSTARMS b02" not in out and "LOSTARMS-TOTAL 1 of 5 planned arm(s) without rows in 2 block(s)" in out
+    (tmp_path / "t.json").write_text(json.dumps(_tri(("CUT", "UNTESTED", "usS2r-4-1of1", {"run1": {"short": 6.4}}), ("K", "KEEP", "usS2r-1-1of1", {"runs": [{}, {}]}))))
+    out = subprocess.run([sys.executable, str(CHAINS / "sweep.py"), "leftover-select", "--triage", str(tmp_path / "t.json"), "--mode", "rescreen", "--forced", "", "--out", str(tmp_path / "m.json")],
+                         capture_output=True, text=True).stdout
+    assert "LEFTOVER CUT [UNTESTED]" in out and out.strip().endswith("SELECT 1 flag(s) with verdict LEFTOVER/rescreen: CUT") and list(json.loads((tmp_path / "m.json").read_text())["flags"]) == ["plus-CUT"]
+
+
+def test_run_queue_us14_adds_the_leftover_step_before_the_gates_and_keeps_the_us13_definitions():
+    t = (CHAINS / "run-queue-us14.sh").read_text()
+    assert "run-queue-us14.log" in t and "run-queue-us13.log" not in t and ": ${SWEEP_HARNESS_SHA:?" in t and "QUEUE_US14_DONE" in t and "QUEUE_US13" not in t
+    assert "export ABTEST_SETTLE_AFTER_LONG_S=${ABTEST_SETTLE_AFTER_LONG_S:-120}" in t and "export ABTEST_PREREAD=${ABTEST_PREREAD:-2}" in t
+    tail = t[t.index("# ---- us14 (T-1019)"):]
+    assert tail.index("\nn=9\n") < tail.index("\nwhile pgrep") < tail.index("\ncheck bench-sweep.log WINBENCHSWEEP_DONE \"screen usS1-5of5\"") < tail.index("\nharness_sync\n") < tail.index("\ncycle 5\n") \
+        < tail.index("\nleftover\n") < tail.index("\ngates\n") < tail.index("\nfinal final FINAL_PREFIX=final FINAL_REPS=5") < tail.index("QUEUE_US14_DONE")
+    assert "\nscreen " not in tail and "\nfor k in" not in tail and tail.count("\nfinal final") == 1       # slice 5's screen is the one us13 started: not repeated
+    old = (CHAINS / "run-queue-us13.sh").read_text()
+    assert t[t.index("export SWEEP_HARNESS_SHA"):t.index("n=0\n")] == old[old.index("export SWEEP_HARNESS_SHA"):old.index("n=0\n")]
+    # the definitions of us13 are unchanged except: lostreport after every screen, UNTESTED in the second rescreen of a cycle
+    mine = t[t.index("retest() {"):t.index("# ---- LEFTOVER")]
+    theirs = old[old.index("retest() {"):old.index("# ---- us13")]
+    assert mine == theirs.replace("--verdict INCONCLUSIVE --slice-prefix usS2r-${1}-", "--verdict INCONCLUSIVE,UNTESTED --slice-prefix usS2r-${1}-   # us14: UNTESTED too (an arm the block time limit cut)")
+    assert t.count("lostreport $tag\n}") == 1 and "pancake-strata/tar.gz/$SWEEP_HARNESS_SHA" in t
+    pat = "s/^SELECT " + chr(92) + "([0-9][0-9]*" + chr(92) + ") .*/" + chr(92) + "1/p"
+    assert pat in t and subprocess.run([SH, "-n", str(CHAINS / "run-queue-us14.sh")]).returncode == 0 and bytes([1]) not in (CHAINS / "run-queue-us14.sh").read_bytes()
+
+
+def test_run_queue_us14_leftover_functions_run_with_the_right_tags_and_slice_counts(tmp_path):
+    t = (CHAINS / "run-queue-us14.sh").read_text()
+    funcs = t[t.index("lostreport() {"):t.index("gates() {")] + t[t.index("# ---- LEFTOVER"):t.index("harness_sync() {")]
+    pre = "\n".join(["O=/tmp/o; L=" + (tmp_path / "l.log").as_posix() + "; n=0; PRIOR=/tmp/o/us-triage.v2.json; SWEEP_FORCE_RESCREEN=STRATA_X; HPY=echo; HN=/tmp/hn", 'say() { echo "SAY $*"; }', "check() { :; }", 'env() { echo "ENV $*"; }', ""])
+    swstub = 'sw() { echo "SW $*" >> "$LOGF"; case "$1" in select) echo "SELECT 0 flag(s) x";; leftover-select) echo "SELECT ${COUNT:-2} flag(s) y";; esac; }\n'
+    script = tmp_path / "q.sh"
+    script.write_text("LOGF=" + (tmp_path / "sw.log").as_posix() + "\n" + pre + funcs + "\n" + swstub + "\nCOUNT=2 leftover\nCOUNT=30 leftover_screen rescreen usS2r-Z SWEEP_PRIOR=P\n")
+    out = subprocess.run([SH, str(script)], capture_output=True, text=True).stdout + (tmp_path / "sw.log").read_text() + (tmp_path / "l.log").read_text()
+    assert "leftover-select --triage /tmp/o/us-triage.v2.json --mode rerun1 --forced STRATA_X --out /tmp/o/work/us-usS1-Lrerun1.meta.json" in out
+    assert "SWEEP_SLICE=1/1 SWEEP_SPLIT=even SWEEP_TAG=usS1-L1of5x" in out and "SWEEP_ONLY_META=/tmp/o/work/us-usS1-Lrerun1.meta.json" in out
+    assert "SWEEP_TAG=usS2r-L-1of1" in out and "SWEEP_TAG=usS2rr-L-1of1" in out and "SWEEP_PRIOR=/tmp/o/us-triage.v2.json" in out
+    assert "SWEEP_TAG=usS2r-Z-1of2" in out and "SWEEP_TAG=usS2r-Z-2of2" in out and "SWEEP_SLICE=2/2" in out          # > 25 flags: two slices
+    assert "lost-arms --blocks /tmp/o/work/us-blocks-usS1-L1of5x.txt --rows-prefix /tmp/o/us-p1-usS1-L1of5x-" in out
+
+
 def test_sweep_minus_arm_of_a_flag_whose_default_equals_the_preset_sets_the_opposite_and_an_inert_one_is_left_out():
     mod, reg = sweep_mod(), sweep_registry()
     arm = json.loads((SPECS / "220-updated-vs-upstream-short.json").read_text())["arms"]["updated"]
