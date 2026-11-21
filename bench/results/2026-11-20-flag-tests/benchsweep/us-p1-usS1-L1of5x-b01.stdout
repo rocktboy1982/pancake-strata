@@ -39,3 +39,13 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.44 33.4 s (1.0
 rep 0 base-m1              short 111.6 short 103.7 edit 156.1 edit 168.6 longdec64k 78.9/2182p 65239t  foreign CPU 2% [('kcompactd0', 2), ('dbus-daemon', 1), ('kworker/1:3-events_freezable', 1)]  gpu 2043/1249 MHz 61C 184W gtt 25M cpu 3624MHz 66C igpu 0%/vcn 0% fclk 1600
 REGIME-RECOVERED base-m1: first start prefill 1622 / load 1.16 GiB/s (paused 13:54:12), second start prefill 2182 / load 1.12 GiB/s
 STARTDIAG 2026-11-21T13:58:13 prev_run_s=111 gap_s=116 rd_sect=161116989624 wr_sect=110780888 io_ticks_ms=124955304 d_rd_sect=73198272 d_wr_sect=48 d_io_ticks_ms=40133 cached_kb=17983312 mlocked_kb=64 memavail_kb=58085464 nvme_temp_c=51 compact_stall_d=3
+SLOWLOAD waiting for the engine: not ready, elapsed 60 s
+STARTLOAD 2026-11-21T13:59:16 loaded 33.02 GiB at 0.78 GiB/s rate=0.78
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 35.27 46.7 s (0.76 GiB/s; stopped; waited 14.6 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-SH_STREAM      short 79.5 short 88.0 edit 131.9 edit 124.8 longdec64k 75.4/1523p 65239t  foreign CPU 2% [('kcompactd0', 4), ('kworker/9:0-mm_percpu_wq', 1), ('dbus-daemon', 0)]  gpu 2041/1249 MHz 62C 178W gtt 33M cpu 3586MHz 65C igpu 0%/vcn 0% fclk 1600
+SETTLE 120 after a 139 s run
+STARTDIAG 2026-11-21T14:02:37 prev_run_s=139 gap_s=264 rd_sect=161211585864 wr_sect=110781032 io_ticks_ms=125036318 d_rd_sect=94596240 d_wr_sect=144 d_io_ticks_ms=81014 cached_kb=17924516 mlocked_kb=64 memavail_kb=58147204 nvme_temp_c=48 compact_stall_d=6
+STARTLOAD 2026-11-21T14:03:27 loaded 33.02 GiB at 1.11 GiB/s rate=1.11
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 33.7 s (1.08 GiB/s; stopped; waited 13.6 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
