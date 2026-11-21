@@ -13,3 +13,17 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.36 34.4 s (1.0
 rep 0 updated              short 104.5 short 99.9 edit 163.4 edit 176.1 longdec64k 85.8/2181p 65239t  foreign CPU 2% [('kcompactd0', 2), ('systemd-journal', 0), ('localsearch-3', 0)]  gpu 1919/1249 MHz 60C 187W gtt 25M cpu 3529MHz 64C igpu 0%/vcn 0% fclk 1600
 REGIME-RECOVERED updated: first start prefill 1664 / load 1.07 GiB/s (paused 14:41:37), second start prefill 2181 / load 1.08 GiB/s
 STARTDIAG 2026-11-21T14:45:34 prev_run_s=106 gap_s=111 rd_sect=162423345352 wr_sect=110782304 io_ticks_ms=126076632 d_rd_sect=80588608 d_wr_sect=64 d_io_ticks_ms=40994 cached_kb=17691740 mlocked_kb=64 memavail_kb=58166040 nvme_temp_c=51 compact_stall_d=1
+STARTLOAD 2026-11-21T14:46:27 loaded 33.02 GiB at 1.05 GiB/s rate=1.05
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.47 35.6 s (1.02 GiB/s; stopped; waited 15.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-GDN_CHUNKED_MIN short 107.6 short 103.3 edit 169.6 edit 171.9 longdec64k 85.1/2178p 65239t  foreign CPU 5% [('snapd', 13), ('kcompactd0', 6), ('kswapd0', 3)]  gpu 2026/1249 MHz 62C 187W gtt 25M cpu 3647MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-GDN_CHUNKED_MIN: every attempt noisy, keeping the quietest (5% foreign CPU)
+STARTDIAG 2026-11-21T14:47:32 prev_run_s=113 gap_s=118 rd_sect=162506246048 wr_sect=110782384 io_ticks_ms=126119539 d_rd_sect=82900696 d_wr_sect=80 d_io_ticks_ms=42907 cached_kb=16164604 mlocked_kb=64 memavail_kb=58157200 nvme_temp_c=51 compact_stall_d=2
+STARTLOAD 2026-11-21T14:48:21 loaded 33.02 GiB at 1.09 GiB/s rate=1.09
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.44 33.4 s (1.09 GiB/s; stopped; waited 13.9 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-IQ_STAGE_TABLES short 108.9 short 103.9 edit 161.3 edit 170.7 longdec64k 78.4/1659p 65239t  foreign CPU 4% [('kcompactd0', 7), ('kswapd0', 2), ('kworker/11:1-events', 1)]  gpu 2048/1249 MHz 63C 181W gtt 25M cpu 3686MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-IQ_STAGE_TABLES: every attempt noisy, keeping the quietest (4% foreign CPU)
+STARTDIAG 2026-11-21T14:49:40 prev_run_s=123 gap_s=128 rd_sect=162587890480 wr_sect=110782448 io_ticks_ms=126180490 d_rd_sect=81644432 d_wr_sect=64 d_io_ticks_ms=60951 cached_kb=14865576 mlocked_kb=64 memavail_kb=58170368 nvme_temp_c=53 compact_stall_d=1
+SLOWLOAD waiting for the engine: not ready, elapsed 60 s
+SLOWLOAD waiting for the engine: not ready, elapsed 120 s
