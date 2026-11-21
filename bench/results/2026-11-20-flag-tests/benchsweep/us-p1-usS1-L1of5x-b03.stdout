@@ -54,3 +54,10 @@ SLOWLOAD waiting for the engine: not ready, elapsed 60 s
 STARTLOAD 2026-11-21T15:07:20 loaded 33.02 GiB at 0.60 GiB/s rate=0.60
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.36 59.8 s (0.61 GiB/s; stopped; waited 12.5 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-IQ_STAGE_GRID   short 101.9 short 81.8 edit 100.4 edit 110.1 longdec64k 76.7/1564p 65239t  foreign CPU 4% [('kcompactd0', 6), ('kswapd0', 3), ('kworker/9:0-events', 2)]  gpu 2047/1249 MHz 60C 173W gtt 25M cpu 3728MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-IQ_STAGE_GRID: every attempt noisy, keeping the quietest (4% foreign CPU)
+SETTLE 120 after a 155 s run
+STARTDIAG 2026-11-21T15:10:46 prev_run_s=155 gap_s=280 rd_sect=162955401304 wr_sect=110782880 io_ticks_ms=126721754 d_rd_sect=73564592 d_wr_sect=96 d_io_ticks_ms=90790 cached_kb=13891424 mlocked_kb=64 memavail_kb=58049968 nvme_temp_c=48 compact_stall_d=5
+STARTLOAD 2026-11-21T15:11:31 loaded 33.02 GiB at 1.20 GiB/s rate=1.20
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 31.8 s (1.15 GiB/s; stopped; waited 11.5 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
