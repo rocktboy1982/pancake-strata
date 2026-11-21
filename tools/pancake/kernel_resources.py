@@ -40,7 +40,7 @@ HOT = ["src/kernels/cuda/native_moe.cu", "src/kernels/cuda/verify_kernels.cu", "
        "src/kernels/cuda/qsa_decode_attn.cu", "src/kernels/cuda/qsa_decode_attn_wmma.cu", "src/kernels/cuda/native_gdn.cu",
        "src/kernels/cuda/fused_gr.cu", "src/prefill/moe_f16_kq.cu", "src/prefill/moe_fused_iq.cu"]
 
-KEYS = {"SGPRs": "sgprs", "VGPRs": "vgprs", "AGPRs": "agprs", "ScratchSize [bytes/lane]": "scratch", "Occupancy [waves/SIMD]": "occupancy",
+KEYS = {"SGPRs": "sgprs", "TotalSGPRs": "sgprs", "VGPRs": "vgprs", "AGPRs": "agprs", "ScratchSize [bytes/lane]": "scratch", "Occupancy [waves/SIMD]": "occupancy",
         "SGPRs Spill": "spills_s", "VGPRs Spill": "spills_v", "LDS Size [bytes/block]": "lds"}
 REMARK = re.compile(r"remark:\s+(Function Name|[A-Za-z][A-Za-z \[\]/]*?):\s*(\S.*?)\s*\[-Rpass-analysis=kernel-resource-usage\]")
 
