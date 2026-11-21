@@ -1,0 +1,2 @@
+BLOCK b01 1520 /home/dan/auto-runs/benchsweep/work/us-p1-usS2rr-2-1of1-b01.json order: minus-GR_INJ_UP minus-GR_RDNA_Q8 plus-AMD_COMMUNITY_TUNING minus-GR_RDNA
+BLOCK b02 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS2rr-2-1of1-b02.json order: plus-ADAPT_NOWAIT plus-ATTN_LANECELL plus-ATTN_MERGE_V2 minus-HIPBLASLT_TUNING

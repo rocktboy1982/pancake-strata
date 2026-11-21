@@ -1,0 +1,382 @@
+{
+ "schema": "pancake.sweep-select/1",
+ "verdicts": [
+  "INCONCLUSIVE"
+ ],
+ "flags": {
+  "minus-GR_RDNA_Q8": {
+   "flag": "STRATA_GR_RDNA_Q8",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GR_RDNA_Q8"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GR_RDNA_Q8": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": {
+    "short": 0.73,
+    "edit": 1.41,
+    "longdec64k": 13.35,
+    "longdec64k-prompt": -5.97
+   },
+   "run1_best": "longdec64k",
+   "arm": "minus-GR_RDNA_Q8",
+   "slice": "usS2r-2-1of1",
+   "pass1": {
+    "short": 5.28,
+    "edit": 29.82,
+    "longdec64k": 4.83,
+    "longdec64k-prompt": 28.58
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-2-1of1-b01",
+   "drift1": {
+    "short": -4.05,
+    "edit": 8.76,
+    "longdec64k": 6.46
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-2-1of1-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-2-1of1-b01 base drift edit +8.8 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "minus-GR_INJ_UP": {
+   "flag": "STRATA_GR_INJ_UP",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GR_INJ_UP"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_GR_INJ_UP": "1"
+   },
+   "args": {},
+   "why": "in the updated arm; no gfx1100 ledger row, no 2026-11-19 box verdict",
+   "source": "updated arm",
+   "run1": {
+    "short": 1.23,
+    "edit": 2.89,
+    "longdec64k": 6.95,
+    "longdec64k-prompt": 0.04
+   },
+   "run1_best": "longdec64k",
+   "arm": "minus-GR_INJ_UP",
+   "slice": "usS2r-2-1of1",
+   "pass1": {
+    "short": 5.07,
+    "edit": 4.17,
+    "longdec64k": -2.57,
+    "longdec64k-prompt": 7.19
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-2-1of1-b01",
+   "drift1": {
+    "short": -4.05,
+    "edit": 8.76,
+    "longdec64k": 6.46
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-2-1of1-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-2-1of1-b01 base drift edit +8.8 % > 5 % (after its re-run): no verdict"
+  },
+  "plus-AMD_COMMUNITY_TUNING": {
+   "flag": "STRATA_AMD_COMMUNITY_TUNING",
+   "kind": "plus",
+   "keys": [
+    "STRATA_AMD_COMMUNITY_TUNING"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_AMD_COMMUNITY_TUNING": "0"
+   },
+   "args": {},
+   "why": "ported / named switch not in the updated arm; no gfx1100 ledger row, no box verdict",
+   "source": "owner list 2026-11-20 + branch code",
+   "run1": {
+    "short": 3.33,
+    "edit": -1.04,
+    "longdec64k": 3.25,
+    "longdec64k-prompt": 0.59
+   },
+   "run1_best": "short",
+   "arm": "plus-AMD_COMMUNITY_TUNING",
+   "slice": "usS2r-2-1of1",
+   "pass1": {
+    "short": -2.26,
+    "edit": 1.02,
+    "longdec64k": 1.07,
+    "longdec64k-prompt": 0.14
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-2-1of1-b03",
+   "drift1": {
+    "short": -0.67,
+    "edit": 8.6,
+    "longdec64k": -4.55
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-2-1of1-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-2-1of1-b03 base drift edit +8.6 % > 5 % (after its re-run): no verdict"
+  },
+  "minus-GR_RDNA": {
+   "flag": "STRATA_GR_RDNA",
+   "kind": "minus",
+   "keys": [
+    "STRATA_GR_RDNA"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_GR_RDNA": "1"
+   },
+   "args": {},
+   "why": "core preset flag: pass-1 minus-arm gain, confirm it individually",
+   "source": "owner list (stage 1: the named retest flags that are not in the untested registry)",
+   "run1": {
+    "short": 31.55,
+    "edit": 11.42,
+    "longdec64k": 49.81,
+    "longdec64k-prompt": 20.02
+   },
+   "run1_best": "longdec64k",
+   "arm": "minus-GR_RDNA",
+   "slice": "usS2r-2-1of1",
+   "pass1": {
+    "short": 10.5,
+    "edit": 8.09,
+    "longdec64k": 1.47,
+    "longdec64k-prompt": -4.6
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-2-1of1-b03",
+   "drift1": {
+    "short": -0.67,
+    "edit": 8.6,
+    "longdec64k": -4.55
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-2-1of1-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (short +10.5 %): reported, the confirm decides",
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-2-1of1-b03 base drift edit +8.6 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "minus-HIPBLASLT_TUNING": {
+   "flag": "STRATA_HIPBLASLT_TUNING",
+   "kind": "minus",
+   "keys": [
+    "STRATA_HIPBLASLT_TUNING"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_HIPBLASLT_TUNING": "/mnt/pancake/benchus/src-us/terminal/tools/hip/gfx1100-hipblaslt-100401.txt"
+   },
+   "args": {},
+   "why": "the 100401 table: restored in the US shipped flags by owner decision 2026-11-20 on text identity alone; confirm it on speed",
+   "source": "owner list (stage 1: the named retest flags that are not in the untested registry)",
+   "ship": {
+    "env": {
+     "STRATA_HIPBLASLT_TUNING": "<ROOT>/terminal/tools/hip/gfx1100-hipblaslt-100401.txt"
+    }
+   },
+   "run1": {
+    "short": 0.02,
+    "edit": -7.63,
+    "longdec64k": 8.45,
+    "longdec64k-prompt": 8.2
+   },
+   "run1_best": "longdec64k",
+   "arm": "minus-HIPBLASLT_TUNING",
+   "slice": "usS2r-2-1of1",
+   "pass1": {
+    "short": 16.27,
+    "edit": 4.8,
+    "longdec64k": 6.51,
+    "longdec64k-prompt": 52.55
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-2-1of1-b04",
+   "drift1": {
+    "short": -0.4,
+    "edit": -4.57,
+    "longdec64k": 13.84
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-2-1of1-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-2-1of1-b04 base drift longdec64k +13.8 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "plus-ADAPT_NOWAIT": {
+   "flag": "STRATA_ADAPT_NOWAIT",
+   "kind": "plus",
+   "keys": [
+    "STRATA_ADAPT_NOWAIT"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_ADAPT_NOWAIT": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": -1.05,
+    "edit": 7.93,
+    "longdec64k": -4.45,
+    "longdec64k-prompt": 0.04
+   },
+   "run1_best": "edit",
+   "arm": "plus-ADAPT_NOWAIT",
+   "slice": "usS2r-2-1of1",
+   "pass1": {
+    "short": 2.99,
+    "edit": -5.33,
+    "longdec64k": 2.24,
+    "longdec64k-prompt": 0.34
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-2-1of1-b04",
+   "drift1": {
+    "short": -0.4,
+    "edit": -4.57,
+    "longdec64k": 13.84
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-2-1of1-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-2-1of1-b04 base drift longdec64k +13.8 % > 5 % (after its re-run): no verdict"
+  },
+  "plus-ATTN_LANECELL": {
+   "flag": "STRATA_ATTN_LANECELL",
+   "kind": "plus",
+   "keys": [
+    "STRATA_ATTN_LANECELL"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_ATTN_LANECELL": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": 1.49,
+    "edit": 0.61,
+    "longdec64k": 4.73,
+    "longdec64k-prompt": 0.05
+   },
+   "run1_best": "longdec64k",
+   "arm": "plus-ATTN_LANECELL",
+   "slice": "usS2r-2-1of1",
+   "pass1": {
+    "short": 6.16,
+    "edit": -0.39,
+    "longdec64k": -4.88,
+    "longdec64k-prompt": 0.48
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-2-1of1-b04",
+   "drift1": {
+    "short": 0.4,
+    "edit": 4.61,
+    "longdec64k": -12.75
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-2-1of1-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-2-1of1-b04 base drift longdec64k -12.8 % > 5 % (after its re-run): no verdict"
+  },
+  "plus-ATTN_MERGE_V2": {
+   "flag": "STRATA_ATTN_MERGE_V2",
+   "kind": "plus",
+   "keys": [
+    "STRATA_ATTN_MERGE_V2"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_ATTN_MERGE_V2": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": 1.65,
+    "edit": 0.41,
+    "longdec64k": 3.6,
+    "longdec64k-prompt": 3.64
+   },
+   "run1_best": "longdec64k-prompt",
+   "arm": "plus-ATTN_MERGE_V2",
+   "slice": "usS2r-2-1of1",
+   "pass1": {
+    "short": -0.27,
+    "edit": 2.01,
+    "longdec64k": -7.78,
+    "longdec64k-prompt": -0.11
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-2-1of1-b04",
+   "drift1": {
+    "short": 0.4,
+    "edit": 4.61,
+    "longdec64k": -12.75
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-2-1of1-b04"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-2-1of1-b04 base drift longdec64k -12.8 % > 5 % (after its re-run): no verdict"
+  }
+ }
+}
