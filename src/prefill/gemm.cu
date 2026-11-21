@@ -34,6 +34,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
+#include "strata/core/dispatch_stats.hpp"
 
 #if defined(__HIPCC__) && defined(STRATA_HIPBLASLT_AVAILABLE)
 #include "hipblaslt_tuning.hpp"
@@ -1054,7 +1055,7 @@ bool Gemm::bf16_hcd_exact(const uint16_t* X, int64_t ldx, const uint16_t* W, flo
                          id, (long long) T);
         return false;
     }
-    return strata_pf_hcdown_exact_bf16(X, ldx, W, Y, T, N, K, stream_);
+    return strata::dispatch::served_if("pf.hcdown.exact", strata_pf_hcdown_exact_bf16(X, ldx, W, Y, T, N, K, stream_));
 #else
     (void) X; (void) ldx; (void) W; (void) Y; (void) T; (void) N; (void) K;
     return false;
@@ -1177,12 +1178,13 @@ void Gemm::bf16(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64
     static const bool wmma_on = [] { const char* v = std::getenv("STRATA_WMMA_GEMM"); return v && v[0] != 0 && v[0] != '0'; }();
     static const bool bf16_on = [] { const char* v = std::getenv("STRATA_WMMA_BF16"); return !v || (v[0] != 0 && v[0] != '0'); }();
     if (wmma_on && bf16_on && ldx == 0 && T >= 16 && (beta == 0.0f || beta == 1.0f) &&
-        strata_wmma_gemm_bf16(X, W, Y, T, N, K, ldy, beta, stream_)) {
+        strata::dispatch::served_if("pf.gemm.bf16.wmma", strata_wmma_gemm_bf16(X, W, Y, T, N, K, ldy, beta, stream_))) {
         return;
     }
 #endif
 #if defined(__HIPCC__)
     if (f16_io_) {   // X is the FP16 image (set_act_f16); W goes through the dequantization scratch as FP16
+        strata::dispatch::served("pf.gemm.bf16.f16_io");
         // the only accumulating BF16 product is the BF16X2 low part, which bf16x2_mode() turns off with this path
         if (beta != 0.0f) { std::fprintf(stderr, "prefill gemm: an accumulating BF16 GEMM on the FP16 prompt path\n"); std::exit(1); }
         const int64_t rows = std::min<int64_t>(N, scratch_elems_ / K);
@@ -1200,15 +1202,15 @@ void Gemm::bf16(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64
 #endif
     const float alpha = 1.0f;
 #if defined(__HIPCC__) && defined(STRATA_HIPBLASLT_AVAILABLE)
-    if (try_hipblaslt(hipblaslt_state_, strata::prefill::hipblaslt::InputType::bf16, X, W, Y, T, N, K, ldy,
-                      beta, stream_, ldx)) {
+    if (strata::dispatch::served_if("pf.gemm.bf16.hipblaslt", try_hipblaslt(hipblaslt_state_, strata::prefill::hipblaslt::InputType::bf16, X, W, Y, T, N, K, ldy,
+                      beta, stream_, ldx))) {
         STRATA_ABSORB_HIPBLAS_STICKY("hipBLASLt bf16");
         return;
     }
 #endif
 #if defined(__HIPCC__)
     // a padded X (STRATA_PF_PAD, ldx > K) keeps the native call: the widening copies contiguous rows
-    if (ldx == 0 && rdna2_sgemm(X, W, Y, T, N, K, ldy, beta, true)) return;
+    if (ldx == 0 && strata::dispatch::served_if("pf.gemm.bf16.rdna2_sgemm", rdna2_sgemm(X, W, Y, T, N, K, ldy, beta, true))) return;
 #endif
 #if !defined(__HIPCC__)
 #if defined(STRATA_EXPERIMENTAL_SM60)
@@ -1294,6 +1296,7 @@ void Gemm::bf16(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64
                     CUDA_R_16BF, (int) K, X, CUDA_R_16BF, (int) (ldx ? ldx : K), &beta, Y, CUDA_R_32F, (int) ldy,
                     CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT),
        "cublasGemmEx");
+    strata::dispatch::served("pf.gemm.bf16.cublas");
     STRATA_ABSORB_HIPBLAS_STICKY("cublasGemmEx");
 }
 
@@ -1335,7 +1338,7 @@ bool Gemm::f16_lt_ok(int64_t T, int64_t N, int64_t K) const {
 bool Gemm::f16_on(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64_t N, int64_t K, void* stream) {
 #if defined(__HIPCC__) && defined(STRATA_HIPBLASLT_AVAILABLE)
     if (!f16_lt_ok(T, N, K)) return false;
-    if (!try_hipblaslt(hipblaslt_state_, strata::prefill::hipblaslt::InputType::f16, X, W, Y, T, N, K, N, 0.0f, stream))
+    if (!strata::dispatch::served_if("pf.gemm.f16_on.hipblaslt", try_hipblaslt(hipblaslt_state_, strata::prefill::hipblaslt::InputType::f16, X, W, Y, T, N, K, N, 0.0f, stream)))
         return false;
     STRATA_ABSORB_HIPBLAS_STICKY("hipBLASLt f16");
     return true;
@@ -1354,19 +1357,19 @@ void Gemm::f16(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64_
     static const bool wmma_on = [] { const char* v = std::getenv("STRATA_WMMA_GEMM"); return v && v[0] != 0 && v[0] != '0'; }();
     static const bool pf_on = [] { const char* v = std::getenv("STRATA_PF_GEMM"); return v && v[0] == '1'; }();
     static const int64_t pf_min_t = [] { const char* v = std::getenv("STRATA_PF_SWITCH_MIN_T"); return v ? (int64_t) std::atoll(v) : (int64_t) 0; }();
-    if (pf_on && T >= pf_min_t && strata_pf_gemm_f16(X, W, Y, T, N, K, ldy, beta, stream_)) return;   // S23: opt-in
+    if (pf_on && T >= pf_min_t && strata::dispatch::served_if("pf.gemm.f16.pf_gemm", strata_pf_gemm_f16(X, W, Y, T, N, K, ldy, beta, stream_))) return;   // S23: opt-in
     if (wmma_on && T >= 16 && (beta == 0.0f || beta == 1.0f) &&
-        strata_wmma_gemm_f16(X, W, Y, T, N, K, ldy, beta, stream_)) {
+        strata::dispatch::served_if("pf.gemm.f16.wmma", strata_wmma_gemm_f16(X, W, Y, T, N, K, ldy, beta, stream_))) {
         return;
     }
 #endif
 #if defined(__HIPCC__)
-    if (f16_io_ && beta == 0.0f) { f16_inplace(X, W, Y, T, N, K, ldy); return; }
+    if (f16_io_ && beta == 0.0f) { strata::dispatch::served("pf.gemm.f16.inplace"); f16_inplace(X, W, Y, T, N, K, ldy); return; }
 #endif
     const float alpha = 1.0f;
 #if defined(__HIPCC__) && defined(STRATA_HIPBLASLT_AVAILABLE)
-    if (try_hipblaslt(hipblaslt_state_, strata::prefill::hipblaslt::InputType::f16, X, W, Y, T, N, K, ldy,
-                      beta, stream_)) {
+    if (strata::dispatch::served_if("pf.gemm.f16.hipblaslt", try_hipblaslt(hipblaslt_state_, strata::prefill::hipblaslt::InputType::f16, X, W, Y, T, N, K, ldy,
+                      beta, stream_))) {
         STRATA_ABSORB_HIPBLAS_STICKY("hipBLASLt f16");
         return;
     }
@@ -1401,7 +1404,7 @@ void Gemm::f16(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64_
     }
 #endif
 #if defined(__HIPCC__)
-    if (rdna2_sgemm(X, W, Y, T, N, K, ldy, beta, false)) return;
+    if (strata::dispatch::served_if("pf.gemm.f16.rdna2_sgemm", rdna2_sgemm(X, W, Y, T, N, K, ldy, beta, false))) return;
 #endif
 #if !defined(__HIPCC__)
     const auto f16_gemm = [&](cublasGemmAlgo_t algo) {
@@ -1429,6 +1432,7 @@ void Gemm::f16(const uint16_t* X, const uint16_t* W, float* Y, int64_t T, int64_
                     CUBLAS_COMPUTE_32F, CUBLAS_GEMM_DEFAULT),
        "cublasGemmEx f16");
 #endif
+    strata::dispatch::served("pf.gemm.f16.cublas");
     STRATA_ABSORB_HIPBLAS_STICKY("cublasGemmEx f16");
 }
 
@@ -1535,6 +1539,7 @@ void Gemm::f16_inplace(const uint16_t* X, const uint16_t* W, float* Y, int64_t T
 
 void Gemm::native(const uint16_t* X, int ggml_type, const void* W_blocks, float* Y, int64_t T, int64_t N, int64_t K,
                   int64_t ldy, float beta, int64_t ldx) {
+    strata::dispatch::served("pf.gemm.native");
 #ifdef STRATA_USE_HIP
     // S23 (opt-in STRATA_PF_PAD=1, with STRATA_PF_GEMM=1 on chunks of STRATA_PF_SWITCH_MIN_T+ tokens): the weight
     // dequantized into the scratch with row stride K + 64 halves, so no 4 KB-multiple stride camps on the memory
@@ -1581,7 +1586,7 @@ void Gemm::native(const uint16_t* X, int ggml_type, const void* W_blocks, float*
         std::exit(1);
     }
 #if defined(STRATA_PREFILL_MMQ) && defined(__HIPCC__)
-    if (beta == 0.0f && (ldx == 0 || ldx == K) && native_mmq(X, ggml_type, W_blocks, Y, T, N, K, ldy)) return;
+    if (beta == 0.0f && (ldx == 0 || ldx == K) && strata::dispatch::served_if("pf.gemm.native.mmq", native_mmq(X, ggml_type, W_blocks, Y, T, N, K, ldy))) return;
 #endif
 #ifndef STRATA_USE_HIP
     // The FP16 weight kept on the device after its first dequant.  NOT bit-exact against the uncached sliced form on every

@@ -7,6 +7,7 @@
 #include "strata/kernels/router_top10.hpp"
 #include "strata/core/emulate.hpp"
 #include "strata/core/diag_rules.hpp"   // T-630: launch_error_line
+#include "strata/core/dispatch_stats.hpp"
 
 #include <cuda_fp16.h>
 #include <cuda_runtime.h>
@@ -3200,13 +3201,14 @@ static void gdn_recurrence_impl(int variant, float* state, const float* h, const
         // STRATA_GDN_CHUNKED=1 (opt-in): the chunked recurrence on the gfx11 matrix cores, FP16 operands (other bits;
         // a shorter chunk or another part takes the kernels below)
         static const bool chunked = gdn_chunked_env() != 0;   // (unset: gdn_rec_wmma applies the gfx12 length gate)
-        if (chunked && !serial && gdn_rec_wmma(state, h, gate, beta, z, gamma, eps, y, y16, T, (cudaStream_t) stream, ld16)) {
+        if (chunked && !serial && strata::dispatch::served_if("pf.gdn.rec.wmma_chunked", gdn_rec_wmma(state, h, gate, beta, z, gamma, eps, y, y16, T, (cudaStream_t) stream, ld16))) {
             check("gdn_recurrence (chunked, WMMA)");
             return;
         }
     }
     if (variant == 3) {   // diagnostics: the quad recurrence + the old norm kernel
         if (T > 0) {
+            strata::dispatch::served("pf.gdn.rec.quad_diag");
             gdn_rec_quad_kernel<<<HV * (S / QCB), QTH, 0, (cudaStream_t) stream>>>(state, h, gate, beta, y, T);
             if (with_out)
                 gdn_out_norm_kernel<<<dim3((unsigned) T, HV), S, 0, (cudaStream_t) stream>>>(z, gamma, eps, y, y16, ld16);
@@ -3215,6 +3217,7 @@ static void gdn_recurrence_impl(int variant, float* state, const float* h, const
     }
     if (variant == 4 || variant == 5) {   // diagnostics: the quad recurrence's PP / two-column kernels + the norm
         if (T > 0) {
+            strata::dispatch::served("pf.gdn.rec.quad_pp_diag");
             if (variant == 5)
                 gdn_rec_quad2c_kernel<<<HV * (S / C2CB), QTH, 0, (cudaStream_t) stream>>>(state, h, gate, beta, y, T);
             else
@@ -3229,6 +3232,7 @@ static void gdn_recurrence_impl(int variant, float* state, const float* h, const
     if (variant == 1) {
         if (T > 0) {
             static const int pp = [] { const char* v = std::getenv("STRATA_GDN_PP"); return v ? std::atoi(v) : 0; }();
+            strata::dispatch::served(pp == 2 ? "pf.gdn.rec.quad2c" : pp ? "pf.gdn.rec.quad_pp" : "pf.gdn.rec.quad");
             if (pp == 2)
                 gdn_rec_quad2c_kernel<<<HV * (S / C2CB), QTH, 0, (cudaStream_t) stream>>>(state, h, gate, beta, y, T);
             else if (pp)
@@ -3290,6 +3294,7 @@ static void gdn_recurrence_impl(int variant, float* state, const float* h, const
     } else
 #endif
     if ((serial && with_out) || T <= 0 || variant == 2) {   // the fused kernel needs z/gamma: only with the output
+        strata::dispatch::served("pf.gdn.rec.heads_fused");
         gdn_rec_kernel<<<HV, dim3(S, RG), 0, (cudaStream_t) stream>>>(state, h, gate, beta, z, gamma, eps, y, y16, T, ld16);
     } else {
         static const bool pipe = [] { const char* v = std::getenv("STRATA_GDN_PIPELINE"); return v == nullptr || std::atoi(v) != 0; }();
@@ -3373,8 +3378,10 @@ static void gdn_recurrence_impl(int variant, float* state, const float* h, const
         }
         if (pr) { pr->selected = sel; pr->wanted = wanted == kGdnAuto ? sel : wanted; pr->reason = why; ++pr->calls; }
         normed_any = normed;
+        strata::dispatch::served(sel == kGdnTc ? "pf.gdn.rec.tc" : sel == kGdnTcSplit ? "pf.gdn.rec.tc_split" : sel == kGdnChunked ? "pf.gdn.rec.chunked" : sel == kGdnKeyHead ? "pf.gdn.rec.keyhead" : sel == kGdnPipe ? "pf.gdn.rec.cols_pipe" : sel == kGdnCols ? "pf.gdn.rec.cols" : "pf.gdn.rec.none");
         if (sel == kGdnNone) { check("gdn_recurrence (forced path not eligible: nothing launched)"); return; }
 #else
+        strata::dispatch::served(pipe ? "pf.gdn.rec.cols_pipe" : "pf.gdn.rec.cols");
         if (pipe)   // the software-pipelined loads (same bits)
             gdn_rec_cols_pipe_kernel<<<HV * NCB, dim3(CB, RG), 0, (cudaStream_t) stream>>>(state, h, gate, beta, y, T);
         else

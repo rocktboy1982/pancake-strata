@@ -4,6 +4,7 @@
 #include "strata/core/defaults_026.hpp"
 #include "strata/core/sm75_series.hpp"
 #include "strata/core/geometry.hpp"
+#include "strata/core/dispatch_stats.hpp"
 #include "strata/core/gfx12_platform_defaults.hpp"
 #include <cstdlib>
 #include <cstring>
@@ -1066,6 +1067,7 @@ __global__ void __launch_bounds__(HD) decode_attn_merge_kernel(const float* __re
 
 bool launch_i8(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* steps, int64_t cap,
                const QsaShapes& s, float* attn, int64_t n_q, cudaStream_t st) {
+    strata::dispatch::served("attn.prompt.i8");
     static bool attr[64] = {};   // the shared-memory opt-in is per device (a layer split runs this on several)
     static int t75[64] = {};     // 1: Turing (the kernel's single-stage layout, Smem2T), 2: not
     int dev = 0;
@@ -1417,6 +1419,7 @@ __global__ void __launch_bounds__(THREADS, 3) prompt_attn_i8v3_kernel(const floa
 
 bool launch_i8v3(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* steps, int64_t cap,
                  const QsaShapes& s, float* attn, int64_t n_q, cudaStream_t st) {
+    strata::dispatch::served("attn.prompt.i8v3");
     static bool attr[64] = {};
     int dev = 0;
     cudaGetDevice(&dev);
@@ -1451,6 +1454,7 @@ bool launch_i8v3(const float* q, const QsaAttnPools& pools, const int32_t* ids, 
 template <int KV_MODE, bool PF = false>
 bool launch(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* steps, int64_t cap,
             const QsaShapes& s, float* attn, int64_t n_q, cudaStream_t st) {
+    strata::dispatch::served("attn.prompt.generic");
     static bool attr[64] = {};   // per device, as above
     int dev = 0;
     cudaGetDevice(&dev);
@@ -1865,6 +1869,7 @@ __global__ void __launch_bounds__(THREADS) prompt_attn_v70_kernel(const float* _
 template <int KV_MODE>
 bool launch70(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* steps, int64_t cap,
               const QsaShapes& s, float* attn, int64_t n_q, cudaStream_t st) {
+    strata::dispatch::served("attn.prompt.volta");
     static bool attr[64] = {};
     int dev = 0;
     cudaGetDevice(&dev);
@@ -2701,6 +2706,7 @@ void pa_launch(dim3 grid, cudaStream_t st, const float* q, const QsaAttnPools& p
 bool launch_wmma(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* steps, int64_t cap,
                  const QsaShapes& s, float* attn, int64_t n_q, cudaStream_t st, const float* gate_qf = nullptr,
                  uint16_t* gate_o16 = nullptr, int64_t gate_ld = 0) {
+    strata::dispatch::served(gate_qf != nullptr ? "attn.prompt.wmma_gated" : "attn.prompt.wmma");
     {   // STRATA_QSA_STAT=1 (diagnostic): how much consecutive queries' selections overlap (the row-union attention's sharing factor)
         static const bool stat_on = std::getenv("STRATA_QSA_STAT") != nullptr;
         static int stat_calls = 0;
@@ -2792,6 +2798,7 @@ void pa_q4_launch(dim3 grid, cudaStream_t st, const float* q, const QsaAttnPools
 }
 bool launch_wmma_q4(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* steps, int64_t cap,
                     const QsaShapes& s, float* attn, int64_t n_q, cudaStream_t st) {
+    strata::dispatch::served("attn.prompt.wmma_q4");
     const float scale_log2 = 1.4426950408889634f / sqrtf((float) HD);
     // STRATA_PA_FAST=1 (S23, in the fast-hip preset): one FP16 image of q and p, as the int8 kernel takes it
     static const bool fast = [] { const char* e = std::getenv("STRATA_PA_FAST"); return e != nullptr && e[0] == '1'; }();

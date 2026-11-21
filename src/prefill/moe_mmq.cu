@@ -2,6 +2,7 @@
 // from the pinned llama.cpp checkout the build already takes ggml from; src/prefill/ggml_cuda_host.cu supplies the
 // few host symbols of ggml-cuda.cu it references.
 #include "strata/prefill/moe_mmq.hpp"
+#include "strata/core/dispatch_stats.hpp"
 
 #include "common.cuh"
 #include "mmq.cuh"
@@ -264,6 +265,7 @@ __global__ void prep_group_kernel(GuardTab g, int64_t guard, uint8_t* tail_gu, u
 // the pointer-table MMQ per type: the native packs' nine types (CMake's _strata_mmq_tab_types, all of them checked
 // bit for bit by prefill_mmq_tab_test).  false: no instance - the optional Q5_0 and K-quant experts keep the gather
 bool run_tab(ggml_backend_cuda_context* ctx, const mmq_args* a, const mmq_x_tab* tab, cudaStream_t s) {
+    strata::dispatch::served("pf.moe.mmq.tab");
     const ggml_type t = a ? a->type_x : GGML_TYPE_COUNT;
 #define STRATA_TAB_CASE(T) case T: return ctx == nullptr || mul_mat_q_tab_case<T>(*ctx, *a, *tab, s)
     switch (t) {

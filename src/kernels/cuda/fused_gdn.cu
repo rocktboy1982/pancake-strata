@@ -1,6 +1,7 @@
 // src/kernels/cuda/fused_gdn.cu - see include/strata/kernels/fused_gdn.hpp.
 #include "strata/kernels/fused_gdn.hpp"
 #include "strata/core/geometry.hpp"
+#include "strata/core/dispatch_stats.hpp"
 
 #include <cuda_runtime.h>
 
@@ -136,6 +137,7 @@ void fused_gdn_conv_l2(float* history, const float* qkv, const float* conv_w, fl
         std::fprintf(stderr, "fused_gdn_conv_l2: invalid arguments\n");
         std::exit(1);
     }
+    strata::dispatch::served("gdn.fused.conv_l2");
     gdn_conv_l2_kernel<<<(unsigned) (channels / S), S, 0, (cudaStream_t) stream>>>(history, qkv, conv_w, h, qk_heads, eps);
     const cudaError_t e = cudaGetLastError();
     if (e != cudaSuccess) { std::fprintf(stderr, "fused_gdn_conv_l2: %s\n", cudaGetErrorString(e)); std::exit(1); }
@@ -147,6 +149,7 @@ void fused_gdn_ab(const float* x, const uint16_t* w_alpha, const uint16_t* w_bet
         std::fprintf(stderr, "fused_gdn_ab: invalid arguments\n");
         std::exit(1);
     }
+    strata::dispatch::served("gdn.fused.ab");
     gdn_ab_kernel<<<(unsigned) ((2 * h_v + 7) / 8), 256, 0, (cudaStream_t) stream>>>(x, w_alpha, w_beta, dt, ssm_a, gate,
                                                                                      beta, n_embd, h_v);
     const cudaError_t e = cudaGetLastError();
@@ -161,6 +164,7 @@ void step_norm(float* state, const float* q, const float* k, const float* v, con
         std::fprintf(stderr, "fused_gdn_step_norm: invalid arguments\n");
         std::exit(1);
     }
+    strata::dispatch::served("gdn.fused.step_norm");
     gdn_step_norm_kernel<SILU><<<(unsigned) h_v, dim3(S, RG), 0, (cudaStream_t) stream>>>(state, q, k, v, gate, beta,
                                                                                          z, gamma, eps, y, h_k, h_v);
     const cudaError_t e = cudaGetLastError();

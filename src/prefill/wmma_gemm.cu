@@ -24,6 +24,7 @@
 
 #include <cstdlib>
 #include "strata/kernels/gfx_arch.hpp"
+#include "strata/core/dispatch_stats.hpp"
 
 #include <atomic>
 #include <cstring>
@@ -283,10 +284,12 @@ static inline bool strata_wmma_gemm_dispatch(const uint16_t* X, const uint16_t* 
     if (T >= 32 && N >= 32) {
         dim3 block(128);
         dim3 grid((uint32_t)((N + 63) / 64), (uint32_t)((T + 63) / 64), 1);
+        strata::dispatch::served("pf.gemm.wmma.64x64");
         gemm_wmma_64x64_4w<ElemT><<<grid, block, 0, s>>>(X, W, Y, T, N, K, ldy, beta);
     } else {
         dim3 block(32);
         dim3 grid((uint32_t)((N + 15) / 16), (uint32_t)((T + 15) / 16), 1);
+        strata::dispatch::served("pf.gemm.wmma.16x16");
         gemm_wmma_16x16_1w<ElemT><<<grid, block, 0, s>>>(X, W, Y, T, N, K, ldy, beta);
     }
     return true;
@@ -660,6 +663,7 @@ bool strata_pf_hcdown_bf16(const uint16_t* X, int64_t ldx, const uint16_t* Wd, c
     if (!strata_wmma_gfx11_device()) return false;
     const int64_t mt = (T + pfg::BM - 1) / pfg::BM;
     const unsigned grid = (unsigned) (mt * ((nd + ni + 127) / 128));
+    strata::dispatch::served("pf.gemm.hcdown_bf16");
     pfg::kernel_hcdown<<<grid, 256, 0, static_cast<hipStream_t>(stream)>>>(X, (int) ldx, Wd, Wi, (int) nd, (int) ni,
                                                                             lo, inj, (int) T, (int) K);
     return hipGetLastError() == hipSuccess;
@@ -672,6 +676,7 @@ bool strata_pf_hcdown_exact_bf16(const uint16_t* X, int64_t ldx, const uint16_t*
         return false;
     if (!strata_wmma_gfx11_device()) return false;
     const unsigned grid = (unsigned) (2 * ((T + pfg::HX_BM - 1) / pfg::HX_BM));
+    strata::dispatch::served("pf.gemm.hcdown_exact");
     pfg::kernel_hcd_exact<<<grid, pfg::HX_NT, 0, static_cast<hipStream_t>(stream)>>>(X, (int) ldx, W, Y, (int) T);
     return hipGetLastError() == hipSuccess;
 }
@@ -696,14 +701,17 @@ bool strata_pf_gemm_f16_ld(const uint16_t* X, int64_t ldx, const uint16_t* W, in
     static const bool bk64 = [] { const char* v = std::getenv("STRATA_PF_BK64"); return !v || v[0] != '0'; }();
     if (N >= 1024 && bk64 && K % 64 == 0) {
         const unsigned grid = (unsigned) (mt * ((N + 255) / 256));
+        strata::dispatch::served("pf.gemm.pf.bk64");
         pfg::kernel_bk64<<<grid, 256, 0, s>>>((const _Float16*) X, (const _Float16*) W, Y, (int) T, (int) N, (int) K,
                                               (int) ldy, acc, (int) ldx, (int) ldw);
     } else if (N >= 1024) {
         const unsigned grid = (unsigned) (mt * ((N + 255) / 256));
+        strata::dispatch::served("pf.gemm.pf.256x64");
         pfg::kernel<256, 64><<<grid, 256, 0, s>>>((const _Float16*) X, (const _Float16*) W, Y, (int) T, (int) N, (int) K,
                                                   (int) ldy, acc, (int) ldx, (int) ldw);
     } else {
         const unsigned grid = (unsigned) (mt * ((N + 127) / 128));
+        strata::dispatch::served("pf.gemm.pf.128x32");
         pfg::kernel<128, 32><<<grid, 256, 0, s>>>((const _Float16*) X, (const _Float16*) W, Y, (int) T, (int) N, (int) K,
                                                   (int) ldy, acc, (int) ldx, (int) ldw);
     }

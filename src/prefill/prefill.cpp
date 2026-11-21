@@ -1,6 +1,7 @@
 // src/prefill/prefill.cpp - see include/strata/prefill/prefill.hpp.
 #include "strata/kernels/fused_gr.hpp"
 #include "strata/prefill/prefill.hpp"
+#include "strata/core/dispatch_stats.hpp"
 #include "strata/prefill/copy_events.hpp"
 #include "strata/prefill/timer_marks.hpp"
 #include "strata/prefill/mmq_ids_margin.hpp"
@@ -5457,6 +5458,7 @@ bool Prefill::run_impl(const int64_t* tokens, int64_t n, int64_t pos0, std::stri
                                                                m.attn, T, m.cs)))
 #endif
                         for (int64_t t0 = 0; t0 < T; t0 += m.attn_batch) {
+                            strata::dispatch::served("pf.attn.decode_loop");
                             const int64_t nb = std::min(m.attn_batch, T - t0);
                             strata::kernels::qsa_decode_attn_batch(m.q + t0 * ZV, pools, m.sel_ids + t0 * m.cap,
                                                                    m.steps_dev + t0 * strata::kernels::kStepCount, m.cap,
@@ -9001,6 +9003,7 @@ bool Prefill::lm_run(const std::vector<Seg>& segs, int depth, const std::vector<
                         if (!gated && (old_attn || !strata::kernels::qsa_prompt_attn_batch(m.q, pools, m.sel_ids, m.steps_dev, m.cap, s,
                                                                                             m.attn, T, cs)))
                             for (int64_t q0 = 0; q0 < T; q0 += m.attn_batch) {
+                                strata::dispatch::served("pf.attn.decode_loop");
                                 const int64_t nb = std::min(m.attn_batch, T - q0);
                                 strata::kernels::qsa_decode_attn_batch(m.q + q0 * ZV, pools, m.sel_ids + q0 * m.cap,
                                                                        m.steps_dev + q0 * strata::kernels::kStepCount, m.cap,

@@ -2,6 +2,7 @@
 #include "strata/kernels/qsa_decode_attn.hpp"
 #include "strata/kernels/qsa_decode_attn_wmma.hpp"
 #include "strata/kernels/qsa_split.hpp"
+#include "strata/core/dispatch_stats.hpp"
 #include "strata/core/sm75_series.hpp"
 #include "strata/core/sm120_series.hpp"
 #include "strata/core/geometry.hpp"
@@ -1278,6 +1279,7 @@ int64_t qsa_split_grid_target() {
 void launch_chunk_split(int m, int blocks, int64_t n_q, int n_chunks, const float* q, const QsaAttnPools& pools, const int32_t* ids,
                         const int32_t* steps, const QsaShapes& s, float scale, float* part_acc, float* part_m, float* part_l, int64_t cap,
                         long long stride, bool lane_cell, cudaStream_t st) {
+    strata::dispatch::served(lane_cell ? "attn.decode.chunk_split.lanecell" : "attn.decode.chunk_split");
     const dim3 g((unsigned) blocks, (unsigned) s.n_head_kv, (unsigned) n_q);
 #define STRATA_ATTN_SPLIT(M, LC) attn_chunk_split_kernel<M, LC><<<g, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride)
     if (lane_cell) {
@@ -1328,6 +1330,7 @@ int attn_merge_choice() {
 // (bitwise the same output)
 void launch_merge(int v2, const float* part_acc, const float* part_m, const float* part_l, int n_chunks,
                   const int32_t* steps, float* attn, long long stride, unsigned n_head, unsigned n_q, cudaStream_t st) {
+    strata::dispatch::served(v2 == 1 ? "attn.decode.merge_v2" : v2 == 2 ? "attn.decode.merge_bound" : "attn.decode.merge");
     if (v2 == 1)
         attn_merge_v2_kernel<kMergeU><<<dim3(n_head, n_q), HD, 0, st>>>(part_acc, part_m, part_l, n_chunks, steps,
                                                                          attn, stride);
@@ -1344,11 +1347,12 @@ void launch_merge(int v2, const float* part_acc, const float* part_m, const floa
 void launch_chunks_batch(const float* q, const QsaAttnPools& pools, const int32_t* ids, const int32_t* steps,
                          int64_t cap, const QsaShapes& s, float* scratch, int64_t n_q, cudaStream_t st, int kernel) {
     // pancake: STRATA_ATTN_WMMA=1 - the chunk pass on gfx11 matrix cores (qsa_decode_attn_wmma.hpp; int8, q4_0, K8V4)
-    if (kernel < 0 && qsa_decode_attn_wmma_on() && qsa_decode_attn_wmma_chunks(q, pools, ids, steps, cap, s, scratch, n_q, st))
+    if (kernel < 0 && qsa_decode_attn_wmma_on() && strata::dispatch::served_if("attn.decode.wmma", qsa_decode_attn_wmma_chunks(q, pools, ids, steps, cap, s, scratch, n_q, st)))
         return;
     const int kv_mode = pools.k_q4 != nullptr ? 2 : (pools.k_q != nullptr && pools.v_q4 != nullptr ? 3
                         : (pools.k_q != nullptr ? 1 : 0));
     const int n_chunks = (int) ((cap + CHUNK - 1) / CHUNK);
+    strata::dispatch::served("attn.decode.chunks_batch");
     // per query: [acc: n_chunks*n_head*HD][m: n_chunks*n_head][l: n_chunks*n_head], all offsets from one stride
     const long long stride = (long long) qsa_decode_attn_scratch_floats(cap, s);
     float* part_acc = scratch;
@@ -1396,6 +1400,7 @@ void launch_chunks_batch(const float* q, const QsaAttnPools& pools, const int32_
 #endif
         }
         if (vwin) {
+            strata::dispatch::served("attn.decode.chunk.vwin");
 #if defined(__HIPCC__)
             const int vnr = kernel == 5 ? 4 : kernel < 0 ? attn_vwin_rows() : 2;
             if (vnr == 4) {
@@ -1434,6 +1439,7 @@ void launch_chunks_batch(const float* q, const QsaAttnPools& pools, const int32_
 #endif
         }
         if (qmajor) {
+            strata::dispatch::served("attn.decode.chunk.qmajor");
             const dim3 gq((unsigned) n_q, (unsigned) n_chunks, (unsigned) s.n_head_kv);
 #define STRATA_ATTN_QM(M) attn_chunk_qmajor_kernel<M><<<gq, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride)
             if (kv_mode == 3) STRATA_ATTN_QM(3);
@@ -1465,6 +1471,7 @@ void launch_chunks_batch(const float* q, const QsaAttnPools& pools, const int32_
     }
 #define STRATA_ATTN_LC(M) ((lane_cell_w12() && (M) != 0) ? attn_chunk_lc12_kernel<M> : attn_chunk_kernel<M, true>)<<<grid, THREADS, 0, st>>>(q, pools, ids, steps, (int) s.n_head_kv, (int) s.page_size, scale, part_acc, part_m, part_l, n_chunks, (int) cap, stride)
     if (lane_cell) {
+        strata::dispatch::served("attn.decode.chunk.lanecell");
         if (kv_mode == 3) STRATA_ATTN_LC(3);
         else if (kv_mode == 2) STRATA_ATTN_LC(2);
         else if (kv_mode == 1) STRATA_ATTN_LC(1);
@@ -1696,7 +1703,7 @@ void qsa_decode_attn_step(const float* q, const QsaAttnPools& pools, const int32
     const dim3 grid((unsigned) n_chunks, (unsigned) s.n_head_kv);
     cudaStream_t st = (cudaStream_t) stream;
     // pancake: STRATA_ATTN_WMMA=1 - the chunk pass on gfx11 matrix cores; the merge below is the same
-    const bool wmma_done = qsa_decode_attn_wmma_on() && qsa_decode_attn_wmma_chunks(q, pools, ids, step, cap, s, scratch, 1, st);
+    const bool wmma_done = qsa_decode_attn_wmma_on() && strata::dispatch::served_if("attn.decode.wmma_step", qsa_decode_attn_wmma_chunks(q, pools, ids, step, cap, s, scratch, 1, st));
     // LEADS.md Part O O9: STRATA_QSA_SPLIT_GRID=N for the single query too (bitwise; not where PR #540's or the Turing v3 kernel runs)
     int split_blocks1 = qsa_split_blocks(qsa_split_grid_target(), s.n_head_kv, 1, n_chunks);
 #if defined(STRATA_ATTN_PRE75_BUILT)

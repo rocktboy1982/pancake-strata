@@ -18,6 +18,7 @@
 // for the k of a half-block: mma k index 16h + 4t + j stands for weight (and activation) 16h + t + 4j.  The
 // activations are stored in it (perm32), and a lane's two B registers (h = 0 and 1) are adjacent: one 8-byte load.
 #include "strata/prefill/moe_fused.hpp"
+#include "strata/core/dispatch_stats.hpp"
 #include "strata/prefill/pf_fused_override.hpp"
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/core/emulate.hpp"
@@ -728,6 +729,7 @@ void group(const int32_t* ids, int64_t n, int k, int n_expert, void* scratch, in
 
 void experts(const Batch& b, int n_expert, int64_t n, const void* scratch, const void* xa, const int32_t* src,
              void* ha, float* dm, void* stream) {
+    strata::dispatch::served("pf.moe.fused.experts");
     if (b.e1 <= b.e0 || n <= 0) return;
     const DevInfo& d = dev_info();
     const cudaStream_t s = (cudaStream_t) stream;

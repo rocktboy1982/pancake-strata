@@ -7,6 +7,7 @@
 #include "strata/kernels/fused_gr.hpp"
 #include "strata/kernels/verify_kernels.hpp"
 #include "strata/kernels/q8_1_finite.hpp"
+#include "strata/core/dispatch_stats.hpp"
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
 #include <cstdio>
@@ -680,10 +681,12 @@ void launch(const RdnaGr& m, cudaStream_t st, unsigned long long* sb, int si) {
             static const bool inj_up = [] { const char* v = std::getenv("STRATA_GR_INJ_UP"); return v && v[0] == '1'; }();
             static const bool fused = [] { const char* v = std::getenv("STRATA_GR_FUSED"); return v && v[0] == '1'; }();
             if (inj_up && fused && m.bar != nullptr && sb == nullptr) {   // one launch (the profiler's stamps need two)
+                strata::dispatch::served("rdna.gr.a8.fused");
                 rdna_gr_fused<T><<<(LR / (2 * WV) + 1) * 2 * HC, TH, 0, st>>>(m);
                 return;
             }
             if (inj_up) {   // the inject rows in their own blocks: no float copy of the rows in the int8 blocks
+                strata::dispatch::served("rdna.gr.a8.inj");
                 static const bool chk = std::getenv("STRATA_GR_INJ_CHECK") != nullptr;
                 if (chk) {   // debug: the INJ kernel into a second part buffer, compared after the new one
                     RdnaGr m2 = m; m2.part = m.part + 22000; m2.ss = m2.part + (size_t) T * 2 * HC * PR;
@@ -696,17 +699,20 @@ void launch(const RdnaGr& m, cudaStream_t st, unsigned long long* sb, int si) {
                 if (only != 1) rdna_gr_up<T, true, true><<<UB, TH, 0, st>>>(m);
                 return;
             }
+            strata::dispatch::served("rdna.gr.a8");
             if (only != 2) rdna_gr_down_a8<T, 2><<<dim3((PR + 2 * WV - 1) / (2 * WV), 2 * HC), TH, 0, st>>>(m);
             if (sb) gpu_stamp(sb, si + 1, st);
             if (only != 1) rdna_gr_up<T, true, true><<<UB, TH, 0, st>>>(m);
             return;
         }
+        strata::dispatch::served("rdna.gr.q8");
         if (only != 2) rdna_gr_down_q8<T, 2><<<dim3((PR + 2 * WV - 1) / (2 * WV), 2 * HC), TH, 0, st>>>(m);
         if (sb) gpu_stamp(sb, si + 1, st);
         if (only != 1) rdna_gr_up<T, true><<<UB, TH, 0, st>>>(m);
         return;
     }
     if (only != 2) {
+        strata::dispatch::served("rdna.gr.bf16");
         if (rw == 1) rdna_gr_down<T, 1><<<dim3((PR + WV - 1) / WV, 2 * HC), TH, 0, st>>>(m);
         else if (rw == 4) rdna_gr_down<T, 4><<<dim3((PR + 4 * WV - 1) / (4 * WV), 2 * HC), TH, 0, st>>>(m);
         else rdna_gr_down<T, 2><<<dim3((PR + 2 * WV - 1) / (2 * WV), 2 * HC), TH, 0, st>>>(m);
