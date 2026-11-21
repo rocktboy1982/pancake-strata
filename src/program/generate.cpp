@@ -7954,6 +7954,7 @@ int main(int argc, char** argv) {
         // longer window up in parts)
         const int mtp_t = o.pipeline_windows >= 2 ? strata::kernels::kVerifyNarrowT : std::min(o.spec, (int) strata::kernels::kVerifyNarrowT);
         if (o.pipeline_windows >= 2) mtp.set_force_capture(true);
+        if (o.batch > 0) mtp.set_slots_refuse("--batch: its slot drafters share the drafter's whole expert block");   // STRATA_MTP_SLOTS, before load
         if (!o.mtp.empty() && !mtp.load(o.mtp, draft_geometry, last_st && !mtp_first ? last_st->ss : ss, mtp_t, err, o.mtp_window)) { std::fprintf(stderr, "strata generate: %s%s%s\n", err.c_str(), vram_free_note().c_str(), vram_batch_hint(err, o.batch).c_str()); return 1; }
         if (!o.mtp.empty()) mtp.set_ple_session(&ss);
 #if defined(STRATA_HAVE_DFLASH2)
@@ -12236,6 +12237,9 @@ int main(int argc, char** argv) {
             return 2;
         }
         int mtp_room_slots = 0;
+        if (mtp_room_min >= 0 && mtp.slots_active()) {   // STRATA_MTP_SLOTS: the experts are live slots, there is no block to lend
+            std::fprintf(stderr, "strata serve: STRATA_MTP_ROOM_MIN is off while STRATA_MTP_SLOTS is on: the drafter's experts are slots, not a block the prompt path can take\n");
+        } else
         if (mtp_room_min >= 0) {
             const char* why = !o.serve ? "it needs --serve"
                             : o.mtp.empty() ? "it needs --mtp"

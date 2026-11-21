@@ -20,6 +20,7 @@
 #pragma once
 
 #include "strata/core/layer.hpp"
+#include "strata/core/mtp_slots.hpp"   // STRATA_MTP_SLOTS (the host map; no CUDA)
 #include "strata/core/pinned_ring.hpp"
 #include "strata/core/session.hpp"
 #include "strata/kernels/sampler.hpp"
@@ -35,6 +36,8 @@
 #include <string>
 #include <map>
 #include <vector>
+
+namespace strata::kernels { struct MtpSlotDev; }   // STRATA_MTP_SLOTS: the device-side record (s2_expert_grouped.hpp)
 
 namespace strata::core {
 
@@ -98,6 +101,13 @@ public:
     /// refuse (with `err`), rather than read the prompt's staged bytes as experts.
     uint64_t experts_bytes() const;    ///< 0: this drafter does not own the experts (shared weights: --batch-mtp)
     void* experts_base() const { return experts_; }   ///< the bytes the room's slots are carved from
+    /// STRATA_MTP_SLOTS=<n> (opt-in; LEADS.md Part Q3, TEST_LEDGER.md T-1100): only n of the 512 experts live in VRAM (`experts_bytes()` is then
+    /// the n slots' size, what VRAM really holds), the others are read exactly from a pinned host copy by address.  Off (unset): none of
+    /// this exists - no table, no buffer, `record_rest` launches `moe_group_resident` as before.  `set_slots_refuse(why)` (before `load`)
+    /// keeps the whole block on the card with a log line: --batch shares the drafter's weights across slot drafters, which assume the
+    /// full blob.  The prompt room (STRATA_MTP_ROOM_MIN) and STRATA_MTP_IN_VERIFY are refused with a log line while slots are on.
+    bool slots_active() const { return slots_on_; }
+    void set_slots_refuse(const char* why) { slots_refuse_ = why; }
     bool experts_resident() const { return experts_ != nullptr && !experts_lent_; }
     bool experts_lend(std::string& err);      ///< snapshot to pinned host (the block stays in place)
     bool experts_reclaim(std::string& err);   ///< the snapshot back into the block, at the address it never left
@@ -411,6 +421,28 @@ private:
     void* experts_host_ = nullptr;
     uint64_t experts_host_bytes_ = 0;
     bool experts_lent_ = false;
+
+    // ---- STRATA_MTP_SLOTS=<n> (see slots_active).  The map and its policy are MtpSlots (mtp_slots.hpp, tested on the host); this
+    // is the device side.  The table d_ptr_ holds each expert's blob address (a slot of experts_, or its copy in zc_d_); the
+    // grouping kernel reads it (moe_group_resident_ptr) and fills slot_dev_ (counters, rank 0-1 misses, used bitmap).
+    // ORDER (T-1100): both are only touched by the host while cs_ is idle, and every change is queued on cs_ before the next
+    // round's graph: D2H of slot_dev_ + memset + sync (slot_service) -> slot copies -> table copy.
+    bool slot_service(std::string& err);   ///< after a finished round (the stream idle): record, installs, table
+    void slots_report(bool final_line);
+    int slots_load(const std::string& rt_dir, int n_slots, std::string& err);   ///< load()'s experts step with slots on: 1 on, 0 refused (nothing allocated, the whole block follows), -1 error
+    void slots_free();
+    bool slots_on_ = false;
+    bool slots_dead_ = false;              ///< a copy failed: the table points everything at the host copy (exact, slower) for good
+    const char* slots_refuse_ = nullptr;
+    MtpSlots slots_;
+    uint8_t* zc_h_ = nullptr;              ///< all 512 experts, pinned and mapped (read-only after load)
+    uint8_t* zc_d_ = nullptr;              ///< the device's address of zc_h_
+    uint64_t* h_ptr_ = nullptr;            ///< pinned staging of the table (512 u64)
+    unsigned long long* d_ptr_ = nullptr;  ///< the table the kernel reads
+    strata::kernels::MtpSlotDev* d_slotdev_ = nullptr;   ///< device record, cleared after every service
+    strata::kernels::MtpSlotDev* h_slotdev_ = nullptr;   ///< pinned copy the host reads
+    int slot_installs_max_ = 4;            ///< STRATA_MTP_ZC_INSTALLS
+    uint64_t slot_services_ = 0, slot_want_overflow_ = 0;
     // Slot drafters borrow immutable weights and head; each still owns its state and scratch.
     bool owns_weights_ = true;
     bool owns_draft_head_ = true;
