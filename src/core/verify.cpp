@@ -37,6 +37,7 @@
 #include "strata/core/dma_batch.hpp"
 #include "strata/core/spec_prob.hpp"
 #include "strata/core/spec_block.hpp"
+#include "strata/core/spec_block_dev.hpp"
 #include "strata/core/spec_proposal.hpp"
 #if defined(_WIN32)
 #ifndef NOMINMAX
@@ -5598,6 +5599,11 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
             if (d_spec_ != nullptr) {
                 const int nq = measure ? spec_nq_ : std::min(spec_nq_, T - 1);
                 int32_t* d_q = d_spec_ + kVerifyMaxT;
+                // STRATA_MTP_BLOCK_VERIFY=1 (LEADS.md S12): a sampled window with the drafter lists is judged by block verification
+                // (sampler.cu spec_block_rows_kernel + spec_block_verify_kernel); switch off: always the token-by-token kernel
+                static const bool block_asked = strata::core::spec_block_verify_on();
+                const bool block_route = strata::core::spec_verify_route(block_asked, sampled, measure, T, nq, kVerifyMaxT) ==
+                                         strata::core::VerifyRoute::Block;
                 if ((T == 1 || cudaMemcpyAsync(d_spec_, tokens + 1, (size_t) (T - 1) * sizeof(int32_t), cudaMemcpyHostToDevice, cs_) ==
                         cudaSuccess) &&
                     (nq == 0 || cudaMemcpyAsync(d_q, spec_q_, (size_t) nq * strata::core::kSpecQStride * sizeof(int32_t),
@@ -5605,8 +5611,12 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
                     judged = measure
                         ? sample_tokens_proposal(head_logits_, T, (int) n_vocab_, hist_d_, hist_len_, sp,
                                                  d_spec_, d_q, nq, m_out_, cs_)
-                        : sample_tokens_spec(head_logits_, T, (int) n_vocab_, hist_d_, hist_len_, sp,
-                                             d_spec_, d_q, nq, m_out_, cs_);
+                        : (block_route && sample_tokens_spec_block(head_logits_, T, (int) n_vocab_, hist_d_, hist_len_, sp,
+                                                                   d_spec_, d_q, nq, m_out_, cs_))
+                              || (!block_route && sample_tokens_spec(head_logits_, T, (int) n_vocab_, hist_d_, hist_len_, sp,
+                                                                     d_spec_, d_q, nq, m_out_, cs_))
+                              || (block_route && sample_tokens_spec(head_logits_, T, (int) n_vocab_, hist_d_, hist_len_, sp,
+                                                                    d_spec_, d_q, nq, m_out_, cs_));
             }
         }
         spec_q_ = nullptr;
@@ -5618,14 +5628,11 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
         }
         if (judged) {
             ++spec_windows;
-            // STRATA_MTP_BLOCK_VERIFY=1 (LEADS.md S12): the block rule (core/spec_block.hpp) is host-tested; the device sampler does
-            // not run it yet, so the window above was judged token by token.  Said once; the default path is untouched.
-            static const bool block_asked = strata::core::spec_block_verify_on();
-            static bool block_said = false;
-            if (block_asked && !block_said) {
+            static bool block_said = false;   // STRATA_MTP_BLOCK_VERIFY=1: said once (the route is decided where the window is launched)
+            if (!block_said && strata::core::spec_block_verify_on()) {
                 block_said = true;
-                std::fprintf(stderr, "strata verify: STRATA_MTP_BLOCK_VERIFY=1 is set: block verification is not wired into the "
-                                     "device sampler yet, drafts are judged token by token (LEADS.md S12)\n");
+                std::fprintf(stderr, "strata verify: STRATA_MTP_BLOCK_VERIFY=1: sampled windows with drafter lists are judged by "
+                                     "block verification (LEADS.md S12; same output law, host-tested rule, device kernel not yet run)\n");
             }
         } else sample_tokens(head_logits_, T, (int) n_vocab_, hist_d_, hist_len_, sp, m_out_, cs_);
         if (cudaStreamSynchronize(cs_) != cudaSuccess) {   // m_out_ is the mapped h_out_: synced, it is readable

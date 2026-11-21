@@ -23,9 +23,9 @@
 // the output law by exact enumeration of the rounds on a toy model (the Python check of the same formulas was exact to 1e-16)
 // and by a fixed-seed chi-square on 3-token streams.
 //
-// Status: this is the pure rule, host-tested.  The device sampler (sampler.cu spec_verify_merge_kernel, one warp per row,
-// rows independent) does not run it yet: it needs all rows' P and Q in one place (a second kernel after the row lists),
-// which cannot be built or run on the Windows PC.  verify.cpp reports the switch once and keeps token-by-token.
+// Status: this is the pure rule, host-tested.  The device form (spec_block_dev.hpp: flat layout, per-entry arithmetic, a serial twin
+// of the kernel flow tested against this file) runs in sampler.cu spec_block_rows_kernel + spec_block_verify_kernel, launched by
+// verify.cpp only with STRATA_MTP_BLOCK_VERIFY=1 (LEADS.md S12; TEST_LEDGER.md T-1081: coded, not run on a GPU).
 #pragma once
 
 #include <algorithm>
@@ -105,7 +105,13 @@ inline double spec_block_h(int gamma, int j, double wj, double s) {
 /// One block verification.  u_eta[0..gamma] are the acceptance uniforms (row j's own), u_resid the residual draw's.
 /// P has gamma + 1 rows (each n <= 64), Q and d have gamma.  gamma may be 0 (a plain sample from P[0]).
 inline SpecBlockResult spec_block_verify(const SpecP* P, const SpecQ* Q, const int32_t* d, int gamma, const double* u_eta,
-                                         double u_resid) {
+                                         double u_resid);
+
+/// The same rule with the uniforms asked for when they are needed, in the order the device kernel consumes them (spec_block_dev.hpp):
+/// `eta(j)` for j = gamma down to 1, each only while no row has won yet (row 0 always wins and asks for none), then `resid(win)`
+/// once.  spec_block_verify below is this with array lookups.
+template <class Eta, class Resid>
+inline SpecBlockResult spec_block_verify_with(const SpecP* P, const SpecQ* Q, const int32_t* d, int gamma, Eta&& eta, Resid&& resid) {
     double w[kSpecBlockMaxGamma + 1];
     double r[64];
     if (gamma > kSpecBlockMaxGamma) gamma = kSpecBlockMaxGamma;
@@ -114,7 +120,7 @@ inline SpecBlockResult spec_block_verify(const SpecP* P, const SpecQ* Q, const i
     double s = 0.0;
     for (int j = gamma; j >= 0; --j) {
         s = spec_block_residual(P, Q, d, gamma, j, w[j], r);
-        if (j == 0 || u_eta[j] < spec_block_h(gamma, j, w[j], s)) { win = j; break; }
+        if (j == 0 || (double) eta(j) < spec_block_h(gamma, j, w[j], s)) { win = j; break; }
     }
     const int n = P[win].n < 64 ? P[win].n : 64;
     if (!(s > 0.0)) {   // P and Q agree (or an empty residual): draw from P itself
@@ -125,6 +131,7 @@ inline SpecBlockResult spec_block_verify(const SpecP* P, const SpecQ* Q, const i
     double cum = 0.0;
     int last = -1;
     int32_t tok = P[win].id[n > 0 ? n - 1 : 0];
+    const double u_resid = (double) resid(win);
     for (int i = 0; i < n; ++i) {
         if (!(r[i] > 0.0)) continue;
         last = i;
@@ -133,6 +140,11 @@ inline SpecBlockResult spec_block_verify(const SpecP* P, const SpecQ* Q, const i
     }
     if (last >= 0) tok = P[win].id[last];
     return {win, tok};
+}
+
+inline SpecBlockResult spec_block_verify(const SpecP* P, const SpecQ* Q, const int32_t* d, int gamma, const double* u_eta,
+                                         double u_resid) {
+    return spec_block_verify_with(P, Q, d, gamma, [&](int j) { return u_eta[j]; }, [&](int) { return u_resid; });
 }
 
 /// out[j] as the host loop expects it: the kept drafts, then the drawn token at out[accepted].  Returns accepted + 1 values written.
