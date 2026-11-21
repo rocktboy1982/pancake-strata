@@ -906,14 +906,18 @@ _LOADED = re.compile(r"loaded ([0-9.]+) GiB at ([0-9.]+) GiB/s")
 def settle_after_long(say=print, sleep=time.sleep, env=None):
     """ABTEST_SETTLE_AFTER_LONG_S (default 0 = off): when the previous engine run of this process lasted >= ABTEST_SETTLE_RUN_S (130) s, idle this many seconds
     BEFORE the next engine start (called before the pre-read and the quiet gate; no process of ours runs: stop_servers() has ended the engine, the prefetch
-    thread is joined).  Logs `SETTLE <s> after a <run> s run`.  Returns the seconds waited (0: nothing)."""
+    thread is joined).  ABTEST_SETTLE_MIN_S (T-1020 RIGOR, default 0 = off): idle at least this many seconds before EVERY start, the first one of the process too; the longer of the two
+    applies.  Logs `SETTLE <s> after a <run> s run` (`after a NA s run` before a process's first start).  Returns the seconds waited (0: nothing)."""
     try:
         env = os.environ if env is None else env
-        s = float(env.get("ABTEST_SETTLE_AFTER_LONG_S", "0") or 0)
+        s_long = float(env.get("ABTEST_SETTLE_AFTER_LONG_S", "0") or 0)
+        s_min = float(env.get("ABTEST_SETTLE_MIN_S", "0") or 0)
         run = DIAG["run_s"]
-        if s <= 0 or run is None or run < float(env.get("ABTEST_SETTLE_RUN_S", str(SETTLE_RUN_S))):
+        s = s_long if (s_long > 0 and run is not None and run >= float(env.get("ABTEST_SETTLE_RUN_S", str(SETTLE_RUN_S)))) else 0.0
+        s = max(s, s_min)
+        if s <= 0:
             return 0.0
-        say(f"SETTLE {s:g} after a {run:.0f} s run")
+        say(f"SETTLE {s:g} after a {('%.0f' % run) if run is not None else 'NA'} s run")
         sleep(s)
         return s
     except (ValueError, TypeError, OSError):
@@ -1531,6 +1535,10 @@ def main():
                          "(warmup, updated, base-mN, base-late) that ran in the SLOW box state (cold 64K prompt < --regime-prefill-min tok/s, or the engine's "
                          "pack load < --regime-load-min GiB/s: the page cache did not hold the pack); that base then runs once more before its neighbours "
                          "are judged.  Logs REGIME-PAUSE / REGIME-RECOVERED / REGIME-STILL-SLOW with the numbers.  0: off")
+    ap.add_argument("--regime-all", action="store_true",
+                    help="T-1020 RIGOR: the regime canary applies to EVERY start (arms too, not only the base starts): a start in the SLOW box state is discarded (its record keeps "
+                         "regime.discarded = true) and runs again after --regime-pause seconds, up to --regime-retries times; the last one stands (still slow = an invalid pair for the verdict)")
+    ap.add_argument("--regime-retries", type=int, default=2, help="with --regime-all: how many times a slow start is discarded and redone")
     ap.add_argument("--regime-prefill-min", type=float, default=1800.0)
     ap.add_argument("--regime-load-min", type=float, default=0.8)
     ap.add_argument("--regime-preread", action="append", default=[],
@@ -1624,9 +1632,10 @@ def main():
             break
         begun.add(r)
         quietest = None   # least noisy attempt: kept when every attempt was noisy, so the base never ends with no runs
-        regime_arm = bool(a.regime_pause) and (arm in (WARM_ARM, "updated", DRIFT_ARM) or arm.startswith("base-m"))
-        regime_first, regime_paused = None, None
-        for attempt in range(next_attempt(r, arm), a.retries + 1 + (1 if regime_arm else 0)):
+        regime_arm = bool(a.regime_pause) and (a.regime_all or arm in (WARM_ARM, "updated", DRIFT_ARM) or arm.startswith("base-m"))
+        regime_max = a.regime_retries if a.regime_all else 1
+        regime_first, regime_paused, regime_n = None, None, 0
+        for attempt in range(next_attempt(r, arm), a.retries + 1 + (regime_max if regime_arm else 0)):
             cfg_path = str(work / f"{arm}.json")
             cfg = make_config(base, spec["arms"][arm], cfg_path)
             settle_after_long(lambda s: print(s, flush=True))   # T-1006: ABTEST_SETTLE_AFTER_LONG_S, idle before anything of ours runs
@@ -1650,6 +1659,9 @@ def main():
             clean = res["noise"] <= a.foreign_cpu and res["reclaim"] <= RECLAIM_MAX
             rec = {"t": time.strftime("%Y-%m-%d %H:%M:%S"), "rep": r, "arm": arm, "attempt": attempt, "clean": clean, **res,
                    "opts": opts}
+            if regime_arm:   # T-1006 / T-1020: the box state of THIS start goes into its record (sweep.py start_regime reads it)
+                slow, pf, lr = regime_of(res, str(work / f"{arm}-r{r}-a{attempt}.out"), a.regime_prefill_min, a.regime_load_min)
+                rec["regime"] = {"slow": bool(slow), "prefill": pf, "load": lr, "discarded": bool(slow and regime_n < regime_max)}
             records.append(rec)
             out.write(json.dumps(rec) + "\n")
             out.flush()
@@ -1662,9 +1674,10 @@ def main():
             print(f"rep {r} {arm:20s} {desc}  foreign CPU {res['noise']:.0f}% {res['noise_top']}{gd}"
                   f"{'' if clean else '  noisy by the proxies: kept (outlier rule)' if robust else '  NOISY -> repeat'}", flush=True)
             if regime_arm:   # T-1006: a base start is repeated only for the SLOW box state (never for the noise proxies: they always call this box noisy)
-                slow, pf, lr = regime_of(res, str(work / f"{arm}-r{r}-a{attempt}.out"), a.regime_prefill_min, a.regime_load_min)
-                if regime_paused is None and slow:
-                    regime_first, regime_paused = (pf, lr), time.strftime("%H:%M:%S")
+                if slow and regime_n < regime_max:
+                    regime_n += 1
+                    if regime_paused is None:
+                        regime_first, regime_paused = (pf, lr), time.strftime("%H:%M:%S")
                     print(f"REGIME-PAUSE {arm}: SLOW box state (cold 64K prefill {pf}, pack load {lr} GiB/s; limits {a.regime_prefill_min:g} tok/s / "
                           f"{a.regime_load_min:g} GiB/s): idle {a.regime_pause:g} s with the pack read into the page cache, then this base runs again", flush=True)
                     regime_pause(a.regime_pause, a.regime_preread)

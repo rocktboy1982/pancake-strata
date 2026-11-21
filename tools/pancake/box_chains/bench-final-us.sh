@@ -7,6 +7,7 @@
 # Marker WINBENCHFINALUS_DONE (the line before it is WINBENCHFINALUS_ABORTED after an abort or a signal).  Log: <script name without .sh>.log in
 # /home/dan/clone-of-d/src (bench-final-us.v1.sh -> bench-final-us.v1.log).  The file name has no "win-chain", "redo-chain", "tail-chain" or bench-(exact|...):
 # no busy() pattern of another chain sees it.
+# FINAL_RIGOR=<us-triage-rigor.json> FINAL_TURBO=<turbo-build json>: T-1020 (owner 2026-11-21): the RIGOR verdicts are laid over the triage and the race gets its third contender (arm updated-turbo); the three owner-removed flags are out of the default arms (sweep.py final-specs --removed).
 # FINAL_LONG=longdec64k,longdec100k limits the long cases (the PRELIMINARY comparison: short + edit + long 64K / 100K); default all four sizes.
 # FINAL_PREFIX=prelim FINAL_REPS=3 FINAL_NO_TRIAGE=1 FINAL_GATE=1 runs the PRELIMINARY headline comparison (T-1005: arms of specs 220 / 222 as shipped now, 3 reps).
 # Steps (estimate, sweep.py final-specs prints it):
@@ -154,7 +155,7 @@ grep -q ABTEST_PYTHON $HN/tools/pancake/abtest.py || abort "PREREQ harness: $HN/
 e=$(cd $HN && PYTHONDONTWRITEBYTECODE=1 "$HPY" -B -c 'import serve.server' 2>&1) || abort "PREREQ harness: $HPY cannot import serve.server from $HN: $(echo "$e" | tail -n 1 | cut -c1-240)"
 
 # ------------------------------------------------------------------ 2. the final specs from the shipped flags (apply_triage's rules on the merged US triage)
-sw final-specs --triage ${FINAL_NO_TRIAGE:-$O/us-triage.v2.json} --us-arm-spec $HN/bench/specs/220-updated-vs-upstream-short.json --us-exact-spec $HN/bench/specs/222-updated-exact-vs-upstream-short.json    --shipped $USB/src-us/terminal/data/tuned-flags.json --out-dir $T --reps $FR --prefix $FP ${FINAL_NO_TRIAGE:+--no-triage} ${FINAL_LONG:+--long $FINAL_LONG} > $T/final-specs.txt 2>&1 || abort "SPEC: sweep.py final-specs failed: $(tail -n 1 $T/final-specs.txt)"
+sw final-specs --triage ${FINAL_NO_TRIAGE:-$O/us-triage.v2.json} --us-arm-spec $HN/bench/specs/220-updated-vs-upstream-short.json --us-exact-spec $HN/bench/specs/222-updated-exact-vs-upstream-short.json    --shipped $USB/src-us/terminal/data/tuned-flags.json --out-dir $T --reps $FR --prefix $FP ${FINAL_NO_TRIAGE:+--no-triage} ${FINAL_LONG:+--long $FINAL_LONG} ${FINAL_RIGOR:+--rigor $FINAL_RIGOR} ${FINAL_TURBO:+--turbo $FINAL_TURBO} > $T/final-specs.txt 2>&1 || abort "SPEC: sweep.py final-specs failed: $(tail -n 1 $T/final-specs.txt)"
 for f in $FP-short $FP-long $FP-gate; do [ -s $T/$f.json ] || abort "SPEC: $T/$f.json was not written"; done
 grep -E '^(FINAL|ESTIMATE)' $T/final-specs.txt | cut -c1-700 >> $L
 cp $T/$FP-short.json $T/$FP-long.json $T/$FP-gate.json $O/ 2>/dev/null; say "SPECS copied to $O/$FP-*.json (the exact arms of this run)"

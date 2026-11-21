@@ -129,6 +129,7 @@ T0=$(date +%s); BUDGET=${BENCH_BUDGET_S:-9900}; POLL=5; MAXS=${SWEEP_MAX_S:-9000
 BS=${SWEEP_BLOCK:-6}; DMAX=${SWEEP_DRIFT_MAX:-5}; SPLIT=${SWEEP_SPLIT:-priority}; SCREEN=${SWEEP_SCREEN_ONLY:-0}; WARM=${SWEEP_WARM:-each}   # SWEEP_WARM=first: ONE warm-up start per slice (owner 2026-11-20; rows of rdC-1 k01r / k02: a block that follows another one starts steady)
 QIS=${SWEEP_QUICK_IDLE_S:-30}   # owner 2026-11-20 ~12:30: SWEEP_QUICK_IDLE_S=15 = the quiet check before a block is two clean polls of 7 s (was 15 s each = 30 s)
 RP=${SWEEP_REGIME_PAUSE:-0}; RA=; [ "$RP" -gt 0 ] && { RA="--regime-pause $RP --regime-prefill-min ${SWEEP_REGIME_PREFILL:-1800} --regime-load-min ${SWEEP_REGIME_LOAD:-0.8}"; for d in ${SWEEP_REGIME_PREREAD:-}; do RA="$RA --regime-preread $d"; done; }   # T-1006: a base start in the SLOW box state is repeated after a pause (abtest.py regime_of)
+[ "$RP" -gt 0 ] && [ "${SWEEP_REGIME_ALL:-0}" = 1 ] && RA="$RA --regime-all --regime-retries ${SWEEP_REGIME_RETRIES:-2}"   # T-1020 RIGOR: the canary for EVERY start (arms too): a slow start is discarded and redone, up to SWEEP_REGIME_RETRIES times
 MID=${SWEEP_MID:-0}; RR=${SWEEP_RERUN:-1}   # T-1006 (drift fix): SWEEP_MID=K = a base start after every K arms, every arm judged against the 2 bases around it; SWEEP_RERUN=0 = no whole-block re-run (the arms whose bases disagree are INCONCLUSIVE and run again, alone, in the queue's rerun1 step)
 B=${SWEEP_BRANCH:-}; SL=${SWEEP_SLICE:-1/1}; SLN=${SWEEP_TAG:-$(echo "$SL" | tr / o | sed 's/o/of/')}; SEED=${SWEEP_SEED:-$SLN}
 export PATH=$ROCM/bin:$R/.venv/bin:$PATH LD_LIBRARY_PATH=$ROCM/lib HIP_VISIBLE_DEVICES=0
@@ -296,7 +297,7 @@ if [ $((E1 + ER + P2ONE)) -gt $MAXS ]; then
 fi
 [ -n "${BENCH_BUDGET_S:-}" ] || BUDGET=$MAXS
 say "BUDGET $BUDGET s (2.5 h: pass 1 $E1 s + one block re-run $ER s budgeted; pass 2 = one paired block of $P2ONE s per promising flag while the budget holds it, the rest carried; plan for $P2MAX flags $E2 s)"
-sw blocks --spec $P1 --prefix $T/$B-p1-$SLN --size $BS --seed "$SEED" --warm $WARM --mid-base $MID > $T/$B-blocks-$SLN.txt 2>&1 || abort "SPEC: sweep.py blocks failed: $(tail -n 1 $T/$B-blocks-$SLN.txt)"
+sw blocks --spec $P1 --prefix $T/$B-p1-$SLN --size $BS --seed "$SEED" --warm $WARM --mid-base $MID $([ "${SWEEP_MIX:-0}" = 1 ] && echo --mix) $([ "${SWEEP_REVERSE:-0}" = 1 ] && echo --reverse) > $T/$B-blocks-$SLN.txt 2>&1 || abort "SPEC: sweep.py blocks failed: $(tail -n 1 $T/$B-blocks-$SLN.txt)"
 cut -c1-400 $T/$B-blocks-$SLN.txt >> $L
 
 # ------------------------------------------------------------------ 3. pass 1 block by block (a drifting block runs once more), triage, pass 2, the final triage
@@ -323,6 +324,10 @@ for bid in $(awk '/^BLOCK /{print $2}' $T/$B-blocks-$SLN.txt); do
     else nbad=$((nbad + 1)); say "SKIP rerun $bid: budget: $(left) s left (< $((est + P2ONE)) s, block + one paired block): its arms are INCONCLUSIVE"; fi
   else nclean=$((nclean + 1)); fi
 done
+if [ "${SWEEP_NO_TRIAGE:-0}" = 1 ]; then   # T-1020 RIGOR: rows only, no triage / carry / merge (the verdict comes from sweep.py rigor-verdict into us-triage-rigor.json; the screen verdicts are never touched)
+  say "SUMMARY branch $B pass $SLN ($SL): $nb blocks, rows only (SWEEP_NO_TRIAGE=1), pass 1 exit=$rc1; box time $(elapsed) s of $BUDGET s; results in $O"
+  finish; exit 0
+fi
 p1f=$(ls $O/$B-p1-$SLN-b[0-9][0-9].jsonl $O/$B-p1-$SLN-b[0-9][0-9]r.jsonl 2>/dev/null | sort | tr '\n' ' ')
 [ -n "$p1f" ] || p1f=$O/$B-p1-$SLN-none.jsonl
 sw triage --meta $P1.meta.json --pass1 $p1f --drift-max $DMAX $([ "$SCREEN" = 1 ] && echo --screen-only) ${SWEEP_PRIOR:+--prior $SWEEP_PRIOR} --out $T/$B-tri1-$SLN.json > $T/$B-tri1-$SLN.txt 2>&1 || say "ERROR triage of pass 1 failed: $(tail -n 1 $T/$B-tri1-$SLN.txt)"

@@ -10,6 +10,7 @@
 # STAGE 2 of the US queue run-queue-us3.sh (owner protocol restated 2026-11-20, T-1005): RETEST_SLICE=carry-us-<tag> confirms the flags the stage-1 screen marked PROMISING
 #   (carry files $O/us-carry-usS1-*.json, RETEST_CARRY_GLOB overrides the glob), the strongest first: RETEST_CARRY_OFFSET / RETEST_CARRY_MAX take the flags [offset, offset+max)
 #   (6 per slice: 6 paired blocks + one re-run fit 2.5 h).  RETEST_SLICE=gates-us runs the quality gates (updated against updated minus / plus the flag): the static
+#   T-1020: the gate list also reads $O/us-triage-rigor.json (the RIGOR verdicts; written by sweep.py rigor-verdict, never merged into us-triage.v2.json).
 #   --lookup-max-t gate (attributes the earlier whole-preset REJECT) and one per flag whose clean confirm (source retest slice carry-us-usS2*, RETEST_GATE_SLICES) is lossy >= 3 %.
 # A PAIRED BLOCK (sweep.py paired_spec) = abtest --tier screen --drift-check on a spec whose arms are warmup (the base, an extra first start: not counted, not judged), base, flag, base~2, flag~2, base~3, flag~3, and
 #   abtest's base-late at the end: 8 engine starts (~19 min with short + edit + longdec32k), each flag rep between two base runs of the same block.
@@ -161,7 +162,7 @@ fx=; for k in ${RETEST_RD_DROP-STRATA_POOL_FUSE_PHASES}; do fx="$fx --drop-env $
 for kv in ${RETEST_RD_SET-STRATA_VERIFY_ECAP=0 STRATA_VERIFY_ECAP_MIN_ROWS=9}; do fx="$fx --set-env $kv"; done
 cf=; case "$RS" in
   carry*) cf="--carry $(ls ${RETEST_CARRY_GLOB:-$O/*-carry-*.json} 2>/dev/null | tr '\n' ' ') --carry-offset ${RETEST_CARRY_OFFSET:-0}${RETEST_CARRY_MAX:+ --carry-max $RETEST_CARRY_MAX}";;
-  gates*) cf="--gate-from $(ls $O/us-triage-rt-${RETEST_GATE_SLICES:-usS2r}*.v2.json $O/us-triage-${RETEST_GATE_SLICES:-usS2r}*.v2.json 2>/dev/null | tr '\n' ' ') --gate-prefix ${RETEST_GATE_SLICES:-usS2r} --carry-offset ${RETEST_CARRY_OFFSET:-0}${RETEST_CARRY_MAX:+ --carry-max $RETEST_CARRY_MAX}";;
+  gates*) cf="--gate-from $(ls $O/us-triage-rt-${RETEST_GATE_SLICES:-usS2r}*.v2.json $O/us-triage-${RETEST_GATE_SLICES:-usS2r}*.v2.json $O/us-triage-rigor.json 2>/dev/null | tr '\n' ' ') --gate-prefix ${RETEST_GATE_SLICES:-usS2r} --carry-offset ${RETEST_CARRY_OFFSET:-0}${RETEST_CARRY_MAX:+ --carry-max $RETEST_CARRY_MAX}";;
 esac
 rdargs="--rd-plain $RDC --rd-updated $RDU --rd-src $RDB/src-updated $fx"
 [ "${RETEST_NO_RD:-0}" = 1 ] && rdargs=   # US-only queue (owner order 2026-11-20 09:19): no RD config is read, no RD arm is built
