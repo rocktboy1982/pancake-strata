@@ -38,3 +38,66 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 27.12 37.5 s (0.7
 rep 0 plus-ATTN_MERGE_V2   short 107.5 short 104.7 edit 170.8 edit 169.4 longdec64k 86.0/2163p 65240t  foreign CPU 6% [('kcompactd0', 13), ('kworker/13:0-events_freezable', 5), ('kswapd0', 4)]  gpu 2033/1249 MHz 62C 181W gtt 25M cpu 3763MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 rep 0 plus-ATTN_MERGE_V2: every attempt noisy, keeping the quietest (6% foreign CPU)
 STARTDIAG 2026-11-21T03:52:26 prev_run_s=113 gap_s=118 rd_sect=142728692144 wr_sect=110759192 io_ticks_ms=110307657 d_rd_sect=102081696 d_wr_sect=96 d_io_ticks_ms=48827 cached_kb=15651648 mlocked_kb=64 memavail_kb=57942876 nvme_temp_c=52 compact_stall_d=13
+STARTLOAD 2026-11-21T03:53:13 loaded 33.02 GiB at 1.08 GiB/s rate=1.08
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 33.8 s (1.08 GiB/s; stopped; waited 11.5 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-HIPBLASLT_TUNING short 101.2 short 99.8 edit 161.7 edit 178.6 longdec64k 84.8/2021p 65240t  foreign CPU 5% [('kcompactd0', 9), ('kworker/0:0-events', 3), ('localsearch-3', 1)]  gpu 2001/1249 MHz 63C 191W gtt 25M cpu 3464MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-HIPBLASLT_TUNING: every attempt noisy, keeping the quietest (5% foreign CPU)
+STARTDIAG 2026-11-21T03:54:18 prev_run_s=107 gap_s=112 rd_sect=142807279992 wr_sect=110759304 io_ticks_ms=110349175 d_rd_sect=78587848 d_wr_sect=112 d_io_ticks_ms=41518 cached_kb=14033872 mlocked_kb=64 memavail_kb=57909536 nvme_temp_c=51 compact_stall_d=10
+STARTLOAD 2026-11-21T03:55:15 loaded 33.02 GiB at 1.07 GiB/s rate=1.07
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.34 34.9 s (1.04 GiB/s; stopped; waited 20.4 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.7 short 103.7 edit 170.3 edit 168.5 longdec64k 83.7/2185p 65240t  foreign CPU 4% [('kcompactd0', 12), ('kswapd0', 2), ('claude', 1)]  gpu 1992/1249 MHz 63C 182W gtt 25M cpu 3597MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 101.8 +-  31.1  (n=2)
+                              drafts accepted 0.67
+  short  plus-ADAPT_NOWAIT        92.7 +-  55.3  (n=2)   vs updated:  -9.0% +- 23.7%  -> no difference
+                              drafts accepted 0.68
+  short  plus-ATTN_LANECELL       97.9 +-   0.0  (n=2)   vs updated:  -3.9% +- 30.6%  -> no difference
+                              drafts accepted 0.65
+  short  base-m1                 100.3 +-   3.2  (n=2)   vs updated:  -1.5% +- 27.5%  -> no difference
+                              drafts accepted 0.67
+  short  plus-ATTN_MERGE_V2      106.1 +-  17.8  (n=2)   vs updated:  +4.2% +- 13.1%  -> no difference
+                              drafts accepted 0.71
+  short  minus-HIPBLASLT_TUNING    100.5 +-   8.9  (n=2)   vs updated:  -1.3% +- 21.8%  -> no difference
+                              drafts accepted 0.67
+  short  base-late               107.2 +-  44.5  (n=2)   vs updated:  +5.3% +- 13.1%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 169.7 +-  80.1  (n=2)
+                              drafts accepted 0.89
+  edit   plus-ADAPT_NOWAIT       138.8 +- 552.9  (n=2)   vs updated: -18.2% +- 278.6%  -> no difference
+                              drafts accepted 0.91
+  edit   plus-ATTN_LANECELL      154.4 +- 411.8  (n=2)   vs updated:  -9.0% +- 195.5%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 169.1 +-  88.3  (n=2)   vs updated:  -0.3% +-  4.9%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-ATTN_MERGE_V2      170.1 +-   8.9  (n=2)   vs updated:  +0.2% +- 52.4%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-HIPBLASLT_TUNING    170.1 +- 107.4  (n=2)   vs updated:  +0.3% +- 16.1%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               169.4 +-  11.4  (n=2)   vs updated:  -0.2% +- 53.9%  -> no difference
+                              drafts accepted 0.90
+  longdec64k updated                  76.7 +-   nan  (n=1)
+  longdec64k plus-ADAPT_NOWAIT        74.9 +-   nan  (n=1)   vs updated:  -2.3% +-  nan%  -> no difference
+  longdec64k plus-ATTN_LANECELL       84.9 +-   nan  (n=1)   vs updated: +10.7% +-  nan%  -> no difference
+  longdec64k base-m1                  82.1 +-   nan  (n=1)   vs updated:  +7.0% +-  nan%  -> no difference
+  longdec64k plus-ATTN_MERGE_V2       86.0 +-   nan  (n=1)   vs updated: +12.1% +-  nan%  -> no difference
+  longdec64k minus-HIPBLASLT_TUNING     84.8 +-   nan  (n=1)   vs updated: +10.6% +-  nan%  -> no difference
+  longdec64k base-late                83.7 +-   nan  (n=1)   vs updated:  +9.1% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-ADAPT_NOWAIT    DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-ATTN_LANECELL   DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              identical on every case -> exact
+  plus-ATTN_MERGE_V2   DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-HIPBLASLT_TUNING DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +5.3%  edit -0.2%  longdec64k +9.1%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-ADAPT_NOWAIT    short -11.4%  edit -18.1%  longdec64k -6.6%  -> drop
+  plus-ATTN_LANECELL   short -6.3%  edit -8.9%  longdec64k +5.9%  -> drop
+  base-m1              short -4.0%  edit -0.2%  longdec64k +2.4%  -> drop
+  plus-ATTN_MERGE_V2   short +1.5%  edit +0.3%  longdec64k +7.2%  -> PROMOTE to confirm
+  minus-HIPBLASLT_TUNING short -3.9%  edit +0.4%  longdec64k +5.7%  -> drop

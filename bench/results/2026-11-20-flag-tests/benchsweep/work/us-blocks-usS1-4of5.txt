@@ -1,0 +1,7 @@
+BLOCK b01 1520 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-4of5-b01.json order: plus-MTP_CATCHUP_ALL plus-MMVQ_WAVE plus-MMVQ_IL_WIDE plus-MMVQ_IL_T1
+BLOCK b02 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-4of5-b02.json order: plus-NORM_ROPE plus-MTP_TOP2 plus-MTP_FULL_HEAD plus-NO_MMVQ_ROWS2
+BLOCK b03 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-4of5-b03.json order: plus-OLD_Q80_SCALED plus-OLD_IQ_MMVQ plus-NO_MULTI_GR plus-NO_SUB16_GU
+BLOCK b04 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-4of5-b04.json order: plus-PA_RPF plus-PA_TRIM plus-PCIE_AUTO_CANON plus-PF_BK64
+BLOCK b05 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-4of5-b05.json order: plus-PF_FUSED_F16 plus-PF_FUSED_NATIVE plus-PF_Q8D_F16
+BLOCK b06 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-4of5-b06.json order: plus-PF_WMMA2 plus-PIPED_MTP plus-POOL_UMWAIT_C02
+BLOCK b07 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-4of5-b07.json order: plus-PREFILL_EQUAL plus-PREFILL_HOST_PLAN plus-PREFILL_HELP
