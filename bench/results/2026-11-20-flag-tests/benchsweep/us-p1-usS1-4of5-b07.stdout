@@ -1,2 +1,8 @@
 case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
 STARTDIAG 2026-11-21T06:17:08 prev_run_s=NA gap_s=NA rd_sect=146948300320 wr_sect=110763680 io_ticks_ms=113873888 d_rd_sect=NA d_wr_sect=NA d_io_ticks_ms=NA cached_kb=13418920 mlocked_kb=64 memavail_kb=58111656 nvme_temp_c=49 compact_stall_d=NA
+STARTLOAD 2026-11-21T06:18:38 loaded 33.02 GiB at 0.46 GiB/s rate=0.46
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 24.02 77.1 s (0.31 GiB/s; stopped; waited 11.6 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 88.2 short 83.2 edit 154.8 edit 167.6 longdec64k 60.2/1494p 65242t  foreign CPU 4% [('kcompactd0', 6), ('kswapd0', 2), ('kworker/4:1-events_freezable', 1)]  gpu 2037/1249 MHz 62C 188W gtt 25M cpu 3389MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1494, pack load 0.46 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+SETTLE 120 after a 169 s run
