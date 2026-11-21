@@ -1,0 +1,25 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata"
+    },
+    "order-small": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "env": {
+        "STRATA_DECODE_ORDER_SMALL": "1"
+      }
+    },
+    "base-late": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata"
+    }
+  },
+  "note": "NOT RUN, coded on lead/T7-S7-S13 (LEADS.md Part S row S11; the launch-order table is tested by decode_order_test, the wiring in Verifier::record_window passed only a syntax check on this PC, no HIP build, no GPU): STRATA_DECODE_ORDER_SMALL=1 launches the QSA layer's indexer key projection right before the indexer's append, behind the K / V projections, their norm / RoPE / rotation and the cell appends, instead of first (radiance PR 498's 'indexer keys behind the attention launches'; its other moves, the router read beside the mixer reduction and the shared down before the routed down, are NOT coded). Same kernels on the same inputs in a different launch order of independent ops: bit-identical; judge it with the bitwise parity ctests that exist for the window graph (a 'Not Run' ctest is no result, AGENTS.md flag testing protocol rule 6), the drift_check only shows text. Expected under 1% (LEADS.md row S11, derived: radiance's -2.5% came from the whole set of moves on 4 x R9700). A ledger-grade verdict needs a kernel-time view too (tools/pancake/kernel_axis.py, T-881). Only the one-stream QSA path is touched (not STRATA_SIDE_MIXER). Build (NOT done): the HIP build of the branch lead/T7-S7-S13 in /mnt/pancake/build-lead-t7s13 (ROCm 10.0 is fine). Stop pancake.service first; run only when the box queue is idle."
+}

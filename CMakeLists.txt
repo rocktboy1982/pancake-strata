@@ -2488,6 +2488,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(swap_budget_residency_test src/program/swap_budget_residency_test.cpp)   # LEADS.md Part S row S8: STRATA_SWAP_BUDGET_RESIDENCY (schedule + budget, host only)
   target_include_directories(swap_budget_residency_test PRIVATE include)
   add_test(NAME swap_budget_residency_test COMMAND swap_budget_residency_test)
+  add_executable(decode_order_test src/core/decode_order_test.cpp)   # LEADS.md Part S row S11: STRATA_DECODE_ORDER_SMALL (launch-order table, host only)
+  target_include_directories(decode_order_test PRIVATE include)
+  add_test(NAME decode_order_test COMMAND decode_order_test)
   add_executable(route_range_test src/program/route_range_test.cpp)   # MOD_PLAN.md section 6 (BigMoeOnEdge switches): STRATA_ROUTE_RANGE
   target_include_directories(route_range_test PRIVATE include)
   add_test(NAME route_range_test COMMAND route_range_test)
@@ -4142,6 +4145,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     copy_batch_test
     pcopy_rest_test
     swap_budget_residency_test
+    decode_order_test
     route_range_test
     lookahead_skip_test
     lookahead_ctrl_test

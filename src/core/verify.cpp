@@ -35,6 +35,7 @@
 #endif
 #include "strata/core/remote_expert_opt.hpp"
 #include "strata/core/dma_batch.hpp"
+#include "strata/core/decode_order.hpp"   // STRATA_DECODE_ORDER_SMALL (LEADS.md Part S row S11)
 #include "strata/core/spec_prob.hpp"
 #include "strata/core/spec_proposal.hpp"
 #if defined(_WIN32)
@@ -3180,7 +3181,11 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                     if (!branch(pfork_, cs, side2_, "fork") || !q_chain(side2_)) return false;
                     if (cudaEventRecord(pjoin_, side2_) != cudaSuccess) { err = "verify: the queries' branch could not join"; return false; }
                 }
-                if (!sidem) idx_key(cs);
+                // STRATA_DECODE_ORDER_SMALL=1 (LEADS.md Part S row S11, default off; decode_order.hpp): the indexer's key projection
+                // moves to just before the indexer's append (it only reads mixed_ and writes idx_raw, which nothing in between
+                // touches), behind the K / V projection and the cell appends; unset: first, as always
+                static const bool idx_key_late = strata::core::decode_order::idx_key_late(strata::core::decode_order::active_order());
+                if (!sidem && !idx_key_late) idx_key(cs);
                 stamp(l, 7, grp);
                 // STRATA_MMVQ_SET: k, v (and q when no branch computes it) in one launch; q_chain then skips its mm
                 {
@@ -3252,6 +3257,7 @@ bool Verifier::record_window(int T, cudaStream_t cs, std::string& err) {
                         kv_append_step(st.k_pool, st.v_pool, st.page_table, step_t, kcur_ + t * NKV * HD,
                                        vcur_ + t * NKV * HD, s, cs, &st.host);
                 }
+                if (!sidem && idx_key_late) idx_key(cs);   // STRATA_DECODE_ORDER_SMALL
                 if (!sidem) idx_append(cs);
                 stamp(l, 9, grp);
                 if (qbr) {
