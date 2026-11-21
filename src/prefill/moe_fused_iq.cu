@@ -1660,19 +1660,40 @@ native_f16_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
     uint32_t raw[RW];
     ActStage<BN> as;
     as.init(act, GU ? GU_ACT_LD : H_LD, srow, tid);
+#if defined(STRATA_ABL_NO_GLOBAL_LOAD)
+    for (int k = 0; k < RW; ++k) raw[k] = 0x9E3779B9u * (uint32_t) (tid * 8 + k + 1);   // the weight unit is never read from memory
+#endif
     const auto fetch_stage = [&](int s) {
+#if defined(STRATA_ABL_NO_GLOBAL_LOAD)
+        (void) s;
+        for (int k = 0; k < RW; ++k) abl::opaque(raw[k]);
+#else
         load_unit<WT>(unit(s), sub(s), raw);
+#endif
         as.fetch(s);
     };
     // the sub-block as int8 codes and its scales into the weight tile
     const auto commit_stage = [&]() {
         uint32_t q[8];
         float s0, s1;
+#if defined(STRATA_ABL_NO_DEQUANT)   // bench-only: no format decode, the raw words stand in for the codes
+        for (int k = 0; k < 8; ++k) q[k] = raw[k % RW];
+        s0 = (float) (raw[0] & 0xFFu) * 0.001f;
+        s1 = (float) (raw[RW > 1 ? 1 : 0] & 0xFFu) * 0.001f;
+        (void) sgrid; (void) kv; (void) ssign;
+#else
         convert<WT, RW>(raw, sgrid, kv, q, s0, s1, ssign);
+#endif
+#if defined(STRATA_ABL_NO_LDS_STORE)   // bench-only: no LDS write of the weight tile and the scales (the activation tile: ActStage::commit)
+        for (int k = 0; k < 8; ++k) abl::use(q[k]);
+        abl::use(__builtin_bit_cast(uint32_t, __floats2half2_rn(s0, K16 ? s1 : s0)));
+        (void) s_w; (void) s_sc;
+#else
         uint4* d = reinterpret_cast<uint4*>(s_w + ur * WLD8 + 32 * uj);
         d[0] = make_uint4(q[0], q[1], q[2], q[3]);
         d[1] = make_uint4(q[4], q[5], q[6], q[7]);
         s_sc[uj * ROWS + ur] = __builtin_bit_cast(uint32_t, __floats2half2_rn(s0, K16 ? s1 : s0));
+#endif
         as.commit(s_act);
     };
     v8f acc[BN / 16];
@@ -1686,19 +1707,36 @@ native_f16_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
         const uint4* wp = reinterpret_cast<const uint4*>(s_w + row * WLD8);
 #pragma unroll
         for (int kb = 0; kb < 2; ++kb) {
+#if defined(STRATA_ABL_NO_LDS_READ)   // bench-only: no LDS read of the weight fragment and its scales, opaque values stand in
+            (void) wp;
+            uint4 c0 = make_uint4(0x3C003C00u + (uint32_t) kb, (uint32_t) row, 0x40004000u, 0x3800u + (uint32_t) sub_lane);
+            uint4 c1 = make_uint4(0x42004200u, (uint32_t) (kb + 3), 0x3A003A00u, (uint32_t) (row + 5));
+            uint32_t scw = 0x2C002C00u + (uint32_t) kb;
+            abl::opaque(c0);
+            abl::opaque(c1);
+            abl::opaque(scw);
+            const __half2 sc = __builtin_bit_cast(__half2, scw);
+#else
             const uint4 c0 = wp[2 * kb], c1 = wp[2 * kb + 1];
             const __half2 sc = __builtin_bit_cast(__half2, s_sc[kb * ROWS + row]);
+#endif
             const __half2 sc0 = __low2half2(sc), sc1 = __high2half2(sc);
             const uint32_t words[8] = {c0.x, c0.y, c0.z, c0.w, c1.x, c1.y, c1.z, c1.w};
             uint32_t hw[16];
 #pragma unroll
             for (int i = 0; i < 8; ++i) {   // values 4i .. 4i + 3 (s0: values 0-15, s1: 16-31)
+#if defined(STRATA_ABL_NO_WIDEN)   // bench-only: no int8 -> F16 widening and scale multiply
+                hw[2 * i] = words[i];
+                hw[2 * i + 1] = words[i] ^ 0x00010001u;
+                (void) sc0; (void) sc1; (void) magic; (void) zero2;
+#else
                 const uint32_t c = words[i] ^ 0x80808080u;
                 const uint32_t p0 = __builtin_amdgcn_perm(c, 0x64646464u, 0x01050004u);
                 const uint32_t p1 = __builtin_amdgcn_perm(c, 0x64646464u, 0x03070206u);
                 const __half2 s2 = i < 4 ? sc0 : sc1;
                 hw[2 * i] = __builtin_bit_cast(uint32_t, __hfma2(__hadd2(__builtin_bit_cast(__half2, p0), magic), s2, zero2));
                 hw[2 * i + 1] = __builtin_bit_cast(uint32_t, __hfma2(__hadd2(__builtin_bit_cast(__half2, p1), magic), s2, zero2));
+#endif
             }
             v16h a_lo, a_hi;
             __builtin_memcpy(&a_lo, &hw[0], 32);
@@ -1745,8 +1783,13 @@ native_f16_kernel(const Batch b, const NativeGeom geo, const Tables tb, const ui
         __syncthreads();
     }
 #endif
+#if defined(STRATA_ABL_NO_EPILOGUE)   // bench-only ablation (moe_f16_ablate.cuh): the accumulators are consumed, nothing is stored
+    ablate_sink_acc<BN>(acc);
+    (void) out; (void) dm;
+#else
     if constexpr (GU) gu_epilogue<BN>(acc, lds, tid, live_tiles, nrows, row0, fb, out);
     else down_epilogue<BN, D16>(acc, lds, tid, live_tiles, nrows, row0, fb, dm);
+#endif
 #else
     (void) b; (void) geo; (void) tb; (void) act; (void) src; (void) out; (void) dm;
     __builtin_trap();

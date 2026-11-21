@@ -4,6 +4,7 @@
 
 #include "strata/kernels/bf16_bits.hpp"
 #include "strata/kernels/f16_bits.hpp"
+#include "strata/kernels/reduce_f32.hpp"
 
 #include <cuda_runtime.h>
 
@@ -67,14 +68,20 @@ __global__ void to_bf16_kernel(const float* __restrict__ x, uint16_t* __restrict
     if (i < n) y[i] = bf16_from_f32(x[i]);
 }
 
+// STRATA_REDUCE_F32=1 (reduce_f32.hpp, LEADS.md Part U U2): F32 = true is the f32 form; false is the original, unchanged.
+template <bool F32>
 __global__ void silu_kernel(float* __restrict__ x, int64_t n) {
     const int64_t i = (int64_t) blockIdx.x * blockDim.x + threadIdx.x;
     if (i >= n) return;
-    // DOUBLE then cast, matching `ref/gdn.py`'s numpy: its arrays are f32 but `np.exp` on an f32 array is
-    // computed to f32 precision by a different algorithm than `expf`, and the reference is the oracle.  The
-    // difference is in the last bits and this is one line.
-    const double v = (double) x[i];
-    x[i] = (float) (v / (1.0 + exp(-v)));
+    if constexpr (F32) {
+        x[i] = rf32::silu(x[i]);
+    } else {
+        // DOUBLE then cast, matching `ref/gdn.py`'s numpy: its arrays are f32 but `np.exp` on an f32 array is
+        // computed to f32 precision by a different algorithm than `expf`, and the reference is the oracle.  The
+        // difference is in the last bits and this is one line.
+        const double v = (double) x[i];
+        x[i] = (float) (v / (1.0 + exp(-v)));
+    }
 }
 
 /// A bounded launch: a zero-length grid is illegal, and `n == 0` is a real call (an empty selection).
@@ -176,7 +183,8 @@ void f32_to_bf16_bulk(const float* x, uint16_t* y, int64_t n, void* stream) {
 
 void silu_inplace(float* x, int64_t n, void* stream) {
     if (n <= 0) return;
-    silu_kernel<<<grid_for(n), THREADS, 0, (cudaStream_t) stream>>>(x, n);
+    if (rf32::requested()) silu_kernel<true><<<grid_for(n), THREADS, 0, (cudaStream_t) stream>>>(x, n);
+    else silu_kernel<false><<<grid_for(n), THREADS, 0, (cudaStream_t) stream>>>(x, n);
     check_launch("silu_inplace");
     sync_if_needed(stream, "silu_inplace");
 }

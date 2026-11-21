@@ -3512,6 +3512,16 @@ if(STRATA_NATIVE_EXPERTS)
     # moe_fused.cu is Strata's own CUDA-shaped source: it takes the HIP compat headers, ggml's MMQ sources do not
     set_source_files_properties(src/prefill/moe_fused.cu src/prefill/moe_fused_iq.cu src/prefill/moe_f16_kq.cu
                                 PROPERTIES INCLUDE_DIRECTORIES "${STRATA_HIP_COMPAT_INCLUDE_DIR}")
+    # LEADS.md Part U U5 (BENCH ONLY, default empty = nothing changes): the stage-ablation macros of the F16 prompt-expert kernels
+    # (src/prefill/moe_f16_ablate.cuh) are defined for these two translation units alone, so a variant build recompiles two files and
+    # relinks.  Their results are wrong on purpose; the headers refuse a STRATA_ABL_* macro without STRATA_BENCH_ABLATION.
+    #   cmake ... -DSTRATA_BENCH_ABLATION_DEFS="STRATA_ABL_NO_WMMA;STRATA_ABL_NO_EPILOGUE"   (tools/pancake/box_chains/bench-ablate-f16.sh)
+    set(STRATA_BENCH_ABLATION_DEFS "" CACHE STRING "BENCH ONLY: STRATA_ABL_* ablation macros for moe_fused_iq.cu and moe_f16_kq.cu (wrong results by design)")
+    if(STRATA_BENCH_ABLATION_DEFS)
+      message(WARNING "STRATA_BENCH_ABLATION_DEFS=${STRATA_BENCH_ABLATION_DEFS}: the F16 prompt-expert kernels are ablated, this binary computes wrong results on purpose (bench only)")
+      set_property(SOURCE src/prefill/moe_fused_iq.cu src/prefill/moe_f16_kq.cu APPEND PROPERTY COMPILE_DEFINITIONS
+                   STRATA_BENCH_ABLATION ${STRATA_BENCH_ABLATION_DEFS})
+    endif()
     add_library(strata_mmq STATIC ${_strata_mmq_sources})
     target_include_directories(strata_mmq
       PRIVATE "${_strata_gg}/include" "${_strata_gg}/src" "${_strata_mmq}"

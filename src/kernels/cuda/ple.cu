@@ -14,6 +14,7 @@
 // The opt-in native BF16 path replaces only ple_value with the pinned CUDA single-token BF16/F32 MMVF.
 // A separate opt-in native postops path follows the pinned CUDA arithmetic after both projections.
 #include "strata/kernels/ple.hpp"
+#include "strata/kernels/reduce_f32.hpp"
 #include "strata/kernels/bf16_gemv.hpp"
 #include "strata/kernels/f16_bits.hpp"
 #include "strata/kernels/ngram.hpp"
@@ -72,14 +73,15 @@ __device__ __forceinline__ float silu_f(float x) { return x / (1.0f + expf(-x));
 /// read out of `scratch[0]` and a later call reuses the array, so without a barrier a fast thread can
 /// overwrite it before a slow one has read it - invisible in most runs and a slightly different norm when it
 /// fires.
-__device__ double block_sum(double v, double* scratch) {
+template <class Acc>   // double (the original) or float (STRATA_REDUCE_F32=1, reduce_f32.hpp)
+__device__ Acc block_sum(Acc v, Acc* scratch) {
     __syncthreads();
     const int lane = threadIdx.x & 31, warp = threadIdx.x >> 5;
     for (int off = 16; off > 0; off >>= 1) v += __shfl_down_sync(0xFFFFFFFFu, v, off);
     if (lane == 0) scratch[warp] = v;
     __syncthreads();
     const int nw = ((int) blockDim.x + 31) >> 5;
-    v = (threadIdx.x < nw) ? scratch[threadIdx.x] : 0.0;
+    v = (threadIdx.x < nw) ? scratch[threadIdx.x] : Acc(0);
     if (warp == 0)
         for (int off = 16; off > 0; off >>= 1) v += __shfl_down_sync(0xFFFFFFFFu, v, off);
     if (threadIdx.x == 0) scratch[0] = v;
@@ -90,21 +92,26 @@ __device__ double block_sum(double v, double* scratch) {
 /// `grouped_norm`, ONE BLOCK PER STREAM.  The ggml form is `reshape_3d(x, n_embd, hc, T)` then
 /// `rms_norm(..., eps) * w`, so ne0 = n_embd is the reduction axis and each hc stream is normalised on its
 /// own.  In the flat ggml layout (ne0 fastest) stream c occupies [c*n_embd, (c+1)*n_embd).
+template <bool F32>
 __global__ void gnorm_kernel(const float* __restrict__ x, const float* __restrict__ w,
                              float* __restrict__ y, int n_embd, float eps) {
-    __shared__ double scratch[8];
+    using Acc = rf32::acc_t<F32>;
+    __shared__ Acc scratch[8];
     const int c = blockIdx.x;
     const float* xc = x + (size_t) c * n_embd;
     const float* wc = w + (size_t) c * n_embd;
     float* yc = y + (size_t) c * n_embd;
 
-    double acc = 0.0;
+    Acc acc = 0;
     for (int d = threadIdx.x; d < n_embd; d += blockDim.x) {
         // The PRODUCT is rounded in f32 before it is widened - `(ggml_float)(x[i00]*x[i00])`.
         const float sq = xc[d] * xc[d];
-        acc += (double) sq;
+        if constexpr (F32) acc = rf32::fadd(acc, rf32::fmul(xc[d], xc[d]));
+        else acc += (double) sq;
     }
-    const float mean = (float) (block_sum(acc, scratch) / (double) n_embd);
+    float mean;
+    if constexpr (F32) mean = __fdiv_rn(block_sum<Acc>(acc, scratch), (float) n_embd);
+    else mean = (float) (block_sum<Acc>(acc, scratch) / (double) n_embd);
     const float scale = 1.0f / sqrtf(mean + eps);
     for (int d = threadIdx.x; d < n_embd; d += blockDim.x) yc[d] = xc[d] * scale * wc[d];
 }
@@ -113,15 +120,20 @@ __global__ void gnorm_kernel(const float* __restrict__ x, const float* __restric
 ///
 /// `mag = sqrt(clamp(|s|, 1e-6, inf))` and `gate = sigmoid(sgn(s) * mag)`.  The clamp is a floor on |s|, so
 /// it only bites near zero; the SIGN is carried separately, which is what keeps the gate symmetric about 0.5.
+template <bool F32>
 __global__ void gate_kernel(const float* __restrict__ key, const float* __restrict__ query,
                             float* __restrict__ gate, int n_embd, float inv_sqrt_n) {
-    __shared__ double scratch[8];
+    using Acc = rf32::acc_t<F32>;
+    __shared__ Acc scratch[8];
     const int c = blockIdx.x;
     const float* kc = key + (size_t) c * n_embd;
     const float* qc = query + (size_t) c * n_embd;
-    double acc = 0.0;
-    for (int d = threadIdx.x; d < n_embd; d += blockDim.x) acc += (double) (kc[d] * qc[d]);
-    const float s = (float) (block_sum(acc, scratch) / (double) 1.0) * inv_sqrt_n;
+    Acc acc = 0;
+    for (int d = threadIdx.x; d < n_embd; d += blockDim.x) {
+        if constexpr (F32) acc = rf32::fadd(acc, rf32::fmul(kc[d], qc[d]));
+        else acc += (double) (kc[d] * qc[d]);
+    }
+    const float s = (float) (block_sum<Acc>(acc, scratch) / (Acc) 1.0) * inv_sqrt_n;
     const float mag = sqrtf(fmaxf(fabsf(s), 1e-6f));
     const float sgn = (s > 0.0f) ? 1.0f : ((s < 0.0f) ? -1.0f : 0.0f);
     if (threadIdx.x == 0) gate[c] = 1.0f / (1.0f + expf(-(sgn * mag)));
@@ -173,13 +185,18 @@ __global__ void add3_kernel(const float* __restrict__ hidden, const float* __res
 /// `y[o] = sum_i bf16(x[i]) * bf16(w[o*n_in + i])`.  The weight is BF16 and so is the ACTIVATION, which is
 /// the contract for a BF16 tensor (`docs/activation-contract.md`); with both sides bf16 the products are
 /// exact in f32 and only the summation order differs from ggml's.
+template <bool F32>
 __global__ void bf16_gemv_kernel(const uint16_t* __restrict__ x, const uint16_t* __restrict__ w,
                                  float* __restrict__ y, int n_in, int n_out) {
+    using Acc = rf32::acc_t<F32>;
     const int o = blockIdx.x * blockDim.x + threadIdx.x;
     if (o >= n_out) return;
     const uint16_t* row = w + (size_t) o * n_in;
-    double acc = 0.0;
-    for (int i = 0; i < n_in; ++i) acc += (double) bf16_float(x[i]) * (double) bf16_float(row[i]);
+    Acc acc = 0;
+    for (int i = 0; i < n_in; ++i) {
+        if constexpr (F32) acc = rf32::fadd(acc, rf32::fmul(bf16_float(x[i]), bf16_float(row[i])));   // the bf16 x bf16 product is exact in f32
+        else acc += (double) bf16_float(x[i]) * (double) bf16_float(row[i]);
+    }
     y[o] = (float) acc;
 }
 
@@ -317,9 +334,14 @@ void ple_block(const float* emb, const float* hidden, const float* hist_rows, co
         quantize_q8_0(emb, d_act, n_embd, st);
         s2_gemv_q8(d_act, w.key_codes, w.key_scales, d_key, n_embd, hc_dim, 8, st);
     }
+    const bool rf = rf32::requested();   // STRATA_REDUCE_F32=1: the f32 forms of the kernels below (reduce_f32.hpp); off = the original instantiations
+    const auto gnorm = [&](const float* gx, const float* gw, float* gy) {
+        if (rf) gnorm_kernel<true><<<hc, THREADS, 0, st>>>(gx, gw, gy, n_embd, NG_RMS_EPS);
+        else gnorm_kernel<false><<<hc, THREADS, 0, st>>>(gx, gw, gy, n_embd, NG_RMS_EPS);
+    };
     if (!native_postops) {
-        gnorm_kernel<<<hc, THREADS, 0, st>>>(d_key, w.norm_key, d_key, n_embd, NG_RMS_EPS);
-        gnorm_kernel<<<hc, THREADS, 0, st>>>(hidden, w.norm_query, d_query, n_embd, NG_RMS_EPS);
+        gnorm(d_key, w.norm_key, d_key);
+        gnorm(hidden, w.norm_query, d_query);
     }
 
     // The value projection's independent option leaves the nonlinear PLE operations unchanged.
@@ -329,8 +351,10 @@ void ple_block(const float* emb, const float* hidden, const float* hist_rows, co
         bf16_gemv_fp32_mmvf(emb, w.value_bf16, d_value, n_embd, n_embd, stream);
     } else {
         to_bf16_kernel<<<(n_embd + THREADS - 1) / THREADS, THREADS, 0, st>>>(emb, d_emb16, n_embd);
-        bf16_gemv_kernel<<<(n_embd + THREADS - 1) / THREADS, THREADS, 0, st>>>(d_emb16, w.value_bf16, d_value,
-                                                                              n_embd, n_embd);
+        if (rf) bf16_gemv_kernel<true><<<(n_embd + THREADS - 1) / THREADS, THREADS, 0, st>>>(d_emb16, w.value_bf16, d_value,
+                                                                                            n_embd, n_embd);
+        else bf16_gemv_kernel<false><<<(n_embd + THREADS - 1) / THREADS, THREADS, 0, st>>>(d_emb16, w.value_bf16, d_value,
+                                                                                             n_embd, n_embd);
     }
 
     const float* normalized_key = d_key;
@@ -341,9 +365,10 @@ void ple_block(const float* emb, const float* hidden, const float* hist_rows, co
         native_ple_postops(d_key,hidden,d_value,hist_rows,w,buffers,stream);
         normalized_key = d_query;
     } else {
-        gate_kernel<<<hc, THREADS, 0, st>>>(d_key, d_query, d_gate, n_embd, 1.0f / sqrtf((float) n_embd));
+        if (rf) gate_kernel<true><<<hc, THREADS, 0, st>>>(d_key, d_query, d_gate, n_embd, 1.0f / sqrtf((float) n_embd));
+        else gate_kernel<false><<<hc, THREADS, 0, st>>>(d_key, d_query, d_gate, n_embd, 1.0f / sqrtf((float) n_embd));
         bcast_kernel<<<(hc_dim + THREADS - 1) / THREADS, THREADS, 0, st>>>(d_value, d_gate, d_gated, n_embd, hc);
-        gnorm_kernel<<<hc, THREADS, 0, st>>>(d_gated, w.norm_conv, d_norm, n_embd, NG_RMS_EPS);
+        gnorm(d_gated, w.norm_conv, d_norm);
         conv_kernel<<<(hc_dim + THREADS - 1) / THREADS, THREADS, 0, st>>>(hist_rows, d_norm, w.conv1d_f16, d_conv,
                                                                          hc_dim, PLE_CONV_KERNEL, NGRAM_SIZE,
                                                                          NG_HIST);

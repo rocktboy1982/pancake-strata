@@ -1,0 +1,24 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "short",
+  "long3k",
+  "long"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata"
+  },
+  "reduce-f32": {
+   "exe": "/home/dan/clone-of-d/src/build-win/strata",
+   "env": {
+    "STRATA_REDUCE_F32": "1"
+   }
+  }
+ },
+ "note": "LEADS.md Part U U2, TEST_LEDGER.md T-1072: STRATA_REDUCE_F32=1 (f32 accumulators and f32 exp / sqrt / divide instead of f64 in the legacy silu_kernel, gdn_l2_kernel, gdn_out_norm_kernel, ple gnorm / gate / bf16_gemv and qsa indexer_key_append kernels; include/strata/kernels/reduce_f32.hpp). CODED, NOT RUN. RUN THIS ONLY AFTER the dispatch census (lead U3, branch lead/U3) shows at least one of those kernels launched by the preset: under --native (the daily preset) layer.cpp takes the native f32 kernels instead (native_gdn_*, native_qsa_indexer_*, native_ple_postops, native_bf16), so on a static reading every kernel of this switch is bypassed, the arm is the base (INERT) and an A/B proves nothing (a flat result means INERT, not no gain). If the census names a kernel the A/B needs the build of the same binary twice (build-win), prompt tok/s at short / long3k / long. The switch is lossy by class (last-bit differences, tools/pancake/reduce_f32_model.py): the text may differ (drift_check true reports it), and any gain needs tools/pancake/quality_gate.py before a default. The device parity of the formulas (all 2^32 f32 inputs for silu, rows for the norms) is the probe tools/pancake/probes/reduce_f32_parity.hip.cpp, run it first."
+}

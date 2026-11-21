@@ -1,0 +1,100 @@
+{
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": true,
+ "prefill": true,
+ "cases": [
+  "long3k",
+  "long",
+  "long32k",
+  "long64k"
+ ],
+ "reps": 1,
+ "arms": {
+  "base": {
+   "exe": "/mnt/pancake/ablate-f16/bin/base/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "noload": {
+   "exe": "/mnt/pancake/ablate-f16/bin/noload/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "nodeq": {
+   "exe": "/mnt/pancake/ablate-f16/bin/nodeq/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "nowiden": {
+   "exe": "/mnt/pancake/ablate-f16/bin/nowiden/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "nostore": {
+   "exe": "/mnt/pancake/ablate-f16/bin/nostore/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "noread": {
+   "exe": "/mnt/pancake/ablate-f16/bin/noread/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "nowmma": {
+   "exe": "/mnt/pancake/ablate-f16/bin/nowmma/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "noepi": {
+   "exe": "/mnt/pancake/ablate-f16/bin/noepi/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "cum2": {
+   "exe": "/mnt/pancake/ablate-f16/bin/cum2/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "cum3": {
+   "exe": "/mnt/pancake/ablate-f16/bin/cum3/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "cum4": {
+   "exe": "/mnt/pancake/ablate-f16/bin/cum4/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "cum5": {
+   "exe": "/mnt/pancake/ablate-f16/bin/cum5/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "cum6": {
+   "exe": "/mnt/pancake/ablate-f16/bin/cum6/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  },
+  "cum7": {
+   "exe": "/mnt/pancake/ablate-f16/bin/cum7/strata",
+   "env": {
+    "STRATA_PF_F16": "1"
+   }
+  }
+ },
+ "note": "LEADS.md Part U U5, TEST_LEDGER.md T-1070: stage ablation ladder of the F16 prompt-expert kernel. BENCH ONLY: every arm except base is a binary built with -DSTRATA_BENCH_ABLATION and STRATA_ABL_* macros (src/prefill/moe_f16_ablate.cuh) that REMOVE ONE STAGE, so the text is wrong by design and only prompt tok/s is read (no drift check of text, no quality gate). Arms: base = the engine unchanged; noload, nodeq, nowiden, nostore, noread, nowmma, noepi = one stage removed; cum2..cum7 = the stages removed one after another in ladder order (cum1 is noload, cum7 has every stage removed). Build and run with tools/pancake/box_chains/bench-ablate-f16.sh (one build directory, two translation units recompiled per variant, binaries copied to /mnt/pancake/ablate-f16/bin/<arm>/strata); read with python3 tools/pancake/f16_ablate.py report <run1.jsonl> <run2.jsonl>. STRATA_PF_F16=1 is set in every arm (the preset's PF_F16=2 is the F16-off path, T-820). long3k is the control (T-820: no F16 gain there), long / long32k / long64k are where the kernel is worth +15-17%. Two runs, never one (owner protocol 2026-11-20)."
+}

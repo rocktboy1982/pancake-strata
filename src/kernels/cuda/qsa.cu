@@ -42,6 +42,7 @@
 //    argument in this file for keeping both.
 #include "strata/core/emulate.hpp"
 #include "strata/kernels/qsa.hpp"
+#include "strata/kernels/reduce_f32.hpp"
 
 #include "strata/kernels/f16_bits.hpp"
 #include "strata/kernels/kv_stream.hpp"
@@ -152,13 +153,30 @@ __global__ void kv_append_kernel(uint16_t* __restrict__ k_pool, uint16_t* __rest
 /// `pos`, which forced `pos` to be a host scalar, which meant a captured graph would replay the first token's
 /// position forever.  Doing it here reads the position from `pos_dev` like every other kernel, so the grid and
 /// the arguments are the same for every token and the graph replays correctly.
+// STRATA_REDUCE_F32=1 (reduce_f32.hpp, LEADS.md Part U U2): F32 = true keeps the same orders but in f32 (correctly rounded intrinsics), false is the
+// original, unchanged.  The mean of the block's r raw keys is exact in double (the comment below) and only rounded in f32 under F32.
+template <bool F32>
 __global__ void indexer_key_append_kernel(const float* __restrict__ raw, const int32_t* __restrict__ pos_dev,
                                           int pos_base, const float* __restrict__ w_k_norm, float eps,
                                           float* __restrict__ tail, float* __restrict__ dead,
                                           float* __restrict__ pooled, int32_t* __restrict__ block_pos,
                                           int idx_dim, int r, int n_rot, const float* __restrict__ cos_tab,
                                           const float* __restrict__ sin_tab, const int32_t* __restrict__ mtab) {
-    extern __shared__ double s_mean[];   // idx_dim doubles
+    using Acc = rf32::acc_t<F32>;
+    extern __shared__ __align__(8) unsigned char s_mean_raw[];   // idx_dim doubles (idx_dim floats under F32)
+    Acc* s_mean = reinterpret_cast<Acc*>(s_mean_raw);
+    const auto add = [](Acc a, Acc b) -> Acc {
+        if constexpr (F32) return __fadd_rn(a, b);
+        else return __dadd_rn(a, b);
+    };
+    const auto mul = [](Acc a, Acc b) -> Acc {
+        if constexpr (F32) return __fmul_rn(a, b);
+        else return __dmul_rn(a, b);
+    };
+    const auto inv_rsqrt = [](Acc ss, int n, float e) -> Acc {   // 1 / sqrt(ss / n + eps)
+        if constexpr (F32) return __fdiv_rn(1.0f, __fsqrt_rn(ss / (float) n + e));
+        else return __ddiv_rn(1.0, __dsqrt_rn(ss / (double) n + (double) e));
+    };
     const int d = threadIdx.x;
     const int pos = (int) __ldg(pos_dev);
     const int slot = pos % r;
@@ -170,8 +188,8 @@ __global__ void indexer_key_append_kernel(const float* __restrict__ raw, const i
     // The spare slot's key is `rms_norm(raw[0])`, which is CONSTANT for the sequence and is the only reason
     // cell 0's raw key has to be kept: the three-row tail no longer holds it after the first block.
     if (pos == 0) {
-        double p = (double) raw[d];
-        double ss = 0.0;
+        Acc p = (Acc) raw[d];
+        Acc ss = 0;
         // Same order as the pooled path, so the two are comparable: sum of squares over the dims, sequential.
         // Every thread computes the same `ss` and uses only its own output element.
         //
@@ -181,11 +199,11 @@ __global__ void indexer_key_append_kernel(const float* __restrict__ raw, const i
         // key comes out 0.4 f32 ulp away - close enough that only a BIT-EXACT assertion notices.  `__ddiv_rn`
         // and `__dsqrt_rn` pin the reciprocal square root for the same reason.
         for (int i = 0; i < idx_dim; ++i) {
-            const double v = (double) raw[i];
-            ss = __dadd_rn(ss, __dmul_rn(v, v));
+            const Acc v = (Acc) raw[i];
+            ss = add(ss, mul(v, v));
         }
-        const double inv = __ddiv_rn(1.0, __dsqrt_rn(ss / (double) idx_dim + (double) eps));
-        float y = (float) (p * inv * (double) w_k_norm[d]);
+        const Acc inv = inv_rsqrt(ss, idx_dim, eps);
+        float y = (float) (p * inv * (Acc) w_k_norm[d]);
         // The spare rotates at position 0 - ALWAYS row 0 of the table, whatever `pos_base` is, as the native
         // indexer's spare does.  At angle 0 the sine is exactly 0 in every scaling (sin(0) * mscale), so the
         // pair rotation reduces to `v * cos_tab[pair]` with no partner element to read (and no barrier).
@@ -205,19 +223,19 @@ __global__ void indexer_key_append_kernel(const float* __restrict__ raw, const i
     // The mean of this block's r raw keys, in CELL order: the r-1 tail rows (slots 0..r-2) then the incoming
     // cell (slot r-1).  The sum of r f32 values is exact in double, so the mean's order cannot matter here -
     // but the order of the SUM OF SQUARES below can, and it is fixed to d ascending on both sides.
-    double m = 0.0;
-    for (int j = 0; j < r - 1; ++j) m = __dadd_rn(m, (double) tail[(size_t) j * idx_dim + d]);
-    m = __dadd_rn(m, (double) raw[d]);
-    m = m / (double) r;
+    Acc m = 0;
+    for (int j = 0; j < r - 1; ++j) m = add(m, (Acc) tail[(size_t) j * idx_dim + d]);
+    m = add(m, (Acc) raw[d]);
+    m = m / (Acc) r;
     s_mean[d] = m;
     __syncthreads();
 
-    double ss = 0.0;
-    for (int i = 0; i < idx_dim; ++i) ss = __dadd_rn(ss, __dmul_rn(s_mean[i], s_mean[i]));
-    const double inv = __ddiv_rn(1.0, __dsqrt_rn(ss / (double) idx_dim + (double) eps));
+    Acc ss = 0;
+    for (int i = 0; i < idx_dim; ++i) ss = add(ss, mul(s_mean[i], s_mean[i]));
+    const Acc inv = inv_rsqrt(ss, idx_dim, eps);
 
     const int b = pos / r;
-    pooled[(size_t) b * idx_dim + d] = (float) (m * inv * (double) w_k_norm[d]);
+    pooled[(size_t) b * idx_dim + d] = (float) (m * inv * (Acc) w_k_norm[d]);
     // The spare slot MOVES to b+1 and is rewritten with the same constant value.
     pooled[(size_t) (b + 1) * idx_dim + d] = dead[d];
     // The rotation position for this row, kept because a capture reader and the debug dumps want it.  It is the
@@ -731,9 +749,14 @@ void indexer_key_append(const float* raw, const int32_t* pos_dev, int32_t pos_ba
     // **ONE LAUNCH, NO HOST BRANCH ON THE POSITION.**  The completion rotation is inside the kernel now.  The
     // arguments here are identical for every token, which is the property a CUDA graph needs: this function can
     // be captured and replayed, and the position arrives through `pos_dev` like every other kernel's data.
-    indexer_key_append_kernel<<<1, threads, smem, (cudaStream_t) stream>>>(
-        raw, pos_dev, (int) pos_base, w_k_norm, eps, b.tail, b.dead, b.pooled, b.block_pos, (int) s.idx_dim,
-        (int) s.idx_block, (int) s.n_rot, cos_tab, sin_tab, mrope_table());
+    if (rf32::requested())
+        indexer_key_append_kernel<true><<<1, threads, smem, (cudaStream_t) stream>>>(
+            raw, pos_dev, (int) pos_base, w_k_norm, eps, b.tail, b.dead, b.pooled, b.block_pos, (int) s.idx_dim,
+            (int) s.idx_block, (int) s.n_rot, cos_tab, sin_tab, mrope_table());
+    else
+        indexer_key_append_kernel<false><<<1, threads, smem, (cudaStream_t) stream>>>(
+            raw, pos_dev, (int) pos_base, w_k_norm, eps, b.tail, b.dead, b.pooled, b.block_pos, (int) s.idx_dim,
+            (int) s.idx_block, (int) s.n_rot, cos_tab, sin_tab, mrope_table());
     check_launch("indexer_key_append");
     if (stream == nullptr) check_sync("indexer_key_append");
 }
