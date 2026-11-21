@@ -5,3 +5,15 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 50.5 s (0.7
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 updated              short 80.0 short 99.0 edit 121.6 edit 181.3 longdec64k 74.7/1612p 65241t  foreign CPU 3% [('kcompactd0', 6), ('kworker/1:0-events', 4), ('kswapd0', 3)]  gpu 1965/1249 MHz 62C 182W gtt 25M cpu 3659MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 REGIME-PAUSE updated: SLOW box state (cold 64K prefill 1612, pack load 0.7 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+SETTLE 120 after a 142 s run
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+STARTDIAG 2026-11-21T05:49:01 prev_run_s=142 gap_s=387 rd_sect=145912517032 wr_sect=110762600 io_ticks_ms=113183688 d_rd_sect=131204864 d_wr_sect=152 d_io_ticks_ms=108594 cached_kb=38757560 mlocked_kb=64 memavail_kb=58088116 nvme_temp_c=47 compact_stall_d=8
+STARTLOAD 2026-11-21T05:49:49 loaded 33.02 GiB at 1.08 GiB/s rate=1.08
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 34.3 s (1.06 GiB/s; stopped; waited 12.0 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 110.7 short 103.7 edit 166.5 edit 169.9 longdec64k 80.8/2184p 65241t  foreign CPU 2% [('kcompactd0', 3), ('claude', 1), ('localsearch-3', 1)]  gpu 2044/1249 MHz 60C 185W gtt 25M cpu 3704MHz 64C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED updated: first start prefill 1612 / load 0.7 GiB/s (paused 05:44:56), second start prefill 2184 / load 1.08 GiB/s
+STARTDIAG 2026-11-21T05:50:54 prev_run_s=108 gap_s=113 rd_sect=145990179304 wr_sect=110762664 io_ticks_ms=113224637 d_rd_sect=77662272 d_wr_sect=64 d_io_ticks_ms=40949 cached_kb=17028004 mlocked_kb=64 memavail_kb=58034992 nvme_temp_c=50 compact_stall_d=3
+STARTLOAD 2026-11-21T05:51:44 loaded 33.02 GiB at 1.06 GiB/s rate=1.06
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.34 35.4 s (1.03 GiB/s; stopped; waited 12.9 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
