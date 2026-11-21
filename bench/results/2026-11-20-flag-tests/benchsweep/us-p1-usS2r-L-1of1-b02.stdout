@@ -40,3 +40,64 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 25.05 129.2 s (0.
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-late            short 103.4 short 96.8 edit 151.3 edit 131.0 longdec64k 76.3/1577p 65239t  foreign CPU 2% [('kcompactd0', 2), ('claude', 2), ('rcu_preempt', 0)]  gpu 1993/1249 MHz 62C 189W gtt 25M cpu 3687MHz 65C igpu 0%/vcn 0% fclk 1600
 REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1577, pack load 0.27 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+SETTLE 120 after a 224 s run
+  WARNING: only 16 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+STARTDIAG 2026-11-21T16:39:26 prev_run_s=224 gap_s=469 rd_sect=165865212664 wr_sect=110786624 io_ticks_ms=128835690 d_rd_sect=147253528 d_wr_sect=112 d_io_ticks_ms=191609 cached_kb=38754376 mlocked_kb=64 memavail_kb=57265588 nvme_temp_c=49 compact_stall_d=8
+STARTLOAD 2026-11-21T16:40:14 loaded 33.02 GiB at 1.07 GiB/s rate=1.07
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 34.6 s (1.05 GiB/s; stopped; waited 11.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.8 short 103.5 edit 169.9 edit 168.7 longdec64k 87.2/2171p 65239t  foreign CPU 3% [('kcompactd0', 8), ('kworker/12:1-mm_percpu_wq', 2), ('kworker/9:3-events', 1)]  gpu 1987/1249 MHz 60C 177W gtt 25M cpu 3632MHz 65C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 1577 / load 0.27 GiB/s (paused 16:35:21), second start prefill 2171 / load 1.07 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.2 +-   7.6  (n=2)
+                              drafts accepted 0.70
+  short  plus-ATTN_LANECELL      102.6 +-  28.0  (n=2)   vs updated:  -4.3% +- 19.0%  -> no difference
+                              drafts accepted 0.67
+  short  minus-GR_RDNA            97.0 +-  36.9  (n=2)   vs updated:  -9.5% +- 27.3%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 103.0 +-   0.0  (n=2)   vs updated:  -3.9% +-  7.1%  -> no difference
+                              drafts accepted 0.70
+  short  plus-GDN_TC             101.0 +-  15.9  (n=2)   vs updated:  -5.7% +-  7.7%  -> no difference
+                              drafts accepted 0.67
+  short  plus-ADAPT_NOWAIT       107.7 +-  19.1  (n=2)   vs updated:  +0.5% +- 10.7%  -> no difference
+                              drafts accepted 0.71
+  short  base-late               100.1 +-  41.9  (n=2)   vs updated:  -6.6% +- 32.0%  -> no difference
+                              drafts accepted 0.70
+  edit   updated                 178.7 +-  15.3  (n=2)
+                              drafts accepted 0.89
+  edit   plus-ATTN_LANECELL      177.3 +- 101.7  (n=2)   vs updated:  -0.8% +- 65.4%  -> no difference
+                              drafts accepted 0.89
+  edit   minus-GR_RDNA           157.9 +-  37.5  (n=2)   vs updated: -11.6% +- 29.5%  -> no difference
+                              drafts accepted 0.91
+  edit   base-m1                 172.6 +- 140.4  (n=2)   vs updated:  -3.4% +- 87.1%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-GDN_TC             169.2 +-  83.9  (n=2)   vs updated:  -5.3% +- 55.5%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-ADAPT_NOWAIT       173.6 +-  23.5  (n=2)   vs updated:  -2.9% +- 21.7%  -> no difference
+                              drafts accepted 0.91
+  edit   base-late               141.2 +- 129.0  (n=2)   vs updated: -21.0% +- 63.7%  -> no difference
+                              drafts accepted 0.85
+  longdec64k updated                  83.1 +-   nan  (n=1)
+  longdec64k plus-ATTN_LANECELL       82.7 +-   nan  (n=1)   vs updated:  -0.5% +-  nan%  -> no difference
+  longdec64k minus-GR_RDNA            79.8 +-   nan  (n=1)   vs updated:  -4.0% +-  nan%  -> no difference
+  longdec64k base-m1                  81.4 +-   nan  (n=1)   vs updated:  -2.0% +-  nan%  -> no difference
+  longdec64k plus-GDN_TC              83.8 +-   nan  (n=1)   vs updated:  +0.8% +-  nan%  -> no difference
+  longdec64k plus-ADAPT_NOWAIT        82.2 +-   nan  (n=1)   vs updated:  -1.1% +-  nan%  -> no difference
+  longdec64k base-late                76.3 +-   nan  (n=1)   vs updated:  -8.2% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-ATTN_LANECELL   DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-GR_RDNA        DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-GDN_TC          DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-ADAPT_NOWAIT    DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -6.6%  edit -21.0%  longdec64k -8.2%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-ATTN_LANECELL   short -1.0%  edit +10.9%  longdec64k +3.8%  -> PROMOTE to confirm
+  minus-GR_RDNA        short -6.4%  edit -1.2%  longdec64k +0.1%  -> drop
+  base-m1              short -0.6%  edit +8.0%  longdec64k +2.1%  -> PROMOTE to confirm
+  plus-GDN_TC          short -2.5%  edit +5.8%  longdec64k +5.1%  -> PROMOTE to confirm
+  plus-ADAPT_NOWAIT    short +3.9%  edit +8.5%  longdec64k +3.1%  -> PROMOTE to confirm
