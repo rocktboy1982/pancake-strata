@@ -1,0 +1,22 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "drift_check": false,
+  "lossy": true,
+  "prefill": true,
+  "cases": [
+    "short",
+    "edit",
+    "longdec32k",
+    "longdec64k"
+  ],
+  "reps": 1,
+  "arms": {
+    "base": {},
+    "plus-mtp-kv-fp16": {
+      "env": {
+        "STRATA_MTP_KV_FP16": "1"
+      }
+    }
+  },
+  "note": "LEADS.md Part Q5 (Strata-HotRod 890990bbb, MIT), coded on lead/Q1-Q2-Q5, NOT RUN: STRATA_MTP_KV_FP16=1 keeps the draft layer's own K/V in FP16 while the main model's K/V is INT8 (the daily preset runs --kv int8; the drafter took INT8 with it). The target verifies every draft, so the OUTPUT is exact by construction; only draft acceptance (and so tok/s) can move, and the drafts themselves change, so the text hash is not a drift check here (drift_check false; the verified text should still be the same tokens, a difference is a finding, not noise). Costs a few MiB of VRAM (one layer). Where it can pay: acceptance on long contexts (longdec32k, longdec64k), where INT8 K/V rounding hurts the drafter's attention most; short and edit should be flat. Read the engine log for 'strata mtp: STRATA_MTP_KV_FP16=1: the draft layer's K/V is FP16 beside the main model's INT8' and the per-request 'drafts accepted' figure in the DONE line, per case, for each arm. Expected 0 to +2% on after-long decode (LEADS.md Q5). Protocol: AGENTS.md flag testing protocol. Stop pancake.service first. Run with --tier screen."
+}

@@ -689,6 +689,7 @@ STRATA_ENV("STRATA_MTP_FULL_HEAD", Speed, "drafting/stop policy: the tokens chan
 STRATA_ENV("STRATA_MTP_HC_Q8", Speed, "drafting/stop policy: the draft layer's hc reads from Q8_0 copies; the drafts change, the state of given tokens does not (zsariboga 01fc2c80fc)")
 STRATA_ENV("STRATA_MTP_HIP_PRIO", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_MTP_KEEP", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
+STRATA_ENV("STRATA_MTP_KV_FP16", Speed, "drafting/stop policy: the draft layer's K/V stays FP16 beside an INT8 / K8V4 main; the drafts change, the state of given tokens does not (LEADS.md Q5, HotRod 890990bbb)")
 STRATA_ENV("STRATA_MTP_MULTI_COPY", Speed, "drafting/stop policy: the tokens change, the state of given tokens does not")
 STRATA_ENV("STRATA_GRAPH_LINEAR", Speed, "layer-split handoff: three copies as one launch; same bytes (MOD_PLAN 6.45)")
 STRATA_ENV("STRATA_HEAD_DUMP", Inert, "debug tap: the window's final hidden rows to a file (MOD_PLAN 6.46)")
