@@ -1,0 +1,31 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "drift_check": true,
+  "prefill": true,
+  "cases": [
+    "short",
+    "edit",
+    "longdec32k",
+    "longdec64k"
+  ],
+  "reps": 1,
+  "arms": {
+    "base": {},
+    "plus-swap-grace-2": {
+      "env": {
+        "STRATA_SWAP_GRACE": "2"
+      }
+    },
+    "plus-swap-grace-8": {
+      "env": {
+        "STRATA_SWAP_GRACE": "8"
+      }
+    },
+    "plus-count-kept": {
+      "env": {
+        "STRATA_COUNT_KEPT": "1"
+      }
+    }
+  },
+  "note": "LEADS.md Part Q4 (Strata-HotRod SPEC 13.36 / 13.40, MIT), coded on lead/Q3-Q7-Q4, NOT RUN. Two independent placement-only switches of the adaptive tier (one arm each, never together: AGENTS.md flag testing protocol). STRATA_SWAP_GRACE=N: an expert the tier swapped IN is no victim for the next N tier rounds (include/strata/program/swap_grace.hpp; N counts decode rounds = --adapt-every windows, default 4; the STRATA_TIER_REWARM round is not counted); arms N=2 and N=8. STRATA_COUNT_KEPT=1: the usage counts keep only the rows a verify window kept (a window of T rows commits a + 1; the experts the T - a - 1 rejected draft rows routed to are taken back out of the counts before the tier reads them: include/strata/core/kept_count.hpp, recorded in expert_pool_dispatch_multi, taken out in the serial decode loop). Placement only: which experts the GPU holds, never a token; the text hash must equal base up to the placement rounding every adaptive-tier spec shows (drift_check). Expected under 1% (LEADS.md Q4); the cases where a window rejects 1-4 of 5 draft rows are edit and short at the MTP depth of the preset. The engine log proves each arm is live: 'STRATA_SWAP_GRACE=N: an expert swapped into the tier is no victim for N rounds' and 'STRATA_COUNT_KEPT=1: the adaptive tier counts only the rows a verify window kept'; a line 'STRATA_COUNT_KEPT=1 is off (...)' means the loop is not the serial one (pipelined windows, --batch, --adapt-async) and the arm is the base. Protocol: AGENTS.md flag testing protocol (run 1 screen, HIGH >= 2% any case, rescreen, two-run verdict). Stop pancake.service first. Run with --tier screen."
+}

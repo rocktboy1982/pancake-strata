@@ -122,6 +122,8 @@
 #include "strata/core/expert_entropy.hpp"
 #include "strata/program/kmiss_tier.hpp"
 #include "strata/program/swap_budget.hpp"
+#include "strata/program/swap_grace.hpp"   // STRATA_SWAP_GRACE (LEADS.md Part Q4)
+#include "strata/core/kept_count.hpp"      // STRATA_COUNT_KEPT (LEADS.md Part Q4)
 #include "strata/program/tier_protect.hpp"
 #include "strata/program/tier_stat_policy.hpp"
 #include "strata/program/tier_spec_copy.hpp"
@@ -14804,6 +14806,19 @@ int main(int argc, char** argv) {
         // STRATA_ADAPT_CHECKRES=1 reads the tables back at each launch and compares them with the host's.
         const bool piped_groups = o.batch > 0 && o.batch_groups > 1 && !stages.empty();
         const bool serial_windows = !pipe && !piped_groups;
+        // LEADS.md Part Q4, STRATA_COUNT_KEPT=1 (opt-in, kept_count.hpp): the usage counts keep only the rows a verify window kept.  Only the
+        // serial window loop consumes the records (one window at a time, no --adapt-async, no --batch); elsewhere the pointer stays null.
+        strata::core::KeptCount kcount;
+        if (strata::core::KeptCount::on_env()) {
+            if (serial_windows && o.batch == 0 && !o.adapt_async) {
+                kcount = strata::core::KeptCount(g.n_layers, g.n_expert);
+                drive.d.kept = &kcount;
+                std::fprintf(stderr, "strata generate: STRATA_COUNT_KEPT=1: the adaptive tier counts only the rows a verify window kept\n");
+            } else {
+                std::fprintf(stderr, "strata generate: STRATA_COUNT_KEPT=1 is off (%s)\n",
+                             !serial_windows ? "pipelined / grouped windows" : o.batch != 0 ? "--batch" : "--adapt-async");
+            }
+        }
         const bool tier_lags = !drive.d.usage.empty() && (adapt_nowait() || adapt_lag() > 1);
         drive.d.evict_sync = serial_windows && tier_lags && (adapt_evict_sync() || drive.d.fetch_admit > 0);
         if (piped_groups && tier_lags && adapt_evict_sync()) {
@@ -14962,6 +14977,9 @@ int main(int argc, char** argv) {
             if (sbud.residency_on())
                 sbud.observe_residency(drive.d.usage.data(), host_res.data(), std::min<size_t>(drive.d.usage.size(), host_res.size()));
         };
+        // LEADS.md Part Q4, STRATA_SWAP_GRACE=N (opt-in, swap_grace.hpp): an expert this tier swapped in is no victim for N rounds.
+        // Placement only.  Only this adapt() honours it (as STRATA_ADAPT_PROTECT: the other Swap loops are untouched).
+        strata::program::SwapGrace sgrace = strata::program::SwapGrace::from_env(g.n_layers, g.n_expert);
         int idle_mult = 1;   // item 17: the swaps per round are multiplied while the engine is idle between requests
         auto swap_cap = [&]() -> int {
             if (tier_rewarm.now) return tier_rewarm.cap;   // STRATA_TIER_REWARM's round (LEADS.md B118)
@@ -15012,6 +15030,7 @@ int main(int argc, char** argv) {
         auto adapt = [&]() -> bool {
             if (!pending.empty()) return true;   // the previous swaps are still in flight
             if (!tier_rewarm.now) { sbud_observe(); sbud.round(o.adapt_every); }   // (STRATA_TIER_REWARM's round is not a decode round)
+            if (sgrace.on() && !tier_rewarm.now) sgrace.round();   // STRATA_SWAP_GRACE: one more decode round
             adapt_prompt_fold();   // FK-28 (STRATA_ADAPT_PROMPT): the prompt's counts, before any tier reads them
             if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // before the seeder raises any count
             if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp; before any tier reads the counts)
@@ -15052,6 +15071,10 @@ int main(int argc, char** argv) {
                         vict.erase(std::remove_if(vict.begin(), vict.end(), [&](const std::pair<float, int32_t>& v) {
                             return strata::program::tier_protect_holds(r[v.second], protect_n);
                         }), vict.end());
+                    if (sgrace.on())   // STRATA_SWAP_GRACE: a freshly swapped-in expert is no victim
+                        vict.erase(std::remove_if(vict.begin(), vict.end(), [&](const std::pair<float, int32_t>& v) {
+                            return sgrace.held(l, v.second);
+                        }), vict.end());
                     tvic.order_given(l, vict, cand.size());   // STRATA_ADAPT_VICTIM_UNUSED (off: returns at once)
                     const size_t nc = std::min(cand.size(), vict.size());
                     for (size_t i = 0; i < nc; ++i) {
@@ -15062,7 +15085,7 @@ int main(int argc, char** argv) {
                 }
                 for (int32_t e = 0; e < (int32_t) g.n_expert; ++e) {
                     if (r[e] < 0) { if (u[e] >= 2.0f && !miss_budget.may_stay_out(l, e) && !(peer.valid() && peer.has(l, e)) && !(remote_opt && remote_opt->owns(l, e)) && !helper_holds(l, e) && !(fetched && srcp->pinned(l, e))) cand.emplace_back(u[e], e); }
-                    else if (!strata::program::tier_protect_holds(r[e], protect_n))   // (STRATA_ADAPT_PROTECT)
+                    else if (!strata::program::tier_protect_holds(r[e], protect_n) && !sgrace.held(l, e))   // (STRATA_ADAPT_PROTECT, STRATA_SWAP_GRACE)
                         vict.emplace_back(miss_budget.may_stay_out(l, e) ? -1.0f : u[e], e);   // (STRATA_TIER_MISS_BUDGET: first out)
                 }
                 if (tier_lru_w > 0.0f && !vict.empty()) {   // STRATA_TIER_LRU (HOBBIT): LFU + w x recency, in the layer's usage unit
@@ -15091,6 +15114,7 @@ int main(int argc, char** argv) {
             }
             std::sort(swaps.begin(), swaps.end(), [](const Swap& a, const Swap& b) { return a.gain > b.gain; });
             if ((int) swaps.size() > swap_cap()) swaps.resize((size_t) swap_cap());
+            if (sgrace.on()) for (const Swap& s : swaps) sgrace.note_in(s.layer, s.in);   // STRATA_SWAP_GRACE
             if (aov) {   // 0.1.43: the copies go in layer order and each layer's landing is told to the verify window
                 std::stable_sort(swaps.begin(), swaps.end(), [](const Swap& a, const Swap& b) { return a.layer < b.layer; });
                 agate.landed.store(-1, std::memory_order_release);
@@ -22947,6 +22971,8 @@ int main(int argc, char** argv) {
                 }
                 // item 75: one persistent worker runs the adaptive tier beside the commit and the draft (a new std::thread
                 // per window before; STRATA_ADAPT_PERSIST=0 restores that).  Same pinning on Linux (aux CPUs).
+                // LEADS.md Part Q4, STRATA_COUNT_KEPT: the rejected draft rows' share of the counts comes out before the tier reads them
+                if (drive.d.kept != nullptr && !ajob && !merged && T > 1) kcount.drop_rejected(drive.d.usage, T, a + 1);
                 static const bool adapt_persist = [] { const char* e = std::getenv("STRATA_ADAPT_PERSIST"); return !(e && e[0] == '0'); }();
                 static JobThread* adapt_worker = nullptr;   // never freed: lives as long as the server
                 std::thread adapt_thr;

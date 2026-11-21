@@ -2494,6 +2494,19 @@ if(STRATA_BUILD_TESTS)
   add_executable(tier_protect_test src/program/tier_protect_test.cpp)   # MOD_PLAN.md section 6 items 19/26: STRATA_ADAPT_PROTECT
   target_include_directories(tier_protect_test PRIVATE include)
   add_test(NAME tier_protect_test COMMAND tier_protect_test)
+  # LEADS.md Part Q7: STRATA_TUNE_PAIRED, the paired sequential decision of the swaps-per-round climb (header-only, no GPU)
+  add_executable(swap_budget_paired_test tests/program/swap_budget_paired_test.cpp)
+  target_include_directories(swap_budget_paired_test PRIVATE include)
+  add_test(NAME swap_budget_paired_test COMMAND swap_budget_paired_test)
+
+  # LEADS.md Part Q4: STRATA_SWAP_GRACE (a swapped-in expert is no victim for N rounds) and STRATA_COUNT_KEPT (the usage counts keep only the
+  # rows a verify window kept); both header-only, no GPU
+  add_executable(swap_grace_test tests/program/swap_grace_test.cpp)
+  target_include_directories(swap_grace_test PRIVATE include)
+  add_test(NAME swap_grace_test COMMAND swap_grace_test)
+  add_executable(kept_count_test tests/program/kept_count_test.cpp)
+  target_include_directories(kept_count_test PRIVATE include)
+  add_test(NAME kept_count_test COMMAND kept_count_test)
   add_executable(head_shortlist_test src/program/head_shortlist_test.cpp)   # MOD_PLAN.md section 6 item 38: STRATA_HEAD_SHORTLIST
   target_include_directories(head_shortlist_test PRIVATE include)
   add_test(NAME head_shortlist_test COMMAND head_shortlist_test)
@@ -4221,6 +4234,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     knob_trial_test
     ckpt_async_plan_test
     ckpt_stride_test
+    swap_budget_paired_test swap_grace_test kept_count_test
     ple_warm_test
     free_settle_test
     copy_lane_test
