@@ -22,3 +22,18 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 37.9 s (0.9
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-m1              short 108.4 short 103.6 edit 169.3 edit 171.6 longdec64k 84.4/2179p 65240t  foreign CPU 4% [('kcompactd0', 5), ('kworker/1:1-mm_percpu_wq', 4), ('kswapd0', 2)]  gpu 2016/1249 MHz 63C 183W gtt 25M cpu 3516MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 STARTDIAG 2026-11-21T08:07:34 prev_run_s=111 gap_s=116 rd_sect=150258003456 wr_sect=110767272 io_ticks_ms=116529575 d_rd_sect=101912088 d_wr_sect=144 d_io_ticks_ms=48191 cached_kb=16934540 mlocked_kb=64 memavail_kb=58113580 nvme_temp_c=52 compact_stall_d=6
+STARTLOAD 2026-11-21T08:08:20 loaded 33.02 GiB at 1.13 GiB/s rate=1.13
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 32.7 s (1.11 GiB/s; stopped; waited 11.6 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-NO_SUB16_GU     short 101.2 short 100.2 edit 171.3 edit 175.5 longdec64k 78.9/2174p 65240t  foreign CPU 5% [('kcompactd0', 7), ('kworker/12:2-events', 4), ('kworker/1:1-mm_percpu_wq', 4)]  gpu 1844/1249 MHz 63C 181W gtt 25M cpu 3540MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-NO_SUB16_GU: every attempt noisy, keeping the quietest (5% foreign CPU)
+STARTDIAG 2026-11-21T08:09:22 prev_run_s=103 gap_s=108 rd_sect=150335030344 wr_sect=110767352 io_ticks_ms=116569884 d_rd_sect=77026888 d_wr_sect=80 d_io_ticks_ms=40309 cached_kb=14167464 mlocked_kb=64 memavail_kb=58134992 nvme_temp_c=52 compact_stall_d=14
+STARTLOAD 2026-11-21T08:10:12 loaded 33.02 GiB at 1.01 GiB/s rate=1.01
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 26.97 36.7 s (0.74 GiB/s; stopped; waited 11.6 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-NO_MULTI_GR     short 101.5 short 100.0 edit 162.8 edit 175.6 longdec64k 87.8/2169p 65240t  foreign CPU 5% [('kcompactd0', 8), ('kswapd0', 3), ('kworker/11:0-mm_percpu_wq', 2)]  gpu 1917/1249 MHz 63C 186W gtt 25M cpu 3652MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-NO_MULTI_GR: every attempt noisy, keeping the quietest (5% foreign CPU)
+STARTDIAG 2026-11-21T08:11:14 prev_run_s=106 gap_s=112 rd_sect=150432088152 wr_sect=110767432 io_ticks_ms=116617310 d_rd_sect=97057808 d_wr_sect=80 d_io_ticks_ms=47426 cached_kb=16340428 mlocked_kb=64 memavail_kb=58134724 nvme_temp_c=52 compact_stall_d=11
+STARTLOAD 2026-11-21T08:12:01 loaded 33.02 GiB at 1.10 GiB/s rate=1.10
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 34.1 s (1.07 GiB/s; stopped; waited 11.2 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
