@@ -20,3 +20,17 @@ STARTDIAG 2026-11-21T13:15:04 prev_run_s=103 gap_s=108 rd_sect=159809959992 wr_s
 STARTLOAD 2026-11-21T13:15:52 loaded 33.02 GiB at 1.06 GiB/s rate=1.06
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 28.67 35.2 s (0.81 GiB/s; stopped; waited 11.1 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 108.2 short 103.2 edit 169.9 edit 171.6 longdec64k 85.5/2172p 65240t  foreign CPU 5% [('kcompactd0', 6), ('kworker/1:1-events', 4), ('kswapd0', 3)]  gpu 2047/1249 MHz 64C 185W gtt 25M cpu 3785MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T13:16:59 prev_run_s=111 gap_s=116 rd_sect=159902260560 wr_sect=110779376 io_ticks_ms=124047960 d_rd_sect=92300568 d_wr_sect=64 d_io_ticks_ms=45571 cached_kb=16505708 mlocked_kb=64 memavail_kb=58104520 nvme_temp_c=53 compact_stall_d=9
+STARTLOAD 2026-11-21T13:17:40 loaded 33.02 GiB at 1.29 GiB/s rate=1.29
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 28.7 s (1.27 GiB/s; stopped; waited 10.6 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-XN_F16          short 108.0 short 103.0 edit 161.1 edit 183.2 longdec64k 82.5/2178p 65240t  foreign CPU 4% [('kcompactd0', 6), ('kworker/1:2-events', 3), ('kswapd0', 2)]  gpu 2044/1249 MHz 64C 187W gtt 25M cpu 3650MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-XN_F16: every attempt noisy, keeping the quietest (4% foreign CPU)
+STARTDIAG 2026-11-21T13:18:48 prev_run_s=104 gap_s=109 rd_sect=159967154464 wr_sect=110779488 io_ticks_ms=124084643 d_rd_sect=64893904 d_wr_sect=112 d_io_ticks_ms=36683 cached_kb=15488112 mlocked_kb=64 memavail_kb=58100852 nvme_temp_c=52 compact_stall_d=7
+SLOWLOAD waiting for the engine: not ready, elapsed 60 s
+STARTLOAD 2026-11-21T13:19:55 loaded 33.02 GiB at 0.66 GiB/s rate=0.66
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.44 54.6 s (0.67 GiB/s; stopped; waited 10.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 81.8 short 92.1 edit 111.9 edit 136.4 longdec64k 59.6/1685p 65240t  foreign CPU 3% [('kcompactd0', 6), ('kswapd0', 3), ('localsearch-3', 0)]  gpu 1915/1249 MHz 63C 169W gtt 25M cpu 3596MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1685, pack load 0.66 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
