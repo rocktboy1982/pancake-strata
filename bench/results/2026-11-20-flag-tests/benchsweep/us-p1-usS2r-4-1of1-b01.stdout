@@ -15,3 +15,14 @@ rep 0 warmup               short 84.6 short 103.5 edit 114.8 edit 131.9 longdec6
 REGIME-STILL-SLOW warmup: first start prefill 1528 / load 0.28 GiB/s (paused 07:27:33), second start prefill 1564 / load 0.69 GiB/s
 SETTLE 120 after a 148 s run
 STARTDIAG 2026-11-21T07:36:11 prev_run_s=148 gap_s=273 rd_sect=149266739760 wr_sect=110766264 io_ticks_ms=115745354 d_rd_sect=67969240 d_wr_sect=96 d_io_ticks_ms=84451 cached_kb=18315520 mlocked_kb=64 memavail_kb=58072752 nvme_temp_c=46 compact_stall_d=0
+STARTLOAD 2026-11-21T07:37:05 loaded 33.02 GiB at 0.95 GiB/s rate=0.95
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 31.53 38.7 s (0.82 GiB/s; stopped; waited 13.6 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 108.6 short 103.6 edit 169.8 edit 171.1 longdec64k 83.0/2177p 65241t  foreign CPU 3% [('kcompactd0', 4), ('kworker/1:0-mm_percpu_wq', 3), ('kswapd0', 1)]  gpu 2040/1249 MHz 60C 183W gtt 25M cpu 3471MHz 65C igpu 0%/vcn 0% fclk 1600
+STARTDIAG 2026-11-21T07:38:10 prev_run_s=114 gap_s=119 rd_sect=149374188792 wr_sect=110766328 io_ticks_ms=115795321 d_rd_sect=107449032 d_wr_sect=64 d_io_ticks_ms=49967 cached_kb=17679592 mlocked_kb=64 memavail_kb=58073460 nvme_temp_c=50 compact_stall_d=6
+STARTLOAD 2026-11-21T07:40:01 loaded 33.02 GiB at 0.36 GiB/s rate=0.36
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 95.4 s (0.38 GiB/s; stopped; waited 13.9 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-MMVQ_IL_WIDE    short 101.5 short 97.3 edit 150.3 edit 183.3 longdec64k 75.7/1642p 65241t  foreign CPU 3% [('kcompactd0', 7), ('kswapd0', 2), ('systemd-journal', 0)]  gpu 2013/1249 MHz 61C 184W gtt 25M cpu 3628MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-MMVQ_IL_WIDE: every attempt noisy, keeping the quietest (3% foreign CPU)
+SETTLE 120 after a 184 s run
