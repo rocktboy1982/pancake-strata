@@ -130,10 +130,10 @@ def compile_command(src: Path, clang: str, rocm: str | None, asm_out: Path, defs
     return cmd
 
 
-def analyse(src: Path, clang: str, rocm: str | None, tmp: Path, defs=(), includes=(), cflags=()) -> tuple:
+def analyse(src: Path, clang: str, rocm: str | None, tmp: Path, defs=(), includes=(), cflags=(), prefix=()) -> tuple:
     """-> ({kernel: row}, error text or None).  row = resources + {"instr", "sha1", "short"}; a kernel without assembly digest keeps its resources."""
     asm_out = tmp / (src.stem + ".s")
-    p = subprocess.run(compile_command(src, clang, rocm, asm_out, defs, includes, cflags), capture_output=True, text=True, errors="replace")
+    p = subprocess.run(list(prefix) + compile_command(src, clang, rocm, asm_out, defs, includes, cflags), capture_output=True, text=True, errors="replace")
     res = parse_remarks(p.stderr)
     if p.returncode != 0 and not res:
         err = [l for l in p.stderr.splitlines() if "error" in l][:3]
@@ -143,6 +143,173 @@ def analyse(src: Path, clang: str, rocm: str | None, tmp: Path, defs=(), include
     for k, r in res.items():
         rows[k] = dict(r, short=short_name(k), source=str(src.relative_to(ROOT)) if src.is_relative_to(ROOT) else str(src), **dig.get(k, {}))
     return rows, None
+
+
+# ---------------------------------------------------------------------------------------------------------------------------------------------
+# U1 (LEADS.md Part U): ISA census.  `--census` counts the instructions of every function and of its innermost loops by class and prints the
+# issue-slot ceiling.  Offline: it reads the .s the compile wrote, or any disassembly text (`--census-asm FILE`, llvm-objdump -d or clang -S).
+# Without the flag nothing below runs and the table and the digests are byte-identical.
+# ---------------------------------------------------------------------------------------------------------------------------------------------
+CLASSES = ("VALU_F32", "VALU_F16", "VALU_I32", "VALU_F64", "VOPD", "DOT", "WMMA", "LDS", "VMEM_LD", "VMEM_ST", "SMEM", "WAITCNT", "DELAY", "SALU",
+           "BRANCH", "OTHER")
+_SUFFIX = re.compile(r"_(e32|e64|dpp|sdwa)$")
+_LABEL = re.compile(r"^\s*(?:[0-9a-f]{8,16}\s+)?<?([.\w$@]+)>?:\s*$")
+_BLOCK = re.compile(r"^(\.?LBB\d+_\d+|\.?BB\d+_\d+|\.L\w+)$")
+_NOLOOP = ("s_endpgm", "s_setpc", "s_swappc", "s_getpc", "s_call")
+_TARGET = re.compile(r"([.\w$]+)\s*$")
+
+
+def classify(mnemonic: str) -> str:
+    """The issue class of one gfx11 instruction mnemonic (without its operands)."""
+    m = _SUFFIX.sub("", mnemonic.lower())
+    if m.startswith("v_dual_"):
+        return "VOPD"
+    if m.startswith(("v_wmma_", "v_swmmac_")):
+        return "WMMA"
+    if m.startswith(("v_dot", "v_sudot")):
+        return "DOT"
+    if m.startswith("v_"):
+        if "f64" in m:
+            return "VALU_F64"
+        if "f32" in m:
+            return "VALU_F32"
+        if "f16" in m:
+            return "VALU_F16"
+        return "VALU_I32"
+    if m.startswith("ds_"):
+        return "LDS"
+    if m.startswith(("global_", "buffer_", "flat_", "scratch_", "tbuffer_")):
+        return "VMEM_LD" if "_load" in m else "VMEM_ST"
+    if m.startswith(("s_load", "s_buffer_load")):
+        return "SMEM"
+    if m.startswith(("s_waitcnt", "s_wait_")):
+        return "WAITCNT"
+    if m == "s_delay_alu":
+        return "DELAY"
+    if m.startswith(("s_branch", "s_cbranch_")) or m.startswith(_NOLOOP):
+        return "BRANCH"
+    if m.startswith("s_"):
+        return "SALU"
+    return "OTHER"
+
+
+def census_functions(asm: str) -> dict:
+    """{function: [("label", name) | ("instr", mnemonic, operands)]} from clang -S text or llvm-objdump -d text (comments after ';' and '//' dropped)."""
+    out: dict = {}
+    cur = None
+    for raw in asm.splitlines():
+        line = raw.split("//", 1)[0].split(";", 1)[0].rstrip()
+        if not line.strip():
+            continue
+        if line.startswith(".Lfunc_end"):
+            cur = None
+            continue
+        lm = _LABEL.match(line)
+        if lm:
+            name = lm.group(1)
+            if _BLOCK.match(name):
+                if cur is not None:
+                    cur.append(("label", name.lstrip(".")))
+            elif not name.startswith("__hip_cuid"):
+                cur = out.setdefault(name, [])
+            continue
+        if cur is None or line.lstrip().startswith(".") or line[:1] not in ("\t", " "):
+            continue
+        parts = line.split(None, 1)
+        if re.fullmatch(r"[0-9a-f]{4,}:", parts[0]) and len(parts) > 1:   # an address column of some disassemblers
+            parts = parts[1].split(None, 1)
+        cur.append(("instr", parts[0], parts[1] if len(parts) > 1 else ""))
+    return out
+
+
+def count_classes(mnemonics) -> dict:
+    c = {k: 0 for k in CLASSES}
+    for mn in mnemonics:
+        c[classify(mn)] += 1
+    return c
+
+
+def innermost_loops(items: list) -> tuple:
+    """-> ([(label, start, end)], instrs): a backward branch to a label closes the loop [label, branch] over the instruction list; only loops that
+    contain no other loop are kept (the hot inner loops)."""
+    pos, instrs = {}, []
+    for it in items:
+        if it[0] == "label":
+            pos[it[1]] = len(instrs)
+        else:
+            instrs.append(it)
+    loops = set()
+    for j, it in enumerate(instrs):
+        if not it[1].startswith(("s_branch", "s_cbranch_")):
+            continue
+        t = _TARGET.search(it[2])
+        name = t.group(1).lstrip(".") if t else None
+        if name in pos and pos[name] <= j:
+            loops.add((name, pos[name], j))
+    keep = [l for l in loops if not any(o != l and l[1] <= o[1] and o[2] <= l[2] for o in loops)]
+    return sorted(keep, key=lambda l: (l[1], l[2])), instrs
+
+
+def issue_ceiling(slots: int, cus: int = 84, clock_ghz: float = 2.0, macs: float = 0.0) -> dict:
+    """Wave32 issues one VALU instruction per SIMD per clock: 2 SIMD x 32 lanes = 64 lane-iterations per CU per clock per instruction.
+    -> {"iter_per_s": GPU-wide lane-iterations per second at `slots` instructions per iteration, "mac_per_s": x macs (0 when unknown)}."""
+    if slots <= 0:
+        return {"iter_per_s": 0.0, "mac_per_s": 0.0}
+    it = cus * 64 * clock_ghz * 1e9 / slots
+    return {"iter_per_s": it, "mac_per_s": it * macs}
+
+
+def census(asm: str, cus: int = 84, clock_ghz: float = 2.0, macs: float = 0.0, top: int = 3) -> dict:
+    """{function: {"total": {class: n}, "instr": n, "loops": [{label, instr, counts, ceiling}] (largest first, at most `top`)}}."""
+    res: dict = {}
+    for fn, items in census_functions(asm).items():
+        loops, instrs = innermost_loops(items)
+        row = {"total": count_classes(i[1] for i in instrs), "instr": len(instrs), "loops": []}
+        for label, a, b in loops:
+            body = instrs[a:b + 1]
+            row["loops"].append({"label": label, "instr": len(body), "counts": count_classes(i[1] for i in body),
+                                 "ceiling": issue_ceiling(len(body), cus, clock_ghz, macs)})
+        row["loops"].sort(key=lambda l: -l["instr"])
+        row["loops"] = row["loops"][:top]
+        res[fn] = row
+    return res
+
+
+def census_table(cen: dict, macs: float = 0.0) -> str:
+    lines = []
+    for fn, r in sorted(cen.items()):
+        lines.append(f"{short_name(fn)}  ({r['instr']} instructions)")
+        rows = [("function", r["total"], r["instr"], None)] + [(f"loop {l['label']}", l["counts"], l["instr"], l["ceiling"]) for l in r["loops"]]
+        for tag, cnt, n, ceil in rows:
+            used = " ".join(f"{k}={v}" for k, v in cnt.items() if v)
+            tail = ""
+            if ceil is not None:
+                tail = f"  ceiling {ceil['iter_per_s'] / 1e12:.3f} T lane-iter/s"
+                if macs:
+                    tail += f", {n / macs:.2f} instr/MAC, {ceil['mac_per_s'] / 1e12:.2f} T MAC/s"
+            lines.append(f"  {tag:<24} {n:>5}  {used}{tail}")
+    return "\n".join(lines)
+
+
+def repeat_check(src: Path, n: int, clang: str, rocm: str | None, tmp: Path, defs=(), includes=(), cflags=(), prefix=(), run=None) -> dict:
+    """U6 (LEADS.md Part U): compile one unit `n` times and compare the per-kernel code digests.  -> {"runs": n, "differ": [kernel, ...], "errors": [...]}.
+    `prefix` goes before the compiler command (e.g. `setarch x86_64 -R`: a fixed address-space layout), `run` replaces analyse() in tests.
+    The byte-level two-compile check of the whole device object is box_chains/hip_repeat_check.py (S4); this one answers per kernel, N times."""
+    run = run or analyse
+    first, differ, errors = None, set(), []
+    for i in range(n):
+        d = tmp / f"rep{i}"
+        d.mkdir(parents=True, exist_ok=True)
+        rows, err = run(src, clang, rocm, d, defs, includes, cflags, prefix)
+        if err:
+            errors.append(err)
+            continue
+        dig = {k: r.get("sha1") for k, r in rows.items()}
+        if first is None:
+            first = dig
+            continue
+        differ |= {k for k in set(first) | set(dig) if first.get(k) != dig.get(k)}
+    return {"runs": n, "differ": sorted(differ), "errors": errors}
 
 
 REGRESS = ("spills_v", "spills_s", "scratch", "lds")
@@ -202,8 +369,23 @@ def main(argv=None) -> int:
     ap.add_argument("--check", help="compare with this baseline JSON")
     ap.add_argument("--digest", action="store_true", help="--check: a changed code digest is a regression (default-path identity)")
     ap.add_argument("--strict", action="store_true", help="--check: a changed VGPR/SGPR count is a regression")
+    ap.add_argument("--census", action="store_true", help="U1: count the instructions of every kernel and of its inner loops by class, print the issue-slot ceiling")
+    ap.add_argument("--census-asm", help="U1: census of this existing disassembly text (clang -S or llvm-objdump -d) instead of a compile; needs no compiler")
+    ap.add_argument("--census-cus", type=int, default=84, help="--census: compute units (RX 7900 XT: 84)")
+    ap.add_argument("--census-clock-ghz", type=float, default=2.0, help="--census: shader clock used for the ceiling")
+    ap.add_argument("--census-macs", type=float, default=0.0, help="--census: MACs per loop iteration per lane, for instr/MAC and the MAC/s ceiling")
+    ap.add_argument("--census-top", type=int, default=3, help="--census: inner loops listed per kernel")
+    ap.add_argument("--repeat", type=int, default=0, metavar="N", help="U6: compile each source N times and compare the per-kernel digests (exit 1 when they differ)")
+    ap.add_argument("--repeat-prefix", default="", help="--repeat: command put before the compiler, e.g. 'setarch x86_64 -R'")
     ap.add_argument("--tmp", default=None, help="directory for the .s files (default: a temp dir)")
     a = ap.parse_args(argv)
+    if a.census_asm:
+        cen = census(Path(a.census_asm).read_text(errors="replace"), a.census_cus, a.census_clock_ghz, a.census_macs, a.census_top)
+        print(census_table(cen, a.census_macs))
+        if a.out:
+            Path(a.out).parent.mkdir(parents=True, exist_ok=True)
+            Path(a.out).write_text(json.dumps({"census": cen}, indent=1, sort_keys=True))
+        return 0
     srcs = [ROOT / s for s in (HOT if a.hot else [])] + [Path(s) if Path(s).is_absolute() else ROOT / s for s in a.sources]
     if not srcs:
         ap.error("give sources or --hot")
@@ -212,6 +394,16 @@ def main(argv=None) -> int:
     import tempfile
     tmp = Path(a.tmp) if a.tmp else Path(tempfile.mkdtemp(prefix="kres-"))
     tmp.mkdir(parents=True, exist_ok=True)
+    if a.repeat:
+        import shlex
+        bad = 0
+        for s in srcs:
+            r = repeat_check(s, a.repeat, clang, rocm, tmp, a.define, a.include, a.cflag, shlex.split(a.repeat_prefix))
+            print(f"REPEAT {s.name}: {r['runs']} compiles, {len(r['differ'])} kernel(s) differ" + (f", {len(r['errors'])} error(s)" if r["errors"] else ""))
+            for k in r["differ"]:
+                print("  DIFF", short_name(k))
+            bad += bool(r["differ"])
+        return 1 if bad else 0
     rows, errors = {}, {}
     for s in srcs:
         r, err = analyse(s, clang, rocm, tmp, a.define, a.include, a.cflag)
@@ -220,6 +412,13 @@ def main(argv=None) -> int:
             print(f"ERROR {s}: {err}", file=sys.stderr)
         rows.update(r)
     print(table(rows))
+    if a.census:
+        cen = {}
+        for s in srcs:
+            asm = tmp / (s.stem + ".s")
+            if asm.exists():
+                cen.update(census(asm.read_text(errors="replace"), a.census_cus, a.census_clock_ghz, a.census_macs, a.census_top))
+        print(census_table(cen, a.census_macs))
     if a.out:
         Path(a.out).parent.mkdir(parents=True, exist_ok=True)
         Path(a.out).write_text(json.dumps({"kernels": rows, "errors": errors, "clang": clang}, indent=1, sort_keys=True))
