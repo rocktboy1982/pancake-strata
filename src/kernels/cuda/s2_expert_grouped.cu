@@ -1241,6 +1241,89 @@ __global__ void group_resident_kernel(const int32_t* __restrict__ ids, int n, in
 }
 }  // namespace
 
+namespace {
+// STRATA_MTP_SLOTS: group_resident_kernel with the expert address read from a table (the slot map) instead of computed, plus the
+// record of what the round read.  A separate kernel on purpose: the default drafter keeps launching group_resident_kernel, whose
+// text above is untouched.  Same grouping: groups in first-appearance order, entries of a group in routing order.
+__global__ void group_resident_ptr_kernel(const int32_t* __restrict__ ids, int n, int k_per_tok,
+                                          const unsigned long long* __restrict__ ptr_of, unsigned long long host_lo,
+                                          unsigned long long host_hi, MtpSlotDev* dev,
+                                          unsigned long long* __restrict__ grp_ptr, int32_t* __restrict__ grp_start,
+                                          int32_t* __restrict__ counts, int32_t* __restrict__ ent_dst,
+                                          int32_t* __restrict__ ent_tok) {
+    __shared__ int e_s[128], first_s[128], size_s[128], gidx_s[128], gstart_s[129], want_s[128];
+    const int i = threadIdx.x;
+    const int e = i < n ? ids[i] : -1;
+    e_s[i] = e;
+    s2_sync_lds();
+    int first = i, rank = 0, size = 0, want = 0;
+    if (i < n) {
+        for (int j = 0; j < i; ++j)
+            if (e_s[j] == e) { if (first == i) first = j; ++rank; }
+        if (first == i)
+            for (int j = i; j < n; ++j) size += e_s[j] == e;
+        // the first rank 0-1 entry of a missing expert asks for it (a router id outside [0, 512) is a bug upstream: no lookup)
+        if (dev != nullptr && e >= 0 && e < MtpSlotDev::kExperts && (i % k_per_tok) < 2) {
+            const unsigned long long pa = ptr_of[e];
+            if (pa >= host_lo && pa < host_hi) {
+                want = 1;
+                for (int j = 0; j < i; ++j)
+                    if (e_s[j] == e && (j % k_per_tok) < 2) { want = 0; break; }
+            }
+        }
+    }
+    first_s[i] = first;
+    size_s[i] = (i < n && first == i) ? size : 0;
+    want_s[i] = want;
+    s2_sync_lds();
+    if (i == 0) {
+        int gi = 0, acc = 0;
+        for (int j = 0; j < n; ++j)
+            if (first_s[j] == j) {
+                gidx_s[j] = gi;
+                gstart_s[gi] = acc;
+                const unsigned long long pa = ptr_of[e_s[j]];
+                grp_ptr[gi] = pa;
+                if (dev != nullptr) {
+                    if (pa >= host_lo && pa < host_hi) dev->miss_entries += (uint32_t) size_s[j];
+                    else {
+                        dev->hit_entries += (uint32_t) size_s[j];
+                        if (e_s[j] >= 0 && e_s[j] < MtpSlotDev::kExperts) dev->used[e_s[j]] = 1;
+                    }
+                }
+                grp_start[gi] = acc;
+                acc += size_s[j];
+                ++gi;
+            }
+        grp_start[gi] = acc;
+        counts[0] = gi;
+        counts[1] = acc;
+        if (dev != nullptr)
+            for (int j = 0; j < n; ++j)
+                if (want_s[j] != 0) {
+                    if (dev->want_n < (uint32_t) MtpSlotDev::kWant) dev->want[dev->want_n] = e_s[j];
+                    ++dev->want_n;
+                }
+    }
+    s2_sync_lds();
+    if (i < n) {
+        const int at = gstart_s[gidx_s[first]] + rank;
+        ent_dst[at] = i;
+        ent_tok[at] = i / k_per_tok;
+    }
+}
+}  // namespace
+
+void moe_group_resident_ptr(const int32_t* ids, int n, int k_per_tok, const unsigned long long* ptr_of,
+                            unsigned long long host_lo, unsigned long long host_hi, MtpSlotDev* dev,
+                            unsigned long long* grp_ptr, int32_t* grp_start, int32_t* counts, int32_t* ent_dst,
+                            int32_t* ent_tok, void* stream) {
+    if (n < 1 || n > 128) { std::fprintf(stderr, "moe_group_resident_ptr: n must be 1..128\n"); std::exit(1); }
+    group_resident_ptr_kernel<<<1, 128, 0, (cudaStream_t) stream>>>(ids, n, k_per_tok, ptr_of, host_lo, host_hi, dev, grp_ptr,
+                                                                    grp_start, counts, ent_dst, ent_tok);
+    check("moe_group_resident_ptr", stream);
+}
+
 void moe_group_resident(const int32_t* ids, int n, int k_per_tok, const uint8_t* base, int64_t blob,
                         unsigned long long* grp_ptr, int32_t* grp_start, int32_t* counts, int32_t* ent_dst,
                         int32_t* ent_tok, void* stream) {
