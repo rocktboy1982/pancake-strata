@@ -472,6 +472,8 @@ def stop_servers(wait=120):
     servers = [p for p in OWN if p.poll() is None]
     below = tree(proc_table(), [p.pid for p in servers]) - {p.pid for p in servers} if servers else set()   # the engine exe
     t0 = time.time()
+    if servers:
+        queuediag("STOPQUEUE", [p.pid for p in servers], lambda s: print(s, flush=True))   # S2: evicted_ms of the run that ends, ABTEST_QUEUEDIAG=1
     for p in servers:
         p.terminate()   # the server stops its engine and exits
     for p in servers:
@@ -1083,6 +1085,137 @@ def diag_load(log_out, cfg_path, log_size, say=print, now=time.time):
             pass
 
 
+# ---- S2 (LEADS.md Part S): ABTEST_QUEUEDIAG=1 (default off) logs the KFD queue layout of the engine at ready (STARTQUEUE) and just before the server is stopped
+# (STOPQUEUE): reads of /sys only, no root, no subprocess, no sudo; a failure prints one line and the test carries on.
+# Readable WITHOUT root: /sys/class/kfd/kfd/topology/nodes/N/{gpu_id,properties} (gfx_target_version, num_cp_queues), /sys/class/kfd/kfd/proc/<pid>/queues/<id>/{type,gpuid,size}
+# and /sys/class/kfd/kfd/proc/<pid>/stats_<gpuid>/evicted_ms.  Needs ROOT (owner action, outside this tool): the CP pipe of every queue,
+# `sudo cat /sys/kernel/debug/kfd/hqds` (debugfs, mode 0400); without it the line says hqds=NA and pipes=NA.
+KFD_SYS = "/sys/class/kfd/kfd"
+KFD_HQDS = "/sys/kernel/debug/kfd/hqds"
+QDIAG = {"pids": []}
+_HQD = re.compile(r"(?:Inst (\d+), )?CP Pipe (\d+), Queue (\d+)")
+_QTYPE = {0: "compute", 1: "sdma", 2: "hiq", 3: "dibq", 4: "sdma_xgmi"}
+
+
+def queuediag_on(env=None):
+    return (os.environ if env is None else env).get("ABTEST_QUEUEDIAG", "0") == "1"
+
+
+def _kfd_read(path):
+    try:
+        return Path(path).read_text().strip()
+    except (OSError, ValueError):
+        return None
+
+
+def kfd_nodes(root=KFD_SYS):
+    """GPU nodes of the KFD topology: [{"node", "gpu_id", "gfx", "cp_queues"}] (gpu_id 0 = the CPU node, left out)."""
+    out = []
+    for nd in sorted(Path(f"{root}/topology/nodes").glob("*"), key=lambda q: int(q.name) if q.name.isdigit() else -1):
+        gid = _kfd_read(nd / "gpu_id")
+        if not nd.name.isdigit() or gid in (None, "", "0"):
+            continue
+        props = {}
+        for line in (_kfd_read(nd / "properties") or "").splitlines():
+            kv = line.split()
+            if len(kv) == 2:
+                props[kv[0]] = kv[1]
+        gfx = props.get("gfx_target_version")
+        out.append({"node": int(nd.name), "gpu_id": gid, "gfx": gfx if gfx is None else f"gfx{int(gfx):d}",
+                    "cp_queues": props.get("num_cp_queues")})
+    return out
+
+
+def kfd_proc(root, pid):
+    """One process' KFD sysfs view: {"types": {name: count}, "sizes": [..], "evicted_ms": {gpu_id: ms}} (None when /proc/<pid> has no KFD entry)."""
+    base = Path(f"{root}/proc/{pid}")
+    if not base.is_dir():
+        return None
+    types, sizes = {}, []
+    for q in sorted(base.glob("queues/*")):
+        t = _kfd_read(q / "type")
+        if t is not None:
+            t = _QTYPE.get(int(t), f"type{t}") if t.lstrip("-").isdigit() else t.lower()
+            types[t] = types.get(t, 0) + 1
+        sz = _kfd_read(q / "size")
+        if sz is not None and sz.isdigit():
+            sizes.append(int(sz))
+    ev = {}
+    for st in sorted(base.glob("stats_*")):
+        v = _kfd_read(st / "evicted_ms")
+        if v is not None and v.isdigit():
+            ev[st.name[len("stats_"):]] = int(v)
+    return {"types": types, "sizes": sizes, "evicted_ms": ev}
+
+
+def parse_hqds(text):
+    """Pipes of a /sys/kernel/debug/kfd/hqds dump: {(inst, pipe): queue count} from its 'Inst I, CP Pipe P, Queue Q' headers (inst 0 when absent)."""
+    out = {}
+    for m in _HQD.finditer(text or ""):
+        k = (int(m.group(1) or 0), int(m.group(2)))
+        out[k] = out.get(k, 0) + 1
+    return out
+
+
+def queue_snapshot(root_pids, root=KFD_SYS, hqds=KFD_HQDS, tab=None):
+    """The numbers of one STARTQUEUE / STOPQUEUE line (each None when unreadable): gfx and CP queue count of the first GPU node, the KFD pids in the
+    process trees of `root_pids`, their queue counts by type, evicted_ms (sum over pids and GPUs), the pipes of hqds and whether any pipe holds two or more queues."""
+    d = {"gfx": None, "cp_queues": None, "pids": [], "types": None, "evicted_ms": None, "pipes": None, "shared": None}
+    try:
+        nodes = kfd_nodes(root)
+        if nodes:
+            d["gfx"], d["cp_queues"] = nodes[0]["gfx"], nodes[0]["cp_queues"]
+    except (OSError, ValueError):
+        pass
+    try:
+        mine = tree(proc_table() if tab is None else tab, list(root_pids))
+        views = []
+        for pid in sorted(mine):
+            v = kfd_proc(root, pid)
+            if v is not None:
+                d["pids"].append(pid)
+                views.append(v)
+        if views:
+            d["types"] = {}
+            for v in views:
+                for k, n in v["types"].items():
+                    d["types"][k] = d["types"].get(k, 0) + n
+            d["evicted_ms"] = sum(sum(v["evicted_ms"].values()) for v in views)
+    except (OSError, ValueError):
+        pass
+    try:
+        pipes = parse_hqds(Path(hqds).read_text())   # PermissionError (not root) is an OSError: stays None
+        d["pipes"] = pipes
+        d["shared"] = int(any(n >= 2 for n in pipes.values())) if pipes else None
+    except OSError:
+        pass
+    return d
+
+
+def queuediag_line(tag, snap, now):
+    """`STARTQUEUE <ts> pids=.. gfx=.. cp_queues=.. queues=compute:2,sdma:1 evicted_ms=.. hqds=ok|NA pipes=i0p0:2,i0p1:1|NA shared=0|1|NA` (STOPQUEUE the same)."""
+    def f(v):
+        return "NA" if v is None or v == "" else str(v)
+    pipes = snap["pipes"]
+    return (f"{tag} {time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(now))} pids={f(','.join(map(str, snap['pids'])))} gfx={f(snap['gfx'])} "
+            f"cp_queues={f(snap['cp_queues'])} queues={f(','.join(f'{k}:{n}' for k, n in sorted((snap['types'] or {}).items())) if snap['types'] is not None else None)} "
+            f"evicted_ms={f(snap['evicted_ms'])} hqds={'ok' if pipes is not None else 'NA'} "
+            f"pipes={f(','.join(f'i{i}p{p}:{n}' for (i, p), n in sorted(pipes.items())) if pipes else None)} shared={f(snap['shared'])}")
+
+
+def queuediag(tag, root_pids, say=print, now=time.time, snapshot=queue_snapshot, env=None):
+    """ABTEST_QUEUEDIAG=1: prints one STARTQUEUE / STOPQUEUE line.  Never raises."""
+    try:
+        if not queuediag_on(env):
+            return
+        say(queuediag_line(tag, snapshot(root_pids), now()))
+    except Exception as e:   # noqa: BLE001 - the diag never stops a test
+        try:
+            say(f"{tag} failed ({type(e).__name__}): carrying on")
+        except Exception:   # noqa: BLE001
+            pass
+
+
 def start_server(cfg_path, log_out, port, ready_wait=None):
     """Starts the engine server for a config and waits for its "ready: http" line.  Returns (process, None), or
     (None, "server died before ready" / "slow load: server not ready after N s") - the caller stops the servers.  T-1022: ready_wait
@@ -1108,6 +1241,8 @@ def start_server(cfg_path, log_out, port, ready_wait=None):
             txt = Path(log_out).read_text(errors="replace")
             if "ready: http" in txt:
                 diag_load(log_out, cfg_path, log_size, lambda s: print(s, flush=True))   # T-1006: STARTLOAD, the load rate of this start
+                QDIAG["pids"] = [srv.pid]
+                queuediag("STARTQUEUE", [srv.pid], lambda s: print(s, flush=True))   # S2: KFD queue layout, ABTEST_QUEUEDIAG=1
                 return srv, None
             if srv.poll() is not None or "EngineDied" in txt:
                 return None, "server died before ready"
