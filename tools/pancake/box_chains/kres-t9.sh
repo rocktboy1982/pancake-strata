@@ -40,8 +40,8 @@ if [ -n "$BIN" ]; then
     b=$(basename "$co")
     "$ROCM/lib/llvm/bin/llvm-readelf" --notes "$co" > "$OUT/$b.notes.txt" 2>&1 || log "readelf failed on $b"
     "$ROCM/lib/llvm/bin/llvm-objdump" -d --mcpu=gfx1100 "$co" > "$OUT/$b.dis.txt" 2>&1 || log "objdump failed on $b"
-    python3 "$S/tools/pancake/kernel_resources_obj.py" --notes "$OUT/$b.notes.txt" --log "$OUT/build.log" --csv "$OUT/$b.resources.csv" > "$OUT/$b.resources.txt" 2>&1 || log "kernel_resources_obj exit $?"
-    python3 "$S/tools/pancake/isa_audit.py" "$OUT/$b.dis.txt" --csv "$OUT/$b.isa.csv" > "$OUT/$b.isa.txt" 2>&1 || log "isa_audit exit $?"
+    ${PYTHON:-python3} "$S/tools/pancake/kernel_resources_obj.py" --notes "$OUT/$b.notes.txt" --log "$OUT/build.log" --csv "$OUT/$b.resources.csv" > "$OUT/$b.resources.txt" 2>&1 || log "kernel_resources_obj exit $?"
+    ${PYTHON:-python3} "$S/tools/pancake/isa_audit.py" "$OUT/$b.dis.txt" --csv "$OUT/$b.isa.csv" > "$OUT/$b.isa.txt" 2>&1 || log "isa_audit exit $?"
   done
 fi
 log "results in $OUT"
