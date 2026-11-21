@@ -18,14 +18,16 @@
 
 namespace strata::core {
 namespace {
-// STRATA_SNAP_STATE_F16=1 (opt-in, LEADS.md S6): a checkpoint's running GDN state is read back through FP16 rounding, the numbers a
-// snapshot stored as FP16 would give (gdn_state_f16.hpp).  The stored size is not halved yet.  Unset: nothing below changes.
+// STRATA_SNAP_STATE_F16=1 (opt-in, LEADS.md S6): a checkpoint's running GDN state is STORED as the compact FP16 blob
+// (gdn_state_f16.hpp: RAM copy, disk image, streamed blocks; ConversationCheckpoint::gdn_f16), about half the bytes, and read back
+// by decoding it.  A checkpoint still held as FP32 (made without the switch, or loaded from such an image) is read back through the
+// same rounding.  Unset: nothing below changes.
 bool snap_state_f16() {
     static const bool on = [] {
         const bool v = gdn_f16::snap_f16_on_from(std::getenv("STRATA_SNAP_STATE_F16"));
         if (v)
             std::fprintf(stderr, "strata: STRATA_SNAP_STATE_F16=1: a restored checkpoint's recurrent state is read through FP16 "
-                                 "rounding (VRAM-slot restores take the host copy; stored size unchanged; lossy; LEADS.md S6)\n");
+                                 "rounding and is stored as an FP16 blob, half the bytes (no VRAM slot / async staging for it; lossy; LEADS.md S6)\n");
         return v;
     }();
     return on;
@@ -95,11 +97,11 @@ bool checkpoint_targets(const SessionState& ss, const ModelGeometry& g, size_t t
 
 bool state_sizes_valid(size_t tokens, const std::vector<ConversationImageKey>& imgs,
                        const std::array<uint64_t, 5>& sizes, const SessionState& ss, const ModelGeometry& g,
-                       std::string& error) {
+                       std::string& error, bool gdn_blob = false) {
     ConversationStateSizes z;
     if (!checkpoint_targets(ss, g, tokens, z, error)) return false;
     const size_t layers = owned_qsa(ss);
-    if (sizes[0] != z.gdn || sizes[1] != (ss.ple_hist ? z.ple : 0) ||
+    if (sizes[0] != gdn_f16::stored_bytes(gdn_blob, z.gdn) || sizes[1] != (ss.ple_hist ? z.ple : 0) ||
         sizes[2] != layers * z.tail || sizes[3] != layers * z.dead ||
         sizes[4] != layers * z.block_pos || !image_keys(imgs, tokens))
         return fail(error, "invalid checkpoint running-state payload");
@@ -178,12 +180,18 @@ bool state_source(SessionStateSource& out, const SessionState& ss, const ModelGe
                                                  reinterpret_cast<const uint8_t*>(ss.ple_hist)};
     const std::array<size_t, 3> row = {z.tail, z.dead, z.block_pos};
     SessionStateSource s;
-    s.sizes = {z.gdn, ss.ple_hist ? z.ple : 0, layers * z.tail, layers * z.dead, layers * z.block_pos};
+    const bool f16 = snap_state_f16();   // STRATA_SNAP_STATE_F16: part 0 goes to the file as the compact blob
+    s.gdn_f16 = f16;
+    s.sizes = {gdn_f16::stored_bytes(f16, z.gdn), ss.ple_hist ? z.ple : 0, layers * z.tail, layers * z.dead, layers * z.block_pos};
     const auto sizes = s.sizes;
+    const size_t gdn_raw = z.gdn;
     auto why = std::make_shared<std::string>();
-    s.read = [rows, whole, row, sizes, why](size_t part, size_t offset, void* dst, size_t n) {
+    s.read = [rows, whole, row, sizes, why, f16, gdn_raw](size_t part, size_t offset, void* dst, size_t n) {
         if (part >= 5 || offset > sizes[part] || n > sizes[part] - offset) { *why = "running-state read out of range"; return false; }
         uint8_t* d = static_cast<uint8_t*>(dst);
+        if (part == 0 && f16)   // a block of the blob, any offset / size: read only the FP32 values it touches from the device
+            return gdn_f16::blob_slice([&](size_t at, void* to, size_t bytes) { return copy(to, whole[0] + at, bytes, *why); },
+                                       gdn_raw / sizeof(float), offset, n, d);
         if (part < 2) return copy(d, whole[part] + offset, n, *why);
         while (n) {
             const size_t r = row[part - 2], j = offset / r, within = offset % r, c = std::min(n, r - within);
@@ -206,6 +214,8 @@ bool metadata_bytes(const ConversationCheckpoint& c, size_t& total) {
     return true;
 }
 } // namespace
+
+size_t conversation_gdn_stored_bytes(size_t raw_f32_bytes) { return gdn_f16::stored_bytes(snap_state_f16(), raw_f32_bytes); }
 
 bool conversation_state_sizes(const ModelGeometry& g, ConversationStateSizes& z, std::string& error) {
     z = {};
@@ -247,7 +257,7 @@ bool conversation_checkpoint_validate(const ConversationCheckpoint& c, const Ses
                                       const ModelGeometry& g, std::string& error) {
     return state_sizes_valid(c.ids.size(), c.imgs,
                              {c.gdn.size(), c.ple.size(), c.tails.size(), c.dead.size(), c.block_pos.size()}, ss, g,
-                             error);
+                             error, c.gdn_f16);
 }
 
 #if defined(STRATA_GPU_METAL)
@@ -395,13 +405,17 @@ bool checkpoint_save(ConversationCheckpoint& c, const SessionState& ss, const Mo
     if (!checkpoint_targets(ss, g, c.ids.size(), z, error)) return false;
     const size_t layers = owned_qsa(ss);
     static const bool atr = std::getenv("STRATA_PARK_TRACE") != nullptr;
-    const bool ready = c.gdn.size() == z.gdn;   // (a pooled checkpoint's pages are in; a fresh vector faults them all)
+    // STRATA_SNAP_STATE_F16: the GDN part is stored as the compact blob; no VRAM slot, no async staging (both would hold FP32)
+    const bool f16 = snap_state_f16();
+    const size_t gdn_stored = gdn_f16::stored_bytes(f16, z.gdn);
+    c.gdn_f16 = f16;
+    const bool ready = c.gdn.size() == gdn_stored;   // (a pooled checkpoint's pages are in; a fresh vector faults them all)
     const auto r0 = std::chrono::steady_clock::now();
-    c.gdn.resize(z.gdn); c.ple.resize(ss.ple_hist ? z.ple : 0);
+    c.gdn.resize(gdn_stored); c.ple.resize(ss.ple_hist ? z.ple : 0);
     c.tails.resize(layers * z.tail); c.dead.resize(layers * z.dead); c.block_pos.resize(layers * z.block_pos);
     if (atr) std::fprintf(stderr, "strata parktrace: save vectors %s, resize %.2f ms\n", ready ? "ready" : "fresh",
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - r0).count());
-    if (ckpt_async_on() && c.gdn.size() >= ((size_t) 1 << 20)) {
+    if (!f16 && ckpt_async_on() && c.gdn.size() >= ((size_t) 1 << 20)) {
         CkptAsync& a = ckpt_async();
         int dev = 0;
         (void) cudaGetDevice(&dev);
@@ -473,7 +487,17 @@ bool checkpoint_save(ConversationCheckpoint& c, const SessionState& ss, const Mo
             staged = true;
         }
     }
-    if (!staged && !copy(c.gdn.data(), ss.gdn_state, c.gdn.size(), error)) return false;
+    if (f16) {
+        c.dev_tag = 0;   // (no device copy of a blob)
+        std::vector<uint8_t> f32(z.gdn);
+        if (!copy(f32.data(), ss.gdn_state, f32.size(), error)) return false;
+        std::vector<uint8_t> blob;
+        size_t sat = 0;
+        if (!gdn_f16::encode(f32.data(), f32.size(), blob, &sat) || blob.size() != c.gdn.size())
+            return fail(error, "GDN state FP16 encode failed");
+        c.gdn.swap(blob);
+        if (sat != 0) std::fprintf(stderr, "strata: STRATA_SNAP_STATE_F16: %zu GDN values beyond the FP16 range were saturated\n", sat);
+    } else if (!staged && !copy(c.gdn.data(), ss.gdn_state, c.gdn.size(), error)) return false;
     const auto s0 = std::chrono::steady_clock::now();
     const bool ok = [&] {
         // STRATA_CKPT_GATHER=1: the small vectors through one device gather and one copy (else one copy each)
@@ -505,7 +529,7 @@ bool conversation_checkpoint_save(ConversationCheckpoint& c, const SessionState&
 bool conversation_checkpoint_restore(const ConversationCheckpoint& c, SessionState& ss,
                                      const ModelGeometry& g, std::string& error) {
     const VramSlot* hit = nullptr;
-    if (c.dev_tag != 0 && !snap_state_f16()) {   // (STRATA_SNAP_STATE_F16: the exact device copy is not the FP16 state: host bytes)
+    if (c.dev_tag != 0 && !c.gdn_f16 && !snap_state_f16()) {   // (STRATA_SNAP_STATE_F16: the exact device copy is not the FP16 state: host bytes)
         int dev = 0;
         (void) cudaGetDevice(&dev);
         for (VramSlot& x : vram_slots().s)
@@ -524,8 +548,17 @@ bool conversation_checkpoint_restore(const ConversationCheckpoint& c, SessionSta
     if (!conversation_session_sizes(g, ss, z, error)) return false;
     if (!sync(error)) return false;   // the copies below no longer ride the legacy stream's implicit ordering
     std::vector<uint8_t> f16_scratch;   // (STRATA_SNAP_STATE_F16 only)
-    if (!copy(ss.gdn_state, hit != nullptr ? hit->p : gdn_f16::restore_source(snap_state_f16(), c.gdn.data(), c.gdn.size(), f16_scratch),
-              c.gdn.size(), error) ||
+    const void* gdn_src = hit != nullptr ? hit->p : nullptr;
+    size_t gdn_n = c.gdn.size();
+    if (gdn_src == nullptr && c.gdn_f16) {   // a blob: decoded (validate checked its size; decode checks magic, version, count)
+        if (!gdn_f16::decode(c.gdn.data(), c.gdn.size(), f16_scratch) || f16_scratch.size() != z.gdn)
+            return fail(error, "checkpoint GDN FP16 blob is invalid");
+        gdn_src = f16_scratch.data();
+        gdn_n = f16_scratch.size();
+    } else if (gdn_src == nullptr) {
+        gdn_src = gdn_f16::restore_source(snap_state_f16(), c.gdn.data(), c.gdn.size(), f16_scratch);
+    }
+    if (!copy(ss.gdn_state, gdn_src, gdn_n, error) ||
         !copy(ss.ple_hist, c.ple.data(), c.ple.size(), error)) return false;
     for (size_t j = 0; j < owned_qsa(ss); ++j) {
         const auto& st = owned(ss, j);
@@ -588,7 +621,7 @@ bool conversation_snapshot_bytes(const ConversationView& view, const SessionStat
         !product(layers, {qsa + (draft ? 1 : 0), sizeof(ConversationKv)}) ||
         !product(tails, {qsa, z.tail}) || !product(dead, {qsa, z.dead}) ||
         !product(positions, {qsa, z.block_pos})) return fail(error, "snapshot metadata byte count overflow");
-    for (size_t n : {ids, images, checkpoints, layers, tails, dead, positions, z.gdn, ss.ple_hist ? z.ple : 0})
+    for (size_t n : {ids, images, checkpoints, layers, tails, dead, positions, gdn_f16::stored_bytes(snap_state_f16(), z.gdn), ss.ple_hist ? z.ple : 0})
         if (!add(bytes, n)) return fail(error, "snapshot byte count overflow");
     for (const auto& c : view.checkpoints)
         if (!metadata_bytes(c, bytes)) return fail(error, "checkpoint byte count overflow");
@@ -791,10 +824,13 @@ bool conversation_snapshot_stream(SessionSaveSources& save, const ConversationSt
 bool conversation_state_target(const SavedConversation& image, const std::array<uint64_t, 5>& sizes,
                                SessionState& ss, const ModelGeometry& g, ConversationStateTarget& target,
                                std::string& error) {
-    if (!state_sizes_valid(image.live.ids.size(), image.live.imgs, sizes, ss, g, error)) return false;
+    if (!state_sizes_valid(image.live.ids.size(), image.live.imgs, sizes, ss, g, error, image.live.gdn_f16)) return false;
     ConversationStateTarget t;
+    t.gdn_blob = image.live.gdn_f16;
+    if (t.gdn_blob) t.blob_stage = std::make_shared<gdn_f16::BlobStage>((size_t) sizes[0]);
     t.session = &ss; t.geometry = &g; t.sizes = sizes; t.tokens = (int64_t) image.live.ids.size();
 #if defined(STRATA_GPU_METAL)
+    if (image.live.gdn_f16) return fail(error, "an FP16 GDN snapshot (STRATA_SNAP_STATE_F16) is not supported on Metal");
     t.staged = std::make_shared<ConversationCheckpoint>();
     const std::array<std::vector<uint8_t>*, 5> parts = {&t.staged->gdn, &t.staged->ple, &t.staged->tails,
                                                         &t.staged->dead, &t.staged->block_pos};
@@ -819,6 +855,12 @@ bool ConversationStateTarget::apply(size_t part, uint64_t offset, const void* da
     }
     ConversationStateSizes z;
     if (!conversation_session_sizes(*geometry, *session, z, error)) return false;
+    if (part == 0 && gdn_blob) {
+        // the GDN part is the FP16 blob: blocks of any size and offset are staged (about half the FP32 bytes), decoded in finish()
+        if (!blob_stage || blob_stage->size() != sizes[0] || !blob_stage->put((size_t) offset, src, n))
+            return fail(error, "running-state GDN blob block out of order or outside its part");
+        return true;
+    }
     if (part == 0) {
         // STRATA_SNAP_STATE_F16: a disk / stream block of the GDN part reads through FP16 rounding when it is whole floats
         std::vector<uint8_t> f16_scratch;
@@ -850,6 +892,15 @@ bool ConversationStateTarget::finish(const std::vector<int32_t>& ids, std::strin
     if (staged) {
         staged->ids = ids;
         return conversation_checkpoint_restore(*staged, *session, *geometry, error);
+    }
+    if (gdn_blob) {   // the staged blob is complete: decode and copy the FP32 state
+        ConversationStateSizes z;
+        std::vector<uint8_t> f32;
+        if (!conversation_session_sizes(*geometry, *session, z, error)) return false;
+        if (!blob_stage || !blob_stage->finish(f32, z.gdn))
+            return fail(error, "running-state GDN FP16 blob is incomplete or invalid");
+        if (!copy(session->gdn_state, f32.data(), f32.size(), error)) return false;
+        blob_stage->release();
     }
     const size_t n = ids.size();
     session->ple_prev[0] = n >= 2 ? ids[n - 2] : -1;
@@ -911,7 +962,7 @@ bool meta_validate(const SavedConversation& image, const SessionState& ss, const
         const auto& l = image.live;
         if (!l.gdn.empty() || !l.ple.empty() || !l.tails.empty() || !l.dead.empty() || !l.block_pos.empty())
             return fail(error, "the live running state is both in the image and on disk");
-        if (!state_sizes_valid(l.ids.size(), l.imgs, *live_state, ss, g, error)) return false;
+        if (!state_sizes_valid(l.ids.size(), l.imgs, *live_state, ss, g, error, l.gdn_f16)) return false;
     } else if (!conversation_checkpoint_validate(image.live, ss, g, error)) {
         return false;
     }

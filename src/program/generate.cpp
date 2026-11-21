@@ -13744,7 +13744,7 @@ int main(int argc, char** argv) {
                     image.live_pending.reset();
                     image.live.gdn = ck.gdn; image.live.ple = ck.ple; image.live.tails = ck.tails;
                     image.live.dead = ck.dead; image.live.block_pos = ck.block_pos;
-                    image.live.dev_tag = ck.dev_tag;   // (a whole copy of the bytes keeps the tag: conversation_cache.hpp)
+                    image.live.gdn_f16 = ck.gdn_f16; image.live.dev_tag = ck.dev_tag;   // (a whole copy of the bytes keeps the tag: conversation_cache.hpp)
                     const auto mem_after = strata::core::sample_host_memory();
                     if (!strata::core::conversation_memory_admit(
                             mem_after ? std::optional<uint64_t>(mem_after->available) : std::nullopt, 0, floor)) {
@@ -14004,6 +14004,7 @@ int main(int argc, char** argv) {
                 if (parts->size() != stages.size() + 1) return false;
                 c.gdn = std::move((*parts)[0].gdn);
                 c.dev_tag = (*parts)[0].dev_tag;
+                c.gdn_f16 = (*parts)[0].gdn_f16;
                 c.ple = std::move((*parts)[0].ple);
                 c.tails = std::move((*parts)[0].tails);
                 c.dead = std::move((*parts)[0].dead);
@@ -18135,7 +18136,8 @@ int main(int argc, char** argv) {
                             if (strata::core::conversation_session_sizes(g, ss, z, why)) {
                                 const uint64_t q = (uint64_t) std::max<int64_t>(ss.qsa_alloc, 0);
                                 const uint64_t per = (uint64_t) z.tail + z.dead + z.block_pos;
-                                if (q == 0 || per <= (UINT64_MAX - z.gdn - z.ple) / q) state = z.gdn + z.ple + q * per;
+                                const uint64_t gdn_stored = strata::core::conversation_gdn_stored_bytes(z.gdn);   // (STRATA_SNAP_STATE_F16: the blob)
+                                if (q == 0 || per <= (UINT64_MAX - gdn_stored - z.ple) / q) state = gdn_stored + z.ple + q * per;
                             }
                             sl.state_bytes = state;
                             sl.tokens = live.size();

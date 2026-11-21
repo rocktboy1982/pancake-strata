@@ -22,6 +22,7 @@
 #include "strata/kernels/sampler.hpp"
 #include "strata/core/coupled_draft.hpp"
 #include "strata/core/spec_prob.hpp"
+#include "strata/core/spec_block_dev.hpp"
 #include "strata/core/spec_proposal.hpp"
 #include "strata/core/emulate.hpp"
 
@@ -1277,6 +1278,90 @@ spec_verify_merge_kernel(const int2* __restrict__ cand, int n_blocks, int n_voca
     }
 }
 
+// ---- BLOCK VERIFICATION (include/strata/core/spec_block_dev.hpp, STRATA_MTP_BLOCK_VERIFY=1; LEADS.md S12) ----
+//
+// Two kernels after sampler_split_part_kernel.  Block verification needs every row's P and Q at once, which the one-warp-per-row
+// spec_verify_merge_kernel above cannot hold, so row P goes to global memory first (spec_block_rows_kernel) and ONE warp judges
+// the whole window (spec_block_verify_kernel).  Neither is launched unless the switch is on; the kernel above is untouched.
+
+/// One warp per window row: the merge and the chain of spec_verify_merge_kernel's first half (a copy, so that kernel keeps its SASS),
+/// the row's P list written to the flat arrays (ids, double probabilities, count).
+__global__ void __launch_bounds__(32)
+spec_block_rows_kernel(const int2* __restrict__ cand, int n_blocks, int n_vocab, const SamplerParams p, int k,
+                       int* __restrict__ pn, int32_t* __restrict__ pid, double* __restrict__ pp) {
+    const int t = blockIdx.x;
+    const int lane = (int) threadIdx.x;
+    __shared__ int2 lists[kSplitMaxBlocks * kSelMax];
+    __shared__ int sel_ids[kSelMax];
+    __shared__ float sel_logit[kSelMax];
+    __shared__ double ex[kSelMax];
+    const int2* src = cand + (size_t) t * n_blocks * k;
+    for (int e = lane; e < n_blocks * k; e += 32) lists[e] = src[e];
+    __syncwarp();
+    warp_merge_lists(lists, n_blocks, k, k, n_vocab, [&](int i, float v, int id) {
+        if (lane == 0) { sel_ids[i] = id < n_vocab ? id : 0; sel_logit[i] = v; }
+    });
+    __syncwarp();
+    const int n_keep = sampled_probs_warp(sel_logit, k, p, ex);
+    for (int i = lane; i < n_keep; i += 32) {
+        pid[t * strata::core::spec_block_dev::kRowCap + i] = sel_ids[i];
+        pp[t * strata::core::spec_block_dev::kRowCap + i] = ex[i];
+    }
+    if (lane == 0) pn[t] = n_keep;
+}
+
+/// ONE warp (<<<1, 32>>>) judges the whole window: gamma = n_rows - 1 drafts in `dtok`, rows < n_q with the drafter list in `qbuf`.
+/// The control flow is spec_block_dev.hpp run_serial: lane 0 runs the running ratios and the ordered sums, the lanes split the
+/// residual entries.  Uniforms: eta(j) = philox(seed, pos_j | kSpecCtrAccept), the winner residual draw philox(seed, pos_win |
+/// kSpecCtrResid) (the plain pick philox(seed, pos_win) when the winner is the bonus row), and for rows after the winner a plain
+/// sample of their own row (out[t], t > win: see fill_out).  out[t] as the host loop `while (window[a+1] == out[a]) ++a` expects.
+__global__ void __launch_bounds__(32)
+spec_block_verify_kernel(const int* __restrict__ pn, const int32_t* __restrict__ pid, const double* __restrict__ pp,
+                         const int32_t* __restrict__ dtok, const int32_t* __restrict__ qbuf, int n_q, int gamma,
+                         const SamplerParams p, int* __restrict__ out) {
+    namespace sbd = strata::core::spec_block_dev;
+    const int lane = (int) threadIdx.x;
+    __shared__ double w[strata::core::kSpecBlockMaxGamma + 1];
+    __shared__ double r[sbd::kRowCap];
+    if (gamma > strata::core::kSpecBlockMaxGamma) gamma = strata::core::kSpecBlockMaxGamma;
+    const sbd::View v{pid, pp, pn, qbuf, n_q, dtok, gamma};
+    if (lane == 0) {
+        w[0] = 1.0;
+        for (int j = 0; j < gamma; ++j) w[j + 1] = sbd::ratio_next(v, j, w[j]);
+    }
+    __syncwarp();
+    int win = 0;
+    double s = 0.0;
+    for (int j = gamma; j >= 0; --j) {
+        const int n = pn[j] < sbd::kRowCap ? pn[j] : sbd::kRowCap;
+        for (int i = lane; i < n; i += 32) r[i] = sbd::residual_entry(v, j, w[j], i);
+        __syncwarp();
+        int won = 0;
+        if (lane == 0) {
+            s = 0.0;
+            for (int i = 0; i < n; ++i) s += r[i];
+            won = (j == 0 || (double) philox_uniform(p.seed, (p.counter + (uint64_t) j) | strata::core::kSpecCtrAccept) <
+                                 sbd::h_of(gamma, j, w[j], s)) ? 1 : 0;
+        }
+        won = __shfl_sync(kFullMask, won, 0);
+        if (won) { win = j; break; }
+    }
+    if (lane == 0) {   // (s and r[] are the winner row's residual sum and weights, as the loop left them)
+        const int n = pn[win] < sbd::kRowCap ? pn[win] : sbd::kRowCap;
+        if (!(s > 0.0)) {   // P and Q agree (or an empty residual): draw from P itself
+            s = 0.0;
+            for (int i = 0; i < n; ++i) { r[i] = pp[win * sbd::kRowCap + i]; s += r[i]; }
+        }
+        const uint64_t pos = p.counter + (uint64_t) win;
+        const float u = win < gamma ? philox_uniform(p.seed, pos | strata::core::kSpecCtrResid) : philox_uniform(p.seed, pos);
+        const strata::core::SpecBlockResult res{win, sbd::draw(v, win, r, s, (double) u)};
+        for (int t = 0; t <= gamma; ++t)
+            out[t] = t < res.accepted ? dtok[t]
+                   : t == res.accepted ? res.token
+                   : sbd::sample_plain(v, t, (double) philox_uniform(p.seed, p.counter + (uint64_t) t));
+    }
+}
+
 // Which sampled path runs, read once: `STRATA_OLD_SAMPLER=1` is `sampler_kernel` (engine 0.1.20),
 // `STRATA_SAMPLER_ONE_BLOCK=1` the one-block kernel; by default the split top_k wherever it applies.
 enum class SampledPath { Split, OneBlock, Old };
@@ -1608,6 +1693,37 @@ static bool sample_tokens_spec_impl(const float* logits, int n_tokens, int n_voc
         const cudaError_t sync = cudaDeviceSynchronize();
         if constexpr (Augmented) { if (sync != cudaSuccess) return false; }
     }
+    return true;
+}
+
+bool sample_tokens_spec_block(const float* logits, int n_tokens, int n_vocab, const int* history, int history_len,
+                             const SamplerParams& p, const int32_t* dtok, const int32_t* qbuf, int n_q, int* out,
+                             void* stream) {
+    namespace sbd = strata::core::spec_block_dev;
+    if (n_tokens < 2 || n_tokens - 1 > strata::core::kSpecBlockMaxGamma || n_q < 1 || n_q > n_tokens || qbuf == nullptr ||
+        dtok == nullptr || n_vocab <= 0 || p.greedy || !(p.temperature >= strata::kernels::kSamplerMinTemperature))
+        return false;
+    if (p.penalty_last_n > 0 && (history == nullptr || history_len <= 0)) return false;
+    const int k = sampled_k(p.top_k, n_vocab);
+    const int n_blocks = (n_vocab + kSplitBlockSpan - 1) / kSplitBlockSpan;
+    if (sampled_path() != SampledPath::Split || n_blocks > kSplitMaxBlocks || n_tokens > kSplitMaxRows ||
+        stream_capturing(stream))
+        return false;
+    // one scratch: the rows top-k lists (as sample_tokens_spec), then the P arrays of the block rule behind them
+    const size_t cand_entries = (size_t) (n_tokens > 16 ? n_tokens : 16) * n_blocks * kSelMax;
+    const size_t rows_entries = (sbd::rows_bytes(n_tokens) + sizeof(int2) - 1) / sizeof(int2);
+    int2* scratch = split_scratch(stream, cand_entries + rows_entries);
+    if (scratch == nullptr) return false;
+    void* rows = scratch + cand_entries;
+    const cudaStream_t s = (cudaStream_t) stream;
+    sampler_split_part_kernel<<<dim3((unsigned) n_blocks, (unsigned) n_tokens), kSplitWarps * 32, 0, s>>>(
+        logits, n_vocab, history, history_len, p, k, n_blocks, scratch);
+    spec_block_rows_kernel<<<(unsigned) n_tokens, 32, 0, s>>>(scratch, n_blocks, n_vocab, p, k, sbd::rows_pn(rows),
+                                                              sbd::rows_pid(rows, n_tokens), sbd::rows_pp(rows, n_tokens));
+    spec_block_verify_kernel<<<1, 32, 0, s>>>(sbd::rows_pn(rows), sbd::rows_pid(rows, n_tokens), sbd::rows_pp(rows, n_tokens),
+                                              dtok, qbuf, n_q, n_tokens - 1, p, out);
+    if (cudaGetLastError() != cudaSuccess) return false;
+    if (stream == nullptr && cudaDeviceSynchronize() != cudaSuccess) return false;
     return true;
 }
 

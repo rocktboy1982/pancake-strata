@@ -184,6 +184,7 @@ inline ConversationCheckpoint copy_checkpoint_beating(const ConversationCheckpoi
     o.imgs = copy_beating(c.imgs);
     o.gdn = copy_beating(c.gdn);
     o.dev_tag = c.dev_tag;   // the same bytes
+    o.gdn_f16 = c.gdn_f16;
     o.ple = copy_beating(c.ple);
     o.tails = copy_beating(c.tails);
     o.dead = copy_beating(c.dead);
@@ -215,6 +216,7 @@ inline void copy_checkpoint_into(ConversationCheckpoint& o, const ConversationCh
     assign_beating(o.imgs, c.imgs);
     assign_beating(o.gdn, c.gdn);
     o.dev_tag = c.dev_tag;
+    o.gdn_f16 = c.gdn_f16;
     assign_beating(o.ple, c.ple);
     assign_beating(o.tails, c.tails);
     assign_beating(o.dead, c.dead);

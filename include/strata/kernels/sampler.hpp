@@ -102,6 +102,13 @@ void spec_draft_sample(float* logits, int nv, const int32_t* sub_to_id, const in
 bool sample_tokens_spec(const float* logits, int n_tokens, int n_vocab, const int* history, int history_len,
                         const SamplerParams& p, const int32_t* dtok, const int32_t* qbuf, int n_q, int* out,
                         void* stream);
+// STRATA_MTP_BLOCK_VERIFY=1 (LEADS.md S12): the same window judged by BLOCK verification (core/spec_block.hpp, device form
+// core/spec_block_dev.hpp): three launches, the last one warp for the whole window.  Same buffers and out[] contract as
+// sample_tokens_spec (n_tokens 2..17, n_q >= 1, qbuf required).  False (nothing launched, or a launch failed before anything ran)
+// where the split sampler cannot run: the caller then uses sample_tokens_spec.  Never called with the switch off.
+bool sample_tokens_spec_block(const float* logits, int n_tokens, int n_vocab, const int* history, int history_len,
+                              const SamplerParams& p, const int32_t* dtok, const int32_t* qbuf, int n_q, int* out,
+                              void* stream);
 // Explicit gated measure: rows<n_q use mu; n_q==n_tokens means a NULL tail.
 // n_q == 0 permits null qbuf: point-only rows, or plain sampling for T1.
 // Same device-buffer layout as sample_tokens_spec. False is a hard failure:

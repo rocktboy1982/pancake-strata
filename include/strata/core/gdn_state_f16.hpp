@@ -7,11 +7,15 @@
 // "round through FP16" used to take the numbers of an FP16 store without changing any size, and a self-describing blob
 // (magic, count, FP16 payload) for a compact store.  Error bound for a finite x with |x| <= 65504 (kF16MaxFinite):
 //     |round(x) - x| <= 2^-11 * |x|  for |x| >= 2^-14 (normal range),  <= 2^-25  below it (subnormal grid 2^-24).
-// What is wired today (conversation_state.cpp): the RESTORE of a checkpoint from its host bytes reads them through this
-// rounding, which is numerically the same as having stored FP16 and widened it back; the stored size is NOT yet halved
-// (every size check, the disk image and the VRAM slots still take z.gdn FP32 bytes): MOD_PLAN.md section 6.
+// What is wired (conversation_state.cpp, conversation_file.cpp): with the switch ON a checkpoint's GDN part is stored as the
+// compact blob below (ConversationCheckpoint::gdn_f16 = true; RAM copy, disk image, streamed disk blocks): about half the bytes.
+// The VRAM slots and the asynchronous device staging of a checkpoint are not used then (a slot holds exact FP32 and would not
+// be compact; there is no device-side FP16 conversion kernel): the save takes the synchronous path, FP32 to the host, encode.
+// A restore decodes the blob (or, for a checkpoint stored as FP32, reads it through the same rounding).  The disk header carries
+// a format flag so an image written with the switch off loads with it on and the other way round (see conversation_file.cpp).
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -189,5 +193,80 @@ inline bool decode(const uint8_t* blob, size_t blob_len, std::vector<uint8_t>& o
     }
     return true;
 }
+
+/// Bytes a stored GDN part takes: `raw_f32_bytes` (a multiple of 4) as FP32, or its compact blob.
+inline size_t stored_bytes(bool f16, size_t raw_f32_bytes) { return f16 ? blob_bytes(raw_f32_bytes / sizeof(float)) : raw_f32_bytes; }
+
+/// The FP32 bytes a blob of `blob_len` bytes holds; 0 when it cannot be one (shorter than the header, odd payload).
+inline size_t blob_raw_bytes(size_t blob_len) {
+    return blob_len < kBlobHeader || ((blob_len - kBlobHeader) & 1u) ? 0 : (blob_len - kBlobHeader) * 2;
+}
+
+/// Bytes [off, off + n) of the blob of an FP32 array of `n_values` values, without building the whole blob.  `read_f32(byte_offset,
+/// dst, bytes)` reads FP32 bytes of the array (offsets and sizes are multiples of 4).  `off` and `n` are arbitrary (a streamed block
+/// is any size, not a multiple of 4, and may start inside a value).  Returns false when the range is outside the blob or a read fails.
+template <class Read>
+inline bool blob_slice(const Read& read_f32, size_t n_values, size_t off, size_t n, uint8_t* dst, size_t* saturated = nullptr) {
+    const size_t total = blob_bytes(n_values);
+    if (off > total || n > total - off) return false;
+    if (n == 0) return true;
+    uint8_t head[kBlobHeader] = {};
+    const uint32_t ver = 1;
+    const uint64_t cnt = n_values;
+    std::memcpy(head, &kBlobMagic, 4);
+    std::memcpy(head + 4, &ver, 4);
+    std::memcpy(head + 8, &cnt, 8);
+    size_t done = 0;
+    if (off < kBlobHeader) {
+        const size_t c = std::min(n, kBlobHeader - off);
+        std::memcpy(dst, head + off, c);
+        done = c;
+    }
+    if (done == n) return true;
+    const size_t pb0 = off + done - kBlobHeader, pb1 = off + n - kBlobHeader;   // payload byte range
+    const size_t v0 = pb0 / 2, v1 = (pb1 + 1) / 2;                               // values touching it
+    constexpr size_t kChunk = (size_t) 1 << 18;   // 1 MiB of FP32 per read: few device copies for a 16 MiB block
+    std::vector<float> f(std::min(kChunk, v1 - v0));
+    std::vector<uint16_t> h(f.size());
+    for (size_t v = v0; v < v1; v += f.size()) {
+        const size_t k = std::min(f.size(), v1 - v);
+        if (!read_f32(v * sizeof(float), f.data(), k * sizeof(float))) return false;
+        bool s;
+        for (size_t i = 0; i < k; ++i) {
+            s = false;
+            h[i] = f32_to_f16(f[i], &s);
+            if (s && saturated) ++*saturated;
+        }
+        // the payload bytes of this chunk that fall inside [pb0, pb1)
+        const size_t c0 = std::max(pb0, 2 * v), c1 = std::min(pb1, 2 * (v + k));
+        const uint8_t* hb = reinterpret_cast<const uint8_t*>(h.data());
+        std::memcpy(dst + (kBlobHeader + c0 - off), hb + (c0 - 2 * v), c1 - c0);
+    }
+    return true;
+}
+
+/// A streamed restore of a blob: blocks of any size and offset arrive in order (a disk block is not a multiple of 4, and may start
+/// inside a value), are staged here (about half the FP32 bytes), and `finish` decodes the whole blob once it is complete.
+class BlobStage {
+public:
+    explicit BlobStage(size_t blob_len) : buf_(blob_len) {}
+    size_t size() const { return buf_.size(); }
+    /// The next block: `off` must continue exactly where the previous one ended and stay inside the blob.
+    bool put(size_t off, const void* data, size_t n) {
+        if (off != next_ || n > buf_.size() - next_) return false;
+        if (n) std::memcpy(buf_.data() + off, data, n);
+        next_ += n;
+        return true;
+    }
+    bool complete() const { return next_ == buf_.size(); }
+    /// Decodes into `f32` (FP32 bytes); false when the blob is incomplete, invalid, or not `expect_raw` FP32 bytes.
+    bool finish(std::vector<uint8_t>& f32, size_t expect_raw) const {
+        return complete() && decode(buf_.data(), buf_.size(), f32) && f32.size() == expect_raw;
+    }
+    void release() { std::vector<uint8_t>().swap(buf_); next_ = 0; }
+private:
+    std::vector<uint8_t> buf_;
+    size_t next_ = 0;
+};
 
 }  // namespace strata::core::gdn_f16
