@@ -1,0 +1,43 @@
+{
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "arms": {
+  "base": {},
+  "hwq1": {
+   "env": {
+    "GPU_MAX_HW_QUEUES": "1"
+   }
+  },
+  "hwq2": {
+   "env": {
+    "GPU_MAX_HW_QUEUES": "2"
+   }
+  }
+ },
+ "cases": [
+  "short",
+  "edit"
+ ],
+ "reps": 5,
+ "lossy": false,
+ "note": "LEADS.md Part S S1 (ROCm issue 6685: pending hipStreamWaitEvent raised the median tiny-kernel time from 2.5 to 19.4 us on gfx1201, gone with GPU_MAX_HW_QUEUES <= 2, absent on gfx1030). The preset sets GPU_MAX_HW_QUEUES=6 (arm base, no override); only 4 / 6 / 8 were measured (TEST_LEDGER.md T-010, T-528, spec 14 hwq4 / hwq8); 1 and 2 never. The arms differ ONLY in that one env value (hwq1 = 1, hwq2 = 2), no engine code; exact (the env moves placement only, text may differ by placement noise, never a quality verdict by itself). gfx1100 is a different ASIC: the effect is unverified there; the loss side is copy / compute overlap (fewer queues serialise the copy lanes, IC_WARM side stream, PF_AHEAD). Spec 253 = decode side (short, edit), 5 reps; spec 254 = prefill side (long64k). Run: abtest.py --tier screen --drift-check first, then the confirm with --block 3 --warmup 1 --outlier robust --reclaim-max 3 --reps 5 for an arm that shows >= 2% on a case. Driven by tools/pancake/box_chains/bench-hwq.v1.sh.",
+ "predict": [
+  {
+   "arm": "hwq1",
+   "case": "short",
+   "lo": -3.0,
+   "hi": 3.0,
+   "why": "0 to a few percent if the pending-wait tax exists on gfx1100, else noise"
+  },
+  {
+   "arm": "hwq2",
+   "case": "short",
+   "lo": -3.0,
+   "hi": 3.0,
+   "why": "same"
+  }
+ ],
+ "stop": [
+  "an arm whose server dies before ready twice: stop and read the engine log",
+  "base drift above 5% between the first and the last base start of the run: read it as INCONCLUSIVE (box state), never as a verdict (AGENTS.md flag testing protocol)"
+ ]
+}
