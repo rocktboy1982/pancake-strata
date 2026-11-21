@@ -249,6 +249,10 @@ STRATA_ENV("STRATA_VERIFY_DEFER_AUTO", KeyIfSet, "which windows defer CPU rows (
 STRATA_ENV("STRATA_VERIFY_DEFER_AUTO_MIN_T", KeyIfSet, "the smallest lookup window that defers (with STRATA_VERIFY_DEFER_AUTO)")
 STRATA_ENV("STRATA_TYPICAL_THINK", KeyIfSet, "Medusa typical acceptance inside the thinking (LEADS.md section 3, lossy accept): keyed conservatively")
 
+STRATA_ENV("STRATA_HIPBLASLT_HEURISTIC", KeyIfSet, "LEADS.md Part T T3: prompt GEMM calls without a table row take the hipBLASLt heuristic algorithm (another summation order; default off)")
+STRATA_ENV("STRATA_HIPBLASLT_HEURISTIC_COUNT", KeyIfSet, "STRATA_HIPBLASLT_HEURISTIC: how many heuristic algorithms are requested (which one is taken)")
+STRATA_ENV("STRATA_HIPBLASLT_TABLE_NEAREST", KeyIfSet, "LEADS.md Part T T2: a missing table of this hipBLASLt version takes the nearest OLDER table of the same card (other algorithms: another summation order; default off)")
+
 // ---- Unsure: may change what a state holds and no bit-equality claim was found or verified; treated as KeyIfSet (a stale hit is silent, a miss costs one prefill) (107) ----
 STRATA_ENV("STRATA_ATTN_V3", Unsure, "decode attention v3")
 STRATA_ENV("STRATA_DBG_FORCE_SLOW_LAYER", Unsure, "debug: forces the unfused path for layer 0")
@@ -1071,6 +1075,9 @@ STRATA_ENV("STRATA_WAIT_FUSE_ROWS", Speed, "bitwise: documented (docs/README/cod
 STRATA_ENV("STRATA_WARM_CU_MASK", Speed, "graph/stream plumbing: the IC_WARM stream limited to the first N CUs; same kernels and bytes (LEADS.md Part D)")
 STRATA_ENV("STRATA_XN_F16", Speed, "bitwise: documented (docs/README/code comment/parity test)")
 
+STRATA_ENV("STRATA_HIPBLASLT_WARMUP", Speed, "LEADS.md Part T T4: the table's shapes run once at Gemm init, before ready (same algorithms, same bits; default off)")
+STRATA_ENV("STRATA_HIPBLASLT_WARMUP_MAX_MIB", Speed, "STRATA_HIPBLASLT_WARMUP: workspace cap in MiB of the warm-up (default 768)")
+
 // ---- Inert: diagnostics, test hooks, paths, limits, io, tools and other engines; must not be in the key (277) ----
 STRATA_ENV("STRATA_WINDOW_EVICT_LONG", Inert, "which cached window graphs are freed under VRAM pressure; a graph is captured again when used (LEADS.md Part H)")
 STRATA_ENV("STRATA_CAPTURE_BEAT", Inert, "watchdog heartbeat after a window graph capture (LEADS.md Part H)")
@@ -1131,6 +1138,8 @@ STRATA_ENV("STRATA_EXPERT_ENTROPY_TIER_SLOTS", Speed, "LEADS.md A29: staging rin
 STRATA_ENV("STRATA_EXPERT_ENTROPY_TIER_THREADS", Speed, "LEADS.md A29: decode helper threads")
 STRATA_ENV("STRATA_DISPATCH_REPORT", Inert, "diagnostic/test hook")
 STRATA_ENV("STRATA_DISPATCH_STATS", Inert, "diagnostic/test hook")
+STRATA_ENV("STRATA_HIPBLASLT_TABLE_STRICT", Inert, "LEADS.md Part T T2: refuse to start when the table is missing (no arithmetic; default off)")
+STRATA_ENV("STRATA_DISPATCH_SERVED", Inert, "diagnostic: the served-path census gate for the CLI --stats (counters only)")
 STRATA_ENV("STRATA_DRAFT_LOG", Inert, "diagnostic/test hook")
 STRATA_ENV("STRATA_DRAFT_TIMING", Inert, "diagnostic/test hook")
 STRATA_ENV("STRATA_DS4_A_MB", Inert, "other engine (strata-dsv41 / metal): own binary, own slot store")

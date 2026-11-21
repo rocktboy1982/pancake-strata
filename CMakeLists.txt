@@ -2036,6 +2036,12 @@ if(STRATA_ENABLE_CUDA OR STRATA_ENABLE_HIP)
   target_link_libraries(spec_verify_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
   add_test(NAME spec_verify_parity COMMAND spec_verify_parity)
   set_tests_properties(spec_verify_parity PROPERTIES ENVIRONMENT "STRATA_OLD_SAMPLER=0;STRATA_SAMPLER_ONE_BLOCK=0")
+  # the DEVICE block verifier (STRATA_MTP_BLOCK_VERIFY, S12 follow-up) against its serial twin (spec_block_dev.hpp run_serial) on the same logits
+  add_executable(spec_block_verify_parity src/kernels/spec_block_verify_parity.cpp)
+  target_include_directories(spec_block_verify_parity PRIVATE ${_strata_gpu_include_directories})
+  target_link_libraries(spec_block_verify_parity PRIVATE strata_kernels ${_strata_gpu_runtime_target})
+  add_test(NAME spec_block_verify_parity COMMAND spec_block_verify_parity)
+  set_tests_properties(spec_block_verify_parity PROPERTIES ENVIRONMENT "STRATA_OLD_SAMPLER=0;STRATA_SAMPLER_ONE_BLOCK=0")
   # MOD_PLAN.md section 6 item 17 part 17 (STRATA_DEVICE_ACCEPT): the device accept + commit record vs the host rule
   add_executable(device_accept_parity src/kernels/device_accept_parity.cpp)
   target_include_directories(device_accept_parity PRIVATE ${_strata_gpu_include_directories})
