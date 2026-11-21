@@ -48,3 +48,63 @@ STARTLOAD 2026-11-21T12:50:17 loaded 33.02 GiB at 0.20 GiB/s rate=0.20
 rep 0 base-late            short 101.7 short 81.9 edit 162.4 edit 148.6 longdec64k 79.0/1605p 65241t  foreign CPU 5% [('kcompactd0', 9), ('kworker/3:0-events_freezable', 6), ('kswapd0', 3)]  gpu 2036/1249 MHz 62C 183W gtt 25M cpu 3704MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1605, pack load 0.2 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
 SETTLE 120 after a 266 s run
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+STARTDIAG 2026-11-21T12:55:36 prev_run_s=266 gap_s=511 rd_sect=158952290256 wr_sect=110778352 io_ticks_ms=123567312 d_rd_sect=122244808 d_wr_sect=144 d_io_ticks_ms=234749 cached_kb=38733724 mlocked_kb=64 memavail_kb=58087232 nvme_temp_c=48 compact_stall_d=18
+STARTLOAD 2026-11-21T12:56:24 loaded 33.02 GiB at 1.11 GiB/s rate=1.11
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 33.9 s (1.07 GiB/s; stopped; waited 12.4 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 110.7 short 103.2 edit 169.6 edit 169.1 longdec64k 83.8/2184p 65241t  foreign CPU 2% [('kcompactd0', 2), ('kworker/13:3-mm_percpu_wq', 1), ('systemd-journal', 0)]  gpu 2042/1249 MHz 60C 188W gtt 25M cpu 3744MHz 65C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-late: first start prefill 1605 / load 0.2 GiB/s (paused 12:51:31), second start prefill 2184 / load 1.11 GiB/s
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 100.5 +-   3.2  (n=2)
+                              drafts accepted 0.67
+  short  plus-QSA_FUSE_GATE      104.8 +-  16.5  (n=2)   vs updated:  +4.2% +- 13.3%  -> no difference
+                              drafts accepted 0.71
+  short  plus-SH_FORK_LATE       101.0 +-   8.9  (n=2)   vs updated:  +0.4% +-  5.7%  -> no difference
+                              drafts accepted 0.67
+  short  base-m1                 104.6 +-  21.6  (n=2)   vs updated:  +4.0% +- 18.3%  -> no difference
+                              drafts accepted 0.70
+  short  plus-SMALL_UNR          101.0 +-   5.7  (n=2)   vs updated:  +0.4% +-  2.5%  -> no difference
+                              drafts accepted 0.67
+  short  plus-Q6_PACKED           88.5 +- 165.9  (n=2)   vs updated: -11.9% +- 168.1%  -> no difference
+                              drafts accepted 0.70
+  short  base-late               107.0 +-  47.7  (n=2)   vs updated:  +6.4% +- 44.2%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 175.0 +- 110.6  (n=2)
+                              drafts accepted 0.89
+  edit   plus-QSA_FUSE_GATE      169.5 +-   2.5  (n=2)   vs updated:  -3.1% +- 64.6%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-SH_FORK_LATE       177.0 +-  38.1  (n=2)   vs updated:  +1.1% +- 41.4%  -> no difference
+                              drafts accepted 0.90
+  edit   base-m1                 173.4 +- 127.7  (n=2)   vs updated:  -0.9% +-  9.8%  -> no difference
+                              drafts accepted 0.88
+  edit   plus-SMALL_UNR          169.2 +-  87.1  (n=2)   vs updated:  -3.3% +- 13.4%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-Q6_PACKED          114.9 +-  71.8  (n=2)   vs updated: -34.3% +- 104.2%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               169.3 +-   3.2  (n=2)   vs updated:  -3.2% +- 65.0%  -> no difference
+                              drafts accepted 0.90
+  longdec64k updated                  85.6 +-   nan  (n=1)
+  longdec64k plus-QSA_FUSE_GATE       81.1 +-   nan  (n=1)   vs updated:  -5.3% +-  nan%  -> no difference
+  longdec64k plus-SH_FORK_LATE        88.3 +-   nan  (n=1)   vs updated:  +3.2% +-  nan%  -> no difference
+  longdec64k base-m1                  82.2 +-   nan  (n=1)   vs updated:  -4.0% +-  nan%  -> no difference
+  longdec64k plus-SMALL_UNR           85.0 +-   nan  (n=1)   vs updated:  -0.7% +-  nan%  -> no difference
+  longdec64k plus-Q6_PACKED           92.3 +-   nan  (n=1)   vs updated:  +7.8% +-  nan%  -> no difference
+  longdec64k base-late                83.8 +-   nan  (n=1)   vs updated:  -2.1% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-QSA_FUSE_GATE   DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-SH_FORK_LATE    DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-SMALL_UNR       DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-Q6_PACKED       DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +6.4%  edit -3.2%  longdec64k -2.1%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-QSA_FUSE_GATE   short +1.0%  edit -1.6%  longdec64k -4.3%  -> drop
+  plus-SH_FORK_LATE    short -2.7%  edit +2.8%  longdec64k +4.3%  -> PROMOTE to confirm
+  base-m1              short +0.8%  edit +0.7%  longdec64k -3.0%  -> PROMOTE to confirm
+  plus-SMALL_UNR       short -2.7%  edit -1.7%  longdec64k +0.4%  -> PROMOTE to confirm
+  plus-Q6_PACKED       short -14.7%  edit -33.2%  longdec64k +9.0%  -> drop
