@@ -1,0 +1,699 @@
+{
+ "schema": "pancake.sweep-triage/2",
+ "branch": "us",
+ "slices": [
+  "usS2r-5-1of1"
+ ],
+ "protected": {
+  "STRATA_VERIFY_ECAP": [
+   "edit"
+  ],
+  "STRATA_RDNA_Q6K": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_GR_RDNA": [
+   "short",
+   "edit",
+   "longdec32k"
+  ],
+  "STRATA_RDNA_MMVQ_WAVE": [
+   "short",
+   "edit",
+   "longdec32k"
+  ]
+ },
+ "drift_max": 5.0,
+ "flags": {
+  "STRATA_Q6_PACKED": {
+   "flag": "STRATA_Q6_PACKED",
+   "kind": "plus",
+   "keys": [
+    "STRATA_Q6_PACKED"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_Q6_PACKED": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": -1.38,
+    "edit": 2.73,
+    "longdec64k": -1.76,
+    "longdec64k-prompt": -0.29
+   },
+   "run1_best": "edit",
+   "arm": "plus-Q6_PACKED",
+   "slice": "usS2r-5-1of1",
+   "pass1": {
+    "short": -16.28,
+    "edit": -32.93,
+    "longdec64k": 11.2,
+    "longdec64k-prompt": -29.85
+   },
+   "promising": false,
+   "pass2": {
+    "short": -8.83,
+    "edit": -15.1,
+    "longdec64k": 4.72,
+    "longdec64k-prompt": -15.07
+   },
+   "block": "us-p1-usS2r-5-1of1-b01",
+   "drift1": {
+    "short": 0.29,
+    "edit": -7.85,
+    "longdec64k": 1.95
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS2r-5-1of1-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": true,
+   "carry": false,
+   "spread": {
+    "short": 14.9,
+    "edit": 35.66,
+    "longdec64k": 12.96,
+    "longdec64k-prompt": 29.56
+   },
+   "runs": [
+    {
+     "short": -1.38,
+     "edit": 2.73,
+     "longdec64k": -1.76,
+     "longdec64k-prompt": -0.29
+    },
+    {
+     "short": -16.28,
+     "edit": -32.93,
+     "longdec64k": 11.2,
+     "longdec64k-prompt": -29.85
+    }
+   ],
+   "pass2_design": "two-run: run 1 (screen) + run 2 (rescreen), mean effect, spread = their difference",
+   "verdict": "DROP",
+   "reason": "two-run rule: no case above 0 in both runs (run 2 does not repeat the benefit, or both <= 0): no gain"
+  },
+  "STRATA_QSA_FUSE_GATE": {
+   "flag": "STRATA_QSA_FUSE_GATE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_QSA_FUSE_GATE"
+   ],
+   "exact": false,
+   "env": {
+    "STRATA_QSA_FUSE_GATE": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Unsure: QSA gate fusion); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": -4.34,
+    "edit": 2.91,
+    "longdec64k": -7.1,
+    "longdec64k-prompt": -0.27
+   },
+   "run1_best": "edit",
+   "arm": "plus-QSA_FUSE_GATE",
+   "slice": "usS2r-5-1of1",
+   "pass1": {
+    "short": 2.17,
+    "edit": -2.71,
+    "longdec64k": -3.34,
+    "longdec64k-prompt": -0.17
+   },
+   "promising": false,
+   "pass2": {
+    "short": -1.08,
+    "edit": 0.1,
+    "longdec64k": -5.22,
+    "longdec64k-prompt": -0.22
+   },
+   "block": "us-p1-usS2r-5-1of1-b01",
+   "drift1": {
+    "short": 2.59,
+    "edit": -0.11,
+    "longdec64k": -3.97
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS2r-5-1of1-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": true,
+   "carry": false,
+   "spread": {
+    "short": 6.51,
+    "edit": 5.62,
+    "longdec64k": 3.76,
+    "longdec64k-prompt": 0.1
+   },
+   "runs": [
+    {
+     "short": -4.34,
+     "edit": 2.91,
+     "longdec64k": -7.1,
+     "longdec64k-prompt": -0.27
+    },
+    {
+     "short": 2.17,
+     "edit": -2.71,
+     "longdec64k": -3.34,
+     "longdec64k-prompt": -0.17
+    }
+   ],
+   "pass2_design": "two-run: run 1 (screen) + run 2 (rescreen), mean effect, spread = their difference",
+   "verdict": "DROP",
+   "reason": "two-run rule: no case above 0 in both runs (run 2 does not repeat the benefit, or both <= 0): no gain"
+  },
+  "STRATA_SH_FORK_LATE": {
+   "flag": "STRATA_SH_FORK_LATE",
+   "kind": "plus",
+   "keys": [
+    "STRATA_SH_FORK_LATE"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_SH_FORK_LATE": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": 1.37,
+    "edit": -0.23,
+    "longdec64k": 3.37,
+    "longdec64k-prompt": -0.04
+   },
+   "run1_best": "longdec64k",
+   "arm": "plus-SH_FORK_LATE",
+   "slice": "usS2r-5-1of1",
+   "pass1": {
+    "short": -1.54,
+    "edit": 1.59,
+    "longdec64k": 5.24,
+    "longdec64k-prompt": 0.15
+   },
+   "promising": true,
+   "pass2": {
+    "short": -0.08,
+    "edit": 0.68,
+    "longdec64k": 4.3,
+    "longdec64k-prompt": 0.05
+   },
+   "block": "us-p1-usS2r-5-1of1-b01",
+   "drift1": {
+    "short": 2.59,
+    "edit": -0.11,
+    "longdec64k": -3.97
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS2r-5-1of1-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": true,
+   "carry": false,
+   "spread": {
+    "short": 2.91,
+    "edit": 1.82,
+    "longdec64k": 1.87,
+    "longdec64k-prompt": 0.19
+   },
+   "runs": [
+    {
+     "short": 1.37,
+     "edit": -0.23,
+     "longdec64k": 3.37,
+     "longdec64k-prompt": -0.04
+    },
+    {
+     "short": -1.54,
+     "edit": 1.59,
+     "longdec64k": 5.24,
+     "longdec64k-prompt": 0.15
+    }
+   ],
+   "pass2_design": "two-run: run 1 (screen) + run 2 (rescreen), mean effect, spread = their difference",
+   "verdict": "KEEP",
+   "reason": "two-run rule: the benefit repeats in the same direction (longdec64k +4.30 % (runs +3.37 / +5.24))"
+  },
+  "STRATA_SMALL_UNR": {
+   "flag": "STRATA_SMALL_UNR",
+   "kind": "plus",
+   "keys": [
+    "STRATA_SMALL_UNR"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_SMALL_UNR": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": -1.79,
+    "edit": 5.14,
+    "longdec64k": 4.77,
+    "longdec64k-prompt": 2.66
+   },
+   "run1_best": "edit",
+   "arm": "plus-SMALL_UNR",
+   "slice": "usS2r-5-1of1",
+   "pass1": {
+    "short": -4.56,
+    "edit": -1.25,
+    "longdec64k": 2.41,
+    "longdec64k-prompt": -0.37
+   },
+   "promising": false,
+   "pass2": {
+    "short": -3.17,
+    "edit": 1.94,
+    "longdec64k": 3.59,
+    "longdec64k-prompt": 1.15
+   },
+   "block": "us-p1-usS2r-5-1of1-b01",
+   "drift1": {
+    "short": 0.29,
+    "edit": -7.85,
+    "longdec64k": 1.95
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS2r-5-1of1-b01"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": true,
+   "carry": false,
+   "spread": {
+    "short": 2.77,
+    "edit": 6.39,
+    "longdec64k": 2.36,
+    "longdec64k-prompt": 3.03
+   },
+   "runs": [
+    {
+     "short": -1.79,
+     "edit": 5.14,
+     "longdec64k": 4.77,
+     "longdec64k-prompt": 2.66
+    },
+    {
+     "short": -4.56,
+     "edit": -1.25,
+     "longdec64k": 2.41,
+     "longdec64k-prompt": -0.37
+    }
+   ],
+   "pass2_design": "two-run: run 1 (screen) + run 2 (rescreen), mean effect, spread = their difference",
+   "verdict": "KEEP",
+   "reason": "two-run rule: the benefit repeats in the same direction (longdec64k +3.59 % (runs +4.77 / +2.41))"
+  },
+  "STRATA_STAGE_TRIM": {
+   "flag": "STRATA_STAGE_TRIM",
+   "kind": "plus",
+   "keys": [
+    "STRATA_STAGE_TRIM"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_STAGE_TRIM": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: placement/tiering of experts (same math, GPU vs CPU)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": 1.57,
+    "edit": 4.3,
+    "longdec64k": -4.93,
+    "longdec64k-prompt": 3.46
+   },
+   "run1_best": "edit",
+   "arm": "plus-STAGE_TRIM",
+   "slice": "usS2r-5-1of1",
+   "pass1": {
+    "short": 5.22,
+    "edit": -2.67,
+    "longdec64k": -1.24,
+    "longdec64k-prompt": 0.39
+   },
+   "promising": false,
+   "pass2": {
+    "short": 3.4,
+    "edit": 0.81,
+    "longdec64k": -3.08,
+    "longdec64k-prompt": 1.93
+   },
+   "block": "us-p1-usS2r-5-1of1-b02",
+   "drift1": {
+    "short": -6.7,
+    "edit": 5.51,
+    "longdec64k": -2.21
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS2r-5-1of1-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": true,
+   "carry": false,
+   "spread": {
+    "short": 3.65,
+    "edit": 6.97,
+    "longdec64k": 3.69,
+    "longdec64k-prompt": 3.07
+   },
+   "runs": [
+    {
+     "short": 1.57,
+     "edit": 4.3,
+     "longdec64k": -4.93,
+     "longdec64k-prompt": 3.46
+    },
+    {
+     "short": 5.22,
+     "edit": -2.67,
+     "longdec64k": -1.24,
+     "longdec64k-prompt": 0.39
+    }
+   ],
+   "pass2_design": "two-run: run 1 (screen) + run 2 (rescreen), mean effect, spread = their difference",
+   "verdict": "KEEP",
+   "reason": "two-run rule: the benefit repeats in the same direction (short +3.40 % (runs +1.57 / +5.22), longdec64k-prompt +1.93 % (runs +3.46 / +0.39))"
+  },
+  "STRATA_TOPK_ACTIVE_ANY": {
+   "flag": "STRATA_TOPK_ACTIVE_ANY",
+   "kind": "plus",
+   "keys": [
+    "STRATA_TOPK_ACTIVE_ANY"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_TOPK_ACTIVE_ANY": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": 1.43,
+    "edit": 1.73,
+    "longdec64k": 1.84,
+    "longdec64k-prompt": 3.23
+   },
+   "run1_best": "longdec64k-prompt",
+   "arm": "plus-TOPK_ACTIVE_ANY",
+   "slice": "usS2r-5-1of1",
+   "pass1": {
+    "short": 3.46,
+    "edit": 0.72,
+    "longdec64k": 2.11,
+    "longdec64k-prompt": -0.09
+   },
+   "promising": false,
+   "pass2": {
+    "short": 2.44,
+    "edit": 1.23,
+    "longdec64k": 1.98,
+    "longdec64k-prompt": 1.57
+   },
+   "block": "us-p1-usS2r-5-1of1-b02",
+   "drift1": {
+    "short": -6.7,
+    "edit": 5.51,
+    "longdec64k": -2.21
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS2r-5-1of1-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": true,
+   "carry": false,
+   "spread": {
+    "short": 2.03,
+    "edit": 1.01,
+    "longdec64k": 0.27,
+    "longdec64k-prompt": 3.32
+   },
+   "runs": [
+    {
+     "short": 1.43,
+     "edit": 1.73,
+     "longdec64k": 1.84,
+     "longdec64k-prompt": 3.23
+    },
+    {
+     "short": 3.46,
+     "edit": 0.72,
+     "longdec64k": 2.11,
+     "longdec64k-prompt": -0.09
+    }
+   ],
+   "pass2_design": "two-run: run 1 (screen) + run 2 (rescreen), mean effect, spread = their difference",
+   "verdict": "KEEP",
+   "reason": "two-run rule: the benefit repeats in the same direction (short +2.44 % (runs +1.43 / +3.46), edit +1.23 % (runs +1.73 / +0.72), longdec64k +1.98 % (runs +1.84 / +2.11))"
+  },
+  "STRATA_TSUM": {
+   "flag": "STRATA_TSUM",
+   "kind": "plus",
+   "keys": [
+    "STRATA_TSUM"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_TSUM": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": -2.77,
+    "edit": -3.0,
+    "longdec64k": 6.13,
+    "longdec64k-prompt": -0.57
+   },
+   "run1_best": "longdec64k",
+   "arm": "plus-TSUM",
+   "slice": "usS2r-5-1of1",
+   "pass1": {
+    "short": 6.04,
+    "edit": -0.07,
+    "longdec64k": 8.4,
+    "longdec64k-prompt": -0.2
+   },
+   "promising": true,
+   "pass2": {
+    "short": 1.64,
+    "edit": -1.53,
+    "longdec64k": 7.27,
+    "longdec64k-prompt": -0.39
+   },
+   "block": "us-p1-usS2r-5-1of1-b02",
+   "drift1": {
+    "short": -0.7,
+    "edit": -7.22,
+    "longdec64k": 1.88
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS2r-5-1of1-b02"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": true,
+   "carry": false,
+   "spread": {
+    "short": 8.81,
+    "edit": 2.93,
+    "longdec64k": 2.27,
+    "longdec64k-prompt": 0.37
+   },
+   "runs": [
+    {
+     "short": -2.77,
+     "edit": -3.0,
+     "longdec64k": 6.13,
+     "longdec64k-prompt": -0.57
+    },
+    {
+     "short": 6.04,
+     "edit": -0.07,
+     "longdec64k": 8.4,
+     "longdec64k-prompt": -0.2
+    }
+   ],
+   "pass2_design": "two-run: run 1 (screen) + run 2 (rescreen), mean effect, spread = their difference",
+   "verdict": "KEEP",
+   "reason": "two-run rule: the benefit repeats in the same direction (longdec64k +7.27 % (runs +6.13 / +8.40))"
+  },
+  "STRATA_VERIFY_ASYNC_LAUNCH": {
+   "flag": "STRATA_VERIFY_ASYNC_LAUNCH",
+   "kind": "plus",
+   "keys": [
+    "STRATA_VERIFY_ASYNC_LAUNCH"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_VERIFY_ASYNC_LAUNCH": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": 1.85,
+    "edit": -2.25,
+    "longdec64k": 2.33,
+    "longdec64k-prompt": -0.28
+   },
+   "run1_best": "longdec64k",
+   "arm": "plus-VERIFY_ASYNC_LAUNCH",
+   "slice": "usS2r-5-1of1",
+   "pass1": {
+    "short": -3.75,
+    "edit": -1.25,
+    "longdec64k": 6.5,
+    "longdec64k-prompt": -0.59
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-5-1of1-b03",
+   "drift1": {
+    "short": 0.19,
+    "edit": -6.43,
+    "longdec64k": 10.04
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-5-1of1-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "floor_note": "a metric below -3 % in pass 1 (longdec64k +6.5 %): reported, the confirm decides",
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-5-1of1-b03 base drift longdec64k +10.0 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice"
+  },
+  "STRATA_VERIFY_COHERENT": {
+   "flag": "STRATA_VERIFY_COHERENT",
+   "kind": "plus",
+   "keys": [
+    "STRATA_VERIFY_COHERENT"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_VERIFY_COHERENT": "1"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: graph/stream/doorbell plumbing); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": 2.21,
+    "edit": 0.97,
+    "longdec64k": -5.06,
+    "longdec64k-prompt": 0.09
+   },
+   "run1_best": "short",
+   "arm": "plus-VERIFY_COHERENT",
+   "slice": "usS2r-5-1of1",
+   "pass1": {
+    "short": -4.42,
+    "edit": 2.79,
+    "longdec64k": -1.96,
+    "longdec64k-prompt": 0.43
+   },
+   "promising": false,
+   "pass2": null,
+   "block": "us-p1-usS2r-5-1of1-b03",
+   "drift1": {
+    "short": 0.19,
+    "edit": -6.43,
+    "longdec64k": 10.04
+   },
+   "clean1": false,
+   "blocks_run": [
+    "us-p1-usS2r-5-1of1-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": null,
+   "carry": false,
+   "verdict": "INCONCLUSIVE",
+   "reason": "pass-1 block us-p1-usS2r-5-1of1-b03 base drift longdec64k +10.0 % > 5 % (after its re-run): no verdict"
+  },
+  "STRATA_XN_F16": {
+   "flag": "STRATA_XN_F16",
+   "kind": "plus",
+   "keys": [
+    "STRATA_XN_F16"
+   ],
+   "exact": true,
+   "env": {
+    "STRATA_XN_F16": "0"
+   },
+   "args": {},
+   "why": "coded switch (disk-env class Speed: bitwise: documented (docs/README/code comment/parity test)); no gfx1100 ledger row",
+   "source": "conversation_disk_env.def + branch code",
+   "run1": {
+    "short": 3.82,
+    "edit": -4.22,
+    "longdec64k": 0.72,
+    "longdec64k-prompt": 0.3
+   },
+   "run1_best": "short",
+   "arm": "plus-XN_F16",
+   "slice": "usS2r-5-1of1",
+   "pass1": {
+    "short": 1.54,
+    "edit": -0.01,
+    "longdec64k": -1.43,
+    "longdec64k-prompt": 0.08
+   },
+   "promising": true,
+   "pass2": {
+    "short": 2.68,
+    "edit": -2.11,
+    "longdec64k": -0.35,
+    "longdec64k-prompt": 0.19
+   },
+   "block": "us-p1-usS2r-5-1of1-b03",
+   "drift1": {
+    "short": -3.1,
+    "edit": 5.36,
+    "longdec64k": -4.21
+   },
+   "clean1": true,
+   "blocks_run": [
+    "us-p1-usS2r-5-1of1-b03"
+   ],
+   "pass2_drift": null,
+   "pass2_clean": true,
+   "carry": false,
+   "spread": {
+    "short": 2.28,
+    "edit": 4.21,
+    "longdec64k": 2.15,
+    "longdec64k-prompt": 0.22
+   },
+   "runs": [
+    {
+     "short": 3.82,
+     "edit": -4.22,
+     "longdec64k": 0.72,
+     "longdec64k-prompt": 0.3
+    },
+    {
+     "short": 1.54,
+     "edit": -0.01,
+     "longdec64k": -1.43,
+     "longdec64k-prompt": 0.08
+    }
+   ],
+   "pass2_design": "two-run: run 1 (screen) + run 2 (rescreen), mean effect, spread = their difference",
+   "verdict": "KEEP",
+   "reason": "two-run rule: the benefit repeats in the same direction (short +2.68 % (runs +3.82 / +1.54), longdec64k-prompt +0.19 % (runs +0.30 / +0.08))"
+  }
+ }
+}
