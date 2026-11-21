@@ -30,3 +30,15 @@ STARTDIAG 2026-11-21T12:43:07 prev_run_s=110 gap_s=115 rd_sect=158669103344 wr_s
 STARTLOAD 2026-11-21T12:43:51 loaded 33.02 GiB at 1.21 GiB/s rate=1.21
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 31.0 s (1.17 GiB/s; stopped; waited 11.3 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-SMALL_UNR       short 101.4 short 100.5 edit 162.4 edit 176.1 longdec64k 85.0/2171p 65241t  foreign CPU 6% [('kcompactd0', 7), ('kworker/3:0-events_freezable', 5), ('kworker/3:1-mm_percpu_wq', 3)]  gpu 2031/1249 MHz 65C 194W gtt 25M cpu 3706MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-SMALL_UNR: every attempt noisy, keeping the quietest (6% foreign CPU)
+STARTDIAG 2026-11-21T12:44:53 prev_run_s=101 gap_s=106 rd_sect=158740869248 wr_sect=110778096 io_ticks_ms=123260308 d_rd_sect=71765904 d_wr_sect=64 d_io_ticks_ms=38276 cached_kb=13847124 mlocked_kb=64 memavail_kb=58072220 nvme_temp_c=52 compact_stall_d=13
+STARTLOAD 2026-11-21T12:45:42 loaded 33.02 GiB at 1.06 GiB/s rate=1.06
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 20.98 35.9 s (0.58 GiB/s; stopped; waited 11.4 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-Q6_PACKED       short 75.5 short 101.6 edit 120.6 edit 109.3 longdec64k 92.3/1529p 65241t  foreign CPU 4% [('kcompactd0', 6), ('kswapd0', 3), ('kworker/3:1+events_freezable', 2)]  gpu 1975/1249 MHz 64C 174W gtt 25M cpu 3653MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-Q6_PACKED: every attempt noisy, keeping the quietest (4% foreign CPU)
+STARTDIAG 2026-11-21T12:47:06 prev_run_s=128 gap_s=133 rd_sect=158830045448 wr_sect=110778208 io_ticks_ms=123332563 d_rd_sect=89176200 d_wr_sect=112 d_io_ticks_ms=72255 cached_kb=16141844 mlocked_kb=64 memavail_kb=58107300 nvme_temp_c=53 compact_stall_d=11
+SLOWLOAD waiting for the engine: not ready, elapsed 60 s
+SLOWLOAD waiting for the engine: not ready, elapsed 120 s
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 16.95 132.5 s (0.13 GiB/s; capped; waited 17.5 s for the arena)
