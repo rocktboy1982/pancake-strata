@@ -14,3 +14,12 @@ STARTDIAG 2026-11-21T02:17:29 prev_run_s=113 gap_s=118 rd_sect=139494955080 wr_s
 STARTLOAD 2026-11-21T02:18:27 loaded 33.02 GiB at 0.81 GiB/s rate=0.81
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 44.8 s (0.81 GiB/s; stopped; waited 11.5 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 minus-RDNA_Q6K       short 91.2 short 95.4 edit 137.3 edit 117.0 longdec64k 58.2/1691p 65238t  foreign CPU 6% [('kcompactd0', 12), ('kworker/1:2-events', 3), ('kworker/1:0-events_freezable', 3)]  gpu 2045/1249 MHz 63C 189W gtt 25M cpu 3599MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 minus-RDNA_Q6K: every attempt noisy, keeping the quietest (6% foreign CPU)
+SETTLE 120 after a 134 s run
+STARTDIAG 2026-11-21T02:21:48 prev_run_s=134 gap_s=259 rd_sect=139574877544 wr_sect=110755312 io_ticks_ms=108206309 d_rd_sect=79922464 d_wr_sect=144 d_io_ticks_ms=71127 cached_kb=13323648 mlocked_kb=64 memavail_kb=57879224 nvme_temp_c=49 compact_stall_d=4
+STARTLOAD 2026-11-21T02:22:40 loaded 33.02 GiB at 0.99 GiB/s rate=0.99
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.45 38.1 s (0.96 GiB/s; stopped; waited 12.2 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 109.0 short 103.8 edit 169.4 edit 152.6 longdec64k 78.5/1615p 65238t  foreign CPU 3% [('kcompactd0', 6), ('kswapd0', 1), ('claude', 1)]  gpu 2035/1249 MHz 62C 190W gtt 25M cpu 3770MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1615, pack load 0.99 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
