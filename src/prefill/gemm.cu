@@ -37,6 +37,9 @@
 
 #if defined(__HIPCC__) && defined(STRATA_HIPBLASLT_AVAILABLE)
 #include "hipblaslt_tuning.hpp"
+#include "hipblaslt_policy.hpp"
+#include <chrono>
+#include <vector>
 #if defined(_WIN32)
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -277,6 +280,7 @@ struct HipLtState {
     void* workspace = nullptr;
     size_t workspace_bytes = 0;
     strata::prefill::hipblaslt::TuningTable table;
+    strata::prefill::hipblaslt::Switches sw;   // T2 / T3 / T4 switches (hipblaslt_policy.hpp), read once at creation
     // `mu` guards cache, fallback_shapes and the descriptor cache (desc_cache, desc_tick and its counters): a Gemm may be
     // reached from more than one host thread.  The launch itself runs outside it.
     std::mutex mu;
@@ -368,16 +372,26 @@ std::string own_tuning_dir() {
 }
 
 std::unique_ptr<HipLtState> create_hipblaslt_state(void* workspace, size_t workspace_bytes) {
+    namespace hl = strata::prefill::hipblaslt;
+    const hl::Switches sw = hl::Switches::from_env(hl::process_env());
+    if (!sw.note.empty()) std::fprintf(stderr, "prefill gemm: %s\n", sw.note.c_str());
     std::string path_own;
     const char* path = std::getenv("STRATA_HIPBLASLT_TUNING");
     bool from_package = false;
+    bool table_off = false;
     if (!path || !*path) {
-        const char* sw = std::getenv("STRATA_HIPBLASLT_TABLE");     // the launcher's switch: off / 0 / false = never the packaged table
-        if (sw != nullptr && (std::strcmp(sw, "off") == 0 || std::strcmp(sw, "0") == 0 || std::strcmp(sw, "false") == 0)) return nullptr;
-        from_package = true;                                          // the file is found below, once the card and the version are known
+        const char* tsw = std::getenv("STRATA_HIPBLASLT_TABLE");     // the launcher's switch: off / 0 / false = never the packaged table
+        if (tsw != nullptr && (std::strcmp(tsw, "off") == 0 || std::strcmp(tsw, "0") == 0 || std::strcmp(tsw, "false") == 0)) {
+            // T3: with STRATA_HIPBLASLT_HEURISTIC=1 the state still exists (no table, the library's own choice); without it, as before
+            if (!sw.heuristic) return nullptr;
+            table_off = true;
+        } else {
+            from_package = true;                                      // the file is found below, once the card and the version are known
+        }
     }
 
     auto state = std::make_unique<HipLtState>();
+    state->sw = sw;
     state->workspace = workspace;
     state->workspace_bytes = workspace_bytes;
     if (hipblasLtCreate(&state->handle) != HIPBLAS_STATUS_SUCCESS) {
@@ -400,19 +414,52 @@ std::unique_ptr<HipLtState> create_hipblaslt_state(void* workspace, size_t works
     const auto suffix = arch.find(':');
     if (suffix != std::string::npos) arch.resize(suffix);
 
-    if (from_package) {
-        const std::string dir = own_tuning_dir();
-        if (dir.empty()) return nullptr;
-        path_own = dir + arch + "-hipblaslt-" + std::to_string(version) + ".txt";
-        std::FILE* f = std::fopen(path_own.c_str(), "rb");
-        if (f == nullptr) return nullptr;       // no table for this card and hipBLASLt version beside the engine: plain hipBLAS as before
-        std::fclose(f);
-        path = path_own.c_str();
-    }
-    std::string error;
-    if (!state->table.load(path, arch, version, error)) {
-        std::fprintf(stderr, "prefill gemm: %s; using hipBLASEx\n", error.c_str());
-        return nullptr;
+    // T2: every way of ending up without a table is said, with the key looked for and the keys found; STRICT refuses to start.
+    const std::string key = hl::table_key(arch, version);
+    const auto no_table = [&](const std::string& message, const char* status) -> bool {
+        std::fprintf(stderr, "prefill gemm: %s\n", message.c_str());
+        std::fprintf(stderr, "prefill gemm: hipBLASLt table status=%s key=%s heuristic=%d strict=%d\n", status, key.c_str(),
+                     sw.heuristic ? 1 : 0, sw.strict ? 1 : 0);
+        if (sw.strict) std::exit(1);
+        return sw.heuristic;   // true: carry on with an empty table and the heuristic arm; false: plain hipBLASEx
+    };
+    int table_version = version;
+    if (table_off) {
+        std::fprintf(stderr, "prefill gemm: hipBLASLt table status=off key=%s heuristic=1 (STRATA_HIPBLASLT_TABLE=off + "
+                             "STRATA_HIPBLASLT_HEURISTIC=1: no table, hipBLASLt's own choice per call)\n", key.c_str());
+    } else {
+        bool have_file = true;
+        if (from_package) {
+            const std::string dir = own_tuning_dir();
+            const auto plan = hl::plan_table(hl::list_table_names(dir), arch, version, sw);
+            if (plan.match == hl::TableMatch::Missing) {
+                if (!no_table(plan.message, "missing")) return nullptr;
+                have_file = false;
+            } else {
+                if (plan.match == hl::TableMatch::Nearest) {
+                    std::fprintf(stderr, "prefill gemm: %s\n", plan.message.c_str());
+                }
+                path_own = dir + plan.file;
+                table_version = plan.version;
+                path = path_own.c_str();
+            }
+        }
+        if (have_file) {
+            std::string error;
+            if (!state->table.load(path, arch, table_version, error)) {
+                std::string folder(path);
+                const size_t slash = folder.find_last_of("\\/");
+                folder = slash == std::string::npos ? std::string(".") : folder.substr(0, slash);
+                const auto found = hl::plan_table(hl::list_table_names(folder), arch, version, hl::Switches{}).found_keys;
+                if (!no_table(hl::no_table_message(arch, version, found, sw, error + ", file " + path, true), "failed"))
+                    return nullptr;
+                state->table = hl::TuningTable();     // a half-read table must not be used
+                have_file = false;
+            }
+        }
+        if (have_file)
+            std::fprintf(stderr, "prefill gemm: hipBLASLt table status=%s key=%s\n",
+                         table_version == version ? "exact" : "nearest", key.c_str());
     }
     state->desc_cap = hipblaslt_desc_cache_cap();
     std::fprintf(stderr, "prefill gemm: hipBLASLt tuning enabled (%zu rows, %s, version %d)\n",
@@ -421,7 +468,76 @@ std::unique_ptr<HipLtState> create_hipblaslt_state(void* workspace, size_t works
         std::fprintf(stderr, "prefill gemm: hipBLASLt descriptor cache %s (STRATA_HIPBLASLT_DESC_CACHE)\n",
                      state->desc_cap == 0 ? "off" : (std::to_string(state->desc_cap) + " shapes").c_str());
     }
+    if (sw.heuristic)
+        std::fprintf(stderr, "prefill gemm: STRATA_HIPBLASLT_HEURISTIC=1: calls the table does not cover take hipBLASLt's heuristic "
+                             "(top %d); results may differ in the last bits from hipBLASEx and from a table\n", sw.heuristic_count);
     return state;
+}
+
+// T3: the hipBLASLt heuristic behind hl::HeuristicBackend.  The algorithms are kept by index until the pick.
+struct LtHeuristicBackend final : strata::prefill::hipblaslt::HeuristicBackend {
+    HipLtState& state;
+    HipLtDescriptors& desc;
+    std::vector<hipblasLtMatmulHeuristicResult_t> results;
+    LtHeuristicBackend(HipLtState& s, HipLtDescriptors& d) : state(s), desc(d) {}
+    bool query(const strata::prefill::hipblaslt::HeuristicShape&, int requested,
+               std::vector<strata::prefill::hipblaslt::HeuristicCandidate>& out, std::string& err) override {
+        hipblasLtMatmulPreference_t pref = nullptr;
+        if (hipblasLtMatmulPreferenceCreate(&pref) != HIPBLAS_STATUS_SUCCESS) {
+            err = "hipblasLtMatmulPreferenceCreate";
+            return false;
+        }
+        const uint64_t limit = state.workspace_bytes;
+        hipblasStatus_t st = hipblasLtMatmulPreferenceSetAttribute(pref, HIPBLASLT_MATMUL_PREF_MAX_WORKSPACE_BYTES, &limit, sizeof(limit));
+        int count = 0;
+        results.assign((size_t) requested, hipblasLtMatmulHeuristicResult_t{});
+        if (st == HIPBLAS_STATUS_SUCCESS)
+            st = hipblasLtMatmulAlgoGetHeuristic(state.handle, desc.op, desc.a, desc.b, desc.c, desc.c, pref, requested,
+                                                 results.data(), &count);
+        hipblasLtMatmulPreferenceDestroy(pref);
+        if (st != HIPBLAS_STATUS_SUCCESS) {
+            err = "hipblasLtMatmulAlgoGetHeuristic status " + std::to_string((int) st);
+            return false;
+        }
+        for (int i = 0; i < count; ++i) {
+            auto algo = results[(size_t) i].algo;
+            out.push_back({results[(size_t) i].state == HIPBLAS_STATUS_SUCCESS, hipblaslt_ext::getIndexFromAlgo(algo),
+                           (uint64_t) results[(size_t) i].workspaceSize});
+        }
+        return true;
+    }
+};
+
+// A call the table does not cover (or whose table solution the library refuses), under STRATA_HIPBLASLT_HEURISTIC=1.  Called with
+// state.mu held (from resolve_hipblaslt_algo); not supported = the caller's plain hipBLASEx.
+HipLtCachedAlgo heuristic_algo(HipLtState& state, strata::prefill::hipblaslt::InputType type, int t, int n, int k, int ldy,
+                               float beta, bool verbose) {
+    HipLtCachedAlgo resolved;
+    HipLtDescriptors desc;
+    const hipDataType input_type = type == strata::prefill::hipblaslt::InputType::bf16 ? HIP_R_16BF : HIP_R_16F;
+    if (!desc.init(input_type, t, n, k, ldy)) return resolved;
+    LtHeuristicBackend backend(state, desc);
+    strata::prefill::hipblaslt::HeuristicShape shape;
+    shape.type = type;
+    shape.t = t;
+    shape.n = n;
+    shape.k = k;
+    shape.ldy = ldy;
+    shape.beta = beta;
+    const auto pick = strata::prefill::hipblaslt::pick_heuristic(backend, shape, state.sw.heuristic_count, state.workspace_bytes);
+    if (pick.index < 0) {
+        if (verbose)
+            std::fprintf(stderr, "prefill gemm: Lt heuristic fallback; %s for T=%d N=%d K=%d ldy=%d\n", pick.why.c_str(), t, n, k, ldy);
+        return resolved;
+    }
+    resolved.supported = true;
+    resolved.algo = backend.results[(size_t) pick.index].algo;
+    resolved.workspace_bytes = (size_t) pick.candidate.workspace_bytes;
+    if (verbose)
+        std::fprintf(stderr, "prefill gemm: Lt heuristic solution=%d (%d of %d) dtype=%s T=%d N=%d K=%d ldy=%d workspace=%zu\n",
+                     pick.candidate.solution_id, pick.index + 1, pick.returned,
+                     type == strata::prefill::hipblaslt::InputType::bf16 ? "bf16" : "f16", t, n, k, ldy, resolved.workspace_bytes);
+    return resolved;
 }
 
 HipLtCachedAlgo resolve_hipblaslt_algo(HipLtState& state, strata::prefill::hipblaslt::InputType type, int t,
@@ -436,13 +552,18 @@ HipLtCachedAlgo resolve_hipblaslt_algo(HipLtState& state, strata::prefill::hipbl
 
     HipLtCachedAlgo resolved;
     const bool verbose = std::getenv("STRATA_HIPBLASLT_VERBOSE") != nullptr;
+    // T3 (STRATA_HIPBLASLT_HEURISTIC=1, default off): where the table gives nothing usable, ask the library; otherwise plain hipBLASEx
+    const auto no_table_algo = [&]() -> HipLtCachedAlgo {
+        if (state.sw.heuristic) resolved = heuristic_algo(state, type, t, n, k, ldy, beta, verbose);
+        return state.cache.emplace(key, resolved).first->second;
+    };
     const auto* row = state.table.closest(type, n, k, ldy, t);
     if (!row) {
         if (verbose) {
             std::fprintf(stderr, "prefill gemm: Lt fallback; no calibration for dtype=%s T=%d N=%d K=%d ldy=%d\n",
                          type == strata::prefill::hipblaslt::InputType::bf16 ? "bf16" : "f16", t, n, k, ldy);
         }
-        return state.cache.emplace(key, resolved).first->second;
+        return no_table_algo();
     }
 
     HipLtDescriptors desc;
@@ -460,7 +581,7 @@ HipLtCachedAlgo resolve_hipblaslt_algo(HipLtState& state, strata::prefill::hipbl
             std::fprintf(stderr, "prefill gemm: Lt fallback; solution %d unavailable for T=%d N=%d K=%d ldy=%d\n",
                          row->solution_id, t, n, k, ldy);
         }
-        return state.cache.emplace(key, resolved).first->second;
+        return no_table_algo();
     }
 
     const float alpha = 1.0f;
@@ -472,7 +593,7 @@ HipLtCachedAlgo resolve_hipblaslt_algo(HipLtState& state, strata::prefill::hipbl
             std::fprintf(stderr, "prefill gemm: Lt fallback; solution %d rejects actual T=%d N=%d K=%d ldy=%d beta=%.9g\n",
                          row->solution_id, t, n, k, ldy, beta);
         }
-        return state.cache.emplace(key, resolved).first->second;
+        return no_table_algo();
     }
 
     resolved.supported = true;
@@ -566,6 +687,73 @@ bool try_hipblaslt(void* opaque_state, strata::prefill::hipblaslt::InputType typ
     }
     note_fallback();
     return false;
+}
+
+// T4: STRATA_HIPBLASLT_WARMUP=1 (default off).  hipBLASLt 1.5.0 keeps its solution catalogs compressed on disk and unpacks one on first
+// use, which lands on the first request's prompt.  Run each shape of the table once at engine start (zero inputs, beta 0, results
+// discarded) so the unpack happens before "ready".  The shapes come from the table (hipblaslt_policy.hpp warm_plan); the call goes
+// through try_hipblaslt, the path a real prompt takes, so descriptors and the algorithm cache are warm as well.
+struct LtWarmBackend final : strata::prefill::hipblaslt::WarmBackend {
+    HipLtState* state;
+    void* stream;
+    const uint16_t* w;
+    const uint16_t* x;
+    float* y;
+    LtWarmBackend(HipLtState* s, void* st, const uint16_t* w_, const uint16_t* x_, float* y_) : state(s), stream(st), w(w_), x(x_), y(y_) {}
+    bool run(const strata::prefill::hipblaslt::WarmShape& shape) override {
+        if (!try_hipblaslt(state, shape.type, x, w, y, shape.t, shape.n, shape.k, shape.ldy, 0.0f, stream)) return false;
+        return hipStreamSynchronize((hipStream_t) stream) == hipSuccess;
+    }
+};
+
+void hipblaslt_warm_at_init(void* opaque_state, void* stream) {
+    namespace hl = strata::prefill::hipblaslt;
+    auto* state = static_cast<HipLtState*>(opaque_state);
+    if (!state || !state->sw.warmup) return;
+    const hl::WarmPlan plan = hl::warm_plan(state->table.rows(), state->sw.warmup_max_bytes);
+    if (plan.shapes.empty()) {
+        std::fprintf(stderr, "prefill gemm: STRATA_HIPBLASLT_WARMUP: nothing to warm (%zu table rows, %zu over the %llu MiB cap)\n",
+                     state->table.rows().size(), plan.skipped.size(), (unsigned long long) (state->sw.warmup_max_bytes >> 20));
+        return;
+    }
+    void* buf = nullptr;
+    if (hipMalloc(&buf, (size_t) plan.buffer_bytes) != hipSuccess) {
+        (void) hipGetLastError();
+        std::fprintf(stderr, "prefill gemm: STRATA_HIPBLASLT_WARMUP: cannot allocate %llu MiB; not warming\n",
+                     (unsigned long long) (plan.buffer_bytes >> 20));
+        return;
+    }
+    (void) hipMemset(buf, 0, (size_t) plan.buffer_bytes);   // zeros: no NaN work, and the results are thrown away
+    // one buffer serves every shape: W[n,k] and X[t,k] (16 bit) first, Y (f32) after them; each shape uses a prefix that fits its bytes() (WarmShape offsets)
+    const auto launches = state->lt_launches.load();
+    const auto fallbacks = state->fallbacks.load();
+    LtWarmBackend backend(state, stream, (const uint16_t*) buf, (const uint16_t*) buf, (float*) buf);
+    struct Placed final : hl::WarmBackend {
+        LtWarmBackend& inner;
+        char* base;
+        explicit Placed(LtWarmBackend& i, void* b) : inner(i), base((char*) b) {}
+        bool run(const hl::WarmShape& s) override {
+            inner.w = (const uint16_t*) base;
+            inner.x = (const uint16_t*) (base + s.x_offset());
+            inner.y = (float*) (base + s.y_offset());
+            return inner.run(s);
+        }
+    } placed(backend, buf);
+    const auto t0 = std::chrono::steady_clock::now();
+    const hl::WarmSummary sum = hl::run_warmup(plan, placed, [t0] {
+        return std::chrono::duration<double>(std::chrono::steady_clock::now() - t0).count();
+    });
+    (void) hipStreamSynchronize((hipStream_t) stream);
+    (void) hipFree(buf);
+    state->lt_launches = launches;     // the warm-up is not prompt traffic: keep the VERBOSE summary honest
+    state->fallbacks = fallbacks;
+    {
+        std::lock_guard<std::mutex> lock(state->mu);
+        state->fallback_shapes.clear();
+    }
+    std::fprintf(stderr, "prefill gemm: STRATA_HIPBLASLT_WARMUP: %d shapes ran, %d failed, %d over the cap, %.2f s (slowest %.2f s: %s N=%d K=%d T=%d)\n",
+                 sum.ran, sum.failed, sum.skipped, sum.seconds, sum.slowest_seconds,
+                 sum.slowest.type == hl::InputType::bf16 ? "bf16" : "f16", sum.slowest.n, sum.slowest.k, sum.slowest.t);
 }
 #endif
 
@@ -811,6 +999,7 @@ bool Gemm::init_external(void* stream, uint16_t* scratch, int64_t scratch_elems,
     scratch_elems_ = scratch_elems;
 #if defined(__HIPCC__) && defined(STRATA_HIPBLASLT_AVAILABLE)
     hipblaslt_state_ = create_hipblaslt_state(workspace_, ws_bytes).release();
+    hipblaslt_warm_at_init(hipblaslt_state_, stream);
 #endif
 #if defined(__HIPCC__) && defined(STRATA_ROCBLAS_AVAILABLE)
     rocblas_state_ = create_rocblas_state(stream).release();
@@ -884,6 +1073,7 @@ bool Gemm::init(void* stream, int64_t scratch_elems, std::string& err) {
     note(cublasSetMathMode(h, CUBLAS_DEFAULT_MATH), "cublasSetMathMode");
 #if defined(__HIPCC__) && defined(STRATA_HIPBLASLT_AVAILABLE)
     hipblaslt_state_ = create_hipblaslt_state(workspace_, ws).release();
+    hipblaslt_warm_at_init(hipblaslt_state_, stream);
 #endif
 #if defined(__HIPCC__) && defined(STRATA_ROCBLAS_AVAILABLE)
     rocblas_state_ = create_rocblas_state(stream).release();

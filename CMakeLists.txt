@@ -472,6 +472,13 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(tuning_header_arch_family_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/prefill")
   add_test(NAME tuning_header_arch_family_test COMMAND tuning_header_arch_family_test)
 
+  # the hipBLASLt policy layer (LEADS.md Part T T2 / T3 / T4): table lookup miss / strict / nearest, heuristic selection and the
+  # warm-up plan against fake backends (host only; the HIP adapters in src/prefill/gemm.cu are box-only)
+  add_executable(hipblaslt_policy_test tests/prefill/hipblaslt_policy_test.cpp)
+  target_include_directories(hipblaslt_policy_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src/prefill")
+  target_compile_definitions(hipblaslt_policy_test PRIVATE STRATA_TEST_TABLE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tools/hip")
+  add_test(NAME hipblaslt_policy_test COMMAND hipblaslt_policy_test)
+
   # the auto layer split's minimum stage size (#1616): header-only rule, no GPU
   add_executable(split_rules_test tests/program/split_rules_test.cpp)
   target_include_directories(split_rules_test PRIVATE include)
@@ -4150,7 +4157,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
   # there is no GPU (vmm_test, pin_budget_test) stay gpu, so they get real coverage in the GPU run.
   set(_strata_tests_cpu
     batch_telemetry_test logit_bias_test gguf_reader_test gguf_split_test model_family_test batch_read_test
-    gguf_geometry_test tuning_header_arch_family_test split_rules_test gpu_report_test stage_reserve_test vram_calib_test
+    gguf_geometry_test tuning_header_arch_family_test hipblaslt_policy_test split_rules_test gpu_report_test stage_reserve_test vram_calib_test
     split_walk_test prefill_plan_test share_rules_test qsa_two_pass_test qsa_two_pass_status_test
     routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test promo_chunk_test expert_seed_test route_prior_scope_test route_prior_auto_test defer_rank_test defer_auto_test think_probe_test run_manifest_test
     host_limits_test io_priority_test exchange_storage_test memory_guard_test mem_pressure_test conversation_disk_tier_test conversation_disk_env_test file_expert_source_test
