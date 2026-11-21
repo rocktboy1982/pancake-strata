@@ -39,6 +39,8 @@ int main() {
               qsa_skip_below_parse("1") == 1 && qsa_skip_below_parse("2051") == 2051 && qsa_skip_below_parse("5000") == 2051 &&
               qsa_skip_below_parse("100x") == 2051, "threshold parse: default 2051, 1..2051, larger clamped to the bound");
 
+    check(!qsa_skip_short_on() && qsa_skip_below() == 2051, "unset: the engine-facing switches read off and 2051");
+
     // the skip rule: the LAST row decides (n_kv = pos0 + T)
     check(qsa_skip_ok(0, 1, 2051) && qsa_skip_ok(2050, 1, 2051) && !qsa_skip_ok(2051, 1, 2051), "a one-row window at pos0 2050 (n_kv 2051) may skip, at 2051 not");
     check(qsa_skip_ok(2043, 8, 2051) && !qsa_skip_ok(2044, 8, 2051), "an 8-row window: last row n_kv 2051 yes, 2052 no");

@@ -36,6 +36,16 @@ inline int64_t qsa_skip_below_parse(const char* v) {
     return n > kQsaExactBound ? kQsaExactBound : (int64_t) n;
 }
 
+/// The two switches read once from the environment (what the wiring would call): off and 2051 when unset.
+inline bool qsa_skip_short_on() {
+    static const bool on = qsa_skip_short_parse(std::getenv("STRATA_QSA_SKIP_SHORT"));
+    return on;
+}
+inline int64_t qsa_skip_below() {
+    static const int64_t below = qsa_skip_below_parse(std::getenv("STRATA_QSA_SKIP_BELOW"));
+    return below;
+}
+
 /// A window of `T` rows starting at cell `pos0` (row t has n_kv = pos0 + t + 1) may skip the indexer when even its last row
 /// is within `below` cells.
 inline bool qsa_skip_ok(int64_t pos0, int64_t T, int64_t below) { return T >= 1 && pos0 >= 0 && pos0 + T <= below; }
