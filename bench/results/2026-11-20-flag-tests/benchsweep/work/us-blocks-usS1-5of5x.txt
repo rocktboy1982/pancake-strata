@@ -1,0 +1,3 @@
+BLOCK b01 1520 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-5of5x-b01.json order: plus-Q6_PACKED plus-Q8_GATHER_WIDE plus-Q8_PACKED plus-PREFILL_LM_EVEN
+BLOCK b02 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-5of5x-b02.json order: plus-VERIFY_ASYNC_LAUNCH plus-TSUM plus-TOPK_STREAM
+BLOCK b03 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-5of5x-b03.json order: plus-VERIFY_COHERENT plus-VNNI_TIER plus-WMMA_BF16
