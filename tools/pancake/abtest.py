@@ -101,6 +101,7 @@ import subprocess
 import sys
 import threading
 import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -492,12 +493,63 @@ def stop_servers(wait=120):
 SAMPLING = {"temperature": 0}   # the spec's "temperature" / "top_p" / "seed" keys replace it (see main)
 
 
-def request(url, text, max_tokens=512):
-    """Returns the generated text."""
+class SlowLoad(Exception):
+    """T-1022: the engine did not become ready (HTTP 503 / connection refused) within ABTEST_READY_MAX_S: the start is abandoned, not the block."""
+
+
+def ready_max_s(env=None):
+    """ABTEST_READY_MAX_S (default 900): the longest an engine start may stay 'not ready' (readiness wait + first requests)."""
+    try:
+        return float((env if env is not None else os.environ).get("ABTEST_READY_MAX_S", "900"))
+    except ValueError:
+        return 900.0
+
+
+ENGINE_DIED = re.compile(r"stopped unexpectedly|restarts it|EngineDied|engine died|engine is stuck", re.I)   # serve/server.py: died_note() / EngineDied texts
+
+
+def http_error_note(e):
+    """The error message of an HTTPError's JSON body ("" when there is none)."""
+    try:
+        body = json.loads(e.read().decode("utf-8", "replace"))
+        err = body.get("error", body) if isinstance(body, dict) else body
+        return str(err.get("message", err) if isinstance(err, dict) else err)[:300]
+    except (OSError, ValueError, AttributeError, TypeError):
+        return ""
+
+
+def engine_up():
+    return any(p.poll() is None for p in OWN)
+
+
+def request(url, text, max_tokens=512, clock=time.time, sleep=time.sleep, up=None, say=None, poll_s=5.0):
+    """Returns the generated text.  T-1022 (2026-11-21, block us-p1-usS1-5of5x-b01 crashed on 'HTTP Error 503' while the engine was still loading at 0.2 GiB/s):
+    HTTP 503 or a refused / reset connection while our engine process is alive means 'still loading': wait (poll_s), logging
+    'SLOWLOAD waiting for the engine: HTTP 503, elapsed N s' every 30 s, until ABTEST_READY_MAX_S, then SlowLoad.  Engine gone (T-630: the 503 came
+    after it exited): the error goes on as before."""
     body = {"model": "x", "messages": [{"role": "user", "content": text}], "max_tokens": max_tokens, **SAMPLING,
             "chat_template_kwargs": {"enable_thinking": False}}
-    req = urllib.request.Request(url + "/v1/chat/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})
-    r = json.load(urllib.request.urlopen(req, timeout=1800))
+    t0, last = clock(), None
+    while True:
+        req = urllib.request.Request(url + "/v1/chat/completions", json.dumps(body).encode(), {"Content-Type": "application/json"})
+        try:
+            r = json.load(urllib.request.urlopen(req, timeout=1800))
+            break
+        except urllib.error.HTTPError as e:
+            if e.code != 503 or ENGINE_DIED.search(http_error_note(e)):   # a 503 that says the engine died is a failed arm, not a load to wait for
+                raise
+            why, err = "HTTP 503", e
+        except (urllib.error.URLError, ConnectionError) as e:
+            why, err = f"{type(getattr(e, 'reason', e)).__name__}", e
+        if not (up or engine_up)():
+            raise err
+        el = clock() - t0
+        if el >= ready_max_s():
+            raise SlowLoad(f"{why} after {el:.0f} s")
+        if last is None or el - last >= 30:
+            last = el
+            (say or (lambda m: print(m, flush=True)))(f"SLOWLOAD waiting for the engine: {why}, elapsed {el:.0f} s")
+        sleep(poll_s)
     try:
         return r["choices"][0]["message"]["content"] or ""
     except (KeyError, IndexError, TypeError):
@@ -1031,9 +1083,12 @@ def diag_load(log_out, cfg_path, log_size, say=print, now=time.time):
             pass
 
 
-def start_server(cfg_path, log_out, port, ready_wait=900):
+def start_server(cfg_path, log_out, port, ready_wait=None):
     """Starts the engine server for a config and waits for its "ready: http" line.  Returns (process, None), or
-    (None, "server died before ready" / "server not ready ...") - the caller stops the servers."""
+    (None, "server died before ready" / "slow load: server not ready after N s") - the caller stops the servers.  T-1022: ready_wait
+    defaults to ABTEST_READY_MAX_S (900 s); past it the start is abandoned (it used to carry on into a first request that crashed on HTTP 503)."""
+    if ready_wait is None:
+        ready_wait = ready_max_s()
     env = dict(os.environ, LD_LIBRARY_PATH="/opt/rocm/core-10.0/lib", HIP_VISIBLE_DEVICES="0")
     preread_for_config(cfg_path, once=True)   # T-1006: a no-op when the caller did it already, or ABTEST_PREREAD is off
     try:
@@ -1048,7 +1103,7 @@ def start_server(cfg_path, log_out, port, ready_wait=900):
     PREREAD_STAMP.clear()   # this engine evicts the files: the next start reads them again
     pf_thread, pf_stop = start_prefetch(cfg_path, srv.pid)   # T-1006 ABTEST_PREREAD=2: beside the engine's own load; (None, None) when off
     try:
-        t0 = time.time()
+        t0, say_at = time.time(), 60
         while time.time() - t0 < ready_wait:
             txt = Path(log_out).read_text(errors="replace")
             if "ready: http" in txt:
@@ -1056,12 +1111,19 @@ def start_server(cfg_path, log_out, port, ready_wait=900):
                 return srv, None
             if srv.poll() is not None or "EngineDied" in txt:
                 return None, "server died before ready"
+            if time.time() - t0 >= say_at:   # T-1022: a slow load says so (the same line as the first request's wait)
+                say_at += 60
+                print(f"SLOWLOAD waiting for the engine: not ready, elapsed {time.time() - t0:.0f} s", flush=True)
             time.sleep(1)      # T-1006: was 3 s (about 1.5 s lost per start on average); the file is read again, nothing else waits
-        return srv, None   # as before: not ready after ready_wait, carry on (the first request waits for it)
+        if ready_wait <= 0:
+            return srv, None   # (tests: no wait)
+        return None, f"slow load: server not ready after {ready_wait:.0f} s"   # T-1022: abandoned; the caller stops the engine and redoes the start once
     finally:
-        if pf_stop is not None:   # no read may run beside a measured request
+        if pf_stop is not None:   # no read may run beside a measured request: the prefetch stops with the first of ready / died / not ready in time
             pf_stop.set()
             pf_thread.join(5)
+            if pf_thread.is_alive():   # a read stuck in the kernel: daemon thread, it never holds the engine, it only ends late
+                print("PREFETCH: still inside a read after the stop: left to end by itself", flush=True)
 
 
 def token_check(url, P, cases):
@@ -1094,6 +1156,13 @@ def run_arm(name, cfg_path, cfg, cases, P, log_out, port, *args, **kw):
     s0 = len(log_lines(log))   # as _run_arm: this start's lines come after s0
     try:
         return _run_arm(name, cfg_path, cfg, cases, P, log_out, port, *args, **kw)
+    except SlowLoad as e:   # T-1022: the engine never became ready: the start is abandoned (engine stopped, log kept), the caller redoes it once
+        try:
+            save_engine_log(log, s0, Path(log_out).with_suffix(".engine.log"))
+        except OSError:
+            pass
+        stop_servers()
+        return None, f"slow load: {e}"
     except BaseException:
         try:
             save_engine_log(log, s0, Path(log_out).with_suffix(".engine.log"))
@@ -1111,6 +1180,8 @@ def _run_arm(name, cfg_path, cfg, cases, P, log_out, port, per_run=1, passes=1, 
     srv, err = start_server(cfg_path, log_out, port)
     if err:
         save_engine_log(log, s0, engine_log)
+        if err.startswith("slow load"):
+            stop_servers()   # the engine is alive but not ready: end it before the redo
         return None, err
     url = f"http://127.0.0.1:{port}"
     if not warmup:
@@ -1635,18 +1706,41 @@ def main():
         regime_arm = bool(a.regime_pause) and (a.regime_all or arm in (WARM_ARM, "updated", DRIFT_ARM) or arm.startswith("base-m"))
         regime_max = a.regime_retries if a.regime_all else 1
         regime_first, regime_paused, regime_n = None, None, 0
-        for attempt in range(next_attempt(r, arm), a.retries + 1 + (regime_max if regime_arm else 0)):
+        slow_n, extra = 0, [0]   # T-1022: one redo of a start that never got ready (slow load); it does not use the noise / regime attempts
+
+        def attempts(first, limit):
+            n = first
+            while n < limit + extra[0]:
+                yield n
+                n += 1
+        for attempt in attempts(next_attempt(r, arm), a.retries + 1 + (regime_max if regime_arm else 0)):
             cfg_path = str(work / f"{arm}.json")
             cfg = make_config(base, spec["arms"][arm], cfg_path)
             settle_after_long(lambda s: print(s, flush=True))   # T-1006: ABTEST_SETTLE_AFTER_LONG_S, idle before anything of ours runs
             preread_for_config(cfg)   # T-1006: BEFORE the quiet gate, so its CPU / IO is not sampled as foreign noise
             quiet_gate(a.max_load, a.foreign_cpu, [], a.max_wait)
             ROT[1] = r
-            res, err = run_arm(arm, cfg_path, cfg, cases, P, str(work / f"{arm}-r{r}-a{attempt}.out"), a.port, per_run,
-                               passes, a.warmup)
+            try:
+                res, err = run_arm(arm, cfg_path, cfg, cases, P, str(work / f"{arm}-r{r}-a{attempt}.out"), a.port, per_run,
+                                   passes, a.warmup)
+            except SlowLoad as e:
+                res, err = None, f"slow load: {e}"
+            except Exception as e:   # noqa: BLE001  T-1022: a traceback never kills the block (it must end with its summary): this start is invalid, the next arm goes on
+                note = http_error_note(e) if isinstance(e, urllib.error.HTTPError) else ""
+                res, err = None, f"start crashed ({type(e).__name__}: {e}{': ' + note if note else ''})"
             if err:
                 print(f"rep {r} {arm}: FAILED ({err})", flush=True)
-                if "died" in err:
+                if err.startswith(("slow load", "start crashed")):
+                    print(f"START-FAILED {arm} {err}", flush=True)
+                    stop_servers()   # (no record: the start is invalid)
+                if err.startswith("slow load") and slow_n < 1:
+                    slow_n += 1
+                    extra[0] += 1
+                    print(f"REGIME-PAUSE {arm}: slow load (the engine was not ready in {ready_max_s():g} s): idle {a.regime_pause:g} s with the pack read into the page cache, "
+                          f"then this start runs again", flush=True)
+                    regime_pause(a.regime_pause, a.regime_preread or [])
+                    continue
+                if "died" in err and not err.startswith("start crashed"):
                     deaths += 1
                     if deaths >= 2:
                         print(f"ABORT: the server died twice before ready (free RAM in 2 MiB blocks: {big_free_gib():.0f} GiB;"

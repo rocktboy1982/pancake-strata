@@ -703,3 +703,167 @@ def test_run_arm_keeps_the_engine_log_when_a_request_fails(monkeypatch, tmp_path
         A.run_arm("arm", "cfg.json", {"log": str(log)}, ["short"], {"short": "hi"}, str(out), 1)
     saved = (tmp_path / "arm-r0-a0.engine.log").read_text()
     assert "illegal memory access" in saved and "old start" not in saved
+
+
+# ---------------------------------------------------------------------------------------------------- T-1022: slow load / HTTP 503 while the engine is not ready
+import io as _io  # noqa: E402
+import urllib.error as _uerr  # noqa: E402
+
+
+class _Resp(_io.BytesIO):
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def _fake_urlopen(monkeypatch, outcomes):
+    """Each call pops the next outcome: an exception is raised, a string is the answer text."""
+    calls = []
+
+    def urlopen(req, timeout=None):
+        calls.append(timeout)
+        o = outcomes.pop(0)
+        if isinstance(o, Exception):
+            raise o
+        return _Resp(json.dumps({"choices": [{"message": {"content": o}}]}).encode())
+
+    monkeypatch.setattr(A.urllib.request, "urlopen", urlopen)
+    return calls
+
+
+def _e503():
+    return _uerr.HTTPError("http://x/v1/chat/completions", 503, "Service Unavailable", {}, None)
+
+
+class _Clock:
+    def __init__(self):
+        self.t = 0.0
+
+    def __call__(self):
+        return self.t
+
+    def sleep(self, s):
+        self.t += s
+
+
+def test_request_waits_through_503_until_the_engine_answers_and_says_slowload(monkeypatch):
+    # block us-p1-usS1-5of5x-b01: HTTP 503 while the engine was still loading crashed the whole block
+    _fake_urlopen(monkeypatch, [_e503(), _e503(), _e503(), "hello"])
+    clk, said = _Clock(), []
+    assert A.request("http://x", "hi", clock=clk, sleep=clk.sleep, up=lambda: True, say=said.append) == "hello"
+    assert said == ["SLOWLOAD waiting for the engine: HTTP 503, elapsed 0 s"] and clk.t == 15.0   # 3 waits of 5 s, one line per 30 s
+
+
+def test_request_ready_wait_logs_every_30_s_and_retries_a_refused_connection(monkeypatch):
+    _fake_urlopen(monkeypatch, [_uerr.URLError(ConnectionRefusedError()) for _ in range(8)] + ["ok"])
+    clk, said = _Clock(), []
+    assert A.request("http://x", "hi", clock=clk, sleep=clk.sleep, up=lambda: True, say=said.append) == "ok"
+    assert said == ["SLOWLOAD waiting for the engine: ConnectionRefusedError, elapsed 0 s",
+                    "SLOWLOAD waiting for the engine: ConnectionRefusedError, elapsed 30 s"]
+
+
+def test_request_ready_cap_raises_slowload_with_abtest_ready_max_s(monkeypatch):
+    monkeypatch.setenv("ABTEST_READY_MAX_S", "20")
+    assert A.ready_max_s() == 20.0
+    monkeypatch.delenv("ABTEST_READY_MAX_S")
+    assert A.ready_max_s() == 900.0
+    monkeypatch.setenv("ABTEST_READY_MAX_S", "20")
+    _fake_urlopen(monkeypatch, [_e503() for _ in range(50)])
+    clk = _Clock()
+    with pytest.raises(A.SlowLoad, match=r"HTTP 503 after 20 s"):
+        A.request("http://x", "hi", clock=clk, sleep=clk.sleep, up=lambda: True, say=lambda m: None)
+
+
+def test_request_ready_wait_does_not_hide_a_dead_engine_or_other_http_errors(monkeypatch):
+    _fake_urlopen(monkeypatch, [_e503()])
+    with pytest.raises(_uerr.HTTPError):   # T-630: the 503 after the engine exited stays an error (nothing to wait for)
+        A.request("http://x", "hi", up=lambda: False, say=lambda m: None)
+    died = _uerr.HTTPError("u", 503, "Service Unavailable", {}, _io.BytesIO(json.dumps(
+        {"error": {"message": "the engine stopped unexpectedly (exit code -15); the next request restarts it"}}).encode()))
+    _fake_urlopen(monkeypatch, [died])   # block us-p1-usS1-5of5x-b01 really: the engine died in a request (verify timeout), the server answered 503
+    with pytest.raises(_uerr.HTTPError):
+        A.request("http://x", "hi", up=lambda: True, say=lambda m: None)
+    starting = _uerr.HTTPError("u", 503, "Service Unavailable", {}, _io.BytesIO(b'{"error": {"message": "the engine is starting"}}'))
+    _fake_urlopen(monkeypatch, [starting, "late"])   # a 503 that says "starting" is waited for
+    clk = _Clock()
+    assert A.request("http://x", "hi", clock=clk, sleep=clk.sleep, up=lambda: True, say=lambda m: None) == "late"
+    _fake_urlopen(monkeypatch, [_uerr.HTTPError("u", 500, "Internal", {}, None)])
+    with pytest.raises(_uerr.HTTPError):
+        A.request("http://x", "hi", up=lambda: True, say=lambda m: None)
+
+
+def test_start_server_ready_cap_abandons_the_start_and_stops_the_prefetch(monkeypatch, tmp_path):
+    monkeypatch.setattr(A, "OWN", [])
+    monkeypatch.setattr(A.subprocess, "Popen", lambda *a, **k: type("P", (), {"pid": 1, "poll": lambda s: None})())
+    stopped = []
+    monkeypatch.setattr(A, "start_prefetch", lambda cfg, pid, say=None: (type("T", (), {"join": lambda s, t: None, "is_alive": lambda s: False})(),
+                                                                       type("E", (), {"set": lambda s: stopped.append(1)})()))
+    srv, err = A.start_server("cfg.json", str(tmp_path / "s.out"), 1234, ready_wait=1.5)
+    assert srv is None and err == "slow load: server not ready after 2 s" and stopped == [1]   # the prefetch stops with the wait
+    monkeypatch.setenv("ABTEST_READY_MAX_S", "0.2")
+    srv, err = A.start_server("cfg.json", str(tmp_path / "s3.out"), 1234)   # the default wait is ABTEST_READY_MAX_S
+    assert srv is None and err.startswith("slow load: server not ready") and stopped == [1, 1]
+
+
+def test_run_arm_slow_load_returns_the_error_stops_the_engine_and_keeps_the_log(monkeypatch, tmp_path):
+    log = tmp_path / "engine.log"
+    log.write_text("old\n")
+    stops = []
+
+    def start(cfg_path, log_out, port, ready_wait=None):
+        with open(log, "a") as f:
+            f.write("strata: loading the experts\n")
+        return type("P", (), {"pid": 1})(), None
+
+    def req(url, text, max_tokens=512):
+        raise A.SlowLoad("HTTP 503 after 900 s")
+
+    monkeypatch.setattr(A, "start_server", start)
+    monkeypatch.setattr(A, "request", req)
+    monkeypatch.setattr(A, "stop_servers", lambda: stops.append(1))
+    monkeypatch.setattr(A, "token_check", lambda *a, **k: None)
+    monkeypatch.setattr(A, "big_free_gib", lambda: 40.0)
+    res, err = A.run_arm("x", "c.json", {"log": str(log)}, ["short"], {"short": "S"}, str(tmp_path / "x-r0-a0.out"), 1)
+    assert res is None and err == "slow load: HTTP 503 after 900 s" and stops == [1]
+    assert (tmp_path / "x-r0-a0.engine.log").read_text() == "strata: loading the experts\n"
+
+    def not_ready(cfg_path, log_out, port, ready_wait=None):
+        return None, "slow load: server not ready after 900 s"
+    monkeypatch.setattr(A, "start_server", not_ready)
+    stops.clear()
+    res, err = A.run_arm("x", "c.json", {"log": str(log)}, ["short"], {"short": "S"}, str(tmp_path / "x-r0-a1.out"), 1)
+    assert res is None and err.startswith("slow load") and stops == [1]
+
+
+def test_main_slow_load_start_is_redone_once_as_a_regime_pause_and_the_block_goes_on(monkeypatch, tmp_path):
+    def speeds(arm, rep, attempt):
+        if (arm, rep, attempt) == ("base", 0, 0):
+            raise A.SlowLoad("HTTP 503 after 900 s")
+        return (124.0 if arm == "base" else 127.0), 2.0, 0.0
+    recs, text, calls = run_main(monkeypatch, tmp_path, ["--reps", "2", "--regime-pause", "0.01"], speeds)
+    assert [(c[0], c[1], c[2]) for c in calls][:2] == [("base", 0, 0), ("base", 0, 1)]
+    assert "START-FAILED base slow load: HTTP 503 after 900 s" in text and "REGIME-PAUSE base: slow load" in text
+    assert len(recs) == 4 and "vs base:" in text   # the failed start left no record; the other starts and the summary came
+
+
+def test_main_slow_load_twice_gives_up_that_start_only_and_the_block_still_ends_with_its_summary(monkeypatch, tmp_path):
+    def speeds(arm, rep, attempt):
+        if arm == "x":
+            raise A.SlowLoad("HTTP 503 after 900 s")
+        return 124.0, 2.0, 0.0
+    recs, text, calls = run_main(monkeypatch, tmp_path, ["--reps", "2"], speeds)
+    assert text.count("START-FAILED x") == 4 and text.count("REGIME-PAUSE x: slow load") == 2   # two x slots, each tried twice (one redo)
+    assert [c[:3] for c in calls if c[0] == "x"] == [("x", 0, 0), ("x", 0, 1), ("x", 1, 0), ("x", 1, 1)]
+    assert len(recs) == 2 and text.rstrip().splitlines()[-1] != "" and "Traceback" not in text   # the base starts are kept, main returned normally
+
+
+def test_main_a_crashing_start_is_a_failed_start_not_a_traceback(monkeypatch, tmp_path):
+    def speeds(arm, rep, attempt):
+        if arm == "x":
+            raise _uerr.HTTPError("u", 503, "Service Unavailable", {}, None)   # an engine that died: T-630
+        return 124.0, 2.0, 0.0
+    recs, text, calls = run_main(monkeypatch, tmp_path, ["--reps", "2"], speeds)
+    assert "START-FAILED x start crashed (HTTPError: HTTP Error 503" in text and "Traceback" not in text
+    assert len([c for c in calls if c[0] == "x"]) == 2 and len(recs) == 2   # no retry of a crash, the base starts are kept
