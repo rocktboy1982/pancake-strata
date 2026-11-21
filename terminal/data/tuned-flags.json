@@ -83,5 +83,127 @@
    "evidence": "lossy (exact false); the quality gate of this branch did not pass: /home/dan/auto-runs/benchexact/gate-us (spec 222, 48 requests, token forcing against plain upstream v0.2.16): updated-exact (which keeps --lookup-max-t 12) REJECT on the rate rule, mismatch 3.379% against 1.562% / 1.360% for two stock runs, +1.92 points, 90% interval [+1.23, +2.74]; updated REJECT (3.964%, +2.50 points); event rule PASS for both. AGENTS.md: never lossy without a passing gate. The pancake-base PASS (T-126/T-127) does not carry over."
   }
  ],
- "removed_note": "Taken out of the gfx1100 profile 2026-11-20 (owner order 2026-11-19 23:05: remove what did not work): every flag with a FAIL / NO-GAIN / UNSUPPORTED verdict on this branch, and every lossy flag whose quality gate did not pass. Not measured as a single flag here and kept: --pcie-frac 0 (exact). Restored 2026-11-20 by owner decision: STRATA_RDNA_Q6K, STRATA_GR_RDNA, STRATA_RDNA_MMVQ_WAVE and STRATA_HIPBLASLT_TUNING (100401 table) (their UNSUPPORTED came from text identity, which the default fails against itself on this model; the 100401 table also matches the ROCm 10.0 runtime). The specs 220-223 measure the whole updated preset (configs/pancake/flashnext-iq2_xs-updated-hip.json), not this file."
+ "removed_note": "Taken out of the gfx1100 profile 2026-11-20 (owner order 2026-11-19 23:05: remove what did not work): every flag with a FAIL / NO-GAIN / UNSUPPORTED verdict on this branch, and every lossy flag whose quality gate did not pass. Not measured as a single flag here and kept: --pcie-frac 0 (exact). Restored 2026-11-20 by owner decision: STRATA_RDNA_Q6K, STRATA_GR_RDNA, STRATA_RDNA_MMVQ_WAVE and STRATA_HIPBLASLT_TUNING (100401 table) (their UNSUPPORTED came from text identity, which the default fails against itself on this model; the 100401 table also matches the ROCm 10.0 runtime). The specs 220-223 measure the whole updated preset (configs/pancake/flashnext-iq2_xs-updated-hip.json), not this file.",
+ "optional": [
+  {
+   "flag": "--lookup-max-t",
+   "env": {},
+   "args": {
+    "--lookup-max-t": "12"
+   },
+   "exact": false,
+   "helps": {
+    "short": 9.0,
+    "edit": 33.9,
+    "prompt64k": 29.6
+   },
+   "hurts": {
+    "decode64k": -10.9
+   },
+   "runs_pct": {
+    "run1": {
+     "short": 23.2,
+     "edit": 47.2,
+     "decode64k": -19.5,
+     "prompt64k": 59.1
+    },
+    "run2": {
+     "short": -5.2,
+     "edit": 20.6,
+     "decode64k": -2.3,
+     "prompt64k": 0.2
+    },
+    "two_run_mean": {
+     "short": 9.0,
+     "edit": 33.9,
+     "decode64k": -10.9,
+     "prompt64k": 29.6
+    }
+   },
+   "verdict": "OPTIONAL",
+   "status": "optional / not default (owner order 2026-11-21: removed from the default startup set; shipped files edited, see pancake TEST_LEDGER.md T-1020)",
+   "evidence": "flag screen of this branch (pancake TEST_LEDGER.md, per-flag rows of T-1011/T-1012; cases short / edit / decode64k / prompt64k, % against the updated default, run 1 and run 2 and the two-run mean in runs_pct). Owner order figures: edit +20.6 / +33.9 (run 2 / mean), decode64k -19.5 / -2.3 (run 1 / run 2); also in the removed list above since 2026-11-20 (gate-us REJECT on the whole preset); the decode64k loss and the lossy output (exact false) need the quality gate",
+   "note": "opt-in (owner order 2026-11-21): turn it on for the workload it helps; not in the default flags; lossy: needs the quality gate before it is offered (queued gates step)"
+  },
+  {
+   "flag": "--adapt-every",
+   "env": {},
+   "args": {
+    "--adapt-every": "1"
+   },
+   "exact": true,
+   "helps": {
+    "edit": 3.0
+   },
+   "hurts": {
+    "short": -5.4,
+    "decode64k": -6.4,
+    "prompt64k": -0.2
+   },
+   "runs_pct": {
+    "run1": {
+     "short": -2.9,
+     "edit": 3.0,
+     "decode64k": -10.4,
+     "prompt64k": -0.2
+    },
+    "run2": {
+     "short": -8.0,
+     "edit": 3.0,
+     "decode64k": -2.4,
+     "prompt64k": -0.3
+    },
+    "two_run_mean": {
+     "short": -5.4,
+     "edit": 3.0,
+     "decode64k": -6.4,
+     "prompt64k": -0.2
+    }
+   },
+   "verdict": "OPTIONAL",
+   "status": "optional / not default (owner order 2026-11-21: removed from the default startup set; shipped files edited, see pancake TEST_LEDGER.md T-1020)",
+   "evidence": "flag screen of this branch (pancake TEST_LEDGER.md, per-flag rows of T-1011/T-1012; cases short / edit / decode64k / prompt64k, % against the updated default, run 1 and run 2 and the two-run mean in runs_pct). Owner order figures: edit +3.0, short -8.0 / -2.9 (run 2 / run 1), decode64k -6.4 (mean); --adapt-swaps 32 stays in the default flags",
+   "note": "opt-in (owner order 2026-11-21): turn it on for the workload it helps; not in the default flags"
+  },
+  {
+   "flag": "STRATA_PIN_BY_NEED",
+   "env": {
+    "STRATA_PIN_BY_NEED": "1"
+   },
+   "args": {},
+   "exact": true,
+   "helps": {
+    "short": 2.4,
+    "prompt64k": 4.5
+   },
+   "hurts": {
+    "edit": -8.8,
+    "decode64k": -5.8
+   },
+   "runs_pct": {
+    "run1": {
+     "short": 4.7,
+     "edit": -17.1,
+     "decode64k": -7.3,
+     "prompt64k": 9.3
+    },
+    "run2": {
+     "short": 0.1,
+     "edit": -0.5,
+     "decode64k": -4.4,
+     "prompt64k": -0.3
+    },
+    "two_run_mean": {
+     "short": 2.4,
+     "edit": -8.8,
+     "decode64k": -5.8,
+     "prompt64k": 4.5
+    }
+   },
+   "verdict": "OPTIONAL",
+   "status": "optional / not default (owner order 2026-11-21: removed from the default startup set; shipped files edited, see pancake TEST_LEDGER.md T-1020)",
+   "evidence": "flag screen of this branch (pancake TEST_LEDGER.md, per-flag rows of T-1011/T-1012; cases short / edit / decode64k / prompt64k, % against the updated default, run 1 and run 2 and the two-run mean in runs_pct). Owner order figures: edit -17.1 / -0.5, decode64k -7.3 / -4.4, short +4.7 / +0.1, prompt64k +9.3 / -0.3 (run 1 / run 2); screen verdict MIXED, owner-forced flag",
+   "note": "opt-in (owner order 2026-11-21): turn it on for the workload it helps; not in the default flags"
+  }
+ ]
 }
