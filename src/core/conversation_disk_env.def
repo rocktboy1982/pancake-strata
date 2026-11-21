@@ -103,6 +103,7 @@ STRATA_ENV("STRATA_EXP_MODE", KeyIfSet, "F14 per-format expert layouts: bitwise 
 STRATA_ENV("STRATA_GDN_CHUNK", KeyIfSet, "chunked GDN recurrence (opt-in)")
 STRATA_ENV("STRATA_GDN_CHUNKED", KeyIfSet, "chunked GDN scan, FP16 operands (other bits); length-gated default on gfx12")
 STRATA_ENV("STRATA_GDN_CHUNKED_MIN", KeyIfSet, "length from which the chunked GDN scan applies (default 30000 on gfx12)")
+STRATA_ENV("STRATA_GDN_WMMA_PREFILL", KeyIfSet, "chunk-32 WMMA GDN prefill scan, gfx11 (other bits than the chunk-16 scan; default off)")
 STRATA_ENV("STRATA_GDN_CONVL2", KeyIfSet, "conv + L2 norm kernel: not bitwise on CUDA sm_120 (#1522)")
 STRATA_ENV("STRATA_GDN_REC_WARP", KeyIfSet, "chain-split GDN recurrence (changes the FP32 summation order)")
 STRATA_ENV("STRATA_GDN_TC", KeyIfSet, "tensor-core GDN scan (opt-in)")

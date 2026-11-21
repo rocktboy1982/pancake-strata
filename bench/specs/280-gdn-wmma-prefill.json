@@ -1,0 +1,22 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "prefill": true,
+  "cases": [
+    "long",
+    "long32k",
+    "long64k"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {},
+    "wmma-prefill-ck32": {
+      "env": {
+        "STRATA_GDN_WMMA_PREFILL": "1"
+      }
+    },
+    "base-late": {}
+  },
+  "note": "LEADS.md Part S S5 (chunk-32 WMMA gated-delta-net prefill on gfx11, src/prefill/gdn_wmma_ck.inc). The base preset already runs the chunk-16 WMMA scan (STRATA_GDN_CHUNKED=1, KEEP, TEST_LEDGER.md T-1011); the arm swaps it for the chunk-32 kernels. Lossy class (FP16 operands, other chunk split than the base): prompt tok/s on long / long32k / long64k judged against the MEAN of the two base starts (base, base-late), the rule of the flag protocol; a quality gate follows only if the arm gains >= 2% on a prompt case. THE KERNEL WAS NEVER RUN: it was compiled for gfx1100 with the ROCm 6.2 SDK clang and the scan kernel spills (256 VGPRs, 311 spilled dwords: TEST_LEDGER.md, S5 row), so a loss is a possible result. RUN FIRST (box, idle): ctest -R 'hip_gdn_chunked|gdn_wmma_ck' (hip_gdn_chunked_ck is the parity test; a FAIL means no A/B), then hip_gdn_chunked --ck-bench against --bench for the layer time, then this spec (stop pancake.service). Proof the arm acts: hip_gdn_chunked prints chunk-32 launches > 0 under --ck and 0 under --default; the engine has no log line for it."
+}
