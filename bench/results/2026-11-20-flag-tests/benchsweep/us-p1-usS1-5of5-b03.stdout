@@ -23,3 +23,17 @@ STARTLOAD 2026-11-21T10:03:37 loaded 33.02 GiB at 0.21 GiB/s rate=0.21
 rep 0 base-m1              short 83.7 short 103.4 edit 96.4 edit 102.5 longdec64k 74.3/1602p 65240t  foreign CPU 4% [('kcompactd0', 7), ('kswapd0', 3), ('kworker/1:0-events', 2)]  gpu 1928/1249 MHz 61C 175W gtt 25M cpu 3740MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1602, pack load 0.21 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
 SETTLE 120 after a 254 s run
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+STARTDIAG 2026-11-21T10:09:00 prev_run_s=254 gap_s=499 rd_sect=153841523544 wr_sect=110771440 io_ticks_ms=119546014 d_rd_sect=123373072 d_wr_sect=160 d_io_ticks_ms=224983 cached_kb=38687144 mlocked_kb=64 memavail_kb=58101772 nvme_temp_c=48 compact_stall_d=16
+STARTLOAD 2026-11-21T10:09:48 loaded 33.02 GiB at 1.10 GiB/s rate=1.10
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.44 33.5 s (1.09 GiB/s; stopped; waited 12.8 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 104.6 short 99.5 edit 163.0 edit 175.8 longdec64k 86.5/2183p 65240t  foreign CPU 2% [('kcompactd0', 3), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1919/1249 MHz 59C 187W gtt 25M cpu 3694MHz 64C igpu 0%/vcn 0% fclk 1600
+REGIME-RECOVERED base-m1: first start prefill 1602 / load 0.21 GiB/s (paused 10:04:55), second start prefill 2183 / load 1.1 GiB/s
+STARTDIAG 2026-11-21T10:10:50 prev_run_s=105 gap_s=110 rd_sect=153913602864 wr_sect=110771504 io_ticks_ms=119586308 d_rd_sect=72079320 d_wr_sect=64 d_io_ticks_ms=40294 cached_kb=17610024 mlocked_kb=64 memavail_kb=58102236 nvme_temp_c=49 compact_stall_d=0
+STARTLOAD 2026-11-21T10:11:40 loaded 33.02 GiB at 1.05 GiB/s rate=1.05
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.42 34.7 s (1.05 GiB/s; stopped; waited 13.6 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-ROPE_TABLE      short 100.6 short 109.2 edit 161.1 edit 183.1 longdec64k 82.9/2186p 65240t  foreign CPU 5% [('kcompactd0', 18), ('kworker/11:1-events', 2), ('kworker/8:2-events', 2)]  gpu 2037/1249 MHz 61C 187W gtt 25M cpu 3703MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-ROPE_TABLE: every attempt noisy, keeping the quietest (5% foreign CPU)
+STARTDIAG 2026-11-21T10:12:45 prev_run_s=110 gap_s=115 rd_sect=153991687768 wr_sect=110771584 io_ticks_ms=119628333 d_rd_sect=78084904 d_wr_sect=80 d_io_ticks_ms=42025 cached_kb=15783956 mlocked_kb=64 memavail_kb=58098932 nvme_temp_c=50 compact_stall_d=12
