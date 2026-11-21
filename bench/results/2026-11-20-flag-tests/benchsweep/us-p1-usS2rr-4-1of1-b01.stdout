@@ -1,0 +1,15 @@
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+STARTDIAG 2026-11-21T09:00:19 prev_run_s=NA gap_s=NA rd_sect=151839959968 wr_sect=110769088 io_ticks_ms=117803430 d_rd_sect=NA d_wr_sect=NA d_io_ticks_ms=NA cached_kb=18509532 mlocked_kb=64 memavail_kb=58158008 nvme_temp_c=47 compact_stall_d=NA
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.53 30.8 s (1.19 GiB/s; eof; waited 13.6 s for the arena)
+STARTLOAD 2026-11-21T09:01:09 loaded 33.02 GiB at 1.10 GiB/s rate=1.10
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 warmup               short 110.9 short 103.5 edit 166.9 edit 169.8 longdec64k 83.0/2187p 65242t  foreign CPU 3% [('kcompactd0', 6), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 2013/1249 MHz 60C 181W gtt 25M cpu 3608MHz 64C igpu 0%/vcn 0% fclk 1600
+STARTDIAG 2026-11-21T09:02:14 prev_run_s=110 gap_s=115 rd_sect=151926033720 wr_sect=110769200 io_ticks_ms=117845271 d_rd_sect=86073752 d_wr_sect=112 d_io_ticks_ms=41841 cached_kb=17870072 mlocked_kb=64 memavail_kb=58200000 nvme_temp_c=50 compact_stall_d=1
+STARTLOAD 2026-11-21T09:03:02 loaded 33.02 GiB at 1.13 GiB/s rate=1.13
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.36 32.6 s (1.12 GiB/s; stopped; waited 13.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 109.2 short 103.7 edit 169.4 edit 168.8 longdec64k 86.2/2185p 65242t  foreign CPU 4% [('kcompactd0', 8), ('kswapd0', 2), ('kworker/1:3-mm_percpu_wq', 1)]  gpu 2002/1249 MHz 61C 182W gtt 25M cpu 3639MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T09:04:07 prev_run_s=108 gap_s=113 rd_sect=152006425368 wr_sect=110769280 io_ticks_ms=117886070 d_rd_sect=80391648 d_wr_sect=80 d_io_ticks_ms=40799 cached_kb=14191824 mlocked_kb=64 memavail_kb=58152840 nvme_temp_c=51 compact_stall_d=19
+STARTLOAD 2026-11-21T09:04:59 loaded 33.02 GiB at 0.97 GiB/s rate=0.97
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 38.0 s (0.96 GiB/s; stopped; waited 12.3 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
