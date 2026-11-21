@@ -532,6 +532,11 @@ if(STRATA_BUILD_TESTS)
   target_include_directories(mtp_kv_policy_test PRIVATE include)
   add_test(NAME mtp_kv_policy_test COMMAND mtp_kv_policy_test)
 
+  # LEADS.md Part Q2: STRATA_PROMPT_TAIL, the last prompt chunk's routing seeds the decode tier (header-only, no GPU)
+  add_executable(prompt_tail_test tests/program/prompt_tail_test.cpp)
+  target_include_directories(prompt_tail_test PRIVATE include)
+  add_test(NAME prompt_tail_test COMMAND prompt_tail_test)
+
   # MOD_PLAN F13: which verify windows may take STRATA_ROUTE_PRIOR's bonus (STRATA_ROUTE_PRIOR_SCOPE: think / tool call / code fence state; header-only, no GPU)
   add_executable(route_prior_scope_test tests/program/route_prior_scope_test.cpp)
   target_include_directories(route_prior_scope_test PRIVATE include)
@@ -4116,7 +4121,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     batch_telemetry_test logit_bias_test gguf_reader_test gguf_split_test model_family_test batch_read_test
     gguf_geometry_test tuning_header_arch_family_test split_rules_test gpu_report_test stage_reserve_test vram_calib_test
     split_walk_test prefill_plan_test share_rules_test qsa_two_pass_test qsa_two_pass_status_test
-    routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test promo_chunk_test expert_seed_test mtp_kv_policy_test route_prior_scope_test route_prior_auto_test defer_rank_test defer_auto_test think_probe_test run_manifest_test
+    routed_stream_test timer_marks_test mmq_ids_margin_test adaptive_range_test promo_chunk_test expert_seed_test mtp_kv_policy_test prompt_tail_test route_prior_scope_test route_prior_auto_test defer_rank_test defer_auto_test think_probe_test run_manifest_test
     host_limits_test io_priority_test exchange_storage_test memory_guard_test mem_pressure_test conversation_disk_tier_test conversation_disk_env_test file_expert_source_test
     switch_report_test
     expert_profile_save_test expert_profile_version_test expert_layout_test grammar_test grammar_schema_test

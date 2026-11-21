@@ -1,0 +1,39 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "drift_check": true,
+  "prefill": true,
+  "cases": [
+    "short",
+    "edit",
+    "longdec32k",
+    "longdec64k"
+  ],
+  "reps": 1,
+  "arms": {
+    "base": {},
+    "plus-prompt-tail": {
+      "env": {
+        "STRATA_PROMPT_TAIL": "1"
+      }
+    },
+    "plus-prompt-tail-w4": {
+      "env": {
+        "STRATA_PROMPT_TAIL": "1",
+        "STRATA_PROMPT_TAIL_W": "4"
+      }
+    },
+    "plus-prompt-tail-w48": {
+      "env": {
+        "STRATA_PROMPT_TAIL": "1",
+        "STRATA_PROMPT_TAIL_W": "48"
+      }
+    },
+    "plus-prompt-tail-r4": {
+      "env": {
+        "STRATA_PROMPT_TAIL": "1",
+        "STRATA_PROMPT_TAIL_RANKS": "4"
+      }
+    }
+  },
+  "note": "LEADS.md Part Q2 (Strata-HotRod fd41f7174, MIT), coded on lead/Q1-Q2-Q5, NOT RUN: STRATA_PROMPT_TAIL=1 counts, per layer, the experts the LAST prompt chunk routes to (router ranks 0-1; the host ids the batched prompt path already holds), adds them to the adaptive tier's usage as STRATA_PROMPT_TAIL_W tokens' worth (default 16) after the prompt, and runs one blocking tier round (the STRATA_TIER_REWARM round, own cap STRATA_PROMPT_TAIL_MAX) before the first decode window. Placement only: the text hash must equal base up to the placement rounding every adaptive-tier spec shows (drift_check). Where it can pay: decode right after a long prompt (longdec32k, longdec64k); short and edit read fewer than STRATA_PROMPT_TAIL_MIN=256 new tokens or none and must be flat (the check that the default path is untouched). Arms: plus-prompt-tail = defaults (ranks 0-1, W 16); -w4 / -w48 = a weaker / stronger seed; -r4 = ranks 0-3. HotRod's own numbers (RTX 3060, SSD-bound, one pair): decode window 51.4 to 48.8 ms at 8.5K; halve them for gfx1100 (LEADS.md Q2). Proof lines in the engine log: 'STRATA_PROMPT_TAIL=1: the last prompt chunk's routing ...' at start and 'STRATA_PROMPT_TAIL: N-token prompt, L layers, X usage added, S swaps into the decode tier in T ms' after each long prompt; a 'skipped (...)' line means the round did not run (layer-major prompt path, --adapt-async 1, --batch). Protocol: AGENTS.md flag testing protocol (one arm per flag, run 1 screen, HIGH >= 2% any case, rescreen, two-run verdict). Stop pancake.service first. Run with --tier screen."
+}

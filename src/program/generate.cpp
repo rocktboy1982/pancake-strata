@@ -130,6 +130,7 @@
 #include "strata/core/window_trace.hpp"
 #include "strata/core/row_miss.hpp"
 #include "strata/program/expert_seed.hpp"
+#include "strata/program/prompt_tail.hpp"
 #include "strata/program/batch_read.hpp"
 #include "strata/program/logits_selection.hpp"
 #include "strata/program/conv_cache.hpp"
@@ -11806,6 +11807,14 @@ int main(int argc, char** argv) {
             }
             if (tier_rewarm.on && std::getenv("STRATA_ADAPT_PROMPT") == nullptr) adapt_prompt.on = true;
         }
+        // LEADS.md Part Q2 (STRATA_PROMPT_TAIL=1, opt-in; include/strata/program/prompt_tail.hpp): the experts the LAST prompt
+        // chunk routes to (ranks 0-1) seed the decode tier's usage after the prompt, then one blocking tier round lands them
+        // before the first window.  Null when off: none of the code below runs, the default path is unchanged.
+        std::unique_ptr<strata::program::PromptTail> prompt_tail;
+        {
+            const auto ptc = strata::program::PromptTail::from_env();
+            if (ptc.on) prompt_tail = std::make_unique<strata::program::PromptTail>(g.n_layers, g.n_expert, g.n_expert_used, ptc);
+        }
         // FK-28: adds the prompt counts gathered since the last round into the tier's counts (no-op when off or empty)
         auto adapt_prompt_fold = [&]() {
             if (!adapt_prompt.on || drive.d.usage.empty()) return;
@@ -16066,6 +16075,22 @@ int main(int argc, char** argv) {
             std::fprintf(stderr, "strata serve: STRATA_ADAPT_PROMPT=1 has no effect: %s\n",
                          drive.d.usage.empty() ? "the adaptive tier is off" : "STRATA_ADAPT_PROMPT_W is 0");
         }
+        // LEADS.md Part Q2 (STRATA_PROMPT_TAIL): record each layer's routing of the chunk (the last chunk's rows stay).  Chained
+        // after the hooks above; the hook only exists with the switch on.
+        if (prompt_tail && !drive.d.usage.empty()) {
+            auto prev_routes = sp.on_routes;
+            sp.on_routes = [&, prev_routes](int64_t l, const int32_t* ids, int64_t n) {
+                if (prev_routes) prev_routes(l, ids, n);
+                prompt_tail->record(l, ids, n);
+            };
+            const auto& ptc = prompt_tail->config();
+            std::fprintf(stderr, "strata serve: STRATA_PROMPT_TAIL=1: the last prompt chunk's routing (ranks 0-%d, weight %.3g "
+                                 "tokens) seeds the decode tier after a prompt of %lld tokens or more, one blocking round (cap %d)\n",
+                         ptc.ranks - 1, (double) ptc.w, (long long) ptc.min_tokens, ptc.cap);
+        } else if (prompt_tail) {
+            std::fprintf(stderr, "strata serve: STRATA_PROMPT_TAIL=1 has no effect: the adaptive tier is off\n");
+            prompt_tail.reset();
+        }
         // STRATA_TRACE=1: one stderr line per step of a request (the log shows where a request stops)
         const bool trace = std::getenv("STRATA_TRACE") != nullptr;
         auto tr = [&](const char* what, long long a = -1, long long b = -1) {
@@ -18774,6 +18799,7 @@ int main(int argc, char** argv) {
             // MOD_PLAN 11 items 3-4 (expert_seed.hpp): the tier's seed for this request, before its prompt is read.  `live`
             // is still the conversation the previous request left.  A one-shot request (ckpt=0: a title, a probe) is a
             // side request: it neither keeps the running conversation's counts nor seeds.
+            if (prompt_tail) prompt_tail->reset();   // STRATA_PROMPT_TAIL: this request's prompt starts a new tail
             if (seeder.on() && req_ckpt) {
                 static const std::vector<int32_t> none;
                 const std::string what = seeder.begin_request(drive.d.usage, ids, live_ok ? live : none, req_domain);
@@ -21102,6 +21128,43 @@ int main(int argc, char** argv) {
             if (mtp_room_open && room_close("prompt done") != 0) return 1;
             if (head_restore() != 0) return 1;
             tr("prompt done (slots refilled)");
+            // LEADS.md Part Q2 (STRATA_PROMPT_TAIL=1): the last chunk's routing into the tier's usage, then one blocking round
+            // (the STRATA_TIER_REWARM round below, with its own swap cap), on this thread with nothing in flight
+            if (prompt_tail && !cancelled && n - resume >= prompt_tail->config().min_tokens) {
+                const char* skip = drive.d.usage.empty() ? "the adaptive tier is off"
+                                 : ajob ? "--adapt-async 1"
+                                 : o.batch != 0 ? "--batch"
+                                 : kmiss.on() ? "STRATA_ADAPT_KMISS"
+                                 : remote_opt ? "a remote expert cache"
+                                 : !pending.empty() ? "a tier round is in flight"
+                                 : prompt_tail->layers_seen() == 0 ? "no layer's routing reached the host (layer-major or GPU-side grouping)"
+                                 : nullptr;
+                if (skip != nullptr) {
+                    static int said = 0;
+                    if (said++ < 2) std::fprintf(stderr, "strata serve: STRATA_PROMPT_TAIL=1: skipped (%s)\n", skip);
+                } else {
+                    const auto ptw0 = Clock::now();
+                    const double mass = prompt_tail->apply(drive.d.usage);
+                    const int64_t nsw0 = adapt_nswaps;
+                    const int cap0 = tier_rewarm.cap;
+                    tier_rewarm.cap = prompt_tail->config().cap;
+                    tier_rewarm.now = true;
+                    const bool pt_ok = adapt();
+                    tier_rewarm.now = false;
+                    tier_rewarm.cap = cap0;
+                    const int64_t nsw = adapt_nswaps - nsw0;
+                    adapt_nswaps = nsw0;   // the decode timing line's swaps/window counts the decode rounds only
+                    if (!pt_ok) {
+                        std::printf("ERR the prompt-tail tier round after the prompt failed\n");
+                        return 1;
+                    }
+                    apply_pending(true);   // the copies land and the tables follow (the first window plans from them)
+                    std::fprintf(stderr, "strata serve: STRATA_PROMPT_TAIL: %lld-token prompt, %lld layers, %.1f usage added, %lld "
+                                         "swaps into the decode tier in %.1f ms\n", (long long) (n - resume),
+                                 (long long) prompt_tail->layers_seen(), mass, (long long) nsw,
+                                 std::chrono::duration<double, std::milli>(Clock::now() - ptw0).count());
+                }
+            }
             // MOD_PLAN.md section 6 item 8, LEADS.md B118 (STRATA_TIER_REWARM=1): after a long prompt, one uncapped tier
             // round over the decode counts + the prompt's folded counts, landed before the first window.  On this thread
             // with nothing in flight (the loans are back, no round pending), as STRATA_IDLE_ADAPT's rounds between requests.
