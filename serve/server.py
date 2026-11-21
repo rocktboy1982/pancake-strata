@@ -100,6 +100,7 @@ from serve import prompt_kind  # noqa: E402
 from serve import knob_trial  # noqa: E402  (STRATA_KNOB_TRIAL=1: MOD_PLAN item 36, per-request knob trial; default off)
 from serve import tool_idle  # noqa: E402
 from serve import async_compact  # noqa: E402
+from serve import prefill_warm  # noqa: E402  (STRATA_PREFILL_TYPING, opt-in; LEADS.md Part Q1)
 from serve.structured import StructuredOutputError, prepare_format, validated_json, extract_json, normalize_response_format  # noqa: E402
 from serve import responses as responses_api  # noqa: E402
 from serve.responses import ResponsesError, error_body as responses_error_body  # noqa: E402
@@ -9751,7 +9752,8 @@ def make_handler(svc: Service):
                 self._json(200, {"status": "ok", "max_context": svc.reported_ctx(), "model": svc.model,
                                  "images": svc.vision is not None, "api_key": bool(svc.api_key),
                                  "image_generation": svc.images is not None,
-                                 "loaded": svc.loaded(), "service": "strata"})
+                                 "loaded": svc.loaded(), "service": "strata",
+                                 **({"prefill_typing": True} if prefill_warm.enabled() else {})})
             elif path.startswith("/v1/images/files/"):
                 # response_format url: the name (32 random hex digits) is the access, as an OpenAI image URL is
                 f = svc.images.file(path[len("/v1/images/files/"):]) if svc.images is not None else None
@@ -9853,6 +9855,9 @@ def make_handler(svc: Service):
             path = V1_V1_ALIASES.get(path, path)         # an Anthropic client given ".../v1" as its base posts /v1/v1/messages
             if path.startswith("/v1/") and self._foreign_page():
                 return
+            warm_path = False
+            if path == "/v1/prefill" and prefill_warm.enabled():     # STRATA_PREFILL_TYPING (opt-in): else a 404 as before
+                path, warm_path = "/v1/chat/completions", True
             if path == "/settings":
                 self._settings()
                 return
@@ -9907,6 +9912,8 @@ def make_handler(svc: Service):
                 req = json.loads(self._body() or b"{}")
                 if not isinstance(req, dict):
                     raise ValueError("send a JSON object")
+                if warm_path:
+                    req["strata_prefill"] = True
                 if path.startswith("/v1/responses/"):        # retrieve/delete/cancel/compact: nothing is stored
                     self._json(404, responses_error_body("this server keeps no responses (stateless); send the "
                                                          "whole conversation to POST /v1/responses", code="not_found"))
@@ -10298,6 +10305,11 @@ def make_handler(svc: Service):
                 items.close()
 
         def _openai(self, req):
+            warm_req = False
+            if prefill_warm.enabled():                   # STRATA_PREFILL_TYPING (opt-in): none of this runs without it
+                warm_req = prefill_warm.is_warm(req, self.headers)
+                if not warm_req:
+                    prefill_warm.GATE.note_real()        # a real request: the warms still queued give their place up
             req = svc.with_shared(req, "openai")
             bias_api.normalize(req.get("logit_bias"), len(getattr(svc.tok, "tokens", ())) or None)
             messages, tools, kw = openai_to_messages(req, svc.reasoning_keeper)
@@ -10316,6 +10328,13 @@ def make_handler(svc: Service):
                                                              req.get("tool_choice"), req.get("tools"),
                                                              req.get("response_format"))
             svc.load()
+            warm = None
+            if warm_req:                                 # STRATA_PREFILL_TYPING: read the draft's stable prefix, answer nothing
+                warm = prefill_warm.plan(messages, tools, kw, lambda m, t, k: svc.encode_prompt(m, t, k, store=False),
+                                         already_pinned=req.get("strata_prefix") is not None)
+                if warm.skip:
+                    return self._json(200, warm.body())
+                prefill_warm.apply(req, warm)
             max_req = max_new = int(req.get("max_completion_tokens") or req.get("max_tokens") or 0)   # 0/-1: the rest
             # No cap of our own on the reply's length when logprobs are asked for: the reply is already bounded by
             # max_tokens (by the rest of the context when it is not sent), which is the only bound OpenAI and vLLM
@@ -10354,11 +10373,22 @@ def make_handler(svc: Service):
             check_request_sampling(req)                       # ... and a sampling field of the wrong type
             cancel = threading.Event()
             self._watch_client(cancel)                       # #430 #431 (#1999: before prepare, which can take long)
+            if warm is not None:                             # STRATA_PREFILL_TYPING: a newer warm cancels the queued older ones
+                prefill_warm.GATE.probe = lambda c: (getattr(c, "_strata_request_id", None) is None or
+                                                     (svc.terminal_requests.get(c._strata_request_id) or {}).get("state") == "queued")
+                prefill_warm.GATE.begin(cancel)
             ids, thinking, max_new = svc.prepare(messages, tools, kw, max_new, force=force, req=req, cancel=cancel)
             _debug_req("openai", req, messages, tools, max_new, thinking, len(ids))
             run = run_with_mcp(svc, svc.mcp, messages, tools, kw, ids, thinking, max_new, max_req, req, cancel,
                                {t["name"] for t in extra}) if use_mcp else None
             chunks = openai_chunks(svc, req, ids, thinking, tools, max_new, cancel, run=run, force=force)
+            if warm is not None:                             # (never streamed: apply() turned it off)
+                try:
+                    out = openai_collect(self._capture(chunks, "openai"))
+                finally:
+                    prefill_warm.GATE.end(cancel)
+                out["strata_prefill"] = {"warmed": True, "stable_tokens": warm.tokens, "prompt_tokens": warm.prompt_tokens}
+                return self._json(200, out)
             if validator is not None:
                 chunks = structured_chunks(chunks, validator)
             chunks = self._capture(chunks, "openai")
