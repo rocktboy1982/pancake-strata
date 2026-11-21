@@ -33,3 +33,16 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 27.80 120.2 s (0.
 rep 0 base-m1              short 94.9 short 104.7 edit 122.0 edit 136.9 longdec64k 57.9/1583p 65239t  foreign CPU 3% [('kcompactd0', 4), ('kworker/8:2-events_freezable', 2), ('kswapd0', 1)]  gpu 2046/1249 MHz 62C 181W gtt 25M cpu 3623MHz 66C igpu 0%/vcn 0% fclk 1600
 REGIME-PAUSE base-m1: SLOW box state (cold 64K prefill 1583, pack load 0.29 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
 SETTLE 120 after a 219 s run
+  WARNING: only 18 GiB of free RAM in 2 MiB blocks (the arena locks 33 GiB): this run may be slow or killed while loading - 'sudo tools/pancake/os_tune.sh compact' (or 'install' once)
+STARTDIAG 2026-11-21T14:57:24 prev_run_s=219 gap_s=464 rd_sect=162727412912 wr_sect=110782592 io_ticks_ms=126362247 d_rd_sect=139522432 d_wr_sect=144 d_io_ticks_ms=181757 cached_kb=38763464 mlocked_kb=64 memavail_kb=58159784 nvme_temp_c=44 compact_stall_d=12
+STARTLOAD 2026-11-21T14:58:14 loaded 33.02 GiB at 1.04 GiB/s rate=1.04
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 36.4 s (1.00 GiB/s; stopped; waited 11.9 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 106.2 short 83.0 edit 123.1 edit 179.3 longdec64k 75.5/1459p 65239t  foreign CPU 2% [('kcompactd0', 2), ('localsearch-3', 1), ('systemd-journal', 0)]  gpu 1895/1249 MHz 60C 174W gtt 25M cpu 3456MHz 66C igpu 0%/vcn 0% fclk 1600
+REGIME-STILL-SLOW base-m1: first start prefill 1583 / load 0.29 GiB/s (paused 14:53:19), second start prefill 1459 / load 1.04 GiB/s
+STARTDIAG 2026-11-21T14:59:37 prev_run_s=129 gap_s=134 rd_sect=162804493520 wr_sect=110782640 io_ticks_ms=126431825 d_rd_sect=77080608 d_wr_sect=48 d_io_ticks_ms=69578 cached_kb=17759092 mlocked_kb=64 memavail_kb=58157056 nvme_temp_c=52 compact_stall_d=0
+SLOWLOAD waiting for the engine: not ready, elapsed 60 s
+SLOWLOAD waiting for the engine: not ready, elapsed 120 s
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 29.70 146.4 s (0.20 GiB/s; capped; waited 20.5 s for the arena)
+SLOWLOAD waiting for the engine: not ready, elapsed 180 s
+STARTLOAD 2026-11-21T15:02:39 loaded 33.02 GiB at 0.22 GiB/s rate=0.22
