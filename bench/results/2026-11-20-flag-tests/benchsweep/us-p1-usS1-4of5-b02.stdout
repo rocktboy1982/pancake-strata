@@ -1,0 +1,2 @@
+case longdec64k: 204873 chars, sha1 9c3c90f0e7a7, target 64000 tokens (a unique run line is prepended to every request)
+STARTDIAG 2026-11-21T04:33:42 prev_run_s=NA gap_s=NA rd_sect=143675395640 wr_sect=110760280 io_ticks_ms=111362546 d_rd_sect=NA d_wr_sect=NA d_io_ticks_ms=NA cached_kb=14986756 mlocked_kb=64 memavail_kb=57984084 nvme_temp_c=48 compact_stall_d=NA
