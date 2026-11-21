@@ -1,0 +1,25 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "prefill": true,
+  "cases": [
+    "short",
+    "long",
+    "long32k",
+    "long64k"
+  ],
+  "reps": 3,
+  "arms": {
+    "default": {
+      "exe": "/mnt/pancake/hipflags/build-default/strata"
+    },
+    "extra-ilp": {
+      "exe": "/mnt/pancake/hipflags/build-extra-ilp/strata"
+    },
+    "extra-cumode": {
+      "exe": "/mnt/pancake/hipflags/build-extra-cumode/strata"
+    }
+  },
+  "note": "LEADS.md Part T T8 (STRATA_HIP_EXTRA_FLAGS) build-vs-build; edit the arms to the flags that hipflags-probe.v1.sh reported ACCEPT. Template builds: HF_TAG=extra-ilp HF_EXTRA='-mllvm -amdgpu-sched-strategy=max-ilp' ; HF_TAG=extra-cumode HF_EXTRA=-mcumode (scope mmq by default; HF_EXTRA_SCOPE=all for every HIP source). Flag names unverified for LLVM 24. NOT RUN."
+}

@@ -1,0 +1,25 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "prefill": true,
+  "cases": [
+    "short",
+    "long",
+    "long32k",
+    "long64k"
+  ],
+  "reps": 3,
+  "arms": {
+    "default": {
+      "exe": "/mnt/pancake/hipflags/build-default/strata"
+    },
+    "default-b": {
+      "exe": "/mnt/pancake/hipflags/build-default-b/strata"
+    },
+    "vopd-off": {
+      "exe": "/mnt/pancake/hipflags/build-vopd-off/strata"
+    }
+  },
+  "note": "LEADS.md Part S S4 (STRATA_HIP_VOPD=off, -mllvm -amdgpu-enable-vopd=false) build-vs-build; binaries from tools/pancake/box_chains/hipflags-build.v1.sh (HF_TAG=default / default-b / vopd-off with HF_VOPD=off; default-b is a second build of the SAME flags: its gap to default is the build-to-build noise, the repeatability question of the lead). Exact path (compiler flag, no arithmetic change intended): run hipflags-repeat.v1.sh first. NOT RUN."
+}
