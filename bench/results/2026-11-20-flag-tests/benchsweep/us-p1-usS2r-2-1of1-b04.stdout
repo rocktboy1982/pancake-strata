@@ -41,3 +41,61 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 25.86 66.6 s (0.3
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 minus-HIPBLASLT_TUNING short 76.9 short 97.3 edit 155.9 edit 173.2 longdec64k 77.6/1424p 65241t  foreign CPU 3% [('kcompactd0', 5), ('kworker/1:1-events', 3), ('kswapd0', 1)]  gpu 2031/1249 MHz 62C 190W gtt 25M cpu 3753MHz 64C igpu 0%/vcn 0% fclk 1600
 SETTLE 120 after a 162 s run
+STARTDIAG 2026-11-21T02:57:12 prev_run_s=162 gap_s=287 rd_sect=140746106464 wr_sect=110756424 io_ticks_ms=109062350 d_rd_sect=101474952 d_wr_sect=144 d_io_ticks_ms=105957 cached_kb=17238148 mlocked_kb=64 memavail_kb=57909740 nvme_temp_c=47 compact_stall_d=15
+STARTLOAD 2026-11-21T02:57:58 loaded 33.02 GiB at 1.17 GiB/s rate=1.17
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.33 31.6 s (1.15 GiB/s; stopped; waited 12.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 100.4 short 99.9 edit 163.0 edit 175.5 longdec64k 88.0/2166p 65241t  foreign CPU 7% [('kcompactd0', 12), ('kworker/0:0-events', 4), ('kswapd0', 3)]  gpu 1971/1249 MHz 61C 181W gtt 25M cpu 3556MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                  99.8 +-   0.6  (n=2)
+                              drafts accepted 0.67
+  short  plus-ATTN_LANECELL      107.3 +-  40.0  (n=2)   vs updated:  +7.5% +- 40.7%  -> no difference
+                              drafts accepted 0.71
+  short  plus-ATTN_MERGE_V2      100.8 +-  23.5  (n=2)   vs updated:  +1.0% +- 24.2%  -> no difference
+                              drafts accepted 0.67
+  short  base-m1                 102.4 +-  26.7  (n=2)   vs updated:  +2.6% +- 27.4%  -> no difference
+                              drafts accepted 0.67
+  short  plus-ADAPT_NOWAIT       104.3 +-  66.1  (n=2)   vs updated:  +4.5% +- 65.6%  -> no difference
+                              drafts accepted 0.70
+  short  minus-HIPBLASLT_TUNING     87.1 +- 129.6  (n=2)   vs updated: -12.8% +- 129.2%  -> no difference
+                              drafts accepted 0.64
+  short  base-late               100.2 +-   3.2  (n=2)   vs updated:  +0.3% +-  3.8%  -> no difference
+                              drafts accepted 0.67
+  edit   updated                 169.6 +-  78.8  (n=2)
+                              drafts accepted 0.89
+  edit   plus-ATTN_LANECELL      171.9 +-  15.9  (n=2)   vs updated:  +1.4% +- 37.1%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-ATTN_MERGE_V2      176.1 +- 114.4  (n=2)   vs updated:  +3.8% +- 21.0%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 175.7 +- 104.9  (n=2)   vs updated:  +3.6% +- 15.4%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-ADAPT_NOWAIT       163.2 +- 101.0  (n=2)   vs updated:  -3.7% +- 13.1%  -> no difference
+                              drafts accepted 0.90
+  edit   minus-HIPBLASLT_TUNING    164.6 +- 109.9  (n=2)   vs updated:  -3.0% +- 18.4%  -> no difference
+                              drafts accepted 0.90
+  edit   base-late               169.2 +-  79.4  (n=2)   vs updated:  -0.2% +-  0.4%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  88.6 +-   nan  (n=1)
+  longdec64k plus-ATTN_LANECELL       78.9 +-   nan  (n=1)   vs updated: -10.9% +-  nan%  -> no difference
+  longdec64k plus-ATTN_MERGE_V2       76.5 +-   nan  (n=1)   vs updated: -13.7% +-  nan%  -> no difference
+  longdec64k base-m1                  77.3 +-   nan  (n=1)   vs updated: -12.8% +-  nan%  -> no difference
+  longdec64k plus-ADAPT_NOWAIT        84.5 +-   nan  (n=1)   vs updated:  -4.6% +-  nan%  -> no difference
+  longdec64k minus-HIPBLASLT_TUNING     77.6 +-   nan  (n=1)   vs updated: -12.4% +-  nan%  -> no difference
+  longdec64k base-late                88.0 +-   nan  (n=1)   vs updated:  -0.7% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-ATTN_LANECELL   DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-ATTN_MERGE_V2   DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-ADAPT_NOWAIT    DIFFERENT text -> lossy or placement-dependent: quality gate
+  minus-HIPBLASLT_TUNING DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            identical on every case -> exact
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short +0.3%  edit -0.2%  longdec64k -0.7%
+  plus-ATTN_LANECELL   short +7.3%  edit +1.5%  longdec64k -10.6%  -> drop
+  plus-ATTN_MERGE_V2   short +0.8%  edit +3.9%  longdec64k -13.4%  -> drop
+  base-m1              short +2.4%  edit +3.7%  longdec64k -12.5%  -> drop
+  plus-ADAPT_NOWAIT    short +4.3%  edit -3.6%  longdec64k -4.3%  -> drop
+  minus-HIPBLASLT_TUNING short -12.9%  edit -2.9%  longdec64k -12.1%  -> drop
