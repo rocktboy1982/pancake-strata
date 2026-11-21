@@ -1,14 +1,14 @@
 #!/bin/sh
-# hipblaslt-arms-run.sh - the box commands of LEADS.md Part T leads T3 (spec 253: no table / hipBLASLt heuristic / table) and T4 (warm-up, first-request time).
+# hipblaslt-arms-run.sh - the box commands of LEADS.md Part T leads T3 (spec 255: no table / hipBLASLt heuristic / table) and T4 (warm-up, first-request time).
 # NEVER RUN BY THE AUTHOR (coded on lead/T2-T4 from a Windows PC with no ROCm): TEST_LEDGER.md rows say "coded, not run".  Run by hand ON THE BOX, only when it is
 # idle and an engine of THIS branch is built (the HIP build with src/prefill/gemm.cu of lead/T2-T4).  It refuses to start while any other job runs, never touches
 # pancake.service or a queue, and has no "bench-", "win-chain" or "abtest" in its own name (the abtest.py it starts is reached through tools/pancake/./abtest.py,
 # as the other chains do, so its busy check does not take this script for another test).
 #
 # Parts (PART="T3 T4" by default):
-#   T3  spec 253 screen: arms base-no-table (STRATA_HIPBLASLT_TABLE=off), heuristic (+ STRATA_HIPBLASLT_HEURISTIC=1), heuristic-top4, table (the 100401 table, or
+#   T3  spec 255 screen: arms base-no-table (STRATA_HIPBLASLT_TABLE=off), heuristic (+ STRATA_HIPBLASLT_HEURISTIC=1), heuristic-top4, table (the 100401 table, or
 #       TABLE_FILE=<a freshly tuned 100500 file> on ROCm 10.2), cases long10k / long32k / long64k, 1 request per case and arm, drift check on.  Output
-#       $OUT/253.jsonl + $OUT/253.stdout.  The verdict is the owner's: heuristic vs base-no-table (does the library's own choice beat hipBLASEx), heuristic vs
+#       $OUT/255.jsonl + $OUT/255.stdout.  The verdict is the owner's: heuristic vs base-no-table (does the library's own choice beat hipBLASEx), heuristic vs
 #       table (can the per-version table go).  Quality gate / KLD check BEFORE any adoption (a heuristic algorithm may differ in the last bits).
 #   T4  first-request latency of the compressed hipBLASLt catalogs (ROCm 10.2's hipBLASLt 1.5.0 unpacks a catalog on first use): the same engine started 3 times
 #       with STRATA_HIPBLASLT_WARMUP=0 and 3 times with =1, ENGINE_CMD below, one prompt request each, the time of the FIRST request and the engine's own
@@ -42,7 +42,7 @@ mkdir -p "$OUT" || { echo "cannot create $OUT"; exit 1; }
 : >> "$LOG"
 busy && die "the box is busy; nothing was started"
 [ -n "$BU" ] && [ -x "$BU/strata" ] || die "BU must be the directory of a built strata (the HIP build of this branch); got '$BU'"
-[ -f "$SRC/bench/specs/253-hipblaslt-heuristic-arms.json" ] || die "spec 253 is missing in $SRC"
+[ -f "$SRC/bench/specs/255-hipblaslt-heuristic-arms.json" ] || die "spec 255 is missing in $SRC"
 # the build must be THIS branch's: its binary carries the new switch names
 strings "$BU/strata" 2>/dev/null | grep -q "STRATA_HIPBLASLT_HEURISTIC" || die "$BU/strata does not know STRATA_HIPBLASLT_HEURISTIC: build lead/T2-T4 first"
 
@@ -52,13 +52,13 @@ for p in $PART; do
     [ -f "$CONFIG_PLAIN" ] || die "T3 needs CONFIG_PLAIN (the plain run config, as spec 251's)"
     [ -f "$TABLE_FILE" ] || die "T3 table file missing: $TABLE_FILE"
     sed "s#@UPDATED_SRC@#$SRC#g; s#@UPDATED@#$BU#g; s#@CONFIG_PLAIN@#$CONFIG_PLAIN#g; s#$SRC/tools/hip/gfx1100-hipblaslt-100401.txt#$TABLE_FILE#g" \
-      "$SRC/bench/specs/253-hipblaslt-heuristic-arms.json" > "$OUT/253.json" || die "T3 spec fill"
-    say "T3 spec 253 screen: table arm = $TABLE_FILE, build $BU"
+      "$SRC/bench/specs/255-hipblaslt-heuristic-arms.json" > "$OUT/255.json" || die "T3 spec fill"
+    say "T3 spec 255 screen: table arm = $TABLE_FILE, build $BU"
     busy && die "T3: the box became busy"
-    python3 "$SRC/tools/pancake/./abtest.py" "$OUT/253.json" --out "$OUT/253.jsonl" --tier screen > "$OUT/253.stdout" 2>&1
+    python3 "$SRC/tools/pancake/./abtest.py" "$OUT/255.json" --out "$OUT/255.jsonl" --tier screen > "$OUT/255.stdout" 2>&1
     rc=$?
     say "T3 abtest exit $rc; look for 'Lt heuristic' / 'status=' lines in the engine logs of the run; an arm without 'STRATA_HIPBLASLT_HEURISTIC=1' in its engine log is inert"
-    grep -E "vs base|identical|DIFFERENT" "$OUT/253.stdout" | cut -c1-200 >> "$LOG"
+    grep -E "vs base|identical|DIFFERENT" "$OUT/255.stdout" | cut -c1-200 >> "$LOG"
     ;;
   T4)
     # ENGINE_CMD starts the engine as the daily setup does and must print its log to stdout/stderr; the request is a one-token-out prompt of 4000 tokens
@@ -92,5 +92,5 @@ for p in $PART; do
   *) say "unknown part $p (T3 or T4)";;
   esac
 done
-say "done; archive $OUT in bench/results/<date>-hipblaslt-arms/ and write the ledger rows (T-nnn) from $OUT/253.stdout and $LOG"
+say "done; archive $OUT in bench/results/<date>-hipblaslt-arms/ and write the ledger rows (T-nnn) from $OUT/255.stdout and $LOG"
 echo "HIPBLASLT_ARMS_DONE" >> "$LOG"

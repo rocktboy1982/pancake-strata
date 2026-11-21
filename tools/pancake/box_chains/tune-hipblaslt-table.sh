@@ -25,7 +25,7 @@
 # Variables: ROCM (default /opt/rocm/core-10.2), WANT_KEY (default 100500), SRC (default: this checkout), OUT (default $HOME/auto-runs/tune-hipblaslt-$WANT_KEY),
 #   SHAPES (default tools/hip/gfx1100-hipblaslt-100401.txt), TOKENS (default 4096,8192), GPU (default 0: HIP_VISIBLE_DEVICES), EXTEND (default 0).
 # Afterwards, to use the table (as files, still the owner's call): copy $OUT/gfx1100-hipblaslt-$WANT_KEY.txt to tools/hip/ (it replaces the nightly-tuned 100500 file:
-# keep that one's git history), then prompt A/B it with spec 253's `table` arm pointed at it (bench/specs/253-hipblaslt-heuristic-arms.json), 10K / 32K / 64K.
+# keep that one's git history), then prompt A/B it with spec 255's `table` arm pointed at it (bench/specs/255-hipblaslt-heuristic-arms.json), 10K / 32K / 64K.
 # Add STRATA_HIPBLASLT_TABLE_STRICT=1 to the engine environment so an engine that cannot load the table refuses to start instead of falling back.
 set -u
 ROCM=${ROCM:-/opt/rocm/core-10.2}
@@ -99,6 +99,6 @@ fi
 # 5. next steps
 say "5. done. Table: $OUT/gfx1100-hipblaslt-$KEY.txt (header and rows checked, not yet A/B-ed). Next, by the owner:"
 say "   a. engine smoke with the table and STRICT: STRATA_HIPBLASLT_TUNING=$OUT/gfx1100-hipblaslt-$KEY.txt STRATA_HIPBLASLT_TABLE_STRICT=1 (the log must say 'hipBLASLt table status=exact key=gfx1100-hipblaslt-$KEY')"
-say "   b. spec 253 arm table pointed at it, prompt cases 10K / 32K / 64K; the quality gate before adopting (a retuned table can change the last bits)"
+say "   b. spec 255 arm table pointed at it, prompt cases 10K / 32K / 64K; the quality gate before adopting (a retuned table can change the last bits)"
 say "   c. only then: copy it to tools/hip/ in the repo and the engine package (packaging/stage_tuning.py picks tools/hip/<arch>-hipblaslt-<version>.txt)"
 echo "TUNE_HIPBLASLT_TABLE_DONE" >> "$LOG"
