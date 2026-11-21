@@ -36,3 +36,8 @@ rep 0 plus-SMALL_UNR       short 102.4 short 100.3 edit 167.6 edit 181.0 longdec
 rep 0 plus-SMALL_UNR: every attempt noisy, keeping the quietest (5% foreign CPU)
 STARTDIAG 2026-11-21T10:41:17 prev_run_s=106 gap_s=111 rd_sect=154814566392 wr_sect=110772576 io_ticks_ms=120375639 d_rd_sect=81325984 d_wr_sect=64 d_io_ticks_ms=42148 cached_kb=13170168 mlocked_kb=64 memavail_kb=58099952 nvme_temp_c=50 compact_stall_d=6
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 31.20 156.4 s (0.20 GiB/s; capped; waited 11.6 s for the arena)
+STARTLOAD 2026-11-21T10:44:15 loaded 33.02 GiB at 0.20 GiB/s rate=0.20
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 92.0 short 103.0 edit 155.5 edit 130.9 longdec64k 77.2/1425p 65242t  foreign CPU 3% [('kcompactd0', 7), ('kswapd0', 3), ('kworker/0:2-events', 2)]  gpu 2034/1249 MHz 60C 183W gtt 25M cpu 3671MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+REGIME-PAUSE base-late: SLOW box state (cold 64K prefill 1425, pack load 0.2 GiB/s; limits 1800 tok/s / 0.8 GiB/s): idle 120 s with the pack read into the page cache, then this base runs again
+SETTLE 120 after a 261 s run
