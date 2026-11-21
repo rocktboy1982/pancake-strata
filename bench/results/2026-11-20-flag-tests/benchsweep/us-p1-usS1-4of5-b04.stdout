@@ -14,3 +14,14 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.45 33.1 s (1.1
 rep 0 updated              short 110.5 short 103.5 edit 169.0 edit 171.4 longdec64k 82.8/2184p 65242t  foreign CPU 2% [('kcompactd0', 3), ('localsearch-3', 1), ('kworker/u65:5-KFD IH', 1)]  gpu 2018/1249 MHz 60C 183W gtt 25M cpu 3618MHz 65C igpu 0%/vcn 0% fclk 1600
 REGIME-RECOVERED updated: first start prefill 1652 / load 0.19 GiB/s (paused 05:14:25), second start prefill 2184 / load 1.13 GiB/s
 STARTDIAG 2026-11-21T05:20:22 prev_run_s=107 gap_s=112 rd_sect=145115551768 wr_sect=110761808 io_ticks_ms=112579556 d_rd_sect=70869320 d_wr_sect=64 d_io_ticks_ms=39601 cached_kb=17898400 mlocked_kb=64 memavail_kb=57966560 nvme_temp_c=50 compact_stall_d=0
+STARTLOAD 2026-11-21T05:21:15 loaded 33.02 GiB at 0.99 GiB/s rate=0.99
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.44 37.1 s (0.98 GiB/s; stopped; waited 14.2 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-PA_RPF          short 106.5 short 103.7 edit 169.0 edit 169.1 longdec64k 82.3/2183p 65242t  foreign CPU 4% [('kcompactd0', 6), ('kswapd0', 2), ('claude', 1)]  gpu 2044/1249 MHz 61C 184W gtt 25M cpu 3745MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-PA_RPF: every attempt noisy, keeping the quietest (4% foreign CPU)
+STARTDIAG 2026-11-21T05:22:24 prev_run_s=116 gap_s=121 rd_sect=145198977824 wr_sect=110761872 io_ticks_ms=112623813 d_rd_sect=83426056 d_wr_sect=64 d_io_ticks_ms=44257 cached_kb=15072484 mlocked_kb=64 memavail_kb=58037396 nvme_temp_c=51 compact_stall_d=6
+STARTLOAD 2026-11-21T05:23:17 loaded 33.02 GiB at 0.97 GiB/s rate=0.97
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 32.28 38.4 s (0.84 GiB/s; stopped; waited 12.9 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-PA_TRIM         short 102.8 short 99.7 edit 164.0 edit 175.8 longdec64k 83.1/1701p 65242t  foreign CPU 3% [('kworker/1:3-events', 3), ('kcompactd0', 3), ('kswapd0', 1)]  gpu 1928/1249 MHz 63C 186W gtt 25M cpu 3624MHz 63C igpu 0%/vcn 0% fclk 1600
+STARTDIAG 2026-11-21T05:24:28 prev_run_s=119 gap_s=124 rd_sect=145312953568 wr_sect=110761968 io_ticks_ms=112689057 d_rd_sect=113975744 d_wr_sect=96 d_io_ticks_ms=65244 cached_kb=17619532 mlocked_kb=64 memavail_kb=58031264 nvme_temp_c=53 compact_stall_d=7
