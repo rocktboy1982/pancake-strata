@@ -1,4 +1,5 @@
 #include "strata/core/conversation_snapshot.hpp"
+#include "strata/core/gdn_state_f16.hpp"
 #include "conversation_checked.hpp"
 #include "conversation_copy.hpp"
 #include "strata/program/ckpt_async_plan.hpp"
@@ -17,6 +18,18 @@
 
 namespace strata::core {
 namespace {
+// STRATA_SNAP_STATE_F16=1 (opt-in, LEADS.md S6): a checkpoint's running GDN state is read back through FP16 rounding, the numbers a
+// snapshot stored as FP16 would give (gdn_state_f16.hpp).  The stored size is not halved yet.  Unset: nothing below changes.
+bool snap_state_f16() {
+    static const bool on = [] {
+        const bool v = gdn_f16::snap_f16_on_from(std::getenv("STRATA_SNAP_STATE_F16"));
+        if (v)
+            std::fprintf(stderr, "strata: STRATA_SNAP_STATE_F16=1: a restored checkpoint's recurrent state is read through FP16 "
+                                 "rounding (VRAM-slot restores take the host copy; stored size unchanged; lossy; LEADS.md S6)\n");
+        return v;
+    }();
+    return on;
+}
 using conversation_detail::add;
 using conversation_detail::product;
 
@@ -492,7 +505,7 @@ bool conversation_checkpoint_save(ConversationCheckpoint& c, const SessionState&
 bool conversation_checkpoint_restore(const ConversationCheckpoint& c, SessionState& ss,
                                      const ModelGeometry& g, std::string& error) {
     const VramSlot* hit = nullptr;
-    if (c.dev_tag != 0) {
+    if (c.dev_tag != 0 && !snap_state_f16()) {   // (STRATA_SNAP_STATE_F16: the exact device copy is not the FP16 state: host bytes)
         int dev = 0;
         (void) cudaGetDevice(&dev);
         for (VramSlot& x : vram_slots().s)
@@ -510,7 +523,9 @@ bool conversation_checkpoint_restore(const ConversationCheckpoint& c, SessionSta
     ConversationStateSizes z;
     if (!conversation_session_sizes(g, ss, z, error)) return false;
     if (!sync(error)) return false;   // the copies below no longer ride the legacy stream's implicit ordering
-    if (!copy(ss.gdn_state, hit != nullptr ? hit->p : (const void*) c.gdn.data(), c.gdn.size(), error) ||
+    std::vector<uint8_t> f16_scratch;   // (STRATA_SNAP_STATE_F16 only)
+    if (!copy(ss.gdn_state, hit != nullptr ? hit->p : gdn_f16::restore_source(snap_state_f16(), c.gdn.data(), c.gdn.size(), f16_scratch),
+              c.gdn.size(), error) ||
         !copy(ss.ple_hist, c.ple.data(), c.ple.size(), error)) return false;
     for (size_t j = 0; j < owned_qsa(ss); ++j) {
         const auto& st = owned(ss, j);
@@ -804,7 +819,13 @@ bool ConversationStateTarget::apply(size_t part, uint64_t offset, const void* da
     }
     ConversationStateSizes z;
     if (!conversation_session_sizes(*geometry, *session, z, error)) return false;
-    if (part == 0) return copy(reinterpret_cast<uint8_t*>(session->gdn_state) + offset, src, n, error);
+    if (part == 0) {
+        // STRATA_SNAP_STATE_F16: a disk / stream block of the GDN part reads through FP16 rounding when it is whole floats
+        std::vector<uint8_t> f16_scratch;
+        const void* from = offset % sizeof(float) == 0
+                               ? gdn_f16::restore_source(snap_state_f16(), src, n, f16_scratch) : (const void*) src;
+        return copy(reinterpret_cast<uint8_t*>(session->gdn_state) + offset, from, n, error);
+    }
     if (part == 1) return copy(reinterpret_cast<uint8_t*>(session->ple_hist) + offset, src, n, error);
     const size_t r = part == 2 ? z.tail : part == 3 ? z.dead : z.block_pos;
     const size_t pooled_row = (size_t) tokens / strata::kernels::qsa_real_shapes().idx_block;

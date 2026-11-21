@@ -1,0 +1,24 @@
+{
+ "prefill": true,
+ "drift_check": true,
+ "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+ "lossy": false,
+ "cases": [
+  "long1k",
+  "long3k",
+  "long10k",
+  "long32k",
+  "long64k"
+ ],
+ "reps": 3,
+ "arms": {
+  "base": {},
+  "plus-no-tail": {
+   "env": {
+    "STRATA_PREFILL_NO_TAIL_CHUNK": "1",
+    "STRATA_TRACE": "1"
+   }
+  }
+ },
+ "note": "LEADS.md S9 (radiance tail-anchor off: a 76-row tail chunk read 77% of the experts, 1.42x time to first token on a W7900, their number), coded on lead/S6-S9-S12, NOT RUN. STRATA_PREFILL_NO_TAIL_CHUNK=1 (include/strata/program/prefill_plan.hpp no_tail_chunk): a prompt segment whose last chunk is 1024 tokens or fewer reads in one chunk fewer, each a little larger, while no chunk passes the buffers' chunk. Metric: prompt tok/s of the engine's log line = time to first token for the cold prompt; cases long1k / long3k (agent-sized) and long10k / long32k / long64k (8K..64K). The rule only acts where the plan's chunk is below the buffers' chunk (balanced_chunk / --prefill N below the cap) and the last chunk is a stub: a long case whose tail already streams or whose chunk equals the cap is unchanged, so most cases may show no difference; read the engine log for 'prefill no tail chunk:' lines (STRATA_TRACE=1) to see which cases changed and compare only those. Chunk geometry changes the rounding, so text may differ (exactness is judged by the parity ctests, not by text: AGENTS.md flag protocol rule 6). Screen = run 1, HIGH if any case >= +2%, rescreen run 2, two-run verdict. Stop pancake.service first. NOT run on the busy flag-screen box."
+}

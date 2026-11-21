@@ -36,6 +36,7 @@
 #include "strata/core/remote_expert_opt.hpp"
 #include "strata/core/dma_batch.hpp"
 #include "strata/core/spec_prob.hpp"
+#include "strata/core/spec_block.hpp"
 #include "strata/core/spec_proposal.hpp"
 #if defined(_WIN32)
 #ifndef NOMINMAX
@@ -5615,8 +5616,18 @@ bool Verifier::run(int T, const int32_t* tokens, int64_t pos0, PoolMultiFn pool,
             err = "verify: proposal sampler unavailable or allocation/copy/launch failed";
             return false;
         }
-        if (judged) ++spec_windows;
-        else sample_tokens(head_logits_, T, (int) n_vocab_, hist_d_, hist_len_, sp, m_out_, cs_);
+        if (judged) {
+            ++spec_windows;
+            // STRATA_MTP_BLOCK_VERIFY=1 (LEADS.md S12): the block rule (core/spec_block.hpp) is host-tested; the device sampler does
+            // not run it yet, so the window above was judged token by token.  Said once; the default path is untouched.
+            static const bool block_asked = strata::core::spec_block_verify_on();
+            static bool block_said = false;
+            if (block_asked && !block_said) {
+                block_said = true;
+                std::fprintf(stderr, "strata verify: STRATA_MTP_BLOCK_VERIFY=1 is set: block verification is not wired into the "
+                                     "device sampler yet, drafts are judged token by token (LEADS.md S12)\n");
+            }
+        } else sample_tokens(head_logits_, T, (int) n_vocab_, hist_d_, hist_len_, sp, m_out_, cs_);
         if (cudaStreamSynchronize(cs_) != cudaSuccess) {   // m_out_ is the mapped h_out_: synced, it is readable
             err = "verify: the head sampling failed";
             return false;

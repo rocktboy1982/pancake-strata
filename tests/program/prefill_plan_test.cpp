@@ -209,6 +209,63 @@ int main() {
         CHECK(l.find("-> equal 25088 x 4 chunks, last 24733 (tail +23040 tokens)") != std::string::npos);
         CHECK(l.find('\n') == std::string::npos);
     }
+    // LEADS.md S9: no separate tail chunk.  The switch as set
+    CHECK(!no_tail_on_from(nullptr));
+    CHECK(!no_tail_on_from("0"));
+    CHECK(!no_tail_on_from(""));
+    CHECK(no_tail_on_from("1"));
+    // worked cases (chunk 4096, cap 8192): 4096 x 2 + 76 -> two chunks of 4352 (rounded up to 256), tail folded
+    CHECK(no_tail_chunk(8268, 4096, 8192) == 4352);
+    CHECK(no_tail_chunk(8192 + 1024, 4096, 8192) == 4608);          // a tail of exactly tail_max is folded
+    CHECK(no_tail_chunk(8192 + 1025, 4096, 8192) == 0);             // 1,025 is not a tail
+    CHECK(no_tail_chunk(972, 1024, 8192) == 0);                      // one chunk: no tail
+    CHECK(no_tail_chunk(32768 + 76, 32768, 32768) == 0);            // the folded chunk would pass the cap: kept
+    CHECK(no_tail_chunk(8268, 4096, 4096) == 0);                    // cap = chunk: cannot grow
+    CHECK(no_tail_chunk(0, 4096, 8192) == 0 && no_tail_chunk(100, 0, 8192) == 0 && no_tail_chunk(100, 100, 0) == 0);
+    // every prompt length 1..200000 against the chunk and cap sizes the presets use
+    {
+        const int64_t chunks[] = {256, 1024, 2048, 4096, 6144, 8192, 16384, 32768};
+        const int64_t caps[] = {8192, 16384, 32768, 49152};
+        int64_t changed = 0, checked = 0;
+        for (int64_t chunk : chunks)
+            for (int64_t cap : caps) {
+                if (chunk > cap) continue;
+                for (int64_t tokens = 1; tokens <= 200000; ++tokens) {
+                    const int64_t c = no_tail_chunk(tokens, chunk, cap);
+                    const auto plain = chunk_lengths(tokens, chunk);
+                    ++checked;
+                    if (c == 0) {
+                        // not applied on a short tail only when folding cannot fit the cap or would leave a new stub
+                        if (plain.size() >= 2 && plain.back() <= kNoTailMax) {
+                            const int64_t m = (int64_t) plain.size() - 1;
+                            const int64_t per = tokens / m + (tokens % m != 0);
+                            const int64_t cc = (per + 255) / 256 * 256;
+                            const auto p2 = chunk_lengths(tokens, cc);
+                            CHECK(cc > cap || cc <= chunk || (p2.size() >= 2 && p2.back() <= kNoTailMax));
+                        }
+                        continue;
+                    }
+                    ++changed;
+                    const auto plan = chunk_lengths(tokens, c);
+                    int64_t sum = 0, big = 0;
+                    for (int64_t x : plan) { sum += x; big = std::max(big, x); }
+                    CHECK(sum == tokens);                                   // every token is read once
+                    CHECK(big <= cap);                                      // no chunk above the maximum
+                    CHECK(plan.size() < plain.size());                      // at least one chunk fewer
+                    CHECK(plain.back() <= kNoTailMax && plain.size() >= 2); // it only acts on a short tail
+                    CHECK(plan.size() == 1 || plan.back() > kNoTailMax);    // and leaves no new stub
+                    CHECK(c % 256 == 0 && c > chunk);
+                    if (failed) { std::fprintf(stderr, "at tokens %lld chunk %lld cap %lld\n", (long long) tokens, (long long) chunk, (long long) cap); return 1; }
+                }
+                // a segment whose last chunk is not a tail keeps today's chunk list
+                for (int64_t tokens = 1; tokens <= 200000; tokens += 977) {
+                    const auto plain = chunk_lengths(tokens, chunk);
+                    if (plain.size() >= 2 && plain.back() > kNoTailMax) CHECK(no_tail_chunk(tokens, chunk, cap) == 0);
+                }
+            }
+        std::printf("no-tail: %lld (length, chunk, cap) cases checked, %lld folded\n", (long long) checked, (long long) changed);
+        CHECK(changed > 0);
+    }
     std::printf("%s\n", failed ? "FAILED" : "prefill_plan_test: ok");
     return failed ? 1 : 0;
 }

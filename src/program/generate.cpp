@@ -10851,7 +10851,7 @@ int main(int argc, char** argv) {
                                  "(MOD_PLAN 17.5; STRATA_TRACE=1 shows the chunks)\n", (long long) v);
         return v;
     }();
-    auto equal_chunk = [&](int64_t tokens, int64_t max_chunk) -> int64_t {
+    auto equal_chunk0 = [&](int64_t tokens, int64_t max_chunk) -> int64_t {
         const int64_t plain = request_chunk(tokens, max_chunk);
         if (equal_tail_min > 0) {
             const int64_t c = strata::program::prefill_plan::equal_tail_chunk(
@@ -10882,13 +10882,41 @@ int main(int argc, char** argv) {
         const int64_t rounded = per > std::numeric_limits<int64_t>::max() - 255 ? per : ((per + 255) / 256) * 256;
         return std::min(max_chunk, rounded);
     };
+    // STRATA_PREFILL_NO_TAIL_CHUNK=1 (opt-in, LEADS.md S9, radiance's tail-anchor off): a segment whose last chunk is a stub
+    // (kNoTailMax tokens or fewer) reads in one chunk fewer, each a little larger, while none passes the buffers' chunk
+    // (prefill_plan::no_tail_chunk).  Applied to the chunk the plan chose; unset: the chunk is returned as it was.  Changes the
+    // chunk geometry (rounding), so it is off by default.
+    static const bool no_tail_chunks = [] {
+        const bool on = strata::program::prefill_plan::no_tail_on_from(std::getenv("STRATA_PREFILL_NO_TAIL_CHUNK"));
+        if (on)
+            std::fprintf(stderr, "strata: STRATA_PREFILL_NO_TAIL_CHUNK=1: a prompt segment whose last chunk is %lld tokens or "
+                                 "fewer reads in one chunk fewer, no chunk above the buffers' chunk (LEADS.md S9)\n",
+                         (long long) strata::program::prefill_plan::kNoTailMax);
+        return on;
+    }();
+    auto no_tail = [&](int64_t tokens, int64_t chunk, int64_t cap) -> int64_t {
+        if (!no_tail_chunks) return chunk;
+        const int64_t c = strata::program::prefill_plan::no_tail_chunk(tokens, chunk, cap);
+        if (c <= 0) return chunk;
+        thread_local int64_t seen_tokens = -1, seen_chunk = -1;
+        if (tokens != seen_tokens || chunk != seen_chunk) {
+            seen_tokens = tokens;
+            seen_chunk = chunk;
+            std::fprintf(stderr, "strata: prefill no tail chunk: %lld tokens (cap %lld): %lld-token chunks -> %lld\n",
+                         (long long) tokens, (long long) cap, (long long) chunk, (long long) c);
+        }
+        return c;
+    };
+    auto equal_chunk = [&](int64_t tokens, int64_t max_chunk) -> int64_t {
+        return no_tail(tokens, equal_chunk0(tokens, max_chunk), max_chunk);
+    };
     // #2824: the chunk a request of `tokens` reads in when the host-aware plan chose `plan` (< cap, the buffers' chunk = what the VRAM
     // scan picked).  A prompt that fits one chunk of `cap` keeps ONE chunk, as before (a single pass reads each expert once, so the
     // page cache cannot thrash, and splitting it would only add a pass); a longer one reads in n = ceil(tokens / plan) chunks of
     // EQUAL size (no tiny tail), at most `cap`.
     auto planned_chunk = [&](int64_t tokens, int64_t cap, int64_t plan) -> int64_t {
         if (plan <= 0 || plan >= cap || tokens <= 0) return equal_chunk(tokens, cap);
-        return strata::program::prefill_plan::balanced_chunk(tokens, cap, plan);
+        return no_tail(tokens, strata::program::prefill_plan::balanced_chunk(tokens, cap, plan), cap);
     };
     // The prompt path's chunk and the slots it borrows for its buffers: the requested chunk halved until it fits,
     // or with --prefill auto the largest chunk whose buffers take at most kAutoLendPct % of the slots (a
