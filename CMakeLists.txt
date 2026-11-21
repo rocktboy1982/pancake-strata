@@ -2485,6 +2485,9 @@ if(STRATA_BUILD_TESTS)
   add_executable(pcopy_rest_test src/program/pcopy_rest_test.cpp)   # LEADS.md Part S row S7: STRATA_PCOPY_REST_USAGE (the rule, host only)
   target_include_directories(pcopy_rest_test PRIVATE include)
   add_test(NAME pcopy_rest_test COMMAND pcopy_rest_test)
+  add_executable(swap_budget_residency_test src/program/swap_budget_residency_test.cpp)   # LEADS.md Part S row S8: STRATA_SWAP_BUDGET_RESIDENCY (schedule + budget, host only)
+  target_include_directories(swap_budget_residency_test PRIVATE include)
+  add_test(NAME swap_budget_residency_test COMMAND swap_budget_residency_test)
   add_executable(route_range_test src/program/route_range_test.cpp)   # MOD_PLAN.md section 6 (BigMoeOnEdge switches): STRATA_ROUTE_RANGE
   target_include_directories(route_range_test PRIVATE include)
   add_test(NAME route_range_test COMMAND route_range_test)
@@ -4138,6 +4141,7 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     prefetch_prev_test
     copy_batch_test
     pcopy_rest_test
+    swap_budget_residency_test
     route_range_test
     lookahead_skip_test
     lookahead_ctrl_test

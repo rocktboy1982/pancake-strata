@@ -11594,7 +11594,7 @@ int main(int argc, char** argv) {
             // --adapt-async: twice the exchange buffers - the second half bounces the copies in whose source is not
             // page-locked (an asynchronous copy instead of the driver's staged, synchronous one)
             // item 53: with STRATA_ADAPT_SWAPS_AUTO the online budget may grow to 96 swaps a round
-            const int64_t x_n = std::min<int64_t>(std::getenv("STRATA_ADAPT_SWAPS_AUTO") != nullptr ? 96 : o.adapt_swaps, 96);
+            const int64_t x_n = std::min<int64_t>(std::getenv("STRATA_ADAPT_SWAPS_AUTO") != nullptr || strata::program::swap_budget_residency_parse(std::getenv("STRATA_SWAP_BUDGET_RESIDENCY")) ? 96 : o.adapt_swaps, 96);   // (S8: up to 64)
             if (o.adapt_async && !src.reserve_exchanges(2 * x_n, err, x_n))
                 adapt_async_off(err.c_str());
             // pageable buffers would make every copy of a round synchronous (the driver stages them): that is the
@@ -14918,7 +14918,12 @@ int main(int argc, char** argv) {
                              (double) ((size_t) tspec.staging_slots() * spec_stride) / 1048576.0, (long long) tspec.staging_slots(), spec_stride);
         }
         // item 53: the swaps per round chosen online (swap_budget.hpp); the exchange buffers reserve up to 96
-        strata::program::SwapBudget sbud = strata::program::SwapBudget::from_env(o.adapt_swaps, 96);
+        strata::program::SwapBudget sbud = strata::program::SwapBudget::from_env(o.adapt_swaps, 96, g.n_layers * g.n_expert_used);   // S8: the unit of the residency schedule
+        // STRATA_SWAP_BUDGET_RESIDENCY (LEADS.md Part S row S8, default off): the resident share of the routing mass, read before each round
+        auto sbud_observe = [&]() {
+            if (sbud.residency_on())
+                sbud.observe_residency(drive.d.usage.data(), host_res.data(), std::min<size_t>(drive.d.usage.size(), host_res.size()));
+        };
         int idle_mult = 1;   // item 17: the swaps per round are multiplied while the engine is idle between requests
         auto swap_cap = [&]() -> int {
             if (tier_rewarm.now) return tier_rewarm.cap;   // STRATA_TIER_REWARM's round (LEADS.md B118)
@@ -14968,7 +14973,7 @@ int main(int argc, char** argv) {
         // the VRAM tier follows the conversation (the same rule as the speculative loop below)
         auto adapt = [&]() -> bool {
             if (!pending.empty()) return true;   // the previous swaps are still in flight
-            if (!tier_rewarm.now) sbud.round(o.adapt_every);   // (STRATA_TIER_REWARM's round is not a decode round)
+            if (!tier_rewarm.now) { sbud_observe(); sbud.round(o.adapt_every); }   // (STRATA_TIER_REWARM's round is not a decode round)
             adapt_prompt_fold();   // FK-28 (STRATA_ADAPT_PROMPT): the prompt's counts, before any tier reads them
             if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // before the seeder raises any count
             if (seeder.on()) seeder.round_begin(drive.d.usage);   // (expert_seed.hpp; before any tier reads the counts)
@@ -15741,6 +15746,7 @@ int main(int argc, char** argv) {
                     a_last = a_win;
                     ++a_rounds;
                     a_t0 = Clock::now();
+                    sbud_observe();
                     sbud.round(o.adapt_every);
                     adapt_prompt_fold();   // FK-28 (as in adapt())
                     if (kmiss.on()) kmiss.observe(drive.d.usage, host_res.data());   // (as in adapt(), before the seeder)
