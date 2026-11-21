@@ -1,0 +1,2 @@
+INCONCLUSIVE STRATA_VERIFY_ASYNC_LAUNCH           pass1 {"short": 0.52, "edit": 0.36, "longdec64k": -1.65, "longdec64k-prompt": 0.34}  [pass-1 block us-p1-usS2rr-5-1of1-b01 base drift longdec64k -8.8 % > 5 % (after its re-run): no verdict]
+INCONCLUSIVE STRATA_VERIFY_COHERENT               pass1 {"short": 1.04, "edit": -1.62, "longdec64k": 5.52, "longdec64k-prompt": 0.22}  [pass-1 block us-p1-usS2rr-5-1of1-b01 base drift longdec64k -8.8 % > 5 % (after its re-run): no verdict; promising numbers: carried to the follow-up RETEST slice]

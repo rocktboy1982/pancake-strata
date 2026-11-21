@@ -1,0 +1,5 @@
+BLOCK b01 1520 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-L1of5x-b01.json order: minus-SELECT_WMMA minus-ROUTE_TAIL_SKIP minus-SH_STREAM minus-EXPDEC
+BLOCK b02 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-L1of5x-b02.json order: minus-KV_HOST_DMA minus-HEAD_MIX_MULTI minus-STAGER_RING minus-PREFILL_CPU_SHARE_MAX
+BLOCK b03 1330 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-L1of5x-b03.json order: plus-GDN_CHUNKED_MIN plus-IQ_STAGE_TABLES plus-FUSE_HEAD_GR plus-IQ_STAGE_GRID
+BLOCK b04 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-L1of5x-b04.json order: plus-KV_GROW plus-LFUSE_PAIR plus-MTP_FULL_HEAD
+BLOCK b05 1140 /home/dan/auto-runs/benchsweep/work/us-p1-usS1-L1of5x-b05.json order: plus-PREFILL_LM_EVEN plus-PREFILL_EQUAL plus-Q8_PACKED
