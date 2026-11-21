@@ -22,3 +22,59 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.44 33.4 s (1.0
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 base-m1              short 100.6 short 100.2 edit 173.7 edit 180.0 longdec64k 79.6/2172p 65239t  foreign CPU 5% [('kcompactd0', 8), ('kworker/15:1-events', 1), ('kworker/0:2-events', 1)]  gpu 1930/1249 MHz 63C 189W gtt 25M cpu 3616MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
 STARTDIAG 2026-11-21T13:05:28 prev_run_s=104 gap_s=109 rd_sect=159393443192 wr_sect=110778776 io_ticks_ms=123787306 d_rd_sect=79559880 d_wr_sect=64 d_io_ticks_ms=41101 cached_kb=13988416 mlocked_kb=64 memavail_kb=58127904 nvme_temp_c=52 compact_stall_d=6
+STARTLOAD 2026-11-21T13:06:17 loaded 33.02 GiB at 1.04 GiB/s rate=1.04
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.36 36.2 s (1.00 GiB/s; stopped; waited 11.1 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-TSUM            short 108.6 short 103.8 edit 169.3 edit 171.7 longdec64k 87.1/2170p 65239t  foreign CPU 5% [('kcompactd0', 7), ('kswapd0', 3), ('kworker/1:2-events', 1)]  gpu 2045/1249 MHz 64C 186W gtt 25M cpu 3711MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-TSUM: every attempt noisy, keeping the quietest (5% foreign CPU)
+STARTDIAG 2026-11-21T13:07:25 prev_run_s=112 gap_s=117 rd_sect=159488170608 wr_sect=110778904 io_ticks_ms=123833633 d_rd_sect=94727416 d_wr_sect=128 d_io_ticks_ms=46327 cached_kb=16242552 mlocked_kb=64 memavail_kb=58107224 nvme_temp_c=53 compact_stall_d=9
+STARTLOAD 2026-11-21T13:08:12 loaded 33.02 GiB at 1.10 GiB/s rate=1.10
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.47 33.3 s (1.10 GiB/s; stopped; waited 12.0 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 100.3 short 99.5 edit 161.8 edit 167.0 longdec64k 81.1/2177p 65239t  foreign CPU 5% [('kcompactd0', 7), ('kworker/11:2-mm_percpu_wq', 1), ('kworker/0:3-mm_percpu_wq', 1)]  gpu 1947/1249 MHz 65C 186W gtt 25M cpu 3658MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 104.7 +-  34.3  (n=2)
+                              drafts accepted 0.70
+  short  plus-STAGE_TRIM         107.9 +-  14.0  (n=2)   vs updated:  +3.1% +- 46.1%  -> no difference
+                              drafts accepted 0.72
+  short  plus-TOPK_ACTIVE_ANY    106.1 +-  34.3  (n=2)   vs updated:  +1.3% +- 65.6%  -> no difference
+                              drafts accepted 0.71
+  short  base-m1                 100.4 +-   2.5  (n=2)   vs updated:  -4.1% +- 35.2%  -> no difference
+                              drafts accepted 0.67
+  short  plus-TSUM               106.2 +-  30.5  (n=2)   vs updated:  +1.4% +- 61.9%  -> no difference
+                              drafts accepted 0.71
+  short  base-late                99.9 +-   5.1  (n=2)   vs updated:  -4.6% +- 37.6%  -> no difference
+                              drafts accepted 0.67
+  edit   updated                 162.2 +- 106.8  (n=2)
+                              drafts accepted 0.88
+  edit   plus-STAGE_TRIM         165.0 +-  40.7  (n=2)   vs updated:  +1.7% +- 40.7%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-TOPK_ACTIVE_ANY    170.8 +-  14.6  (n=2)   vs updated:  +5.3% +- 56.8%  -> no difference
+                              drafts accepted 0.89
+  edit   base-m1                 176.8 +-  40.0  (n=2)   vs updated:  +9.0% +- 41.1%  -> no difference
+                              drafts accepted 0.90
+  edit   plus-TSUM               170.5 +-  15.3  (n=2)   vs updated:  +5.1% +- 56.4%  -> no difference
+                              drafts accepted 0.89
+  edit   base-late               164.4 +-  33.0  (n=2)   vs updated:  +1.4% +- 45.4%  -> no difference
+                              drafts accepted 0.87
+  longdec64k updated                  81.4 +-   nan  (n=1)
+  longdec64k plus-STAGE_TRIM          79.5 +-   nan  (n=1)   vs updated:  -2.3% +-  nan%  -> no difference
+  longdec64k plus-TOPK_ACTIVE_ANY     82.2 +-   nan  (n=1)   vs updated:  +1.0% +-  nan%  -> no difference
+  longdec64k base-m1                  79.6 +-   nan  (n=1)   vs updated:  -2.2% +-  nan%  -> no difference
+  longdec64k plus-TSUM                87.1 +-   nan  (n=1)   vs updated:  +7.0% +-  nan%  -> no difference
+  longdec64k base-late                81.1 +-   nan  (n=1)   vs updated:  -0.4% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-STAGE_TRIM      DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-TOPK_ACTIVE_ANY DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-TSUM            DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -4.6%  edit +1.4%  longdec64k -0.4%
+  plus-STAGE_TRIM      short +5.5%  edit +1.0%  longdec64k -2.2%  -> PROMOTE to confirm
+  plus-TOPK_ACTIVE_ANY short +3.7%  edit +4.6%  longdec64k +1.2%  -> PROMOTE to confirm
+  base-m1              short -1.9%  edit +8.3%  longdec64k -2.0%  -> PROMOTE to confirm
+  plus-TSUM            short +3.8%  edit +4.4%  longdec64k +7.2%  -> PROMOTE to confirm
