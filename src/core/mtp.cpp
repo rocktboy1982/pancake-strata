@@ -780,7 +780,7 @@ bool MtpDrafter::experts_reclaim(std::string& err) {
     return true;
 }
 
-// ---- STRATA_MTP_SLOTS=<n> (opt-in; LEADS.md Part Q3, TEST_LEDGER.md T-1100).  Idea from Strata-HotRod (MIT; 8423fd685, 5e13e762c,
+// ---- STRATA_MTP_SLOTS=<n> (opt-in; LEADS.md Part Q3, TEST_LEDGER.md T-1047).  Idea from Strata-HotRod (MIT; 8423fd685, 5e13e762c,
 // cb59a8130), written fresh.  The map and the eviction policy are MtpSlots (mtp_slots.hpp, unit tested on the host); this is the
 // device side.
 //

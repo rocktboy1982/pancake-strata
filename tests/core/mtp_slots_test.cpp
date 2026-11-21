@@ -1,4 +1,4 @@
-// STRATA_MTP_SLOTS (LEADS.md Part Q3, TEST_LEDGER.md T-1100): the host map, its CLOCK policy and the acceptance proxy.  No GPU, no files.
+// STRATA_MTP_SLOTS (LEADS.md Part Q3, TEST_LEDGER.md T-1047): the host map, its CLOCK policy and the acceptance proxy.  No GPU, no files.
 //   1. the environment parse and the shape checks (off = inactive),
 //   2. the pointer table: every expert resident = the identity table (base + id * blob); a miss points at the host copy,
 //   3. CLOCK: order of victims, the pass of grace, the fresh-install guard, no duplicate installs, the cap, garbage ids,

@@ -101,7 +101,7 @@ public:
     /// refuse (with `err`), rather than read the prompt's staged bytes as experts.
     uint64_t experts_bytes() const;    ///< 0: this drafter does not own the experts (shared weights: --batch-mtp)
     void* experts_base() const { return experts_; }   ///< the bytes the room's slots are carved from
-    /// STRATA_MTP_SLOTS=<n> (opt-in; LEADS.md Part Q3, TEST_LEDGER.md T-1100): only n of the 512 experts live in VRAM (`experts_bytes()` is then
+    /// STRATA_MTP_SLOTS=<n> (opt-in; LEADS.md Part Q3, TEST_LEDGER.md T-1047): only n of the 512 experts live in VRAM (`experts_bytes()` is then
     /// the n slots' size, what VRAM really holds), the others are read exactly from a pinned host copy by address.  Off (unset): none of
     /// this exists - no table, no buffer, `record_rest` launches `moe_group_resident` as before.  `set_slots_refuse(why)` (before `load`)
     /// keeps the whole block on the card with a log line: --batch shares the drafter's weights across slot drafters, which assume the
@@ -425,7 +425,7 @@ private:
     // ---- STRATA_MTP_SLOTS=<n> (see slots_active).  The map and its policy are MtpSlots (mtp_slots.hpp, tested on the host); this
     // is the device side.  The table d_ptr_ holds each expert's blob address (a slot of experts_, or its copy in zc_d_); the
     // grouping kernel reads it (moe_group_resident_ptr) and fills slot_dev_ (counters, rank 0-1 misses, used bitmap).
-    // ORDER (T-1100): both are only touched by the host while cs_ is idle, and every change is queued on cs_ before the next
+    // ORDER (T-1047): both are only touched by the host while cs_ is idle, and every change is queued on cs_ before the next
     // round's graph: D2H of slot_dev_ + memset + sync (slot_service) -> slot copies -> table copy.
     bool slot_service(std::string& err);   ///< after a finished round (the stream idle): record, installs, table
     void slots_report(bool final_line);

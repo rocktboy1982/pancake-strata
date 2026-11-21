@@ -7,7 +7,7 @@
 It compiles the file as of `--ref` (git show) and the working copy to cubins with nvcc (needs nvcc, and on Windows the MSVC
 environment) and compares the SASS (opcodes and encodings) of every kernel; the symbol's file-hash prefix is ignored.  A kernel that
 exists only in the new build must match one of the `--allow-new` name fragments.  Exit 0 = every old kernel is identical.
-Used for TEST_LEDGER.md T-1100 (STRATA_MTP_SLOTS: moe_group_resident, the default drafter's kernel, must not change).
+Used for TEST_LEDGER.md T-1047 (STRATA_MTP_SLOTS: moe_group_resident, the default drafter's kernel, must not change).
 """
 import argparse
 import os

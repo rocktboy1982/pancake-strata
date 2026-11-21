@@ -1,5 +1,5 @@
 #pragma once
-// STRATA_MTP_SLOTS=<n> (opt-in, default off; LEADS.md Part Q3, ledger T-1092 / T-1100): the host's half of the MTP drafter's
+// STRATA_MTP_SLOTS=<n> (opt-in, default off; LEADS.md Part Q3, ledger T-1092 / T-1047): the host's half of the MTP drafter's
 // expert slots.  Idea from Strata-HotRod (MIT; commits 8423fd685, 5e13e762c, cb59a8130), re-implemented here, nothing copied.
 // Only `n_slots` of the drafter layer's `n_expert` (512) routed experts live in VRAM; the other experts are read EXACTLY, from a
 // pinned host copy of experts.bin the kernels reach by address (zero copy), so a miss only costs time, never a different draft.
@@ -13,7 +13,7 @@
 //     same call is never a victim; a victim chosen from the map as it will be when the queued copies have run),
 //   * mark_used           : the reference bits, from the drafter's `used` bitmap (the kernel marks every resident expert it read),
 //   * pointer_table       : the table image the host uploads on the drafter's stream, after the slot copies (the order is written
-//     down in TEST_LEDGER.md T-1100),
+//     down in TEST_LEDGER.md T-1047),
 //   * counters            : hits / misses (routed entries), installs, evictions.
 // No CUDA, no I/O: tests/core/mtp_slots_test.cpp drives it with random traces on any machine.
 #include <algorithm>
