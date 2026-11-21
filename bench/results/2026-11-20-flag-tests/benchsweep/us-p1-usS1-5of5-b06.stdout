@@ -17,3 +17,11 @@ STARTDIAG 2026-11-21T11:17:32 prev_run_s=113 gap_s=118 rd_sect=155846150520 wr_s
 STARTLOAD 2026-11-21T11:19:39 loaded 33.02 GiB at 0.33 GiB/s rate=0.33
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.45 105.7 s (0.34 GiB/s; stopped; waited 17.9 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-WMMA_BF16       short 88.2 short 88.6 edit 127.8 edit 104.3 longdec64k 79.9/1526p 65242t  foreign CPU 3% [('kcompactd0', 5), ('kswapd0', 1), ('kworker/1:3-events', 1)]  gpu 1996/1249 MHz 59C 169W gtt 25M cpu 3357MHz 65C igpu 0%/vcn 0% fclk 1600
+SETTLE 120 after a 211 s run
+STARTDIAG 2026-11-21T11:23:09 prev_run_s=211 gap_s=336 rd_sect=155924978736 wr_sect=110773840 io_ticks_ms=121380985 d_rd_sect=78828216 d_wr_sect=144 d_io_ticks_ms=149820 cached_kb=15239800 mlocked_kb=64 memavail_kb=58112708 nvme_temp_c=46 compact_stall_d=7
+STARTLOAD 2026-11-21T11:24:01 loaded 33.02 GiB at 0.98 GiB/s rate=0.98
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 31.48 37.6 s (0.84 GiB/s; stopped; waited 12.7 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-VNNI_TIER       short 110.4 short 103.8 edit 169.3 edit 168.5 longdec64k 83.5/2182p 65242t  foreign CPU 3% [('kcompactd0', 3), ('claude', 1), ('kswapd0', 1)]  gpu 1989/1249 MHz 60C 181W gtt 25M cpu 3676MHz 65C igpu 0%/vcn 0% fclk 1600
+STARTDIAG 2026-11-21T11:25:05 prev_run_s=112 gap_s=117 rd_sect=156031754496 wr_sect=110773904 io_ticks_ms=121429692 d_rd_sect=106775760 d_wr_sect=64 d_io_ticks_ms=48707 cached_kb=17802476 mlocked_kb=64 memavail_kb=58114040 nvme_temp_c=50 compact_stall_d=11
