@@ -20,6 +20,7 @@
 // ldmatrix.  The products are mma.sync m16n8k32 (m16n8k16 for the formats with a scale per 16 values); the epilogues
 // (SwiGLU, H to int8 per 32 features; down into the per-slot rows) are moe_fused.cu's.
 #include "strata/prefill/moe_fused_iq.hpp"
+#include "strata/core/dispatch_stats.hpp"
 #include "strata/prefill/pf_fused_override.hpp"
 #include "strata/kernels/gfx_arch.hpp"
 #include "strata/core/emulate.hpp"
@@ -2169,6 +2170,7 @@ bool dm_f16_used() { return g_dm16_used; }
 
 void experts_native(const Batch& b, const NativeGeom& g, int n_expert, int64_t n, const void* scratch, const void* xa,
                     const int32_t* src, void* ha, float* dm, void* stream) {
+    strata::dispatch::served("pf.moe.native");
     g_dm16_used = false;
     if (b.e1 <= b.e0 || n <= 0) return;
     const DevInfo& d = dev_info();
@@ -2303,6 +2305,7 @@ bool native_wide() { const DevInfo& d = dev_info(); return d.occ_nt > 0 || d.ws;
 
 void experts_native(const WideBatch& b, const NativeGeom& g, int n_expert, int64_t n, const void* scratch, const void* xa,
                     const int32_t* src, void* ha, float* dm, void* stream) {
+    strata::dispatch::served("pf.moe.native_wide");
     if (b.e1 <= b.e0 || n <= 0) return;
     const DevInfo& d = dev_info();
     if ((d.occ_nt <= 0 && !d.ws) || !gu_covered(g.gu_type) || !d_covered_on(g.d_type, d)) {

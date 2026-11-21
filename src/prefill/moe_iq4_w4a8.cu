@@ -18,6 +18,7 @@
 // because -M * d_w is exact: d_w = f16 d * (ls - 32) has at most 11 + 6 significant bits (IQ4_NL: 11), so 3 * 2^22 *
 // d_w fits a float's 24.  Then sum += t * d_y as before.  The int8 lookup is llama.cpp's get_int_from_table_16 (MIT).
 #include "strata/prefill/moe_iq4_w4a8.hpp"
+#include "strata/core/dispatch_stats.hpp"
 
 #if defined(GGML_USE_HIP)
 // The gfx906 HIP build compiles every CUDA source of the tree as HIP: this kernel is NVIDIA PTX (mma.sync, cp.async),
@@ -419,6 +420,7 @@ int device_info(int& nsm) {
 
 template <class C>
 void launch(bool xs, const Tab16& tab, const Product& p, int64_t row_bytes, cudaStream_t s) {
+    strata::dispatch::served("pf.moe.iq4_w4a8");
     const int nty = (int) (p.w_rows / kBM), ntx = (int) ((p.max_rows + C::BN - 1) / C::BN);
     const dim3 grid((unsigned) (nty * ntx * p.n));
     const int nk = (int) (p.w_cols / 128);
@@ -459,7 +461,7 @@ void report_counts() {
     for (int i = 0; i < 6; ++i) std::fprintf(stderr, " %s %lld%s", kWhy[i], g_declined[i].load(), i < 5 ? "," : "");
     std::fprintf(stderr, " (MMQ ran those)\n");
 }
-bool decline(int why) { g_declined[why].fetch_add(1, std::memory_order_relaxed); return false; }
+bool decline(int why) { g_declined[why].fetch_add(1, std::memory_order_relaxed); strata::dispatch::served_if("pf.moe.iq4_w4a8", false); return false; }
 
 bool run_iq4_w4a8(const Product& p, void* stream) {
     const bool xs = p.type == GGML_TYPE_IQ4_XS;

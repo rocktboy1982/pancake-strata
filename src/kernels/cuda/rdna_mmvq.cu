@@ -3,6 +3,7 @@
 // them once (ql nibble | qh 2 bits, -32) and applies them to every column with two dp4a.  The same products and
 // per-16 scales as ggml's vec_dot_q6_K_q8_1, another summation order (not bitwise the reference kernel).
 #include "strata/kernels/native_mmvq.hpp"
+#include "strata/core/dispatch_stats.hpp"
 #include <cuda_runtime.h>
 #include <cuda_fp16.h>
 #include <cstdint>
@@ -596,18 +597,18 @@ bool rdna_kq_mmvq(int type, const void* w, const void* xq, float* y, int n_in, i
     const auto* x = static_cast<const Q81*>(xq);
     cudaStream_t s = (cudaStream_t) stream;
     if (rdna_wmma_mincols() > 0 && ncols >= rdna_wmma_mincols() && ncols <= 32 && n_out >= rdna_wmma_minrows() && (type == 12 || type == 13 || (type == 23 && ncols >= 12))) {   // IQ4_XS breaks even at 12
-        if (type == 12) wmma_launch<12>(wb, x, y, n_in, n_out, ncols, s);
-        else if (type == 13) wmma_launch<13>(wb, x, y, n_in, n_out, ncols, s);
-        else wmma_launch_iq4xs(wb, x, y, n_in, n_out, ncols, s);
+        if (type == 12) { strata::dispatch::served("rdna.mmvq.wmma_q4k"); wmma_launch<12>(wb, x, y, n_in, n_out, ncols, s); }
+        else if (type == 13) { strata::dispatch::served("rdna.mmvq.wmma_q5k"); wmma_launch<13>(wb, x, y, n_in, n_out, ncols, s); }
+        else { strata::dispatch::served("rdna.mmvq.wmma_iq4xs"); wmma_launch_iq4xs(wb, x, y, n_in, n_out, ncols, s); }
         return true;
     }
     switch (type) {
         // Q4_K / Q5_K: measured slower than the native wave kernels on gfx1100 - not taken (kept for the bench)
-        case 12: if (ncols < 4 && std::getenv("STRATA_RDNA_KQ_ALL") == nullptr) return false;   // faster than the wave kernel from 4 columns
-            kq_launch<12>(wb, x, y, n_in, n_out, ncols, s); return true;
-        case 13: if (ncols < 4 && std::getenv("STRATA_RDNA_KQ_ALL") == nullptr) return false;
-            kq_launch<13>(wb, x, y, n_in, n_out, ncols, s); return true;
-        case 23: kq_launch<23>(wb, x, y, n_in, n_out, ncols, s); return true;
+        case 12: if (ncols < 4 && std::getenv("STRATA_RDNA_KQ_ALL") == nullptr) { strata::dispatch::served_if("rdna.mmvq.kq_q4k", false); return false; }   // faster than the wave kernel from 4 columns
+            strata::dispatch::served("rdna.mmvq.kq_q4k"); kq_launch<12>(wb, x, y, n_in, n_out, ncols, s); return true;
+        case 13: if (ncols < 4 && std::getenv("STRATA_RDNA_KQ_ALL") == nullptr) { strata::dispatch::served_if("rdna.mmvq.kq_q5k", false); return false; }
+            strata::dispatch::served("rdna.mmvq.kq_q5k"); kq_launch<13>(wb, x, y, n_in, n_out, ncols, s); return true;
+        case 23: strata::dispatch::served("rdna.mmvq.kq_iq4xs"); kq_launch<23>(wb, x, y, n_in, n_out, ncols, s); return true;
         default: return false;
     }
 }
@@ -626,9 +627,11 @@ bool rdna_q6k_mmvq(const void* w, const void* xq, float* y, int n_in, int n_out,
     const unsigned blocks = (unsigned) ((n_out + 7) / 8);
     cudaStream_t s = (cudaStream_t) stream;
     if (rdna_wmma_mincols() > 0 && ncols >= rdna_wmma_mincols() && ncols <= 32 && n_out >= rdna_wmma_minrows()) {
+        strata::dispatch::served("rdna.q6k.wmma");
         wmma_launch_q6k(wb, x, y, n_in, n_out, ncols, s);
         return true;
     }
+    strata::dispatch::served("rdna.q6k.wave");
     switch (ncols) {
         case 1: rdna_q6k_kernel<1><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;
         case 2: rdna_q6k_kernel<2><<<blocks, 256, 0, s>>>(wb, x, y, n_in, n_out); break;

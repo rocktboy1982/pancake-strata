@@ -9,6 +9,12 @@
 // (tens of ns, against a kernel launch of microseconds); STRATA_DISPATCH_STATS=0 turns it off.
 //
 // The report is JSON, written at exit when STRATA_DISPATCH_REPORT=<path> is set (and by the CLI's --stats to stdout as "dispatch").
+//
+// SERVED-PATH CENSUS (LEADS.md Part U U3): served(name) / served_if(name, ok) count a kernel-path launch by a dotted string-LITERAL name
+// ("pf.gemm.f16.hipblaslt", "rdna.mmvq.wmma_kq", ...) in a separate "served" map, one {hits, declined} pair per name.  They are on only when
+// STRATA_DISPATCH_REPORT=<path> (or STRATA_DISPATCH_SERVED=1 for the CLI --stats dump) is set: default off = one cached bool test, no lock, no
+// map, and json() prints no "served" key, so a default run's output is unchanged.  Names must be string literals (the key is the pointer;
+// json() merges equal texts).  Inside a graph capture a call counts once per capture, outside every launch (the same rule as above).
 // Header only, standard C++17, no CUDA / HIP / SYCL / Metal types: every backend compiles it.
 #pragma once
 
@@ -17,6 +23,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <mutex>
 #include <string>
 #include <unordered_map>
@@ -74,7 +81,24 @@ public:
     }
     void graph_capture(int T, int kind) { note_capture_(T, kind); }
 
+    // the served-path census gate: read once; off unless a report path or STRATA_DISPATCH_SERVED=1 is set (and STRATA_DISPATCH_STATS is not 0)
+    bool served_on() const { return served_on_; }
+    void served_count(const char* name, bool hit) {
+        if (!served_on_) return;
+        std::lock_guard<std::mutex> lk(m_);
+        auto& e = served_[name];
+        if (hit) ++e.first; else ++e.second;
+    }
+    // merged by text, sorted: {name: {hits, declined}}
+    std::map<std::string, std::pair<uint64_t, uint64_t>> served_snapshot() {
+        std::lock_guard<std::mutex> lk(m_);
+        std::map<std::string, std::pair<uint64_t, uint64_t>> o;
+        for (const auto& kv : served_) { auto& e = o[kv.first]; e.first += kv.second.first; e.second += kv.second.second; }
+        return o;
+    }
+
     std::string json() {
+        const auto sv = served_snapshot();
         std::lock_guard<std::mutex> lk(m_);
         std::string o = "{\n \"launches\": {";
         bool first = true;
@@ -101,7 +125,19 @@ public:
                               first ? "" : ",\n", sc, kd, k.cat, k.var, k.t, k.ncols, k.n_in, k.n_out, (unsigned long long) kv.second);
             o += b; first = false;
         }
-        o += "\n ]\n}\n";
+        o += "\n ]";
+        if (!sv.empty()) {   // only when something was counted: a default run's report is byte-for-byte the old one
+            o += ",\n \"served\": {";
+            bool f = true;
+            for (const auto& kv : sv) {
+                char b[320];
+                std::snprintf(b, sizeof b, "%s\n  \"%.200s\": {\"n\": %llu, \"declined\": %llu}", f ? "" : ",", kv.first.c_str(),
+                              (unsigned long long) kv.second.first, (unsigned long long) kv.second.second);
+                o += b; f = false;
+            }
+            o += "\n }";
+        }
+        o += "\n}\n";
         return o;
     }
     void write_report() {
@@ -116,11 +152,16 @@ private:
         const char* e = std::getenv("STRATA_DISPATCH_STATS");
         on_ = e == nullptr || e[0] != '0';
         for (auto& r : launches_) for (auto& c : r) c.store(0);
+        const char* rp = std::getenv("STRATA_DISPATCH_REPORT");
+        const char* sv = std::getenv("STRATA_DISPATCH_SERVED");
+        served_on_ = on_ && ((rp != nullptr && rp[0] != '\0') || (sv != nullptr && sv[0] == '1'));
         if (on_) std::atexit([] { Stats::get().write_report(); });
     }
     void note_capture_(int T, int kind) { note(("capture T" + std::to_string(T) + "/k" + std::to_string(kind)).c_str()); }
     bool on_ = true;
+    bool served_on_ = false;
     std::mutex m_;
+    std::unordered_map<const char*, std::pair<uint64_t, uint64_t>> served_;
     std::unordered_map<Key, uint64_t, KeyHash> map_;
     std::unordered_map<std::string, uint16_t> intern_;
     std::vector<std::string> names_;
@@ -141,6 +182,17 @@ inline void kernel(Cat cat, int variant, int type, int n_in, int n_out, int ncol
     Key k; k.cat = cat; k.var = (uint16_t) variant; k.t = (uint16_t) type; k.ncols = (uint16_t) ncols;
     k.n_in = (uint32_t) n_in; k.n_out = (uint32_t) n_out; k.scope = Stats::scope();
     s.count(k);
+}
+// served-path census (see the header comment): one launch of the path `name` (a string literal)
+inline void served(const char* name) {
+    Stats& s = Stats::get();
+    if (s.served_on()) s.served_count(name, true);
+}
+// a path that may decline: counts a hit when ok, a decline when not; returns ok (the call it wraps is evaluated exactly as before)
+inline bool served_if(const char* name, bool ok) {
+    Stats& s = Stats::get();
+    if (s.served_on()) s.served_count(name, ok);
+    return ok;
 }
 inline void note(const char* text) { Stats::get().note(text); }
 inline void notef(const char* fmt, long a = 0, long b = 0, long c = 0) {

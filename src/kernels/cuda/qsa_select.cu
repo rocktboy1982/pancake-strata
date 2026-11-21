@@ -2,6 +2,7 @@
 #include "strata/core/emulate.hpp"
 #include "strata/core/sm75_series.hpp"
 #include "strata/core/geometry.hpp"
+#include "strata/core/dispatch_stats.hpp"
 #include <cstdlib>
 #include <cstring>
 #include "strata/kernels/qsa_select.hpp"
@@ -2295,6 +2296,7 @@ bool scores_halve_on() {
 
 void qsa_block_scores(const float* pooled, const float* dead, const float* q_idx, const int32_t* steps, int64_t nq,
                       int64_t max_blocks, const QsaShapes& s, float* scores, void* stream, int64_t active_blocks) {
+    strata::dispatch::served("qsa.select.scores");
     if (nq <= 0) return;
     if (s.idx_dim != IDX_DIM || s.idx_n_head != IDX_HEADS || s.idx_block != R || nq > 65535) {
         std::fprintf(stderr, "qsa_block_scores: unsupported indexer geometry\n");
@@ -2381,6 +2383,7 @@ void qsa_block_scores(const float* pooled, const float* dead, const float* q_idx
 
 bool qsa_block_scores_rows(const float* pooled, const float* dead, const float* q_idx, const int32_t* steps, int64_t nq,
                            int64_t max_blocks, const QsaShapes& s, float* scores, void* stream) {
+    strata::dispatch::served("qsa.select.scores_rows");
     if (nq <= 0) return true;
     if (nq > 4 || s.idx_dim != IDX_DIM || s.idx_n_head != IDX_HEADS || s.idx_block != R) return false;
     cudaStream_t st = (cudaStream_t) stream;
@@ -2410,6 +2413,7 @@ void qsa_block_scores_rows(const QsaScoreRows& rows, const float* q_idx, const i
 
 bool qsa_block_scores_tc(const float* pooled, const float* dead, const float* q_idx, const int32_t* steps, int64_t nq,
                          int64_t max_blocks, const QsaShapes& s, float* scores, void* stream, int64_t active_blocks) {
+    strata::dispatch::served("qsa.select.scores_tc");
     if (nq <= 0) return true;
     if (s.idx_dim != IDX_DIM || s.idx_n_head != IDX_HEADS || s.idx_block != R || nq > 65535 * TC_QT) return false;
 #if defined(__HIPCC__)
@@ -2595,6 +2599,7 @@ static bool topk_active_turing_device() {
 
 bool qsa_block_topk_cluster(const float* scores, const int32_t* steps, int64_t nq, int64_t max_blocks, int64_t cap,
                             const QsaShapes& s, int32_t* ids, void* stream) {
+    strata::dispatch::served("qsa.select.topk_cluster");
 #if defined(__HIPCC__)
     (void) scores; (void) steps; (void) nq; (void) max_blocks; (void) cap; (void) s; (void) ids; (void) stream;
     return false;
@@ -2892,6 +2897,7 @@ bool topk_split_device() {
 
 bool qsa_block_topk_split(const float* scores, const int32_t* steps, int64_t nq, int64_t max_blocks, int64_t cap,
                           int32_t* ids, cudaStream_t s) {
+    strata::dispatch::served("qsa.select.topk_split");
     const int64_t nch = (max_blocks + SP_CH - 1) / SP_CH;
     if (nq < 1 || nq > SP_MAXQ || nch > SP_MAXCH) return false;
     static void* hist_ptr[64] = {};
@@ -3140,6 +3146,7 @@ bool qsa_partial_topk_on() {
 
 bool qsa_block_topk_partial(const float* scores, const int32_t* steps, int64_t nq, int64_t max_blocks, int64_t cap,
                             const QsaShapes& s, int32_t* ids, void* stream) {
+    strata::dispatch::served("qsa.select.topk_partial");
     if (nq <= 0) return true;
     if (nq > TS_MAXQ || s.idx_block != R || cap < qsa_selection_width(kTopkMaxCells, s)) return false;
     const cudaStream_t st = (cudaStream_t) stream;
@@ -3152,6 +3159,7 @@ bool qsa_block_topk_partial(const float* scores, const int32_t* steps, int64_t n
 
 void qsa_block_topk(const float* scores, const int32_t* steps, int64_t nq, int64_t max_blocks, int64_t cap,
                     const QsaShapes& s, int32_t* ids, void* stream, int64_t active_blocks) {
+    strata::dispatch::served("qsa.select.topk");
     // keys in registers when every query's blocks fit (contexts up to ~135K cells), else (CUDA) the same threads
     // reading them from memory; the same ids. STRATA_TOPK_OLD=1: the original kernel
     static const bool old = std::getenv("STRATA_TOPK_OLD") != nullptr;
@@ -4073,6 +4081,7 @@ bool qsa_two_pass_keys(const float* pooled, int64_t n_blocks, int64_t nq_cap, in
 bool qsa_block_scores_two_pass(const float* pooled, const float* dead, const float* q_idx, const int32_t* steps,
                                int64_t nq, int64_t nq_cap, int64_t max_blocks, const QsaShapes& s, float* scores,
                                void* scratch, uint64_t scratch_bytes, void* stream, int64_t active_blocks) {
+    strata::dispatch::served("qsa.select.scores_two_pass");
     if (nq <= 0) return true;
     if (!qsa_two_pass_on() || s.idx_dim != IDX_DIM || s.idx_n_head != IDX_HEADS || s.idx_block != R ||
         nq > nq_cap || nq_cap > 4096 || !tp_device_ok())
@@ -4448,6 +4457,7 @@ PageSelBuf* page_sel_buf(const float* pooled, int page_cells, int64_t topp, int6
 bool qsa_page_select_with(int page_cells, int64_t topp, const float* pooled, const float* dead, const float* q_idx,
                           const int32_t* steps, int64_t nq, int64_t max_blocks, int64_t cap, const QsaShapes& s,
                           int32_t* ids, void* stream) {
+    strata::dispatch::served("qsa.select.page_select");
     if (nq <= 0 || nq > PS_MAXQ || pooled == nullptr) return false;
     if (page_cells != 8 && page_cells != 16 && page_cells != 32 && page_cells != 64) return false;
     if (s.idx_dim != IDX_DIM || s.idx_n_head != IDX_HEADS || s.idx_block != R) return false;
