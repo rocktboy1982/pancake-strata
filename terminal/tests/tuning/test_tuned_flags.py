@@ -129,6 +129,26 @@ class Apply(unittest.TestCase):
             for f in p["flags"]:   # a lossy flag only with a passing gate
                 self.assertTrue(f["exact"] is True or f.get("quality_gate") == "PASS", f["name"])
 
+    def test_optional_flags_are_not_default(self):
+        """Owner order 2026-11-21: --lookup-max-t, --adapt-every and STRATA_PIN_BY_NEED are optional, in neither the profile nor the shipped preset."""
+        raw = json.loads(tf.SHIPPED.read_text(encoding="utf-8"))
+        opt = {o["flag"]: o for o in raw["optional"]}
+        self.assertEqual(set(opt), {"--lookup-max-t", "--adapt-every", "STRATA_PIN_BY_NEED"})
+        out, _ = self.go({"args": [], "env": {}}, [tf.SHIPPED])
+        root = Path(__file__).resolve().parents[3]
+        preset = json.loads((root / "configs/pancake/flashnext-iq2_xs-updated-hip.json").read_text(encoding="utf-8"))
+        for name, o in opt.items():
+            self.assertTrue(o["evidence"] and o["verdict"] == "OPTIONAL", name)
+            self.assertNotIn(name, out["env"])
+            self.assertNotIn(name, out["args"])
+            self.assertNotIn(name, preset["env"])
+            self.assertNotIn(name, preset["args"])
+        turbo = json.loads((root / "configs/pancake/flashnext-iq2_xs-turbo-hip.json").read_text(encoding="utf-8"))
+        self.assertIn("DRAFT", turbo["note"])
+        self.assertEqual(turbo["env"]["STRATA_NO_MULTI_GR"], "1")
+        self.assertEqual(turbo["env"]["STRATA_ATTN_MERGE_V2"], "1")
+        self.assertIn("--lookup-max-t", turbo["args"])
+
     def test_no_shipped_setting_points_outside_this_tree(self):
         """Owner order 2026-11-19 23:05: a shipped setting names only files of this tree (<ROOT> / <REPO> = the checkout), never the pancake tree;
         the model data folder (<STRATA_DATA>) and the build output (build-hip/) live elsewhere by design."""

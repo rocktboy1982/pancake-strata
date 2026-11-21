@@ -31,10 +31,6 @@
   "measure",
   "--pcie-frac",
   "0",
-  "--adapt-every",
-  "1",
-  "--lookup-max-t",
-  "12",
   "--conversation-cache-mib",
   "2048",
   "--conversation-cache-min-tokens",
@@ -52,7 +48,6 @@
  "gpus_asked": true,
  "env": {
   "STRATA_ROUTE_TAIL_SKIP": "0",
-  "STRATA_PIN_BY_NEED": "1",
   "STRATA_EXPDEC": "1",
   "STRATA_EXCHANGE_ROTATE": "1",
   "STRATA_ATTN_DAILY": "1",
