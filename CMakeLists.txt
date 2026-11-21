@@ -2519,9 +2519,27 @@ if(STRATA_BUILD_TESTS)
   add_executable(lookahead_weights_test src/program/lookahead_weights_test.cpp)   # MOD_PLAN.md section 6 item 29: STRATA_LOOKAHEAD_WEIGHTS / STRATA_PRED_DUMP
   target_include_directories(lookahead_weights_test PRIVATE include)
   add_test(NAME lookahead_weights_test COMMAND lookahead_weights_test)
+  add_executable(copy_batch_test src/core/copy_batch_test.cpp)   # LEADS.md Part T row T7: STRATA_DECODE_COPY_BATCH (host logic, fake backend)
+  target_include_directories(copy_batch_test PRIVATE include)
+  add_test(NAME copy_batch_test COMMAND copy_batch_test)
   add_executable(prefetch_prev_test src/program/prefetch_prev_test.cpp)   # MOD_PLAN.md section 6 (BigMoeOnEdge switches): STRATA_PREFETCH_PREV
   target_include_directories(prefetch_prev_test PRIVATE include)
   add_test(NAME prefetch_prev_test COMMAND prefetch_prev_test)
+  add_executable(pcopy_rest_test src/program/pcopy_rest_test.cpp)   # LEADS.md Part S row S7: STRATA_PCOPY_REST_USAGE (the rule, host only)
+  target_include_directories(pcopy_rest_test PRIVATE include)
+  add_test(NAME pcopy_rest_test COMMAND pcopy_rest_test)
+  add_executable(swap_budget_residency_test src/program/swap_budget_residency_test.cpp)   # LEADS.md Part S row S8: STRATA_SWAP_BUDGET_RESIDENCY (schedule + budget, host only)
+  target_include_directories(swap_budget_residency_test PRIVATE include)
+  add_test(NAME swap_budget_residency_test COMMAND swap_budget_residency_test)
+  add_executable(decode_order_test src/core/decode_order_test.cpp)   # LEADS.md Part S row S11: STRATA_DECODE_ORDER_SMALL (launch-order table, host only)
+  target_include_directories(decode_order_test PRIVATE include)
+  add_test(NAME decode_order_test COMMAND decode_order_test)
+  add_executable(mtp_head_host_test src/core/mtp_head_host_test.cpp)   # LEADS.md Part S row S13: STRATA_MTP_HEAD_HOST (placement rule + budget arithmetic, host only)
+  target_include_directories(mtp_head_host_test PRIVATE include)
+  add_test(NAME mtp_head_host_test COMMAND mtp_head_host_test)
+  add_executable(qsa_skip_short_test src/core/qsa_skip_short_test.cpp)   # LEADS.md Part S row S10: STRATA_QSA_SKIP_SHORT (the host rule, not wired)
+  target_include_directories(qsa_skip_short_test PRIVATE include)
+  add_test(NAME qsa_skip_short_test COMMAND qsa_skip_short_test)
   add_executable(route_range_test src/program/route_range_test.cpp)   # MOD_PLAN.md section 6 (BigMoeOnEdge switches): STRATA_ROUTE_RANGE
   target_include_directories(route_range_test PRIVATE include)
   add_test(NAME route_range_test COMMAND route_range_test)
@@ -4194,6 +4212,12 @@ if(STRATA_BUILD_TESTS OR STRATA_BUILD_CONVERSATION_TESTS)
     diag_rules_test
     lookahead_weights_test
     prefetch_prev_test
+    copy_batch_test
+    pcopy_rest_test
+    swap_budget_residency_test
+    decode_order_test
+    mtp_head_host_test
+    qsa_skip_short_test
     route_range_test
     lookahead_skip_test
     lookahead_ctrl_test

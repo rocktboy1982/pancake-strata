@@ -1,0 +1,41 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit",
+    "long3k"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata"
+    },
+    "mtp-q4-all": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "args": {
+        "--mtp-q4": "all"
+      }
+    },
+    "head-host": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "env": {
+        "STRATA_MTP_HEAD_HOST": "1"
+      }
+    },
+    "head-host-mtp-q4-all": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "env": {
+        "STRATA_MTP_HEAD_HOST": "1"
+      },
+      "args": {
+        "--mtp-q4": "all"
+      }
+    },
+    "base-late": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata"
+    }
+  },
+  "note": "NOT RUN, coded on lead/T7-S7-S13 (LEADS.md Part S row S13; the placement rule and the slab arithmetic are tested by mtp_head_host_test, the allocation in src/core/mtp.cpp passed only a syntax check on this PC, no HIP build, no GPU): STRATA_MTP_HEAD_HOST=1 keeps the MTP head's 512 routed experts in page-locked device-mapped host memory (cudaHostAlloc Mapped + cudaHostGetDevicePointer; the draft kernels read them through the link) instead of VRAM; the engine's expert cache is sized from the VRAM that is free after the drafter loads, so the ~675 MiB (with the --mtp-q4 variants; more without) go to the cache slab. The engine log says so: 'strata mtp: STRATA_MTP_HEAD_HOST=1: the 512 experts (N MiB) stay in mapped host memory' and the drafter's 'draft layer loaded, N MiB of VRAM' drops by the experts' size, then the cache line shows more slots; if the first line is 'no mapped host memory' the arm is the base. Cost: every draft pass reads its experts over the link (draft latency up) and the MTP prompt room (STRATA_MTP_ROOM_MIN) has nothing to lend. radiance journal W42m (W7900, gfx1100): 650 MiB more slab was -3.3% pool and -1.0% prefill, decode not reported. LEADS.md row S13 says to re-run the T-681 --mtp-q4 arm with the base-late drift check first (T-681 was void under an ORDER EFFECT), then this: arms mtp-q4-all and head-host-mtp-q4-all. Read the `long3k` case too (the extra slab matters for prompts). Exact: the same experts compute, only where they sit changes (drift_check reads text; a different text would be a bug). Build (NOT done): the HIP build of the branch lead/T7-S7-S13 in /mnt/pancake/build-lead-t7s13 (ROCm 10.0 is fine). Stop pancake.service first; run only when the box queue is idle."
+}

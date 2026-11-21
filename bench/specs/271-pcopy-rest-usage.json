@@ -1,0 +1,47 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata"
+    },
+    "preread": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1"
+      }
+    },
+    "preread-rest": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_PCOPY_REST_USAGE": "1"
+      }
+    },
+    "preread-stats": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_LOOKAHEAD_STATS": "1"
+      }
+    },
+    "preread-stats-rest": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "env": {
+        "STRATA_POOL_PREREAD": "1",
+        "STRATA_LOOKAHEAD_STATS": "1",
+        "STRATA_PCOPY_REST_USAGE": "1"
+      }
+    },
+    "base-late": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata"
+    }
+  },
+  "note": "NOT RUN, coded on lead/T7-S7-S13 (LEADS.md Part S row S7; host rule tested by pcopy_rest_test, the engine wiring in src/core/expert_source.cpp passed only a syntax check on this PC, no HIP build): STRATA_PCOPY_REST_USAGE=1 rests the router look-ahead's predictive copy (its warm of the next layer's experts and its Foresight swap copies) for 8,192 passes when under 30% of the last 2,048 predicted experts were routed (radiance's rule; ours is a tumbling block, not a sliding window). Same as spec 133: the look-ahead thread exists only when the expert source warms or STRATA_FS_SLOTS / STRATA_LOOKAHEAD_STATS is set, and the daily preset's arena warms only under STRATA_POOL_PREREAD=1, so judge the rest arms against `preread`, NOT against `base`. FIRST READ THE LOG, before any speed number: with the switch on, the engine prints 'STRATA_PCOPY_REST_USAGE: N of M predicted experts were routed (x% < 30%): the predictive copy rests' each time a block fails; and the stats arms print the look-ahead's precision per size (`strata lookahead stats: ... precision`). If no rest line ever appears the used share is >= 30% and the rule does nothing (the lead is closed, LEADS.md row S7); if the share is far below 30% the copy is mostly waste and the arm decides. Exact: prefetch only, outputs unchanged (drift_check reads it). Build (NOT done): the HIP build of the branch lead/T7-S7-S13 in a new directory outside / (/mnt/pancake/build-lead-t7s13), ROCm 10.0 is fine. Stop pancake.service first; run only when the box queue is idle."
+}

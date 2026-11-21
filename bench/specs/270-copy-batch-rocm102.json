@@ -1,0 +1,72 @@
+{
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": true,
+  "drift_check": true,
+  "cases": [
+    "long1k",
+    "long3k",
+    "short",
+    "edit"
+  ],
+  "reps": 4,
+  "arms": {
+    "base": {
+      "exe": "/mnt/pancake/build-t7-rocm102/strata",
+      "env": {
+        "LD_LIBRARY_PATH": "/opt/rocm/core-10.2/lib"
+      }
+    },
+    "pf-ahead": {
+      "exe": "/mnt/pancake/build-t7-rocm102/strata",
+      "env": {
+        "LD_LIBRARY_PATH": "/opt/rocm/core-10.2/lib",
+        "STRATA_PF_AHEAD": "1"
+      }
+    },
+    "pf-ahead-batch4": {
+      "exe": "/mnt/pancake/build-t7-rocm102/strata",
+      "env": {
+        "LD_LIBRARY_PATH": "/opt/rocm/core-10.2/lib",
+        "STRATA_PF_AHEAD": "1",
+        "STRATA_PF_COPY_BATCH": "4"
+      }
+    },
+    "pf-ahead-batch16": {
+      "exe": "/mnt/pancake/build-t7-rocm102/strata",
+      "env": {
+        "LD_LIBRARY_PATH": "/opt/rocm/core-10.2/lib",
+        "STRATA_PF_AHEAD": "1",
+        "STRATA_PF_COPY_BATCH": "16"
+      }
+    },
+    "decode-copy-batch": {
+      "exe": "/mnt/pancake/build-t7-rocm102/strata",
+      "env": {
+        "LD_LIBRARY_PATH": "/opt/rocm/core-10.2/lib",
+        "STRATA_DECODE_COPY_BATCH": "1"
+      }
+    },
+    "pf-ahead-decode-copy-batch": {
+      "exe": "/mnt/pancake/build-t7-rocm102/strata",
+      "env": {
+        "LD_LIBRARY_PATH": "/opt/rocm/core-10.2/lib",
+        "STRATA_PF_AHEAD": "1",
+        "STRATA_DECODE_COPY_BATCH": "1"
+      }
+    },
+    "rocm100-pf-ahead-batch16": {
+      "exe": "/home/dan/clone-of-d/src/build-win/strata",
+      "env": {
+        "STRATA_PF_AHEAD": "1",
+        "STRATA_PF_COPY_BATCH": "16"
+      }
+    },
+    "base-late": {
+      "exe": "/mnt/pancake/build-t7-rocm102/strata",
+      "env": {
+        "LD_LIBRARY_PATH": "/opt/rocm/core-10.2/lib"
+      }
+    }
+  },
+  "note": "NOT RUN, coded on lead/T7-S7-S13 (LEADS.md Part T row T7; the host logic is tested by copy_batch_test and pf_ahead_rule_test, the HIP code was never compiled): (1) STRATA_PF_COPY_BATCH=4 / 16 (MOD_PLAN.md item 48, T-744; spec 149 was inconclusive on ROCm 10.0) re-run on ROCm 10.2 (HIP 7.17: hipMemcpy2D small-row path, per-device batch commands) with the prompt cases that T-919 lacked; judge each arm against pf-ahead, not base. (2) NEW STRATA_DECODE_COPY_BATCH=1: the decode side's expert copies (the adaptive tier's round and the verifier's window upload, through copy_blobs / copy_expert_blobs of include/strata/core/dma_batch.hpp) go as hipMemcpyBatchAsync groups of up to 128; it is compiled only from HIP 7.17 (or -DSTRATA_HIP_MEMCPY_BATCH=1) and does nothing on a 10.0 build (one stderr line says so): the arm needs the 10.2 build. Look at the stderr for 'hipMemcpyBatchAsync failed' (the loop takes over) and for the 'STRATA_DECODE_COPY_BATCH=1: ... off' line (an inert arm). Exact (same bytes in the same slots). Expected 0 to +1% at pcie-frac 0 (LEADS.md row T7, derived). The build (NOT done): on the box, a new build dir outside / (builds go to /mnt/pancake) with ROCm 10.2: cmake -S <tree> -B /mnt/pancake/build-t7-rocm102 -DCMAKE_BUILD_TYPE=Release -DSTRATA_ENABLE_HIP=ON -DSTRATA_ENABLE_CUDA=OFF -DCMAKE_HIP_ARCHITECTURES=gfx1100 plus the ROCm 10.2 prefix (/opt/rocm/core-10.2 [unverified path]) in CMAKE_PREFIX_PATH, then cmake --build ... --target strata. If the compile fails in dma_batch.hpp the prototype of hipMemcpyBatchAsync differs from the one assumed (8 or 9 arguments): add -DSTRATA_HIP_MEMCPY_BATCH_NO_FAILIDX. Stop pancake.service first; run only when the box queue is idle (AGENTS.md Box operations)."
+}

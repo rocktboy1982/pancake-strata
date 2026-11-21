@@ -406,6 +406,7 @@ private:
     std::vector<Tensor> tensors_;
     uint8_t* dense_ = nullptr;
     uint8_t* experts_ = nullptr;
+    void* experts_host_map_ = nullptr;   // STRATA_MTP_HEAD_HOST=1 (LEADS.md Part S row S13): the experts' mapped host block; experts_ is its device alias
     // the prompt room: the experts' pinned host snapshot, its size, and whether a prompt has taken their contents
     // (the block itself stays where it is - see experts_lend)
     void* experts_host_ = nullptr;

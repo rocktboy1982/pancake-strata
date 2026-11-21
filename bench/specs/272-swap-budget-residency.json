@@ -1,0 +1,51 @@
+{
+  "drift_check": true,
+  "base": "configs/pancake/flashnext-iq2_xs-fast-hip.json",
+  "lossy": false,
+  "cases": [
+    "short",
+    "edit"
+  ],
+  "reps": 3,
+  "arms": {
+    "base": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata"
+    },
+    "residency-gate60": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "env": {
+        "STRATA_SWAP_BUDGET_RESIDENCY": "1"
+      }
+    },
+    "residency-gate80": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "env": {
+        "STRATA_SWAP_BUDGET_RESIDENCY": "1",
+        "STRATA_SWAP_BUDGET_RESIDENCY_GATE": "0.8"
+      }
+    },
+    "residency-gate90": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "env": {
+        "STRATA_SWAP_BUDGET_RESIDENCY": "1",
+        "STRATA_SWAP_BUDGET_RESIDENCY_GATE": "0.9"
+      }
+    },
+    "swaps-16": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "args": {
+        "--adapt-swaps": "16"
+      }
+    },
+    "swaps-64": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata",
+      "args": {
+        "--adapt-swaps": "64"
+      }
+    },
+    "base-late": {
+      "exe": "/mnt/pancake/build-lead-t7s13/strata"
+    }
+  },
+  "note": "NOT RUN, coded on lead/T7-S7-S13 (LEADS.md Part S row S8; the schedule and the budget function are tested by swap_budget_residency_test, the wiring in src/program/generate.cpp passed no compile on this PC): STRATA_SWAP_BUDGET_RESIDENCY=1 swaps 64 experts a round until the resident share of the routing mass reaches the gate (STRATA_SWAP_BUDGET_RESIDENCY_GATE, default 0.60) and 4096 selections ran, then 16 a round for 512 steps (renewed while the share holds, else back to 64): radiance's schedule (hcharbonnier journal W40c, W7900 gfx1100: -21% link bytes per token, decode -1.75%, text bit-identical; a global 16 was +6.3% worse at 92 tokens). Our fixed budgets are the reference arms: --adapt-swaps 16 and 64 (T-248, T-827; the daily preset runs 32 = `base`). Our cache starts full (the profile fills it), so the share is the HIT share of the routing mass, not radiance's bytes share: it may pass 0.60 at once (then the arm is `--adapt-swaps 16` after 4096 selections), hence the gate 0.8 / 0.9 arms. The engine log prints 'STRATA_SWAP_BUDGET_RESIDENCY: hold|fill (resident share x, N selections), K swaps a round' at every change: read it first; an arm with no 'hold' line is the fixed 64 and tells nothing. Also read the adaptive tier's swap count per window (the 'adapt' lines) for the link bytes; the claim to check is fewer bytes at equal decode. Exact (placement only: the same experts compute). Build (NOT done): the HIP build of the branch lead/T7-S7-S13 in /mnt/pancake/build-lead-t7s13 (ROCm 10.0 is fine). Stop pancake.service first; run only when the box queue is idle."
+}
