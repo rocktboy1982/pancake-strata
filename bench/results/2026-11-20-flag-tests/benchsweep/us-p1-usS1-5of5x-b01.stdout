@@ -31,3 +31,43 @@ rep 0 plus-Q8_GATHER_WIDE  short 93.3 short 80.5 edit 174.0 edit 145.1 longdec64
 rep 0 plus-Q8_GATHER_WIDE: every attempt noisy, keeping the quietest (3% foreign CPU)
 SETTLE 120 after a 268 s run
 STARTDIAG 2026-11-21T11:50:59 prev_run_s=268 gap_s=393 rd_sect=156771763720 wr_sect=110774808 io_ticks_ms=121999137 d_rd_sect=76928504 d_wr_sect=112 d_io_ticks_ms=203806 cached_kb=14843972 mlocked_kb=64 memavail_kb=58118996 nvme_temp_c=48 compact_stall_d=4
+STARTLOAD 2026-11-21T11:51:50 loaded 33.02 GiB at 0.99 GiB/s rate=0.99
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.44 37.3 s (0.98 GiB/s; stopped; waited 12.0 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 108.2 short 103.5 edit 167.2 edit 169.6 longdec64k 84.5/2179p 65241t  foreign CPU 4% [('kcompactd0', 6), ('kswapd0', 2), ('kworker/1:1-mm_percpu_wq', 2)]  gpu 2041/1249 MHz 60C 182W gtt 25M cpu 3488MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T11:52:54 prev_run_s=111 gap_s=116 rd_sect=156867129136 wr_sect=110774872 io_ticks_ms=122046829 d_rd_sect=95365416 d_wr_sect=64 d_io_ticks_ms=47692 cached_kb=16847836 mlocked_kb=64 memavail_kb=58106956 nvme_temp_c=51 compact_stall_d=6
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 25.92 147.0 s (0.18 GiB/s; capped; waited 11.3 s for the arena)
+STARTLOAD 2026-11-21T11:55:52 loaded 33.02 GiB at 0.20 GiB/s rate=0.20
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+Traceback (most recent call last):
+  File "/mnt/pancake/benchsweep/harness/tools/pancake/abtest.py", line 1702, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "/mnt/pancake/benchsweep/harness/tools/pancake/abtest.py", line 1636, in main
+    res, err = run_arm(arm, cfg_path, cfg, cases, P, str(work / f"{arm}-r{r}-a{attempt}.out"), a.port, per_run,
+               ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                       passes, a.warmup)
+                       ^^^^^^^^^^^^^^^^^
+  File "/mnt/pancake/benchsweep/harness/tools/pancake/abtest.py", line 1092, in run_arm
+    return _run_arm(name, cfg_path, cfg, cases, P, log_out, port, *args, **kw)
+  File "/mnt/pancake/benchsweep/harness/tools/pancake/abtest.py", line 1126, in _run_arm
+    t = request(url, case_text(P, c, k), MAXTOK.get(c, 512))
+  File "/mnt/pancake/benchsweep/harness/tools/pancake/abtest.py", line 500, in request
+    r = json.load(urllib.request.urlopen(req, timeout=1800))
+                  ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 187, in urlopen
+    return opener.open(url, data, timeout)
+           ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 493, in open
+    response = meth(req, response)
+  File "/usr/lib/python3.14/urllib/request.py", line 602, in http_response
+    response = self.parent.error(
+        'http', request, response, code, msg, hdrs)
+  File "/usr/lib/python3.14/urllib/request.py", line 531, in error
+    return self._call_chain(*args)
+           ~~~~~~~~~~~~~~~~^^^^^^^
+  File "/usr/lib/python3.14/urllib/request.py", line 464, in _call_chain
+    result = func(*args)
+  File "/usr/lib/python3.14/urllib/request.py", line 611, in http_error_default
+    raise HTTPError(req.full_url, code, msg, hdrs, fp)
+urllib.error.HTTPError: HTTP Error 503: Service Unavailable
