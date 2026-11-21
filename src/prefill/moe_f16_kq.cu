@@ -207,7 +207,12 @@ __global__ void __launch_bounds__(THREADS) gate_up_kernel(const Batch b, const N
         compute_stage();
         __syncthreads();
     }
+#if defined(STRATA_ABL_NO_EPILOGUE)
+    ablate_sink_acc<BN>(acc);
+    (void) out;
+#else
     gu_epilogue<BN>(acc, lds, tid, live_tiles, nrows, row0, fb, out);
+#endif
 #else
     (void) b; (void) geo; (void) ts; (void) tiles; (void) off; (void) act; (void) src; (void) out;
     __builtin_trap();
@@ -297,7 +302,12 @@ __global__ void __launch_bounds__(THREADS) down_kernel(const Batch b, const Nati
         compute_stage();
         __syncthreads();
     }
+#if defined(STRATA_ABL_NO_EPILOGUE)
+    ablate_sink_acc<BN>(acc);
+    (void) dm;
+#else
     down_epilogue<BN, D16>(acc, lds, tid, live_tiles, nrows, row0, fb, dm);
+#endif
 #else
     (void) b; (void) geo; (void) ts; (void) tiles; (void) off; (void) h; (void) dm;
     __builtin_trap();

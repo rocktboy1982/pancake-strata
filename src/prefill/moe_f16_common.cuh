@@ -43,6 +43,8 @@
 #define STRATA_F16_DEVICE 0
 #endif
 
+#include "moe_f16_ablate.cuh"   // bench-only ablation macros (LEADS.md Part U U5); nothing unless -DSTRATA_BENCH_ABLATION and a STRATA_ABL_* macro
+
 namespace strata::prefill::fused::f16 {
 
 constexpr int AB = 80;           // activation / H bytes per 64 values: 64 codes, {d0, d1}, {sum0, sum1}
@@ -165,9 +167,22 @@ template <int BN> struct ActStage {
             src[i] = rows[t] >= 0 ? base + (size_t) rows[t] * ld : nullptr;
             slot[i] = c * STRIDE + t;
             sub[i] = c;
+#if defined(STRATA_ABL_NO_GLOBAL_LOAD)
+            codes[i] = make_uint2(0x01020304u * (uint32_t) (tid + 1), 0x05060708u * (uint32_t) (chunk + 1));   // never read from memory
+            d[i] = 0.015625f;
+#endif
         }
     }
     __device__ __forceinline__ void fetch(int s) {
+#if defined(STRATA_ABL_NO_GLOBAL_LOAD)
+        (void) s;
+#pragma unroll
+        for (int i = 0; i < FETCH; ++i) {   // no global read: the staged values stay opaque so the commit's work is kept
+            abl::opaque(codes[i]);
+            abl::opaque(d[i]);
+        }
+        return;
+#endif
 #pragma unroll
         for (int i = 0; i < FETCH; ++i) {
             if (src[i] != nullptr) {
@@ -194,8 +209,14 @@ template <int BN> struct ActStage {
                 const float lo = (float) (int8_t) (wd & 0xFFu), hi = (float) (int8_t) ((wd >> 8) & 0xFFu);
                 h[j] = __floats2half2_rn(lo * d[i], hi * d[i]);
             }
+#if defined(STRATA_ABL_NO_LDS_STORE)
+            abl::use(make_uint4(__builtin_bit_cast(uint32_t, h[0]), __builtin_bit_cast(uint32_t, h[1]),
+                                __builtin_bit_cast(uint32_t, h[2]), __builtin_bit_cast(uint32_t, h[3])));   // no LDS write
+            (void) s_act;
+#else
             s_act[slot[i]] = make_uint4(__builtin_bit_cast(uint32_t, h[0]), __builtin_bit_cast(uint32_t, h[1]),
                                         __builtin_bit_cast(uint32_t, h[2]), __builtin_bit_cast(uint32_t, h[3]));
+#endif
         }
     }
 };
@@ -211,13 +232,30 @@ __device__ __forceinline__ void mma_tiles(v8f (&acc)[BN / 16], v16h a_lo, v16h a
         if (j >= live_tiles) continue;
         const uint4* frag = s_act + (kb * 4) * STRIDE + j * 16 + sub_lane;
         uint4 bq[4];
+#if defined(STRATA_ABL_NO_LDS_READ)
+        (void) frag;
+#pragma unroll
+        for (int q = 0; q < 4; ++q) {   // no LDS read of the B fragments: opaque values stand in
+            bq[q] = make_uint4(0x3C003C00u + (uint32_t) q, (uint32_t) (kb + 1), (uint32_t) (j + 1), (uint32_t) sub_lane);
+            abl::opaque(bq[q]);
+        }
+#else
 #pragma unroll
         for (int q = 0; q < 4; ++q) bq[q] = frag[q * STRIDE];
+#endif
         v16h b_lo, b_hi;
         __builtin_memcpy(&b_lo, &bq[0], 32);
         __builtin_memcpy(&b_hi, &bq[2], 32);
+#if defined(STRATA_ABL_NO_WMMA)
+        abl::use_vec(a_lo);   // no WMMA: its operands are consumed, its accumulator stays opaque (the epilogue is not folded)
+        abl::use_vec(a_hi);
+        abl::use_vec(b_lo);
+        abl::use_vec(b_hi);
+        abl::opaque_vec(acc[j]);
+#else
         acc[j] = wmma_f16(a_lo, b_lo, acc[j]);
         acc[j] = wmma_f16(a_hi, b_hi, acc[j]);
+#endif
     }
 }
 
@@ -306,4 +344,12 @@ __device__ __forceinline__ void down_epilogue(const v8f (&acc)[BN / 16], uint8_t
     }
 }
 
+#if defined(STRATA_ABL_NO_EPILOGUE)
+/// STRATA_ABL_NO_EPILOGUE (bench only): stands in for gu_epilogue / down_epilogue; the accumulators are consumed, nothing is stored.
+template <int BN>
+__device__ __forceinline__ void ablate_sink_acc(const v8f (&acc)[BN / 16]) {
+#pragma unroll
+    for (int j = 0; j < BN / 16; ++j) abl::use_vec(acc[j]);
+}
+#endif
 }  // namespace strata::prefill::fused::f16
