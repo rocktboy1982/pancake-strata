@@ -15,3 +15,14 @@ PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.36 36.9 s (0.9
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
 rep 0 plus-Q8_GATHER_WIDE  short 108.7 short 103.0 edit 161.5 edit 183.0 longdec64k 80.3/2188p 65240t  foreign CPU 3% [('kcompactd0', 2), ('kswapd0', 1), ('kworker/2:2-mm_percpu_wq', 1)]  gpu 2041/1249 MHz 63C 187W gtt 25M cpu 3796MHz 64C igpu 0%/vcn 0% fclk 1600
 STARTDIAG 2026-11-21T09:15:05 prev_run_s=110 gap_s=115 rd_sect=152456685448 wr_sect=110769872 io_ticks_ms=118108266 d_rd_sect=92194288 d_wr_sect=112 d_io_ticks_ms=45550 cached_kb=16970260 mlocked_kb=64 memavail_kb=58070984 nvme_temp_c=51 compact_stall_d=13
+STARTLOAD 2026-11-21T09:15:50 loaded 33.02 GiB at 1.17 GiB/s rate=1.17
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 31.4 s (1.16 GiB/s; stopped; waited 11.9 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-Q8_PACKED       short 101.3 short 99.2 edit 173.4 edit 179.9 longdec64k 86.3/2174p 65240t  foreign CPU 6% [('kcompactd0', 6), ('udisksd', 2), ('kworker/0:1-events', 2)]  gpu 1929/1249 MHz 63C 187W gtt 25M cpu 3687MHz 63C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-Q8_PACKED: every attempt noisy, keeping the quietest (6% foreign CPU)
+STARTDIAG 2026-11-21T09:16:52 prev_run_s=102 gap_s=107 rd_sect=152531342552 wr_sect=110769904 io_ticks_ms=118147791 d_rd_sect=74657104 d_wr_sect=32 d_io_ticks_ms=39525 cached_kb=13930528 mlocked_kb=64 memavail_kb=58048612 nvme_temp_c=51 compact_stall_d=8
+STARTLOAD 2026-11-21T09:17:42 loaded 33.02 GiB at 1.01 GiB/s rate=1.01
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 30.25 37.0 s (0.82 GiB/s; stopped; waited 11.3 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 107.2 short 103.3 edit 169.2 edit 171.3 longdec64k 60.8/2174p 65240t  foreign CPU 5% [('kcompactd0', 7), ('kworker/1:1-mm_percpu_wq', 6), ('kswapd0', 3)]  gpu 2046/1249 MHz 63C 184W gtt 25M cpu 3765MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T09:18:50 prev_run_s=113 gap_s=118 rd_sect=152631152800 wr_sect=110770032 io_ticks_ms=118203020 d_rd_sect=99810248 d_wr_sect=128 d_io_ticks_ms=55229 cached_kb=16817616 mlocked_kb=64 memavail_kb=58075444 nvme_temp_c=53 compact_stall_d=13
