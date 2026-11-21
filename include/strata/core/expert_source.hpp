@@ -27,6 +27,7 @@
 #include "strata/core/hit_hook.hpp"
 #include "strata/kernels/cpu/pool.hpp"
 #include "strata/program/lookahead_ctrl.hpp"   // STRATA_LOOKAHEAD_CTRL (MOD_PLAN.md section 6 (the BigMoeOnEdge switches, LEADS.md Part I))
+#include "strata/program/pcopy_rest.hpp"      // STRATA_PCOPY_REST_USAGE (LEADS.md Part S row S7)
 
 #include <algorithm>
 #include <array>
@@ -371,6 +372,12 @@ public:
     void record_routing(int64_t layer, const int32_t* ids, int64_t k);
     uint64_t prev_warmed() const { return prev_warmed_.load(std::memory_order_relaxed); }
     uint64_t skip_dropped_entries() const { return sd_dropped_.load(std::memory_order_relaxed); }
+    /// STRATA_PCOPY_REST_USAGE=1 (LEADS.md Part S row S7, include/strata/program/pcopy_rest.hpp; default off, never called
+    /// without the switch): the predictive copy rests when under 30% of the last 2,048 predicted experts were routed.  The
+    /// predictor thread keeps each layer's predicted set; the dispatch thread scores it (rest_score) and `submit` asks the rule.
+    void enable_rest(int64_t n_layers);
+    bool rest_on() const { return rest_.on(); }
+    void rest_score(int64_t layer, const int32_t* ids, int64_t n);
     double busy_ms() const { return (double) busy_us_.load(std::memory_order_relaxed) / 1000.0; }
 
 private:
@@ -418,6 +425,13 @@ private:
     int prev_k_ = 0;
     std::unique_ptr<std::atomic<int32_t>[]> prev_ids_;   // [layer][kPrefetchPrevMaxIds], -1 = none (relaxed: a stale id only wastes a warm)
     std::atomic<uint64_t> prev_warmed_{0};
+    // STRATA_PCOPY_REST_USAGE (S7): the rule lives on the dispatch thread (submit, rest_score); rmask_ / rstamp_ cross to the predictor thread
+    strata::program::PcopyRest rest_;                  // default-constructed = off
+    int64_t rest_words_ = 0;
+    std::unique_ptr<std::atomic<uint64_t>[]> rmask_;   // [layer][words]: the experts the last prediction of that layer warmed
+    std::unique_ptr<std::atomic<uint64_t>[]> rstamp_;  // [layer]: the submit number of that prediction (0 = none)
+    std::vector<uint64_t> rsub_;                       // [layer] (dispatch thread): the submit number made for that layer this window, 0 = none
+    uint64_t rseq_ = 0, sub_rseq_ = 0;                 // submit counter (dispatch thread); the number handed to the predictor (under mu_)
     // STRATA_LOOKAHEAD_SKIP_DROPPED (opt-in; with STRATA_MISS_SKIP_W / _CUM): predicted experts the miss-skip rule would drop stay cold
     bool skip_dropped_ = false;
     float sd_w_ = 0.0f, sd_cum_ = 0.0f;

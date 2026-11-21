@@ -10032,6 +10032,7 @@ int main(int argc, char** argv) {
             drive.d.lookahead = &lookahead;
             if (la_stats) lookahead.enable_stats(g.n_layers);
             if (la_ctrl) lookahead.enable_ctrl(g.n_layers);
+            if (strata::program::pcopy_rest_parse(std::getenv("STRATA_PCOPY_REST_USAGE"))) lookahead.enable_rest(g.n_layers);   // LEADS.md Part S row S7 (default off)
             if (const char* dv = std::getenv("STRATA_IO_PREFETCH_DEPTH"); dv != nullptr && std::atoi(dv) > 0)
                 lookahead.set_depth(std::atoi(dv));
             else if (srcp == &src && src.io_prefetch())

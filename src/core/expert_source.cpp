@@ -3391,6 +3391,12 @@ bool RouterLookahead::start(std::vector<std::vector<uint16_t>> routers, int64_t 
 
 void RouterLookahead::submit(int64_t layer, const float* x, int64_t n_tok, const int32_t* host_res) {
     if (layer + 1 >= (int64_t) routers_.size() || n_tok <= 0 || x == nullptr) return;
+    // STRATA_PCOPY_REST_USAGE=1 (LEADS.md Part S row S7, default off: rest_ is then a never-on rule and this is one bool test):
+    // while the usage rule rests the predictive copy, no prediction is made; see include/strata/program/pcopy_rest.hpp
+    if (rest_.on()) {
+        rsub_[(size_t) (layer + 1)] = 0;   // (set again below once this submit is queued)
+        if (!rest_.pass()) { skipped_.fetch_add(1, std::memory_order_relaxed); return; }
+    }
     // STRATA_LOOKAHEAD_SKIP_RES=1 (opt-in, read once; LEADS.md A3 "RouterLookahead ... skip when resident", part of an
     // R9700 bundle): when every expert of the layers it would warm (layer + 1 .. + depth) is resident in VRAM, there is
     // nothing to fetch, so the submit (the copy of the window's rows and the residency rows) is skipped.  Prefetch only:
@@ -3417,9 +3423,53 @@ void RouterLookahead::submit(int64_t layer, const float* x, int64_t n_tok, const
             res_.assign(host_res + (size_t) (layer_ * n_expert_), host_res + (size_t) (l1 * n_expert_));
         }
         sub_gen_ = gen_.load(std::memory_order_relaxed);
+        if (rest_.on()) {   // S7: the number that ties this prediction's set to the scoring of its layer
+            sub_rseq_ = ++rseq_;
+            rsub_[(size_t) layer_] = sub_rseq_;
+        }
         pending_ = true;
     }
     cv_.notify_one();
+}
+
+void RouterLookahead::enable_rest(int64_t n_layers) {
+    if (n_layers <= 0 || n_expert_ <= 0) return;
+    rest_words_ = (n_expert_ + 63) / 64;
+    rmask_.reset(new std::atomic<uint64_t>[(size_t) (n_layers * rest_words_)]);
+    rstamp_.reset(new std::atomic<uint64_t>[(size_t) n_layers]);
+    for (int64_t i = 0; i < n_layers * rest_words_; ++i) rmask_[(size_t) i].store(0, std::memory_order_relaxed);
+    for (int64_t i = 0; i < n_layers; ++i) rstamp_[(size_t) i].store(0, std::memory_order_relaxed);
+    rsub_.assign((size_t) n_layers, 0);
+    rest_ = strata::program::PcopyRest(true);
+    std::fprintf(stderr, "strata lookahead: STRATA_PCOPY_REST_USAGE=1: the predictive copy rests for %d passes when under %d%% of %d predicted experts were routed\n",
+                 strata::program::kPcopyRestPasses, strata::program::kPcopyRestMinPct, strata::program::kPcopyRestWindow);
+}
+
+// the dispatch thread: score the prediction made for `layer` in this window (the experts it warmed against the experts the
+// layer routed) and hand the counts to the rest rule.  A prediction that has not finished by now (or was skipped, or the
+// predictor was busy) carries no vote.
+void RouterLookahead::rest_score(int64_t layer, const int32_t* ids, int64_t n) {
+    if (!rest_.on() || layer < 1 || layer >= (int64_t) rsub_.size() || ids == nullptr || n <= 0) return;
+    const uint64_t sub = rsub_[(size_t) layer];
+    if (sub == 0 || rstamp_[(size_t) layer].load(std::memory_order_acquire) != sub) return;
+    rsub_[(size_t) layer] = 0;
+    std::vector<uint64_t> act((size_t) rest_words_, 0);
+    for (int64_t i = 0; i < n; ++i) {
+        const int32_t e = ids[i];
+        if (e < 0 || e >= n_expert_) continue;
+        act[(size_t) (e >> 6)] |= 1ull << (e & 63);
+    }
+    int pred = 0, used = 0;
+    for (int64_t w = 0; w < rest_words_; ++w) {
+        const uint64_t pm = rmask_[(size_t) (layer * rest_words_ + w)].load(std::memory_order_relaxed);
+        pred += la_pc64(pm);
+        used += la_pc64(pm & act[(size_t) w]);
+    }
+    if (pred > 0 && rest_.record(pred, used))
+        std::fprintf(stderr, "strata lookahead: STRATA_PCOPY_REST_USAGE: %lld of %lld predicted experts were routed (%.1f%% < %d%%): the predictive copy rests for %d passes (rest #%lld)\n",
+                     (long long) rest_.last_used(), (long long) rest_.last_predicted(),
+                     100.0 * (double) rest_.last_used() / (double) std::max<int64_t>(1, rest_.last_predicted()),
+                     strata::program::kPcopyRestMinPct, strata::program::kPcopyRestPasses, (long long) rest_.rests());
 }
 
 void RouterLookahead::enable_stats(int64_t n_layers) {
@@ -3579,6 +3629,7 @@ void RouterLookahead::run() {
         const int32_t* host_res;   // res_: layer_'s row first (submit leaves it alone while busy_)
         ForesightSwap* fs;
         uint64_t sgen;
+        uint64_t rseq = 0;   // STRATA_PCOPY_REST_USAGE: this prediction's submit number (0: switch off)
         {
             std::unique_lock<std::mutex> lk(mu_);
             cv_.wait(lk, [&] { return quit_ || pending_; });
@@ -3590,6 +3641,7 @@ void RouterLookahead::run() {
             host_res = has_res_ ? res_.data() : nullptr;
             fs = fs_;
             sgen = sub_gen_;
+            rseq = sub_rseq_;
         }
         const auto t0 = std::chrono::steady_clock::now();
         const int64_t layer0 = layer;
@@ -3754,6 +3806,14 @@ void RouterLookahead::run() {
             for (int64_t i = 0; i < 3 * words_; ++i)
                 pmask_[(size_t) (layer * 3 * words_ + i)].store(sm[(size_t) i], std::memory_order_relaxed);
             pstamp_[(size_t) layer].store(sgen + 1, std::memory_order_release);
+        }
+        if (rseq != 0 && rmask_ != nullptr && dj == 0) {   // STRATA_PCOPY_REST_USAGE: the set this prediction warms, for rest_score
+            std::vector<uint64_t> rm((size_t) rest_words_, 0);
+            for (const int64_t e : want)
+                if (e >= 0 && e < n_expert_) rm[(size_t) (e >> 6)] |= 1ull << (e & 63);
+            for (int64_t i = 0; i < rest_words_; ++i)
+                rmask_[(size_t) (layer * rest_words_ + i)].store(rm[(size_t) i], std::memory_order_relaxed);
+            rstamp_[(size_t) layer].store(rseq, std::memory_order_release);
         }
         if (scored) src_->warm_scored(layer, want.data(), wconf.data(), (int64_t) want.size(), dj + 1);
         else src_->warm(layer, want.data(), (int64_t) want.size());
@@ -5706,6 +5766,7 @@ void expert_pool_dispatch_multi(ExpertDispatch& d, const float* x_f, const int32
     pred_dump().write(d.layers, x_f, n_tok, ids, k, d.host_res, d.n_expert);   // STRATA_PRED_DUMP (off: one null check)
     if (d.lookahead != nullptr) {
         if (d.lookahead->prev_on() && n_tok >= 1) d.lookahead->record_routing(d.layers, ids + (n_tok - 1) * k, k);   // STRATA_PREFETCH_PREV
+        if (d.lookahead->rest_on() && n_tok >= 1) d.lookahead->rest_score(d.layers, ids, n_tok * k);   // STRATA_PCOPY_REST_USAGE (S7)
         if (d.lookahead->stats_on()) {
             if (d.layers == 0) d.lookahead->stats_window_start();
             d.lookahead->stats_score(d.layers, ids, n_tok * k, d.host_res, d.pcie_num, x_f, k);
