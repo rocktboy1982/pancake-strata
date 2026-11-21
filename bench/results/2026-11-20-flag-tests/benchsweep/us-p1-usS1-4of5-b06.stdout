@@ -21,3 +21,61 @@ STARTDIAG 2026-11-21T06:11:17 prev_run_s=262 gap_s=387 rd_sect=146705353456 wr_s
 STARTLOAD 2026-11-21T06:12:01 loaded 33.02 GiB at 1.23 GiB/s rate=1.23
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.36 30.6 s (1.19 GiB/s; stopped; waited 11.7 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-m1              short 101.6 short 99.9 edit 167.0 edit 180.8 longdec64k 83.2/2164p 65241t  foreign CPU 7% [('kcompactd0', 10), ('kworker/0:2-events', 3), ('kswapd0', 2)]  gpu 1977/1249 MHz 61C 187W gtt 25M cpu 3602MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T06:13:03 prev_run_s=101 gap_s=106 rd_sect=146776976360 wr_sect=110763504 io_ticks_ms=113787324 d_rd_sect=71622904 d_wr_sect=64 d_io_ticks_ms=38301 cached_kb=13237620 mlocked_kb=64 memavail_kb=58061220 nvme_temp_c=51 compact_stall_d=6
+STARTLOAD 2026-11-21T06:13:50 loaded 33.02 GiB at 1.11 GiB/s rate=1.11
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 34.1 s (1.07 GiB/s; stopped; waited 11.2 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-POOL_UMWAIT_C02 short 107.5 short 103.0 edit 161.5 edit 183.5 longdec64k 83.6/2172p 65241t  foreign CPU 5% [('kcompactd0', 9), ('kswapd0', 2), ('kworker/1:2-events', 2)]  gpu 2043/1249 MHz 62C 185W gtt 25M cpu 3725MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+rep 0 plus-POOL_UMWAIT_C02: every attempt noisy, keeping the quietest (5% foreign CPU)
+STARTDIAG 2026-11-21T06:14:58 prev_run_s=109 gap_s=114 rd_sect=146868919536 wr_sect=110763568 io_ticks_ms=113831834 d_rd_sect=91943176 d_wr_sect=64 d_io_ticks_ms=44510 cached_kb=16495548 mlocked_kb=64 memavail_kb=58076476 nvme_temp_c=51 compact_stall_d=6
+STARTLOAD 2026-11-21T06:15:45 loaded 33.02 GiB at 1.09 GiB/s rate=1.09
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.39 33.7 s (1.08 GiB/s; stopped; waited 11.6 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 base-late            short 109.7 short 103.7 edit 169.2 edit 171.1 longdec64k 84.2/2173p 65241t  foreign CPU 4% [('kcompactd0', 10), ('kswapd0', 3), ('localsearch-3', 1)]  gpu 2043/1249 MHz 63C 184W gtt 25M cpu 3638MHz 66C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+
+summary (decode tok/s; prompt tok/s for long* but longdec*; mean +- 95% interval over clean runs, or the quietest attempt)
+  short  updated                 107.7 +-  16.5  (n=2)
+                              drafts accepted 0.72
+  short  plus-PF_WMMA2           101.1 +-  10.8  (n=2)   vs updated:  -6.2% +-  5.3%  -> worse
+                              drafts accepted 0.67
+  short  plus-PIPED_MTP          102.2 +-  14.6  (n=2)   vs updated:  -5.2% +-  1.8%  -> worse
+                              drafts accepted 0.70
+  short  base-m1                 100.8 +-  10.8  (n=2)   vs updated:  -6.5% +-  5.3%  -> worse
+                              drafts accepted 0.67
+  short  plus-POOL_UMWAIT_C02    105.2 +-  28.6  (n=2)   vs updated:  -2.3% +- 11.2%  -> no difference
+                              drafts accepted 0.70
+  short  base-late               106.7 +-  38.1  (n=2)   vs updated:  -0.9% +- 20.1%  -> no difference
+                              drafts accepted 0.71
+  edit   updated                 165.6 +-  40.0  (n=2)
+                              drafts accepted 0.89
+  edit   plus-PF_WMMA2           176.8 +-  38.1  (n=2)   vs updated:  +6.8% +-  1.2%  -> better
+                              drafts accepted 0.90
+  edit   plus-PIPED_MTP          150.1 +-  99.8  (n=2)   vs updated:  -9.4% +- 36.1%  -> no difference
+                              drafts accepted 0.91
+  edit   base-m1                 173.9 +-  87.7  (n=2)   vs updated:  +5.0% +- 28.8%  -> no difference
+                              drafts accepted 0.89
+  edit   plus-POOL_UMWAIT_C02    172.5 +- 139.8  (n=2)   vs updated:  +4.2% +- 60.3%  -> no difference
+                              drafts accepted 0.88
+  edit   base-late               170.1 +-  12.1  (n=2)   vs updated:  +2.8% +- 16.9%  -> no difference
+                              drafts accepted 0.89
+  longdec64k updated                  80.1 +-   nan  (n=1)
+  longdec64k plus-PF_WMMA2            47.6 +-   nan  (n=1)   vs updated: -40.6% +-  nan%  -> no difference
+  longdec64k plus-PIPED_MTP           59.9 +-   nan  (n=1)   vs updated: -25.2% +-  nan%  -> no difference
+  longdec64k base-m1                  83.2 +-   nan  (n=1)   vs updated:  +3.9% +-  nan%  -> no difference
+  longdec64k plus-POOL_UMWAIT_C02     83.6 +-   nan  (n=1)   vs updated:  +4.4% +-  nan%  -> no difference
+  longdec64k base-late                84.2 +-   nan  (n=1)   vs updated:  +5.1% +-  nan%  -> no difference
+
+generated text vs base (identical = exact: no quality gate needed; long* cases are not compared: unique prompt prefix per request)
+  plus-PF_WMMA2        DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-PIPED_MTP       DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-m1              DIFFERENT text -> lossy or placement-dependent: quality gate
+  plus-POOL_UMWAIT_C02 DIFFERENT text -> lossy or placement-dependent: quality gate
+  base-late            DIFFERENT text -> lossy or placement-dependent: quality gate
+
+screen verdict (promote: > 0% on a case and no case below -3%; else drop)
+  base drift (late base run vs early): short -0.9%  edit +2.8%  longdec64k +5.1%  -> ORDER EFFECT (more than 5%): arms are judged against the mean of both base runs, treat every PROMOTE below as unconfirmed
+  plus-PF_WMMA2        short -5.7%  edit +5.3%  longdec64k -42.1%  -> drop
+  plus-PIPED_MTP       short -4.7%  edit -10.6%  longdec64k -27.1%  -> drop
+  base-m1              short -6.0%  edit +3.6%  longdec64k +1.3%  -> drop
+  plus-POOL_UMWAIT_C02 short -1.8%  edit +2.8%  longdec64k +1.8%  -> PROMOTE to confirm
