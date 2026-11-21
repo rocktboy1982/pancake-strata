@@ -3,3 +3,15 @@ STARTDIAG 2026-11-21T09:09:18 prev_run_s=NA gap_s=NA rd_sect=152186119232 wr_sec
 STARTLOAD 2026-11-21T09:10:08 loaded 33.02 GiB at 1.02 GiB/s rate=1.02
 PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 25.14 36.9 s (0.68 GiB/s; stopped; waited 11.4 s for the arena)
   longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 warmup               short 106.3 short 103.7 edit 169.5 edit 171.8 longdec64k 84.3/2168p 65240t  foreign CPU 6% [('claude', 9), ('kcompactd0', 4), ('kworker/1:3-mm_percpu_wq', 3)]  gpu 2043/1249 MHz 61C 184W gtt 25M cpu 3674MHz 65C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T09:11:15 prev_run_s=112 gap_s=117 rd_sect=152285260728 wr_sect=110769648 io_ticks_ms=118021611 d_rd_sect=99141496 d_wr_sect=96 d_io_ticks_ms=46969 cached_kb=16142512 mlocked_kb=64 memavail_kb=58080820 nvme_temp_c=51 compact_stall_d=10
+STARTLOAD 2026-11-21T09:12:02 loaded 33.02 GiB at 1.11 GiB/s rate=1.11
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.41 33.2 s (1.10 GiB/s; stopped; waited 12.1 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 updated              short 107.3 short 103.7 edit 170.0 edit 168.1 longdec64k 81.9/2172p 65240t  foreign CPU 4% [('kcompactd0', 8), ('kswapd0', 2), ('kworker/9:0-mm_percpu_wq', 1)]  gpu 2043/1249 MHz 62C 185W gtt 25M cpu 3799MHz 64C igpu 0%/vcn 0% fclk 1600  NOISY -> repeat
+STARTDIAG 2026-11-21T09:13:10 prev_run_s=109 gap_s=115 rd_sect=152364491160 wr_sect=110769760 io_ticks_ms=118062716 d_rd_sect=79230432 d_wr_sect=112 d_io_ticks_ms=41105 cached_kb=14312236 mlocked_kb=64 memavail_kb=58064588 nvme_temp_c=51 compact_stall_d=16
+STARTLOAD 2026-11-21T09:14:00 loaded 33.02 GiB at 1.00 GiB/s rate=1.00
+PREFETCH Qwen3.8-Flash-Next-GSQ-RCO-IQ2_XS-00001-of-00002.gguf 36.36 36.9 s (0.99 GiB/s; stopped; waited 11.4 s for the arena)
+  longdec64k: 65214 prompt tokens by count_tokens (target 64000)
+rep 0 plus-Q8_GATHER_WIDE  short 108.7 short 103.0 edit 161.5 edit 183.0 longdec64k 80.3/2188p 65240t  foreign CPU 3% [('kcompactd0', 2), ('kswapd0', 1), ('kworker/2:2-mm_percpu_wq', 1)]  gpu 2041/1249 MHz 63C 187W gtt 25M cpu 3796MHz 64C igpu 0%/vcn 0% fclk 1600
+STARTDIAG 2026-11-21T09:15:05 prev_run_s=110 gap_s=115 rd_sect=152456685448 wr_sect=110769872 io_ticks_ms=118108266 d_rd_sect=92194288 d_wr_sect=112 d_io_ticks_ms=45550 cached_kb=16970260 mlocked_kb=64 memavail_kb=58070984 nvme_temp_c=51 compact_stall_d=13
